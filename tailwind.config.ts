@@ -64,8 +64,8 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				intranet: {
-					'primary': '#800020', // Maroon instead of blue
-					'secondary': '#4A0011', // Darker maroon
+					'primary': '#600018', // Darker maroon
+					'secondary': '#4A0011', // Even darker maroon
 					'accent': '#ff6b6b',
 					'light': '#f8f9fa',
 					'card': '#ffffff',

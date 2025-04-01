@@ -40,8 +40,8 @@ const MainSidebar = () => {
   navItems.push({ icon: Settings, path: '/settings', label: 'Settings' });
 
   return (
-    <div className="fixed inset-y-0 left-0 w-20 bg-intranet-primary flex flex-col items-center py-6 z-10 dark:bg-intranet-dark">
-      <div className="mb-10">
+    <div className="fixed inset-y-0 left-0 w-20 bg-gradient-to-b from-intranet-primary to-intranet-secondary flex flex-col items-center py-6 z-10 shadow-lg dark:from-intranet-secondary dark:to-black">
+      <div className="mb-10 animate-fade-in">
         <div className="text-white font-bold text-center">
           <div className="mb-1">SCPNG</div>
           <div className="text-xs">Intranet</div>
@@ -56,12 +56,13 @@ const MainSidebar = () => {
               key={index} 
               to={item.path}
               className={cn(
-                "flex flex-col items-center text-white/80 hover:text-white transition-colors group", 
+                "flex flex-col items-center text-white/80 hover:text-white transition-colors group animate-slide-in", 
                 isActive && "text-white"
               )}
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
               <div className={cn(
-                "p-2 rounded-lg group-hover:bg-white/10 transition-colors",
+                "p-3 rounded-lg group-hover:bg-white/10 transition-all duration-200 icon-hover-effect",
                 isActive && "bg-white/10"
               )}>
                 <item.icon size={20} />
@@ -74,9 +75,9 @@ const MainSidebar = () => {
       
       <button 
         onClick={logout}
-        className="flex flex-col items-center text-white/80 hover:text-white transition-colors group mt-auto mb-6"
+        className="flex flex-col items-center text-white/80 hover:text-white transition-colors group mt-auto mb-6 icon-hover-effect"
       >
-        <div className="p-2 rounded-lg group-hover:bg-white/10 transition-colors">
+        <div className="p-3 rounded-lg group-hover:bg-white/10 transition-colors">
           <LogOut size={20} />
         </div>
         <span className="text-xs mt-1">Logout</span>

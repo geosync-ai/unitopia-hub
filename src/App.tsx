@@ -11,6 +11,10 @@ import News from "./pages/News";
 import AIHub from "./pages/AIHub";
 import Admin from "./pages/Admin";
 import Settings from "./pages/Settings";
+import Documents from "./pages/Documents";
+import Contacts from "./pages/Contacts";
+import Organization from "./pages/Organization";
+import Calendar from "./pages/Calendar";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -34,7 +38,11 @@ const AppRoutes = () => {
       
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/news" element={<ProtectedRoute><News /></ProtectedRoute>} />
+      <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       <Route path="/ai-hub" element={<ProtectedRoute><AIHub /></ProtectedRoute>} />
+      <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
+      <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       
