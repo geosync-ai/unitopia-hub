@@ -15,7 +15,7 @@ interface ProgressChartProps {
 
 const ProgressChart: React.FC<ProgressChartProps> = ({ title, items }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 animate-fade-in">
+    <div className="bg-white rounded-xl shadow-sm p-4 animate-fade-in dark:bg-gray-800">
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
       
       <div className="space-y-4">
@@ -36,7 +36,7 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ title, items }) => {
       </div>
       
       <div className="flex justify-center mt-6">
-        <button className="text-intranet-primary text-sm border border-intranet-primary rounded-lg py-2 px-4 hover:bg-intranet-primary hover:text-white transition-colors flex items-center gap-1">
+        <button className="text-intranet-primary text-sm border border-intranet-primary rounded-lg py-2 px-4 hover:bg-intranet-primary hover:text-white transition-colors flex items-center gap-1 dark:hover:bg-intranet-primary/80">
           <span>Add plan</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

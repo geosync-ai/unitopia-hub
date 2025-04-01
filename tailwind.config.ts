@@ -64,15 +64,16 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				intranet: {
-					'primary': '#4169e1',
-					'secondary': '#6495ed',
+					'primary': '#800020', // Maroon instead of blue
+					'secondary': '#4A0011', // Darker maroon
 					'accent': '#ff6b6b',
 					'light': '#f8f9fa',
 					'card': '#ffffff',
 					'text': '#212529',
 					'success': '#4caf50',
 					'warning': '#ff9800',
-					'danger': '#f44336'
+					'danger': '#f44336',
+					'dark': '#121212' // Black base
 				}
 			},
 			borderRadius: {

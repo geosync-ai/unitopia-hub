@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   FileText, 
@@ -10,10 +10,17 @@ import {
   Calendar, 
   Settings, 
   Database, 
-  MessageSquare
+  MessageSquare, 
+  FileArchive,
+  LogOut
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 const MainSidebar = () => {
+  const location = useLocation();
+  const { user, isAdmin, logout } = useAuth();
+  
   const navItems = [
     { icon: Home, path: '/', label: 'Home' },
     { icon: Bell, path: '/news', label: 'News' },
@@ -22,12 +29,18 @@ const MainSidebar = () => {
     { icon: Users, path: '/contacts', label: 'Contacts' },
     { icon: BarChart2, path: '/organization', label: 'Organization' },
     { icon: Calendar, path: '/calendar', label: 'Calendar' },
-    { icon: Database, path: '/admin', label: 'Admin' },
-    { icon: Settings, path: '/settings', label: 'Settings' },
   ];
+  
+  // Show admin link only to admins
+  if (isAdmin) {
+    navItems.push({ icon: Database, path: '/admin', label: 'Admin' });
+  }
+  
+  // Always show settings at the end
+  navItems.push({ icon: Settings, path: '/settings', label: 'Settings' });
 
   return (
-    <div className="fixed inset-y-0 left-0 w-20 bg-intranet-primary flex flex-col items-center py-6 z-10">
+    <div className="fixed inset-y-0 left-0 w-20 bg-intranet-primary flex flex-col items-center py-6 z-10 dark:bg-intranet-dark">
       <div className="mb-10">
         <div className="text-white font-bold text-center">
           <div className="mb-1">SCPNG</div>
@@ -35,20 +48,39 @@ const MainSidebar = () => {
         </div>
       </div>
       
-      <div className="flex flex-col items-center space-y-8 mt-4">
-        {navItems.map((item, index) => (
-          <Link 
-            key={index} 
-            to={item.path}
-            className="flex flex-col items-center text-white hover:text-intranet-light transition-colors group"
-          >
-            <div className="p-2 rounded-lg group-hover:bg-white/10 transition-colors">
-              <item.icon size={20} />
-            </div>
-            <span className="text-xs mt-1">{item.label}</span>
-          </Link>
-        ))}
+      <div className="flex flex-col items-center space-y-6 mt-4 flex-1">
+        {navItems.map((item, index) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link 
+              key={index} 
+              to={item.path}
+              className={cn(
+                "flex flex-col items-center text-white/80 hover:text-white transition-colors group", 
+                isActive && "text-white"
+              )}
+            >
+              <div className={cn(
+                "p-2 rounded-lg group-hover:bg-white/10 transition-colors",
+                isActive && "bg-white/10"
+              )}>
+                <item.icon size={20} />
+              </div>
+              <span className="text-xs mt-1">{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
+      
+      <button 
+        onClick={logout}
+        className="flex flex-col items-center text-white/80 hover:text-white transition-colors group mt-auto mb-6"
+      >
+        <div className="p-2 rounded-lg group-hover:bg-white/10 transition-colors">
+          <LogOut size={20} />
+        </div>
+        <span className="text-xs mt-1">Logout</span>
+      </button>
     </div>
   );
 };
