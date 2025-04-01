@@ -7,6 +7,8 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import Calendar from '@/components/dashboard/Calendar';
 import ProgressChart from '@/components/dashboard/ProgressChart';
 import ScheduledEvents from '@/components/dashboard/ScheduledEvents';
+import NoticeBoard from '@/components/dashboard/NoticeBoard';
+import OrganizationalOverview from '@/components/dashboard/OrganizationalOverview';
 
 const Index = () => {
   // Mock data
@@ -97,6 +99,14 @@ const Index = () => {
                 color={metric.color}
               />
             ))}
+          </div>
+          
+          <div className="mt-6">
+            <NoticeBoard />
+          </div>
+          
+          <div className="mt-6">
+            <OrganizationalOverview />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">

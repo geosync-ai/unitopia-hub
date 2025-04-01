@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock } from 'lucide-react';
+import DonutChart from '@/components/organization/DonutChart';
+import BarChart from '@/components/organization/BarChart';
 
 const Organization = () => {
   // Mock data for Mission and Vision
@@ -147,6 +149,22 @@ const Organization = () => {
       progress: 58
     },
   ];
+  
+  // Data for donut chart
+  const kpiStatusData = [
+    { name: "On Track", value: 5, color: "#4CAF50" },
+    { name: "Needs Attention", value: 2, color: "#FFC107" },
+    { name: "At Risk", value: 1, color: "#FF5252" }
+  ];
+  
+  // Data for bar chart
+  const kpiProgressData = [
+    { name: "Financial", current: 71, target: 85 },
+    { name: "Customers", current: 86, target: 90 },
+    { name: "Internal", current: 58, target: 95 },
+    { name: "Innovation", current: 90, target: 100 },
+    { name: "People", current: 77, target: 85 }
+  ];
 
   return (
     <PageLayout>
@@ -156,7 +174,7 @@ const Organization = () => {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card className="gradient-card animate-fade-in">
+        <Card className="bg-gradient-to-br from-card to-muted/80 animate-fade-in">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Flag className="h-5 w-5 text-intranet-primary" />
@@ -229,6 +247,22 @@ const Organization = () => {
             </Card>
           ))}
         </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <DonutChart 
+          title="KPI Status Distribution" 
+          description="Current status of all key performance indicators"
+          data={kpiStatusData}
+        />
+        
+        <BarChart
+          title="KPI Progress by Area"
+          description="Current vs target performance by key result area"
+          data={kpiProgressData}
+          xAxisLabel="Key Result Areas"
+          yAxisLabel="Progress (%)"
+        />
       </div>
       
       <Card className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
