@@ -29,7 +29,7 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ title, items }) => {
               value={item.value} 
               className="h-2"
               style={{ backgroundColor: '#f1f1f1' }}
-              indicatorStyle={{ backgroundColor: item.color }}
+              indicatorClassName={`bg-[${item.color}]`}
             />
           </div>
         ))}
