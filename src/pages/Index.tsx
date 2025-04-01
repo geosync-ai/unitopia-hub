@@ -9,6 +9,7 @@ import ProgressChart from '@/components/dashboard/ProgressChart';
 import ScheduledEvents from '@/components/dashboard/ScheduledEvents';
 import NoticeBoard from '@/components/dashboard/NoticeBoard';
 import OrganizationalOverview from '@/components/dashboard/OrganizationalOverview';
+import QuickAccess from '@/components/dashboard/QuickAccess';
 
 const Index = () => {
   // Mock data
@@ -77,8 +78,9 @@ const Index = () => {
 
   return (
     <PageLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Main content - 8 columns */}
+        <div className="lg:col-span-8">
           <WelcomeCard 
             name={userName.split(' ')[0]} 
             date={currentDate} 
@@ -101,14 +103,6 @@ const Index = () => {
             ))}
           </div>
           
-          <div className="mt-6">
-            <NoticeBoard />
-          </div>
-          
-          <div className="mt-6">
-            <OrganizationalOverview />
-          </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <ScheduledEvents 
               businessPercentage={95} 
@@ -119,9 +113,14 @@ const Index = () => {
               items={progressItems} 
             />
           </div>
+          
+          <div className="mt-6">
+            <OrganizationalOverview />
+          </div>
         </div>
         
-        <div className="space-y-6">
+        {/* Right sidebar - 4 columns */}
+        <div className="lg:col-span-4 space-y-6">
           <UserProfile 
             name={userName}
             title="Team Lead"
@@ -132,6 +131,10 @@ const Index = () => {
           />
           
           <Calendar events={calendarEvents} />
+          
+          <QuickAccess />
+          
+          <NoticeBoard />
         </div>
       </div>
     </PageLayout>

@@ -2,12 +2,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Building } from 'lucide-react';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [businessUnit, setBusinessUnit] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -27,6 +29,18 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  const businessUnits = [
+    "HR",
+    "Finance",
+    "Legal",
+    "Research and Publication",
+    "IT",
+    "Market Data",
+    "Licensing",
+    "Supervision",
+    "Chairman"
+  ];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-intranet-primary to-intranet-secondary p-4 dark:from-intranet-dark dark:to-intranet-primary">
@@ -52,9 +66,6 @@ const Login = () => {
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-intranet-primary dark:bg-gray-800 dark:text-white"
                   placeholder="admin@scpng.com"
                 />
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Demo accounts: admin@scpng.com, manager@finance.scpng.com, user@hr.scpng.com
-                </div>
               </div>
               
               <div>
@@ -82,6 +93,45 @@ const Login = () => {
               </div>
               
               <div>
+                <label htmlFor="business-unit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Business Unit
+                </label>
+                <Select value={businessUnit} onValueChange={setBusinessUnit}>
+                  <SelectTrigger id="business-unit" className="w-full border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-intranet-primary dark:bg-gray-800 dark:text-white">
+                    <div className="flex items-center gap-2">
+                      <Building size={16} className="text-intranet-primary" />
+                      <SelectValue placeholder="Select a business unit" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Business Units</SelectLabel>
+                      {businessUnits.map(unit => (
+                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    className="h-4 w-4 text-intranet-primary focus:ring-intranet-primary border-gray-300 rounded"
+                  />
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    Remember me
+                  </label>
+                </div>
+                <a href="#" className="text-sm font-medium text-intranet-primary hover:text-intranet-secondary">
+                  Forgot password?
+                </a>
+              </div>
+              
+              <div>
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -89,6 +139,10 @@ const Login = () => {
                 >
                   {isLoading ? 'Signing in...' : 'Sign in'}
                 </button>
+              </div>
+              
+              <div className="mt-1 text-xs text-center text-gray-500 dark:text-gray-400">
+                Demo accounts: admin@scpng.com, manager@finance.scpng.com, user@hr.scpng.com
               </div>
             </div>
           </form>

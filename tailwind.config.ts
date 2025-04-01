@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -64,8 +63,8 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				intranet: {
-					'primary': '#400010', // Darker maroon
-					'secondary': '#200008', // Even darker maroon
+					'primary': '#600020', // Lightened from #400010
+					'secondary': '#380015', // Lightened from #200008
 					'accent': '#ff6b6b',
 					'light': '#f8f9fa',
 					'card': '#ffffff',
@@ -73,7 +72,7 @@ export default {
 					'success': '#4caf50',
 					'warning': '#ff9800',
 					'danger': '#f44336',
-					'dark': '#121212' // Black base
+					'dark': '#1e1e1e' // Slightly lightened dark
 				}
 			},
 			borderRadius: {
