@@ -15,7 +15,7 @@ import {
   FileText, 
   File, 
   FileImage, 
-  FilePdf, 
+  FileType, 
   FileArchive, 
   Download, 
   Share2, 
@@ -39,7 +39,7 @@ const Documents = () => {
     { 
       id: 1, 
       name: 'Strategic Plan 2023.pdf', 
-      icon: FilePdf,
+      icon: FileType,
       type: 'PDF', 
       size: '2.4 MB', 
       owner: 'Thomas Smith', 
