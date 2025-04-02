@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth, User, UserRole } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash, UserPlus, Save, X, Upload, Bell, Palette, Robot, Settings as SettingsIcon } from 'lucide-react';
+import { Pencil, Trash, UserPlus, Save, X, Upload, Bell, Palette, Bot, Settings as SettingsIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -80,6 +79,10 @@ const AdminPage = () => {
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
   const [themeColors, setThemeColors] = useState(defaultThemes);
   
+  // Form instances for different dialogs
+  const emailForm = useForm();
+  const aiConfigForm = useForm();
+  
   // Redirect if not admin
   if (!isAuthenticated || !isAdmin) {
     return <Navigate to="/login" />;
@@ -150,11 +153,6 @@ const AdminPage = () => {
     setShowEmailDialog(true);
   };
   
-  const saveEmailSettings = (data: any) => {
-    toast.success(`Email notification settings updated for ${selectedUser?.name}`);
-    setShowEmailDialog(false);
-  };
-  
   const configureAI = (unitId: string, aiType: string) => {
     setSelectedAIConfig({ unitId, aiType });
     setShowAIConfigDialog(true);
@@ -184,6 +182,11 @@ const AdminPage = () => {
     root.style.setProperty('--foreground', theme.text);
   };
 
+  const saveEmailSettings = (data: any) => {
+    toast.success(`Email notification settings updated for ${selectedUser?.name}`);
+    setShowEmailDialog(false);
+  };
+  
   return (
     <PageLayout>
       <h1 className="text-2xl font-bold mb-6">Admin Console</h1>
@@ -637,7 +640,7 @@ const AdminPage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Robot size={20} />
+                <Bot size={20} />
                 <span>AI Configuration</span>
               </CardTitle>
               <CardDescription>
@@ -747,479 +750,4 @@ const AdminPage = () => {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">Custom Knowledge</label>
-                      <Textarea 
-                        className="h-40"
-                        placeholder="Add custom knowledge for AI to use across the organization..."
-                      />
-                      <div className="flex justify-end mt-2">
-                        <Button size="sm">Save Knowledge Base</Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* NOTIFICATIONS TAB */}
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell size={20} />
-                <span>Notification Management</span>
-              </CardTitle>
-              <CardDescription>
-                Configure email notifications and alerts
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-3">System Notification Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <h4 className="font-medium">Document Uploads</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Notify when files are uploaded</p>
-                        </div>
-                        <div className="relative inline-block w-10 align-middle select-none">
-                          <input type="checkbox" id="toggle-doc-uploads" className="sr-only" defaultChecked />
-                          <label
-                            htmlFor="toggle-doc-uploads"
-                            className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer bg-intranet-primary"
-                          >
-                            <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <h4 className="font-medium">KPI Updates</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Notify when KPIs are updated</p>
-                        </div>
-                        <div className="relative inline-block w-10 align-middle select-none">
-                          <input type="checkbox" id="toggle-kpi-updates" className="sr-only" defaultChecked />
-                          <label
-                            htmlFor="toggle-kpi-updates"
-                            className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer bg-intranet-primary"
-                          >
-                            <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <h4 className="font-medium">User Account Changes</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Notify about account modifications</p>
-                        </div>
-                        <div className="relative inline-block w-10 align-middle select-none">
-                          <input type="checkbox" id="toggle-account-changes" className="sr-only" defaultChecked />
-                          <label
-                            htmlFor="toggle-account-changes"
-                            className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer bg-intranet-primary"
-                          >
-                            <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <h4 className="font-medium">AI Report Generation</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Notify when AI generates reports</p>
-                        </div>
-                        <div className="relative inline-block w-10 align-middle select-none">
-                          <input type="checkbox" id="toggle-ai-reports" className="sr-only" />
-                          <label
-                            htmlFor="toggle-ai-reports"
-                            className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"
-                          >
-                            <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform translate-x-0"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <h4 className="font-medium">System Maintenance</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Notify about scheduled maintenance</p>
-                        </div>
-                        <div className="relative inline-block w-10 align-middle select-none">
-                          <input type="checkbox" id="toggle-maintenance" className="sr-only" defaultChecked />
-                          <label
-                            htmlFor="toggle-maintenance"
-                            className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer bg-intranet-primary"
-                          >
-                            <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <h4 className="font-medium">Login Attempts</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Notify about suspicious login attempts</p>
-                        </div>
-                        <div className="relative inline-block w-10 align-middle select-none">
-                          <input type="checkbox" id="toggle-login" className="sr-only" defaultChecked />
-                          <label
-                            htmlFor="toggle-login"
-                            className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer bg-intranet-primary"
-                          >
-                            <span className="block h-6 w-6 rounded-full bg-white shadow transform transition-transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Business Unit Notification Recipients</h3>
-                  <div className="space-y-4">
-                    {mockUnits.map(unit => (
-                      <div key={unit.id} className="border rounded-lg p-4 dark:border-gray-700">
-                        <h4 className="font-medium mb-3">{unit.name}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Main Recipients (comma separated)</label>
-                            <Input 
-                              defaultValue={unit.id === 'finance' ? 'manager@finance.scpng.com, reports@finance.scpng.com' : ''}
-                              placeholder="email@example.com, another@example.com"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">CC Recipients (comma separated)</label>
-                            <Input 
-                              defaultValue={unit.id === 'it' ? 'admin@scpng.com' : ''}
-                              placeholder="email@example.com, another@example.com"
-                            />
-                          </div>
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="flex items-center space-x-2">
-                            <input type="checkbox" id={`${unit.id}-doc-uploads`} defaultChecked />
-                            <label htmlFor={`${unit.id}-doc-uploads`} className="text-sm">Document Uploads</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="checkbox" id={`${unit.id}-kpi-updates`} defaultChecked />
-                            <label htmlFor={`${unit.id}-kpi-updates`} className="text-sm">KPI Updates</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="checkbox" id={`${unit.id}-reports`} />
-                            <label htmlFor={`${unit.id}-reports`} className="text-sm">AI Reports</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="checkbox" id={`${unit.id}-system`} />
-                            <label htmlFor={`${unit.id}-system`} className="text-sm">System Alerts</label>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="flex justify-end">
-                  <Button>Save Notification Settings</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* BUSINESS UNITS TAB */}
-        <TabsContent value="units">
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Units</CardTitle>
-              <CardDescription>
-                Manage business units and their configurations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {mockUnits.map(unit => (
-                    <div key={unit.id} className="border rounded-lg p-4 dark:border-gray-700">
-                      <h3 className="font-medium text-lg mb-3">{unit.name}</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Email Domain</label>
-                          <Input value={`${unit.id}.scpng.com`} />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Unit-Specific Knowledge</label>
-                          <textarea
-                            rows={2}
-                            className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                            placeholder="Custom knowledge for this unit"
-                          ></textarea>
-                        </div>
-                        <div className="pt-2">
-                          <Button size="sm" variant="outline" className="mr-2">Edit</Button>
-                          <Button size="sm" variant="destructive">Delete</Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="border rounded-lg p-4 border-dashed flex items-center justify-center dark:border-gray-700">
-                    <Button variant="outline" className="h-24 w-full">
-                      <span className="flex flex-col items-center">
-                        <UserPlus className="mb-2" />
-                        Add New Business Unit
-                      </span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-      
-      {/* Password Reset Dialog */}
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Generated Password</DialogTitle>
-            <DialogDescription>
-              A new password has been generated for {selectedUser?.name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-md mt-2">
-            <code className="font-mono">{generatedPassword}</code>
-            <Button variant="ghost" size="sm" onClick={() => copyToClipboard(generatedPassword)}>
-              Copy
-            </Button>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            Make sure to share this password securely with the user. It will not be shown again.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>Close</Button>
-            <Button onClick={() => {
-              toast.success(`Password reset for ${selectedUser?.name}`);
-              setShowPasswordDialog(false);
-            }}>
-              Apply Password
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Email Notification Dialog */}
-      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Email Notifications</DialogTitle>
-            <DialogDescription>
-              Configure email notification settings for {selectedUser?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form
-            onSubmit={(e) => {
-              e.preventDefault();
-              saveEmailSettings({});
-            }}
-          >
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Notification Types</h4>
-                <div className="space-y-2">
-                  {['Document Uploads', 'KPI Updates', 'System Alerts', 'Calendar Events', 'AI Reports'].map((item) => (
-                    <div key={item} className="flex items-center justify-between border p-2 rounded-md">
-                      <span className="text-sm">{item}</span>
-                      <Switch defaultChecked={item !== 'AI Reports'} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Notification Email</label>
-                <Input defaultValue={selectedUser?.email} />
-                <p className="text-xs text-gray-500 mt-1">Leave empty to use account email</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Notification Frequency</label>
-                <select className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
-                  <option value="immediate">Immediate</option>
-                  <option value="daily">Daily Digest</option>
-                  <option value="weekly">Weekly Summary</option>
-                </select>
-              </div>
-            </div>
-            
-            <DialogFooter className="mt-4">
-              <Button variant="outline" type="button" onClick={() => setShowEmailDialog(false)}>Cancel</Button>
-              <Button type="submit">Save Settings</Button>
-            </DialogFooter>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* AI Configuration Dialog */}
-      <Dialog open={showAIConfigDialog} onOpenChange={setShowAIConfigDialog}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>AI Configuration</DialogTitle>
-            <DialogDescription>
-              Configure AI settings for {selectedAIConfig ? 
-                `${mockUnits.find(u => u.id === selectedAIConfig.unitId)?.name} - 
-                ${aiAssistantTypes.find(a => a.id === selectedAIConfig.aiType)?.name}` : ''}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form
-            onSubmit={(e) => {
-              e.preventDefault();
-              saveAIConfig({});
-            }}
-          >
-            <div className="space-y-6 py-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">AI Provider</label>
-                    <select className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
-                      {apiProviders.filter(p => p.enabled).map(provider => (
-                        <option key={provider.id} value={provider.id}>{provider.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Model Configuration</label>
-                    <select className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
-                      <option value="default">Default</option>
-                      <option value="economy">Economy (Faster)</option>
-                      <option value="advanced">Advanced (More Capable)</option>
-                      <option value="custom">Custom Configuration</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium">Enable this AI Assistant</label>
-                      <Switch defaultChecked />
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      When disabled, users in this business unit won't be able to access this assistant
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Response Style</label>
-                    <select className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
-                      <option value="professional">Professional</option>
-                      <option value="friendly">Friendly</option>
-                      <option value="technical">Technical</option>
-                      <option value="simple">Simple</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Knowledge Base Prompt</label>
-                    <Textarea 
-                      className="h-24"
-                      placeholder="Add custom instructions for this AI assistant..."
-                      defaultValue={
-                        selectedAIConfig?.unitId === 'finance' && selectedAIConfig?.aiType === 'data' ?
-                        "You are a finance-specialized assistant for SCPNG. Always refer to financial regulations and provide accurate data analysis." : ""
-                      }
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      These instructions will guide how the AI responds to queries
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium">Custom Knowledge Files</label>
-                      <Button size="sm" variant="outline">
-                        <Upload className="h-4 w-4 mr-1" />
-                        Upload
-                      </Button>
-                    </div>
-                    
-                    <div className="border rounded-md p-2 h-20 overflow-y-auto bg-gray-50 dark:bg-gray-800">
-                      <div className="text-sm text-gray-500 flex items-center justify-center h-full">
-                        {selectedAIConfig?.unitId === 'finance' && selectedAIConfig?.aiType === 'data' ? (
-                          <div className="w-full space-y-1">
-                            <div className="flex justify-between items-center p-1 bg-gray-100 dark:bg-gray-700 rounded">
-                              <span className="text-xs">financial_regulations.pdf</span>
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0">×</Button>
-                            </div>
-                            <div className="flex justify-between items-center p-1 bg-gray-100 dark:bg-gray-700 rounded">
-                              <span className="text-xs">kpi_definitions.docx</span>
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0">×</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          "No files uploaded"
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Usage Limits</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Max tokens per request</label>
-                        <Input type="number" defaultValue="4000" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Requests per user/day</label>
-                        <Input type="number" defaultValue="50" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Advanced Settings</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="save-conversations" defaultChecked />
-                    <label htmlFor="save-conversations" className="text-sm">Save conversations</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="allow-file-uploads" defaultChecked />
-                    <label htmlFor="allow-file-uploads" className="text-sm">Allow file uploads</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="log-usage" defaultChecked />
-                    <label htmlFor="log-usage" className="text-sm">Log usage statistics</label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <DialogFooter className="mt-4">
-              <Button variant="outline" type="button" onClick={() => setShowAIConfigDialog(false)}>Cancel</Button>
-              <Button variant="destructive" type="button" className="mr-auto">Reset to Default</Button>
-              <Button type="submit">Save Configuration</Button>
-            </DialogFooter>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </PageLayout>
-  );
-};
-
-export default AdminPage;
+                      <label className="block text-sm text-gray-600 dark:text-gray-4
