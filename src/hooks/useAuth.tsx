@@ -9,96 +9,88 @@ export interface User {
   name: string;
   role: UserRole;
   unitId?: string;
-  unitName?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  isAuthenticated: boolean;
   isAdmin: boolean;
   isManager: boolean;
-  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  businessUnits: {id: string, name: string}[];
+  selectedUnit: string | null;
+  setSelectedUnit: (unitId: string | null) => void;
 }
-
-const initialUsers: User[] = [
-  { 
-    id: '1', 
-    email: 'admin@scpng.com', 
-    name: 'Admin User', 
-    role: 'admin' 
-  },
-  { 
-    id: '2', 
-    email: 'manager@finance.scpng.com', 
-    name: 'Finance Manager', 
-    role: 'manager',
-    unitId: 'finance',
-    unitName: 'Finance Department'
-  },
-  { 
-    id: '3', 
-    email: 'user@hr.scpng.com', 
-    name: 'HR Staff', 
-    role: 'user',
-    unitId: 'hr',
-    unitName: 'Human Resources'
-  },
-  { 
-    id: '4', 
-    email: 'manager@it.scpng.com', 
-    name: 'IT Manager', 
-    role: 'manager',
-    unitId: 'it',
-    unitName: 'IT Department'
-  }
-];
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock admin user
+const adminUser: User = {
+  id: '1',
+  email: 'admin@scpng.com',
+  name: 'Admin User',
+  role: 'admin'
+};
+
+// Mock business units for SCPNG context
+const mockBusinessUnits = [
+  { id: 'hr', name: 'HR' },
+  { id: 'finance', name: 'Finance' },
+  { id: 'legal', name: 'Legal' },
+  { id: 'research', name: 'Research and Publication' },
+  { id: 'it', name: 'IT' },
+  { id: 'market', name: 'Market Data' },
+  { id: 'licensing', name: 'Licensing' },
+  { id: 'supervision', name: 'Supervision' },
+  { id: 'chairman', name: 'Chairman' }
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(adminUser); // Auto logged in for demo
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   
+  // Simulating persistent auth
   useEffect(() => {
-    // Check for saved user in localStorage on initialization
-    const savedUser = localStorage.getItem('scpng_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
   }, []);
-  
-  const login = async (email: string, password: string): Promise<void> => {
-    // For demo purposes, we'll just validate email format and find the user
-    // In a real app, this would verify credentials with a backend
-    if (!email.includes('@')) {
-      throw new Error('Invalid email format');
+
+  const login = async (email: string, password: string) => {
+    // In a real app, this would validate credentials against a backend
+    if (email && password) {
+      const loggedInUser = adminUser;
+      setUser(loggedInUser);
+      localStorage.setItem('user', JSON.stringify(loggedInUser));
+      return Promise.resolve();
     }
-    
-    const foundUser = initialUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('scpng_user', JSON.stringify(foundUser));
-    } else {
-      throw new Error('User not found');
-    }
+    return Promise.reject(new Error('Invalid credentials'));
   };
-  
+
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('scpng_user');
+    localStorage.removeItem('user');
   };
-  
-  const value = {
+
+  const authValue: AuthContextType = {
     user,
+    isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isManager: user?.role === 'manager',
-    isAuthenticated: !!user,
     login,
-    logout
+    logout,
+    businessUnits: mockBusinessUnits,
+    selectedUnit,
+    setSelectedUnit
   };
-  
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+
+  return (
+    <AuthContext.Provider value={authValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {

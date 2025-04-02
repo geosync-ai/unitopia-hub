@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Bookmark, FileText, Calendar, Users, Book, ExternalLink } from 'lucide-react';
+import { Bookmark, FileText, Calendar, Users, Book, ExternalLink, FileImage, Building, Target, Briefcase } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface QuickLinkProps {
@@ -64,10 +64,29 @@ const QuickAccess: React.FC = () => {
       url: "/documents"
     },
     {
-      icon: <ExternalLink size={18} />,
-      title: "External Resources",
-      description: "Industry references",
-      url: "/ai-hub"
+      icon: <FileImage size={18} />,
+      title: "Media Gallery",
+      description: "Recent company events",
+      url: "/gallery"
+    },
+    {
+      icon: <Building size={18} />,
+      title: "MRDC House",
+      description: "Headquarters information",
+      url: "/contacts"
+    },
+    {
+      icon: <Target size={18} />,
+      title: "Strategic Objectives",
+      description: "Company goals and KPIs",
+      badge: "Important",
+      url: "/organization"
+    },
+    {
+      icon: <Briefcase size={18} />,
+      title: "Business Units",
+      description: "Department structure",
+      url: "/organization"
     }
   ];
 

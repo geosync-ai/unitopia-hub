@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -95,8 +96,10 @@
 }
 
 @layer components {
+  /* Added option to persist animation state */
   .animate-fade-in {
     animation: fadeIn 0.6s ease-in-out;
+    animation-fill-mode: both; /* This ensures the final state is preserved */
   }
 
   .animate-slide-in {
@@ -209,13 +212,13 @@
 
 @keyframes badgePulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(96, 0, 24, 0.4);
+    box-shadow: 0 0 0 0 rgba(131, 0, 42, 0.4);
   }
   70% {
-    box-shadow: 0 0 0 5px rgba(96, 0, 24, 0);
+    box-shadow: 0 0 0 5px rgba(131, 0, 42, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(96, 0, 24, 0);
+    box-shadow: 0 0 0 0 rgba(131, 0, 42, 0);
   }
 }
 

@@ -12,14 +12,15 @@ import OrganizationalOverview from '@/components/dashboard/OrganizationalOvervie
 import QuickAccess from '@/components/dashboard/QuickAccess';
 
 const Index = () => {
-  // Mock data
-  const currentDate = new Date().toLocaleDateString('en-US', {
+  // Current date in Papua New Guinea format
+  const currentDate = new Date().toLocaleDateString('en-PG', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
+    timeZone: 'Pacific/Port_Moresby'
   });
 
   const userName = "John Anderson";
@@ -76,6 +77,14 @@ const Index = () => {
     { count: 3, label: "Meetings" },
   ];
 
+  // New KPI statistics for PNG context
+  const kpiStats = [
+    { label: "License Applications", value: 85, target: 100, color: "#83002A" },
+    { label: "Regulatory Compliance", value: 92, target: 95, color: "#4CAF50" },
+    { label: "Staff Training", value: 68, target: 80, color: "#FF9800" },
+    { label: "Stakeholder Engagement", value: 76, target: 90, color: "#4169E1" }
+  ];
+
   return (
     <PageLayout>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -85,6 +94,7 @@ const Index = () => {
             name={userName.split(' ')[0]} 
             date={currentDate} 
             greeting="Welcome to your SCPNG Intranet Dashboard" 
+            location="MRDC House, Port Moresby" // PNG location
           />
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
@@ -114,6 +124,37 @@ const Index = () => {
             />
           </div>
           
+          {/* KPI Statistics Section */}
+          <div className="mt-6 bg-white rounded-xl shadow-sm p-5 animate-fade-in">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Target className="h-5 w-5 text-intranet-primary mr-2" />
+              KPI Statistics
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {kpiStats.map((kpi, index) => (
+                <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-medium">{kpi.label}</span>
+                    <span className="text-sm font-medium">{kpi.value}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full">
+                    <div 
+                      className="h-2 rounded-full" 
+                      style={{ 
+                        width: `${kpi.value}%`,
+                        backgroundColor: kpi.color
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-gray-500">Progress</span>
+                    <span className="text-xs text-gray-500">Target: {kpi.target}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           <div className="mt-6">
             <OrganizationalOverview />
           </div>
@@ -124,7 +165,7 @@ const Index = () => {
           <UserProfile 
             name={userName}
             title="Team Lead"
-            location="Brisbane, Australia"
+            location="MRDC House, Port Moresby"
             dateOfBirth="14.05.83"
             bloodType="O(+)"
             workingHours="9am - 5pm"

@@ -1,153 +1,117 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff, Building } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [businessUnit, setBusinessUnit] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, businessUnits, setSelectedUnit } = useAuth();
+  const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('');
   const navigate = useNavigate();
+
+  if (isAuthenticated) {
+    return <Navigate to="/" />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       await login(email, password);
-      toast.success('Login successful');
+      setSelectedUnit(selectedBusinessUnit || null);
       navigate('/');
+      toast.success('Successfully logged in');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      toast.error('Invalid credentials');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const businessUnits = [
-    "HR",
-    "Finance",
-    "Legal",
-    "Research and Publication",
-    "IT",
-    "Market Data",
-    "Licensing",
-    "Supervision",
-    "Chairman"
-  ];
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-intranet-primary to-intranet-secondary p-4 dark:from-intranet-dark dark:to-intranet-primary">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-xl shadow-xl overflow-hidden">
-        <div className="p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">SCPNG Intranet</h1>
-            <p className="text-gray-600 dark:text-gray-400">Sign in to access your workspace</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-intranet-primary/90 to-intranet-secondary p-4">
+      <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm shadow-xl animate-fade-in">
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 rounded-full bg-intranet-primary flex items-center justify-center text-white text-xl font-bold">
+              SC
+            </div>
           </div>
-          
+          <CardTitle className="text-2xl font-bold">SCPNG Intranet Portal</CardTitle>
+          <CardDescription>
+            Enter your credentials to access the portal
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <form onSubmit={handleSubmit}>
-            <div className="space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  type="email"
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  placeholder="your.email@scpng.gov.pg" 
+                  type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-intranet-primary dark:bg-gray-800 dark:text-white"
-                  placeholder="admin@scpng.com"
                 />
               </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-intranet-primary dark:bg-gray-800 dark:text-white"
-                    placeholder="For demo, any password works"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </div>
-              
-              <div>
-                <label htmlFor="business-unit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Business Unit
-                </label>
-                <Select value={businessUnit} onValueChange={setBusinessUnit}>
-                  <SelectTrigger id="business-unit" className="w-full border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-intranet-primary dark:bg-gray-800 dark:text-white">
-                    <div className="flex items-center gap-2">
-                      <Building size={16} className="text-intranet-primary" />
-                      <SelectValue placeholder="Select a business unit" />
-                    </div>
+              <div className="space-y-2">
+                <Label htmlFor="business-unit">Business Unit</Label>
+                <Select 
+                  value={selectedBusinessUnit} 
+                  onValueChange={setSelectedBusinessUnit}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your business unit" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Business Units</SelectLabel>
-                      {businessUnits.map(unit => (
-                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                      ))}
-                    </SelectGroup>
+                    {businessUnits.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-intranet-primary focus:ring-intranet-primary border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Remember me
-                  </label>
-                </div>
-                <a href="#" className="text-sm font-medium text-intranet-primary hover:text-intranet-secondary">
-                  Forgot password?
-                </a>
-              </div>
-              
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-intranet-primary text-white font-medium py-2 px-4 rounded-lg hover:bg-intranet-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-intranet-primary disabled:opacity-50"
-                >
-                  {isLoading ? 'Signing in...' : 'Sign in'}
-                </button>
-              </div>
-              
-              <div className="mt-1 text-xs text-center text-gray-500 dark:text-gray-400">
-                Demo accounts: admin@scpng.com, manager@finance.scpng.com, user@hr.scpng.com
-              </div>
             </div>
+            <Button 
+              type="submit" 
+              className="w-full mt-6" 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Logging in...' : 'Sign in'}
+            </Button>
           </form>
-        </div>
-      </div>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2">
+          <div className="text-sm text-center text-gray-500">
+            <span>Authorized personnel only</span>
+          </div>
+          <div className="text-xs text-center text-gray-400">
+            <span>SCPNG Intranet Portal © {new Date().getFullYear()}</span>
+          </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

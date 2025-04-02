@@ -36,7 +36,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
       <MainSidebar />
       
       <div className="ml-0 md:ml-20 p-4 sm:p-6 lg:p-8 animate-fade-in">
-        <header className="flex items-center justify-between mb-6 bg-gradient-to-r from-intranet-primary to-intranet-secondary p-3 rounded-2xl shadow-md">
+        <header className="flex items-center justify-between mb-6 bg-gradient-to-r from-intranet-primary to-intranet-secondary p-3 rounded-3xl shadow-md">
           {isMobile && (
             <Button 
               variant="ghost" 
@@ -89,7 +89,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
       
       {isMobile && isSidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-20" onClick={() => setIsSidebarOpen(false)}>
-          <div className="fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-[#400010] to-[#200008] p-4 animate-slide-in rounded-r-2xl" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-[#83002A] to-[#5C001E] p-4 animate-slide-in rounded-r-3xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <div className="text-white font-bold text-xl">SCPNG Intranet</div>
               <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="text-white hover:bg-white/10">
