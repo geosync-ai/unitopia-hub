@@ -1,4 +1,3 @@
-
 import React from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import WelcomeCard from '@/components/dashboard/WelcomeCard';
@@ -10,6 +9,7 @@ import ScheduledEvents from '@/components/dashboard/ScheduledEvents';
 import NoticeBoard from '@/components/dashboard/NoticeBoard';
 import OrganizationalOverview from '@/components/dashboard/OrganizationalOverview';
 import QuickAccess from '@/components/dashboard/QuickAccess';
+import { Target } from 'lucide-react';
 
 const Index = () => {
   // Current date in Papua New Guinea format

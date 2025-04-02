@@ -5,12 +5,14 @@ interface WelcomeCardProps {
   name: string;
   date: string;
   greeting?: string;
+  location?: string;
 }
 
 const WelcomeCard: React.FC<WelcomeCardProps> = ({ 
   name, 
   date, 
-  greeting = "Have a productive day!" 
+  greeting = "Have a productive day!",
+  location
 }) => {
   return (
     <div className="bg-intranet-primary text-white p-6 rounded-xl relative overflow-hidden shadow-md animate-fade-in">
@@ -26,6 +28,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
         <div className="text-sm font-light mb-2">{date}</div>
         <h1 className="text-2xl font-bold mb-2">Good Day, {name}!</h1>
         <p className="opacity-90">{greeting}</p>
+        {location && <p className="opacity-80 mt-2 text-sm">{location}</p>}
       </div>
     </div>
   );

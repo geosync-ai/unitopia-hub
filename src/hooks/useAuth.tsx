@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type UserRole = 'admin' | 'manager' | 'user';
@@ -9,6 +8,7 @@ export interface User {
   name: string;
   role: UserRole;
   unitId?: string;
+  unitName?: string;
 }
 
 interface AuthContextType {
@@ -30,7 +30,8 @@ const adminUser: User = {
   id: '1',
   email: 'admin@scpng.com',
   name: 'Admin User',
-  role: 'admin'
+  role: 'admin',
+  unitName: 'IT'
 };
 
 // Mock business units for SCPNG context
