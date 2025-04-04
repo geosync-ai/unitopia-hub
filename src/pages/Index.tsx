@@ -12,9 +12,29 @@ import { useAuth } from '@/hooks/useAuth';
 const Index = () => {
   const { user } = useAuth();
   
+  // Get current date in proper format
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  
+  // Sample event stats for ScheduledEvents component
+  const eventStats = [
+    { count: 3, label: "Meetings" },
+    { count: 2, label: "Tasks Due" },
+    { count: 1, label: "Training Sessions" }
+  ];
+  
   return (
     <PageLayout>
-      <WelcomeCard />
+      <WelcomeCard 
+        name={user?.name || "User"} 
+        date={currentDate}
+        greeting="Welcome to the SCPNG Intranet Portal"
+        location="MRDC House"
+      />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
@@ -25,7 +45,10 @@ const Index = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 space-y-6">
-          <ScheduledEvents />
+          <ScheduledEvents 
+            businessPercentage={75} 
+            stats={eventStats} 
+          />
           <KPIStatistics />
         </div>
         <OrganizationalOverview />
