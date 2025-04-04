@@ -10,6 +10,7 @@ import AIConfiguration from '@/components/admin/AIConfiguration';
 import UserNotifications from '@/components/admin/UserNotifications';
 import BusinessUnits from '@/components/admin/BusinessUnits';
 import UserDialogs from '@/components/admin/UserDialogs';
+import OrganizationalStrategy from '@/components/admin/OrganizationalStrategy';
 
 // Mock users data
 const mockUsers = [
@@ -49,11 +50,12 @@ const AdminPage = () => {
       <h1 className="text-2xl font-bold mb-6">Admin Console</h1>
       
       <Tabs defaultValue="users">
-        <TabsList className="grid grid-cols-5 mb-6">
+        <TabsList className="grid grid-cols-6 mb-6">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="theme">Theme Customization</TabsTrigger>
           <TabsTrigger value="ai">AI Configuration</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="strategy">Org Strategy</TabsTrigger>
           <TabsTrigger value="units">Business Units</TabsTrigger>
         </TabsList>
         
@@ -80,6 +82,11 @@ const AdminPage = () => {
         {/* NOTIFICATIONS TAB */}
         <TabsContent value="notifications">
           <UserNotifications />
+        </TabsContent>
+        
+        {/* ORGANIZATIONAL STRATEGY TAB */}
+        <TabsContent value="strategy">
+          <OrganizationalStrategy />
         </TabsContent>
         
         {/* BUSINESS UNITS TAB */}
