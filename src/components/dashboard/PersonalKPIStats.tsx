@@ -27,26 +27,26 @@ const PersonalKPIStats: React.FC = () => {
   };
 
   return (
-    <Card className="shadow-sm mb-6 animate-fade-in">
-      <CardHeader className="pb-2">
+    <Card className="shadow-sm animate-fade-in">
+      <CardHeader className="pb-0 pt-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Activity className="h-5 w-5 text-intranet-primary" />
           Personal KPI Statistics
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3">
         <Tabs defaultValue="performance" className="w-full">
-          <TabsList className="grid grid-cols-2 mb-4">
+          <TabsList className="grid grid-cols-2 mb-2">
             <TabsTrigger value="performance">Performance Trends</TabsTrigger>
             <TabsTrigger value="skills">Skills Assessment</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="performance" className="space-y-4">
-            <div className="h-64">
+          <TabsContent value="performance" className="space-y-2 pt-2">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={monthlyData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                  margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" />
@@ -66,7 +66,7 @@ const PersonalKPIStats: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="skills">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2">
               <div className="flex justify-center">
                 <StatCircle 
                   percentage={skillsData.technical} 
