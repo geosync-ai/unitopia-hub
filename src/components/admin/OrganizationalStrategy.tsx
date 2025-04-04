@@ -1,705 +1,965 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Edit, Plus, Save, X, Trash2, BarChart2, PieChart as PieChartIcon, Bot } from 'lucide-react';
+import { Pencil, Save, X, Plus, Trash, BarChart3, FileText, Activity } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
 
-// Mock data for objectives, KRAs, and KPIs
-const initialObjectives = [
-  { id: '1', title: 'Increase market share', description: 'Grow our presence in the PNG market', status: 'In Progress', assignedTo: 'John Anderson' },
-  { id: '2', title: 'Improve regulatory compliance', description: 'Ensure all operations follow updated regulations', status: 'Completed', assignedTo: 'Sarah Johnson' },
-  { id: '3', title: 'Develop new service offerings', description: 'Expand portfolio of services for clients', status: 'Planning', assignedTo: 'Michael Chen' },
-];
+// Define types for our data model
+type Objective = {
+  id: string;
+  title: string;
+  description: string;
+  assignedTo: string;
+};
 
-const initialKRAs = [
-  { id: '1', objectiveId: '1', title: 'Expand client base', description: 'Acquire new clients in key sectors', status: 'In Progress', assignedTo: 'Emily Wilson' },
-  { id: '2', objectiveId: '1', title: 'Retain existing clients', description: 'Ensure high retention rate of current clients', status: 'In Progress', assignedTo: 'Robert Brown' },
-  { id: '3', objectiveId: '2', title: 'Update compliance procedures', description: 'Review and update all compliance documentation', status: 'Completed', assignedTo: 'David Thompson' },
-  { id: '4', objectiveId: '3', title: 'Research market needs', description: 'Identify gaps in current service offerings', status: 'In Progress', assignedTo: 'Lisa Wang' },
-];
+type KeyResultArea = {
+  id: string;
+  objectiveId: string;
+  title: string;
+  description: string;
+  assignedTo: string;
+};
 
-const initialKPIs = [
-  { id: '1', kraId: '1', title: 'New client acquisition', description: 'Number of new clients acquired', target: '15', current: '8', unit: 'clients', status: 'On Track', assignedTo: 'Jessica Lee' },
-  { id: '2', kraId: '1', title: 'Revenue from new clients', description: 'Revenue generated from new clients', target: '500000', current: '275000', unit: 'PGK', status: 'On Track', assignedTo: 'Emily Wilson' },
-  { id: '3', kraId: '2', title: 'Client retention rate', description: 'Percentage of clients retained', target: '90', current: '85', unit: '%', status: 'At Risk', assignedTo: 'Robert Brown' },
-  { id: '4', kraId: '3', title: 'Compliance documentation', description: 'Percentage of updated documentation', target: '100', current: '100', unit: '%', status: 'Completed', assignedTo: 'David Thompson' },
-  { id: '5', kraId: '4', title: 'Market research interviews', description: 'Number of client interviews conducted', target: '50', current: '35', unit: 'interviews', status: 'On Track', assignedTo: 'Lisa Wang' },
-];
+type KPI = {
+  id: string;
+  kraId: string;
+  title: string;
+  description: string;
+  target: string;
+  current: number;
+  assignedTo: string;
+};
 
-// Dashboard data
-const kpiStatusData = [
-  { name: 'Completed', value: 1, color: '#4CAF50' },
-  { name: 'On Track', value: 3, color: '#2196F3' },
-  { name: 'At Risk', value: 1, color: '#FFC107' },
-  { name: 'Behind', value: 0, color: '#FF5722' },
-];
-
-const objectiveProgressData = [
-  { name: 'Increase market share', completed: 45, target: 100 },
-  { name: 'Improve regulatory compliance', completed: 100, target: 100 },
-  { name: 'Develop new service offerings', completed: 30, target: 100 },
-];
-
-interface FormField {
-  label: string;
-  placeholder: string;
-  required?: boolean;
-  type?: string;
-  options?: { value: string, label: string }[];
-}
-
-const OrganizationalStrategy: React.FC = () => {
-  const { businessUnits } = useAuth();
-  const [objectives, setObjectives] = useState(initialObjectives);
-  const [kras, setKras] = useState(initialKRAs);
-  const [kpis, setKpis] = useState(initialKPIs);
-  
-  const [selectedObjective, setSelectedObjective] = useState<string | null>(null);
-  const [selectedKRA, setSelectedKRA] = useState<string | null>(null);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editType, setEditType] = useState<'objective' | 'kra' | 'kpi' | null>(null);
-  
-  const [editForm, setEditForm] = useState<any>({});
-
-  // Get filtered KRAs based on selected objective
-  const filteredKRAs = selectedObjective
-    ? kras.filter(kra => kra.objectiveId === selectedObjective)
-    : [];
-  
-  // Get filtered KPIs based on selected KRA
-  const filteredKPIs = selectedKRA
-    ? kpis.filter(kpi => kpi.kraId === selectedKRA)
-    : [];
-  
-  const handleObjectiveClick = (id: string) => {
-    setSelectedObjective(id);
-    setSelectedKRA(null);
-    setEditId(null);
-    setEditType(null);
-  };
-  
-  const handleKRAClick = (id: string) => {
-    setSelectedKRA(id);
-    setEditId(null);
-    setEditType(null);
-  };
-  
-  const handleEdit = (id: string, type: 'objective' | 'kra' | 'kpi') => {
-    setEditId(id);
-    setEditType(type);
-    
-    // Set form data based on type and id
-    if (type === 'objective') {
-      const objective = objectives.find(obj => obj.id === id);
-      if (objective) {
-        setEditForm({
-          title: objective.title,
-          description: objective.description,
-          status: objective.status,
-          assignedTo: objective.assignedTo,
-        });
-      }
-    } else if (type === 'kra') {
-      const kra = kras.find(k => k.id === id);
-      if (kra) {
-        setEditForm({
-          title: kra.title,
-          description: kra.description,
-          status: kra.status,
-          assignedTo: kra.assignedTo,
-          objectiveId: kra.objectiveId,
-        });
-      }
-    } else if (type === 'kpi') {
-      const kpi = kpis.find(k => k.id === id);
-      if (kpi) {
-        setEditForm({
-          title: kpi.title,
-          description: kpi.description,
-          target: kpi.target,
-          current: kpi.current,
-          unit: kpi.unit,
-          status: kpi.status,
-          assignedTo: kpi.assignedTo,
-          kraId: kpi.kraId,
-        });
-      }
+const OrganizationalStrategy = () => {
+  // Sample data
+  const [objectives, setObjectives] = useState<Objective[]>([
+    { 
+      id: 'obj1', 
+      title: 'Increase Digital Presence', 
+      description: 'Expand our online services and digital platforms to better serve our customers.',
+      assignedTo: 'Sarah Johnson'
+    },
+    { 
+      id: 'obj2', 
+      title: 'Operational Excellence', 
+      description: 'Streamline core operations and reduce costs while maintaining quality.',
+      assignedTo: 'Michael Chen'
     }
-  };
+  ]);
+
+  const [kras, setKras] = useState<KeyResultArea[]>([
+    { 
+      id: 'kra1', 
+      objectiveId: 'obj1', 
+      title: 'Web Platform Enhancement', 
+      description: 'Improve web platform functionality and user experience.',
+      assignedTo: 'Robert Brown'
+    },
+    { 
+      id: 'kra2', 
+      objectiveId: 'obj1', 
+      title: 'Mobile App Development', 
+      description: 'Launch a fully functional mobile application for customers.',
+      assignedTo: 'Sarah Johnson'
+    },
+    { 
+      id: 'kra3', 
+      objectiveId: 'obj2', 
+      title: 'Process Automation', 
+      description: 'Automate key business processes to reduce manual work.',
+      assignedTo: 'David Thompson'
+    }
+  ]);
+
+  const [kpis, setKpis] = useState<KPI[]>([
+    { 
+      id: 'kpi1', 
+      kraId: 'kra1', 
+      title: 'Page Load Time', 
+      description: 'Average loading time of web pages',
+      target: '< 2 seconds',
+      current: 2.4,
+      assignedTo: 'Robert Brown' 
+    },
+    { 
+      id: 'kpi2', 
+      kraId: 'kra1', 
+      title: 'User Satisfaction', 
+      description: 'Rating from user feedback survey',
+      target: '> 4.5/5',
+      current: 4.2,
+      assignedTo: 'Jessica Lee'
+    },
+    { 
+      id: 'kpi3', 
+      kraId: 'kra2', 
+      title: 'App Downloads', 
+      description: 'Number of app downloads in first month',
+      target: '10,000',
+      current: 8500,
+      assignedTo: 'Lisa Wang'
+    },
+    { 
+      id: 'kpi4', 
+      kraId: 'kra3', 
+      title: 'Process Efficiency', 
+      description: 'Reduction in process completion time',
+      target: '30%',
+      current: 22,
+      assignedTo: 'David Thompson'
+    }
+  ]);
+
+  // State for editing
+  const [selectedObjective, setSelectedObjective] = useState<Objective | null>(null);
+  const [selectedKra, setSelectedKra] = useState<KeyResultArea | null>(null);
+  const [selectedKpi, setSelectedKpi] = useState<KPI | null>(null);
   
-  const handleCancelEdit = () => {
-    setEditId(null);
-    setEditType(null);
-    setEditForm({});
+  // State for new items
+  const [newObjective, setNewObjective] = useState<Partial<Objective> | null>(null);
+  const [newKra, setNewKra] = useState<Partial<KeyResultArea> | null>(null);
+  const [newKpi, setNewKpi] = useState<Partial<KPI> | null>(null);
+
+  // Handle editing functions
+  const startEditingObjective = (objective: Objective) => {
+    setSelectedObjective({...objective});
   };
-  
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setEditForm({
-      ...editForm,
-      [e.target.name]: e.target.value,
+
+  const startEditingKra = (kra: KeyResultArea) => {
+    setSelectedKra({...kra});
+  };
+
+  const startEditingKpi = (kpi: KPI) => {
+    setSelectedKpi({...kpi});
+  };
+
+  // Add new item functions
+  const startAddingObjective = () => {
+    setNewObjective({
+      title: '',
+      description: '',
+      assignedTo: ''
     });
   };
-  
-  const handleSaveEdit = () => {
-    if (editType === 'objective' && editId) {
+
+  const startAddingKra = (objectiveId: string) => {
+    setNewKra({
+      objectiveId,
+      title: '',
+      description: '',
+      assignedTo: ''
+    });
+  };
+
+  const startAddingKpi = (kraId: string) => {
+    setNewKpi({
+      kraId,
+      title: '',
+      description: '',
+      target: '',
+      current: 0,
+      assignedTo: ''
+    });
+  };
+
+  // Save functions
+  const saveObjective = () => {
+    if (selectedObjective) {
       setObjectives(objectives.map(obj => 
-        obj.id === editId ? { ...obj, ...editForm } : obj
+        obj.id === selectedObjective.id ? selectedObjective : obj
       ));
+      setSelectedObjective(null);
       toast.success('Objective updated successfully');
-    } else if (editType === 'kra' && editId) {
+    }
+  };
+
+  const saveKra = () => {
+    if (selectedKra) {
       setKras(kras.map(kra => 
-        kra.id === editId ? { ...kra, ...editForm } : kra
+        kra.id === selectedKra.id ? selectedKra : kra
       ));
+      setSelectedKra(null);
       toast.success('Key Result Area updated successfully');
-    } else if (editType === 'kpi' && editId) {
+    }
+  };
+
+  const saveKpi = () => {
+    if (selectedKpi) {
       setKpis(kpis.map(kpi => 
-        kpi.id === editId ? { ...kpi, ...editForm } : kpi
+        kpi.id === selectedKpi.id ? selectedKpi : kpi
       ));
+      setSelectedKpi(null);
       toast.success('KPI updated successfully');
     }
-    
-    setEditId(null);
-    setEditType(null);
-    setEditForm({});
   };
-  
-  // Form fields configuration
-  const getFormFields = (type: 'objective' | 'kra' | 'kpi'): Record<string, FormField> => {
-    const commonFields = {
-      title: { label: 'Title', placeholder: 'Enter title', required: true },
-      description: { label: 'Description', placeholder: 'Enter description' },
-    };
-    
-    const statusOptions = [
-      { value: 'Planning', label: 'Planning' },
-      { value: 'In Progress', label: 'In Progress' },
-      { value: 'On Track', label: 'On Track' },
-      { value: 'At Risk', label: 'At Risk' },
-      { value: 'Behind', label: 'Behind' },
-      { value: 'Completed', label: 'Completed' },
-    ];
-    
-    if (type === 'objective') {
-      return {
-        ...commonFields,
-        status: { 
-          label: 'Status', 
-          placeholder: 'Select status',
-          options: statusOptions,
-        },
-        assignedTo: { 
-          label: 'Assigned To', 
-          placeholder: 'Select person',
-        },
-      };
-    } else if (type === 'kra') {
-      return {
-        ...commonFields,
-        objectiveId: {
-          label: 'Related Objective',
-          placeholder: 'Select objective',
-          options: objectives.map(obj => ({ value: obj.id, label: obj.title })),
-          required: true,
-        },
-        status: { 
-          label: 'Status', 
-          placeholder: 'Select status',
-          options: statusOptions,
-        },
-        assignedTo: { 
-          label: 'Assigned To', 
-          placeholder: 'Select person',
-        },
-      };
-    } else { // KPI
-      return {
-        ...commonFields,
-        kraId: {
-          label: 'Related KRA',
-          placeholder: 'Select KRA',
-          options: kras.map(kra => ({ value: kra.id, label: kra.title })),
-          required: true,
-        },
-        target: {
-          label: 'Target Value',
-          placeholder: 'Enter target',
-          type: 'number',
-          required: true,
-        },
-        current: {
-          label: 'Current Value',
-          placeholder: 'Enter current value',
-          type: 'number',
-          required: true,
-        },
-        unit: {
-          label: 'Unit',
-          placeholder: 'e.g., %, PGK, count',
-        },
-        status: { 
-          label: 'Status', 
-          placeholder: 'Select status',
-          options: statusOptions,
-        },
-        assignedTo: { 
-          label: 'Assigned To', 
-          placeholder: 'Select person',
-        },
-      };
+
+  // Save new item functions
+  const saveNewObjective = () => {
+    if (newObjective?.title && newObjective.description) {
+      const id = `obj${objectives.length + 1}`;
+      setObjectives([...objectives, { id, ...newObjective as Omit<Objective, 'id'> }]);
+      setNewObjective(null);
+      toast.success('Objective added successfully');
+    } else {
+      toast.error('Please fill all required fields');
     }
   };
-  
-  const renderEditForm = () => {
-    if (!editType) return null;
-    
-    const fields = getFormFields(editType);
-    const formTitle = editId 
-      ? `Edit ${editType.charAt(0).toUpperCase() + editType.slice(1)}` 
-      : `New ${editType.charAt(0).toUpperCase() + editType.slice(1)}`;
-    
-    return (
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle>{formTitle}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4">
-            {Object.entries(fields).map(([key, field]) => (
-              <div key={key}>
-                <Label htmlFor={key}>{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
-                {field.options ? (
-                  <select
-                    id={key}
-                    name={key}
-                    value={editForm[key] || ''}
-                    onChange={handleFormChange}
-                    className="w-full p-2 mt-1 border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                    required={field.required}
-                  >
-                    <option value="">{field.placeholder}</option>
-                    {field.options.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <Input
-                    id={key}
-                    name={key}
-                    type={field.type || 'text'}
-                    placeholder={field.placeholder}
-                    value={editForm[key] || ''}
-                    onChange={handleFormChange}
-                    required={field.required}
-                    className="mt-1"
-                  />
-                )}
-              </div>
-            ))}
-            
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={handleCancelEdit} type="button">
-                <X size={16} className="mr-2" />
-                Cancel
-              </Button>
-              <Button onClick={handleSaveEdit} type="button">
-                <Save size={16} className="mr-2" />
-                Save
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    );
+
+  const saveNewKra = () => {
+    if (newKra?.title && newKra.description && newKra.objectiveId) {
+      const id = `kra${kras.length + 1}`;
+      setKras([...kras, { id, ...newKra as Omit<KeyResultArea, 'id'> }]);
+      setNewKra(null);
+      toast.success('Key Result Area added successfully');
+    } else {
+      toast.error('Please fill all required fields');
+    }
+  };
+
+  const saveNewKpi = () => {
+    if (newKpi?.title && newKpi.description && newKpi.target && newKpi.kraId) {
+      const id = `kpi${kpis.length + 1}`;
+      setKpis([...kpis, { id, ...newKpi as Omit<KPI, 'id'> }]);
+      setNewKpi(null);
+      toast.success('KPI added successfully');
+    } else {
+      toast.error('Please fill all required fields');
+    }
+  };
+
+  // Delete functions
+  const deleteObjective = (id: string) => {
+    setObjectives(objectives.filter(obj => obj.id !== id));
+    // Also delete associated KRAs and KPIs
+    const kraIds = kras.filter(kra => kra.objectiveId === id).map(kra => kra.id);
+    setKras(kras.filter(kra => kra.objectiveId !== id));
+    setKpis(kpis.filter(kpi => !kraIds.includes(kpi.kraId)));
+    toast.success('Objective and associated items deleted');
+  };
+
+  const deleteKra = (id: string) => {
+    setKras(kras.filter(kra => kra.id !== id));
+    // Also delete associated KPIs
+    setKpis(kpis.filter(kpi => kpi.kraId !== id));
+    toast.success('KRA and associated KPIs deleted');
+  };
+
+  const deleteKpi = (id: string) => {
+    setKpis(kpis.filter(kpi => kpi.id !== id));
+    toast.success('KPI deleted');
+  };
+
+  // Cancel functions
+  const cancelEdit = () => {
+    setSelectedObjective(null);
+    setSelectedKra(null);
+    setSelectedKpi(null);
+    setNewObjective(null);
+    setNewKra(null);
+    setNewKpi(null);
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Organizational Strategy</CardTitle>
-        <CardDescription>
-          Manage objectives, key result areas, and key performance indicators
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="unit">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="unit">Unit Planning</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="unit" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Objectives Column */}
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-lg">Objectives</h3>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    setEditType('objective');
-                    setEditId(null);
-                    setEditForm({});
-                  }}>
-                    <Plus size={16} className="mr-1" /> Add
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  {objectives.map(objective => (
-                    <Card 
-                      key={objective.id} 
-                      className={`cursor-pointer transition-colors ${selectedObjective === objective.id ? 'border-intranet-primary dark:border-intranet-primary border-2' : ''}`}
-                      onClick={() => handleObjectiveClick(objective.id)}
+    <div>
+      <Tabs defaultValue="unit">
+        <TabsList className="mb-6">
+          <TabsTrigger value="unit" className="flex items-center">
+            <FileText className="w-4 h-4 mr-2" />
+            Unit Objectives & KPIs
+          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="flex items-center">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Dashboard Stats
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="unit">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-center">
+                    <span>Strategic Objectives</span>
+                    <Button 
+                      size="sm" 
+                      onClick={startAddingObjective}
+                      className="flex items-center gap-1"
                     >
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-medium">{objective.title}</h4>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-8 w-8 p-0" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(objective.id, 'objective');
-                            }}
-                          >
-                            <Edit size={16} />
+                      <Plus size={16} />
+                      Add Objective
+                    </Button>
+                  </CardTitle>
+                  <CardDescription>
+                    Organizational objectives, key result areas, and KPIs
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* New Objective Form */}
+                  {newObjective && (
+                    <div className="mb-6 p-4 border rounded-lg bg-muted">
+                      <h3 className="text-lg font-medium mb-3">Add New Objective</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Title</label>
+                          <Input 
+                            value={newObjective.title} 
+                            onChange={e => setNewObjective({...newObjective, title: e.target.value})}
+                            placeholder="Objective title"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Description</label>
+                          <Textarea 
+                            value={newObjective.description} 
+                            onChange={e => setNewObjective({...newObjective, description: e.target.value})}
+                            placeholder="Detailed description of the objective"
+                            rows={3}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Assigned To</label>
+                          <Input 
+                            value={newObjective.assignedTo} 
+                            onChange={e => setNewObjective({...newObjective, assignedTo: e.target.value})}
+                            placeholder="Person responsible"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={cancelEdit} className="flex items-center gap-1">
+                            <X size={16} />
+                            Cancel
+                          </Button>
+                          <Button onClick={saveNewObjective} className="flex items-center gap-1">
+                            <Save size={16} />
+                            Save
                           </Button>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">{objective.description}</p>
-                        <div className="flex justify-between items-center mt-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            objective.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                            objective.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                          }`}>
-                            {objective.status}
-                          </span>
-                          <span className="text-xs text-gray-500">{objective.assignedTo}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Objectives Table */}
+                  <div className="space-y-6">
+                    {objectives.map(objective => (
+                      <div key={objective.id} className="border rounded-lg">
+                        <div className="bg-muted p-4 rounded-t-lg flex justify-between items-center">
+                          <div>
+                            <h3 className="font-semibold">
+                              {selectedObjective?.id === objective.id ? (
+                                <Input 
+                                  value={selectedObjective.title} 
+                                  onChange={e => setSelectedObjective({...selectedObjective, title: e.target.value})}
+                                  className="font-semibold"
+                                />
+                              ) : (
+                                objective.title
+                              )}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {selectedObjective?.id === objective.id ? (
+                                <Textarea 
+                                  value={selectedObjective.description} 
+                                  onChange={e => setSelectedObjective({...selectedObjective, description: e.target.value})}
+                                  className="mt-2"
+                                  rows={2}
+                                />
+                              ) : (
+                                objective.description
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {selectedObjective?.id === objective.id ? (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                                  <X size={16} />
+                                </Button>
+                                <Button size="sm" variant="default" onClick={saveObjective}>
+                                  <Save size={16} />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={() => startEditingObjective(objective)}>
+                                  <Pencil size={16} />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-red-500" onClick={() => deleteObjective(objective.id)}>
+                                  <Trash size={16} />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-              
-              {/* KRAs Column */}
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-lg">Key Result Areas</h3>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    disabled={!selectedObjective}
-                    onClick={() => {
-                      setEditType('kra');
-                      setEditId(null);
-                      setEditForm({ objectiveId: selectedObjective });
-                    }}
-                  >
-                    <Plus size={16} className="mr-1" /> Add
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  {selectedObjective ? (
-                    filteredKRAs.length > 0 ? (
-                      filteredKRAs.map(kra => (
-                        <Card 
-                          key={kra.id} 
-                          className={`cursor-pointer transition-colors ${selectedKRA === kra.id ? 'border-intranet-primary dark:border-intranet-primary border-2' : ''}`}
-                          onClick={() => handleKRAClick(kra.id)}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-medium">{kra.title}</h4>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(kra.id, 'kra');
-                                }}
-                              >
-                                <Edit size={16} />
-                              </Button>
-                            </div>
-                            <p className="text-sm text-gray-500 mt-1">{kra.description}</p>
-                            <div className="flex justify-between items-center mt-3">
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                kra.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                kra.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                              }`}>
-                                {kra.status}
-                              </span>
-                              <span className="text-xs text-gray-500">{kra.assignedTo}</span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        No KRAs found for this objective
-                      </div>
-                    )
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      Select an objective to view KRAs
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* KPIs Column */}
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-lg">Key Performance Indicators</h3>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    disabled={!selectedKRA}
-                    onClick={() => {
-                      setEditType('kpi');
-                      setEditId(null);
-                      setEditForm({ kraId: selectedKRA });
-                    }}
-                  >
-                    <Plus size={16} className="mr-1" /> Add
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  {selectedKRA ? (
-                    filteredKPIs.length > 0 ? (
-                      filteredKPIs.map(kpi => (
-                        <Card key={kpi.id}>
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-medium">{kpi.title}</h4>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0" 
-                                onClick={() => handleEdit(kpi.id, 'kpi')}
-                              >
-                                <Edit size={16} />
-                              </Button>
-                            </div>
-                            <p className="text-sm text-gray-500 mt-1">{kpi.description}</p>
-                            
-                            <div className="mt-3">
-                              <div className="flex justify-between text-xs text-gray-500 mb-1">
-                                <span>Progress:</span>
-                                <span>{kpi.current}/{kpi.target} {kpi.unit}</span>
-                              </div>
-                              <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden">
-                                <div 
-                                  className={`h-full ${
-                                    kpi.status === 'Completed' ? 'bg-green-500' :
-                                    kpi.status === 'On Track' ? 'bg-blue-500' :
-                                    kpi.status === 'At Risk' ? 'bg-amber-500' :
-                                    'bg-red-500'
-                                  }`} 
-                                  style={{ width: `${Math.min(100, (Number(kpi.current) / Number(kpi.target)) * 100)}%` }}
-                                ></div>
+                        
+                        <div className="p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-medium">Key Result Areas</h4>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => startAddingKra(objective.id)}
+                              className="flex items-center gap-1"
+                            >
+                              <Plus size={14} />
+                              Add KRA
+                            </Button>
+                          </div>
+                          
+                          {/* New KRA Form */}
+                          {newKra?.objectiveId === objective.id && (
+                            <div className="mb-4 p-3 border rounded-lg bg-muted/50">
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">Title</label>
+                                  <Input 
+                                    value={newKra.title} 
+                                    onChange={e => setNewKra({...newKra, title: e.target.value})}
+                                    placeholder="KRA title"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">Description</label>
+                                  <Input 
+                                    value={newKra.description} 
+                                    onChange={e => setNewKra({...newKra, description: e.target.value})}
+                                    placeholder="KRA description"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">Assigned To</label>
+                                  <Input 
+                                    value={newKra.assignedTo} 
+                                    onChange={e => setNewKra({...newKra, assignedTo: e.target.value})}
+                                    placeholder="Person responsible"
+                                  />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button size="sm" variant="outline" onClick={cancelEdit}>
+                                    <X size={14} />
+                                  </Button>
+                                  <Button size="sm" onClick={saveNewKra}>
+                                    <Save size={14} />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
-                            
-                            <div className="flex justify-between items-center mt-3">
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                kpi.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                kpi.status === 'On Track' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                kpi.status === 'At Risk' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' :
-                                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                              }`}>
-                                {kpi.status}
-                              </span>
-                              <span className="text-xs text-gray-500">{kpi.assignedTo}</span>
+                          )}
+                          
+                          {/* KRAs Table */}
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Key Result Area</TableHead>
+                                <TableHead>Assigned To</TableHead>
+                                <TableHead className="w-[100px]">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {kras
+                                .filter(kra => kra.objectiveId === objective.id)
+                                .map(kra => (
+                                <TableRow key={kra.id}>
+                                  <TableCell>
+                                    {selectedKra?.id === kra.id ? (
+                                      <div className="space-y-2">
+                                        <Input 
+                                          value={selectedKra.title} 
+                                          onChange={e => setSelectedKra({...selectedKra, title: e.target.value})}
+                                        />
+                                        <Input 
+                                          value={selectedKra.description} 
+                                          onChange={e => setSelectedKra({...selectedKra, description: e.target.value})}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="font-medium">{kra.title}</div>
+                                        <div className="text-sm text-muted-foreground">{kra.description}</div>
+                                      </>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {selectedKra?.id === kra.id ? (
+                                      <Input 
+                                        value={selectedKra.assignedTo} 
+                                        onChange={e => setSelectedKra({...selectedKra, assignedTo: e.target.value})}
+                                      />
+                                    ) : kra.assignedTo}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      {selectedKra?.id === kra.id ? (
+                                        <>
+                                          <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                                            <X size={14} />
+                                          </Button>
+                                          <Button size="sm" variant="ghost" onClick={saveKra}>
+                                            <Save size={14} />
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Button size="sm" variant="ghost" onClick={() => startEditingKra(kra)}>
+                                            <Pencil size={14} />
+                                          </Button>
+                                          <Button size="sm" variant="ghost" className="text-red-500" onClick={() => deleteKra(kra.id)}>
+                                            <Trash size={14} />
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          
+                          {/* Display KPIs for this objective's KRAs */}
+                          <div className="mt-6">
+                            <div className="flex justify-between items-center mb-4">
+                              <h4 className="font-medium">Key Performance Indicators</h4>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        No KPIs found for this KRA
-                      </div>
-                    )
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      Select a KRA to view KPIs
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Edit Form */}
-            {editType && renderEditForm()}
-          </TabsContent>
-          
-          <TabsContent value="dashboard" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Charts Column 1 */}
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center">
-                      <PieChartIcon className="h-5 w-5 mr-2 text-intranet-primary" />
-                      KPI Status Distribution
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={kpiStatusData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {kpiStatusData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            
+                            {kras
+                              .filter(kra => kra.objectiveId === objective.id)
+                              .map(kra => (
+                              <div key={kra.id} className="mb-4 border-l-4 border-primary/30 pl-4">
+                                <div className="flex justify-between items-center mb-2">
+                                  <h5 className="font-medium text-sm">{kra.title} KPIs</h5>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => startAddingKpi(kra.id)}
+                                    className="flex items-center gap-1 text-xs h-7"
+                                  >
+                                    <Plus size={12} />
+                                    Add KPI
+                                  </Button>
+                                </div>
+                                
+                                {/* New KPI Form */}
+                                {newKpi?.kraId === kra.id && (
+                                  <div className="mb-4 p-3 border rounded-lg bg-muted/50">
+                                    <div className="space-y-2">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-xs font-medium mb-1">Title</label>
+                                          <Input 
+                                            value={newKpi.title} 
+                                            onChange={e => setNewKpi({...newKpi, title: e.target.value})}
+                                            placeholder="KPI title"
+                                            className="text-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium mb-1">Target</label>
+                                          <Input 
+                                            value={newKpi.target} 
+                                            onChange={e => setNewKpi({...newKpi, target: e.target.value})}
+                                            placeholder="Target value"
+                                            className="text-sm"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-medium mb-1">Description</label>
+                                        <Input 
+                                          value={newKpi.description} 
+                                          onChange={e => setNewKpi({...newKpi, description: e.target.value})}
+                                          placeholder="Brief description"
+                                          className="text-sm"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-xs font-medium mb-1">Current Value</label>
+                                          <Input 
+                                            type="number"
+                                            value={newKpi.current?.toString()} 
+                                            onChange={e => setNewKpi({...newKpi, current: Number(e.target.value)})}
+                                            placeholder="Current value"
+                                            className="text-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium mb-1">Assigned To</label>
+                                          <Input 
+                                            value={newKpi.assignedTo} 
+                                            onChange={e => setNewKpi({...newKpi, assignedTo: e.target.value})}
+                                            placeholder="Person responsible"
+                                            className="text-sm"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="outline" onClick={cancelEdit} className="h-7 text-xs">
+                                          <X size={12} className="mr-1" />
+                                          Cancel
+                                        </Button>
+                                        <Button size="sm" onClick={saveNewKpi} className="h-7 text-xs">
+                                          <Save size={12} className="mr-1" />
+                                          Save
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>KPI</TableHead>
+                                      <TableHead>Target</TableHead>
+                                      <TableHead>Current</TableHead>
+                                      <TableHead>Assigned To</TableHead>
+                                      <TableHead className="w-[80px]">Actions</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {kpis
+                                      .filter(kpi => kpi.kraId === kra.id)
+                                      .map(kpi => (
+                                      <TableRow key={kpi.id}>
+                                        <TableCell>
+                                          {selectedKpi?.id === kpi.id ? (
+                                            <div className="space-y-2">
+                                              <Input 
+                                                value={selectedKpi.title} 
+                                                onChange={e => setSelectedKpi({...selectedKpi, title: e.target.value})}
+                                                className="text-sm"
+                                              />
+                                              <Input 
+                                                value={selectedKpi.description} 
+                                                onChange={e => setSelectedKpi({...selectedKpi, description: e.target.value})}
+                                                className="text-sm"
+                                              />
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <div className="font-medium text-sm">{kpi.title}</div>
+                                              <div className="text-xs text-muted-foreground">{kpi.description}</div>
+                                            </>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          {selectedKpi?.id === kpi.id ? (
+                                            <Input 
+                                              value={selectedKpi.target} 
+                                              onChange={e => setSelectedKpi({...selectedKpi, target: e.target.value})}
+                                              className="text-sm"
+                                            />
+                                          ) : kpi.target}
+                                        </TableCell>
+                                        <TableCell>
+                                          {selectedKpi?.id === kpi.id ? (
+                                            <Input 
+                                              type="number"
+                                              value={selectedKpi.current?.toString()} 
+                                              onChange={e => setSelectedKpi({...selectedKpi, current: Number(e.target.value)})}
+                                              className="text-sm"
+                                            />
+                                          ) : (
+                                            <div className={cn(
+                                              "font-medium",
+                                              Number(kpi.target.replace(/[^0-9.]/g, '')) <= kpi.current ? "text-green-600" : "text-amber-600"
+                                            )}>
+                                              {kpi.current}
+                                            </div>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          {selectedKpi?.id === kpi.id ? (
+                                            <Input 
+                                              value={selectedKpi.assignedTo} 
+                                              onChange={e => setSelectedKpi({...selectedKpi, assignedTo: e.target.value})}
+                                              className="text-sm"
+                                            />
+                                          ) : kpi.assignedTo}
+                                        </TableCell>
+                                        <TableCell>
+                                          <div className="flex items-center gap-1">
+                                            {selectedKpi?.id === kpi.id ? (
+                                              <>
+                                                <Button size="sm" variant="ghost" onClick={cancelEdit} className="h-7 w-7 p-0">
+                                                  <X size={14} />
+                                                </Button>
+                                                <Button size="sm" variant="ghost" onClick={saveKpi} className="h-7 w-7 p-0">
+                                                  <Save size={14} />
+                                                </Button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Button size="sm" variant="ghost" onClick={() => startEditingKpi(kpi)} className="h-7 w-7 p-0">
+                                                  <Pencil size={14} />
+                                                </Button>
+                                                <Button size="sm" variant="ghost" className="text-red-500 h-7 w-7 p-0" onClick={() => deleteKpi(kpi.id)}>
+                                                  <Trash size={14} />
+                                                </Button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
                             ))}
-                          </Pie>
-                          <Tooltip formatter={(value) => [`${value} KPIs`, 'Count']} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center">
-                      <BarChart2 className="h-5 w-5 mr-2 text-intranet-primary" />
-                      Objective Progress
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={objectiveProgressData}
-                          layout="vertical"
-                          margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                          <XAxis type="number" domain={[0, 100]} />
-                          <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12 }} />
-                          <Tooltip formatter={(value) => [`${value}%`, 'Progress']} />
-                          <Legend />
-                          <Bar dataKey="completed" fill="#83002A" name="Completion %" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              {/* KPI Table Column */}
-              <div className="md:col-span-2">
-                <Card className="h-full">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">KPI Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>KPI</TableHead>
-                          <TableHead>Current</TableHead>
-                          <TableHead>Target</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Assigned To</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {kpis.map((kpi) => (
-                          <TableRow key={kpi.id}>
-                            <TableCell className="font-medium">{kpi.title}</TableCell>
-                            <TableCell>
-                              {kpi.current} {kpi.unit}
-                            </TableCell>
-                            <TableCell>
-                              {kpi.target} {kpi.unit}
-                            </TableCell>
-                            <TableCell>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                kpi.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                kpi.status === 'On Track' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                kpi.status === 'At Risk' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' :
-                                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                              }`}>
-                                {kpi.status}
-                              </span>
-                            </TableCell>
-                            <TableCell>{kpi.assignedTo}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             
-            {/* AI Insights Section */}
-            <Card className="bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-900 dark:to-gray-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center">
-                  <Bot className="h-5 w-5 mr-2 text-intranet-primary" />
-                  AI-Generated Insights
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="p-4 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
+            {/* Right sidebar for form input */}
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Data Entry</CardTitle>
+                  <CardDescription>
+                    Select an item from the left to edit or add new data
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {selectedObjective ? (
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Editing Objective</h3>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Title</label>
+                        <Input 
+                          value={selectedObjective.title} 
+                          onChange={e => setSelectedObjective({...selectedObjective, title: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Description</label>
+                        <Textarea 
+                          value={selectedObjective.description} 
+                          onChange={e => setSelectedObjective({...selectedObjective, description: e.target.value})}
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Assigned To</label>
+                        <Input 
+                          value={selectedObjective.assignedTo} 
+                          onChange={e => setSelectedObjective({...selectedObjective, assignedTo: e.target.value})}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
+                        <Button onClick={saveObjective}>Save Changes</Button>
+                      </div>
+                    </div>
+                  ) : selectedKra ? (
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Editing Key Result Area</h3>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Title</label>
+                        <Input 
+                          value={selectedKra.title} 
+                          onChange={e => setSelectedKra({...selectedKra, title: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Description</label>
+                        <Textarea 
+                          value={selectedKra.description} 
+                          onChange={e => setSelectedKra({...selectedKra, description: e.target.value})}
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Assigned To</label>
+                        <Input 
+                          value={selectedKra.assignedTo} 
+                          onChange={e => setSelectedKra({...selectedKra, assignedTo: e.target.value})}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
+                        <Button onClick={saveKra}>Save Changes</Button>
+                      </div>
+                    </div>
+                  ) : selectedKpi ? (
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Editing KPI</h3>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Title</label>
+                        <Input 
+                          value={selectedKpi.title} 
+                          onChange={e => setSelectedKpi({...selectedKpi, title: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Description</label>
+                        <Textarea 
+                          value={selectedKpi.description} 
+                          onChange={e => setSelectedKpi({...selectedKpi, description: e.target.value})}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Target</label>
+                          <Input 
+                            value={selectedKpi.target} 
+                            onChange={e => setSelectedKpi({...selectedKpi, target: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Current Value</label>
+                          <Input 
+                            type="number"
+                            value={selectedKpi.current?.toString()} 
+                            onChange={e => setSelectedKpi({...selectedKpi, current: Number(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Assigned To</label>
+                        <Input 
+                          value={selectedKpi.assignedTo} 
+                          onChange={e => setSelectedKpi({...selectedKpi, assignedTo: e.target.value})}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
+                        <Button onClick={saveKpi}>Save Changes</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-64 text-center p-4 border-2 border-dashed rounded-lg">
+                      <Activity size={36} className="mb-2 text-muted-foreground" />
+                      <h3 className="font-medium mb-1">No item selected</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Select an item from the left to edit or use the "Add" buttons to create new entries
+                      </p>
+                      <Button onClick={startAddingObjective} className="flex items-center gap-1">
+                        <Plus size={16} />
+                        Add New Objective
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="dashboard">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>KPI Dashboard</CardTitle>
+                  <CardDescription>
+                    Visual representation of organizational performance metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* This is where dashboard stats would go - simplified version for now */}
+                  <div className="h-[400px] w-full bg-muted/30 border rounded-lg flex items-center justify-center p-6">
+                    <div className="text-center">
+                      <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Dashboard Visualization</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                        In a production environment, this would display interactive charts showing KPI progress,
+                        trends, and performance metrics based on the data from your objectives and KPIs.
+                      </p>
+                      <Button variant="outline">Generate Reports</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* AI Insights sidebar */}
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      className="h-5 w-5"
+                    >
+                      <path d="M12 2a8 8 0 0 0-8 8c0 1.5.5 3 1.5 5.2a22 22 0 0 0 5 7.7 3 3 0 0 0 4.3 0 22 22 0 0 0 5-7.7A14 14 0 0 0 20 10a8 8 0 0 0-8-8z"></path>
+                      <circle cx="12" cy="10" r="2"></circle>
+                    </svg>
+                    AI Insights
+                  </CardTitle>
+                  <CardDescription>
+                    AI-generated analysis and recommendations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-sm text-intranet-primary">Performance Overview</h4>
-                      <p className="text-sm mt-1">
-                        The team is making good progress on objectives with 80% of KPIs on track or completed. 
-                        The "Improve regulatory compliance" objective has reached 100% completion.
+                    <div className="border-l-4 border-blue-500 pl-3 py-1">
+                      <h4 className="font-medium text-sm">Performance Trend</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Web platform KPIs are showing a 15% improvement over the last quarter.
                       </p>
                     </div>
                     
-                    <div>
-                      <h4 className="font-medium text-sm text-intranet-primary">Areas of Concern</h4>
-                      <p className="text-sm mt-1">
-                        Client retention rate (85%) is below the target of 90% and is currently marked as "At Risk". 
-                        This may impact the overall market share growth objective.
+                    <div className="border-l-4 border-amber-500 pl-3 py-1">
+                      <h4 className="font-medium text-sm">Attention Required</h4>
+                      <p className="text-sm text-muted-foreground">
+                        App download targets are currently 15% below target. Consider increasing marketing efforts.
                       </p>
                     </div>
                     
-                    <div>
-                      <h4 className="font-medium text-sm text-intranet-primary">Recommendations</h4>
-                      <ul className="text-sm list-disc pl-5 space-y-1 mt-1">
-                        <li>Allocate additional resources to improve client retention strategies.</li>
-                        <li>Maintain current progress on acquiring new clients to offset any potential losses.</li>
-                        <li>Consider setting up a client feedback program to identify areas for service improvement.</li>
+                    <div className="border-l-4 border-green-500 pl-3 py-1">
+                      <h4 className="font-medium text-sm">Goal Achievement</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Process automation initiatives have reduced manual workload by 22% against a target of 30%.
+                      </p>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <h4 className="font-medium text-sm mb-2">Recommendations</h4>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mt-0.5 text-green-500">
+                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                          </svg>
+                          Focus resources on mobile app marketing to improve download metrics.
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mt-0.5 text-green-500">
+                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                          </svg>
+                          Consider revising Process Automation KPI targets to align with current progress.
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mt-0.5 text-green-500">
+                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                          </svg>
+                          Web platform improvements are on track. Maintain current strategy.
+                        </li>
                       </ul>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
