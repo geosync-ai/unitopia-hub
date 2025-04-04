@@ -11,6 +11,8 @@ import UserNotifications from '@/components/admin/UserNotifications';
 import BusinessUnits from '@/components/admin/BusinessUnits';
 import UserDialogs from '@/components/admin/UserDialogs';
 import OrganizationalStrategy from '@/components/admin/OrganizationalStrategy';
+import BannerManagement from '@/components/admin/BannerManagement';
+import DatabaseIntegration from '@/components/admin/DatabaseIntegration';
 
 // Mock users data
 const mockUsers = [
@@ -50,9 +52,10 @@ const AdminPage = () => {
       <h1 className="text-2xl font-bold mb-6">Admin Console</h1>
       
       <Tabs defaultValue="users">
-        <TabsList className="grid grid-cols-7 mb-6">
+        <TabsList className="grid grid-cols-8 mb-6">
           <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="theme">Theme Customization</TabsTrigger>
+          <TabsTrigger value="banner">Banner</TabsTrigger>
+          <TabsTrigger value="theme">Theme</TabsTrigger>
           <TabsTrigger value="ai">AI Configuration</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="strategy">Org Strategy</TabsTrigger>
@@ -68,6 +71,11 @@ const AdminPage = () => {
             onGeneratePassword={generatePasswordForUser}
             onConfigureEmail={configureEmailNotifications}
           />
+        </TabsContent>
+        
+        {/* BANNER MANAGEMENT TAB */}
+        <TabsContent value="banner">
+          <BannerManagement />
         </TabsContent>
         
         {/* THEME CUSTOMIZATION TAB */}
@@ -97,25 +105,7 @@ const AdminPage = () => {
         
         {/* DATABASE INTEGRATION TAB */}
         <TabsContent value="database">
-          <Card>
-            <CardHeader>
-              <CardTitle>Database Integration</CardTitle>
-              <CardDescription>
-                Configure database connections for the intranet portal
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Database Configuration</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  This module will allow connecting to various database systems including SharePoint, SQL Server,
-                  MySQL, PostgreSQL, MongoDB, REST API, and custom configurations.
-                </p>
-                <Button variant="outline">Coming Soon</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <DatabaseIntegration />
         </TabsContent>
       </Tabs>
       
@@ -133,8 +123,3 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
-
-// Import the missing Card related components
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database } from "lucide-react";
-import { Button } from "@/components/ui/button";

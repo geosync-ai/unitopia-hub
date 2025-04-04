@@ -7,6 +7,7 @@ import NoticeBoard from '@/components/dashboard/NoticeBoard';
 import ScheduledEvents from '@/components/dashboard/ScheduledEvents';
 import OrganizationalOverview from '@/components/dashboard/OrganizationalOverview';
 import KPIStatistics from '@/components/dashboard/KPIStatistics';
+import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
@@ -29,6 +30,8 @@ const Index = () => {
   
   return (
     <PageLayout>
+      <WelcomeBanner />
+      
       <WelcomeCard 
         name={user?.name || "User"} 
         date={currentDate}

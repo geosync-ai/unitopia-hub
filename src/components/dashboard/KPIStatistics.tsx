@@ -1,150 +1,131 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { Badge } from '@/components/ui/badge';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
 
-// Mock KPI data - in a real implementation, this would come from an API
-const mockKpiData = {
-  performance: [
-    { name: 'Q1', target: 80, actual: 65 },
-    { name: 'Q2', target: 80, actual: 78 },
-    { name: 'Q3', target: 80, actual: 82 },
-    { name: 'Q4', target: 80, actual: 90 }
-  ],
-  completion: [
-    { name: 'Complete', value: 68 },
-    { name: 'In Progress', value: 23 },
-    { name: 'Not Started', value: 9 }
-  ],
-  areas: [
-    { name: 'Technical Skills', score: 85 },
-    { name: 'Leadership', score: 72 },
-    { name: 'Innovation', score: 90 },
-    { name: 'Communication', score: 65 },
-    { name: 'Teamwork', score: 78 }
-  ]
-};
+// Sample KPI data - in a real implementation, this would come from an API
+const kpiData = [
+  { name: 'Q1', value: 68, target: 70 },
+  { name: 'Q2', value: 75, target: 70 },
+  { name: 'Q3', value: 82, target: 75 },
+  { name: 'Q4', value: 88, target: 80 },
+];
 
-// Colors for the charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-const RADIAN = Math.PI / 180;
+const pieData = [
+  { name: 'Completed', value: 72, color: '#83002A' },
+  { name: 'In Progress', value: 18, color: '#5C001E' },
+  { name: 'Not Started', value: 10, color: '#cccccc' },
+];
 
-// Custom label for pie chart
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+const tableData = [
+  { metric: 'Document Processing', current: 87, target: 75, trend: 'up' },
+  { metric: 'Client Satisfaction', current: 92, target: 90, trend: 'up' },
+  { metric: 'Response Time', current: 68, target: 80, trend: 'down' },
+  { metric: 'Compliance Rate', current: 95, target: 95, trend: 'stable' },
+];
 
+const KPIStatistics: React.FC = () => {
   return (
-    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
-};
-
-const KPIStatistics = () => {
-  const { user } = useAuth();
-
-  return (
-    <Card className="animate-fade-in">
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
-          <span>My KPI Statistics</span>
-          <span className="text-sm font-normal text-muted-foreground">
-            Last Updated: {new Date().toLocaleDateString("en-PG")}
-          </span>
-        </CardTitle>
+    <Card className="shadow-sm animate-fade-in">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardTitle className="text-lg font-semibold">KPI Statistics</CardTitle>
+        <Badge variant="outline" className="bg-intranet-primary/10 text-intranet-primary font-medium">
+          Q4 2024
+        </Badge>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="performance">
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="completion">Completion Rate</TabsTrigger>
-            <TabsTrigger value="areas">Key Areas</TabsTrigger>
+        <Tabs defaultValue="chart" className="w-full">
+          <TabsList className="grid grid-cols-3 mb-4">
+            <TabsTrigger value="chart">Performance</TabsTrigger>
+            <TabsTrigger value="progress">Completion</TabsTrigger>
+            <TabsTrigger value="table">Metrics</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="performance">
-            <div className="h-[300px]">
+          <TabsContent value="chart" className="space-y-4">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={mockKpiData.performance}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  data={kpiData}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
                 >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="target" fill="#8884d8" name="Target" />
-                  <Bar dataKey="actual" fill="#82ca9d" name="Actual">
-                    {mockKpiData.performance.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.actual >= entry.target ? '#00C49F' : '#FF8042'} 
-                      />
-                    ))}
-                  </Bar>
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip 
+                    formatter={(value) => [`${value}%`, 'Performance']}
+                    labelFormatter={(label) => `${label} 2024`}
+                  />
+                  <Bar dataKey="value" fill="#83002A" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="target" fill="#5C001E" radius={[4, 4, 0, 0]} opacity={0.6} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="text-center mt-4 text-sm text-muted-foreground">
-              {user?.name}'s quarterly performance compared to targets
+            <div className="text-xs text-center text-muted-foreground">
+              Quarterly KPI Performance vs Target (%)
             </div>
           </TabsContent>
           
-          <TabsContent value="completion">
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+          <TabsContent value="progress" className="space-y-4">
+            <div className="flex justify-center h-64">
+              <ResponsiveContainer width="80%" height="100%">
                 <PieChart>
                   <Pie
-                    data={mockKpiData.completion}
+                    data={pieData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                    outerRadius={100}
-                    fill="#8884d8"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={2}
                     dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
-                    {mockKpiData.completion.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Legend />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="text-center mt-4 text-sm text-muted-foreground">
-              Current status of assigned KPIs
+            <div className="text-xs text-center text-muted-foreground">
+              KPI Completion Status
             </div>
           </TabsContent>
           
-          <TabsContent value="areas">
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={mockKpiData.areas}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  layout="vertical"
-                >
-                  <XAxis type="number" domain={[0, 100]} />
-                  <YAxis dataKey="name" type="category" />
-                  <Tooltip />
-                  <Bar dataKey="score" fill="#8884d8">
-                    {mockKpiData.areas.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={COLORS[index % COLORS.length]} 
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="text-center mt-4 text-sm text-muted-foreground">
-              Performance breakdown by key responsibility area
+          <TabsContent value="table">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 font-medium">Metric</th>
+                    <th className="text-right py-3 font-medium">Current</th>
+                    <th className="text-right py-3 font-medium">Target</th>
+                    <th className="text-right py-3 font-medium">Trend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.map((item, index) => (
+                    <tr key={index} className="border-b hover:bg-muted/50">
+                      <td className="py-3">{item.metric}</td>
+                      <td className="text-right py-3 font-medium">{item.current}%</td>
+                      <td className="text-right py-3 text-muted-foreground">{item.target}%</td>
+                      <td className="text-right py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${
+                          item.trend === 'up' 
+                            ? 'bg-green-100 text-green-800' 
+                            : item.trend === 'down' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {item.trend === 'up' ? '↑' : item.trend === 'down' ? '↓' : '→'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </TabsContent>
         </Tabs>
