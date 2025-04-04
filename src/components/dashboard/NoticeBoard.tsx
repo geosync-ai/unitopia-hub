@@ -23,7 +23,7 @@ const NewsCarousel: React.FC = () => {
   ];
   
   return (
-    <Carousel className="w-full mb-2">
+    <Carousel className="w-full mb-4">
       <CarouselContent>
         {newsImages.map((image, index) => (
           <CarouselItem key={index}>
@@ -32,16 +32,16 @@ const NewsCarousel: React.FC = () => {
                 <img
                   src={image}
                   alt={`News image ${index + 1}`}
-                  className="h-36 w-full object-cover transition-all hover:scale-105"
+                  className="h-48 w-full object-cover transition-all hover:scale-105"
                 />
               </div>
             </div>
           </CarouselItem>
         ))}
       </CarouselContent>
-      <div className="flex justify-center mt-1">
-        <CarouselPrevious className="relative static left-0 translate-y-0 mr-2 h-7 w-7" />
-        <CarouselNext className="relative static right-0 translate-y-0 h-7 w-7" />
+      <div className="flex justify-center mt-2">
+        <CarouselPrevious className="relative static left-0 translate-y-0 mr-2" />
+        <CarouselNext className="relative static right-0 translate-y-0" />
       </div>
     </Carousel>
   );
@@ -72,6 +72,13 @@ const NoticeBoard = () => {
       content: 'We have updated our document management system.',
       date: '2023-11-28',
       category: 'update'
+    },
+    {
+      id: 4,
+      title: 'Holiday Schedule',
+      content: 'The office will be closed for the holiday season.',
+      date: '2023-12-24',
+      category: 'announcement'
     }
   ];
 
@@ -99,35 +106,35 @@ const NoticeBoard = () => {
 
   return (
     <Card className="bg-white rounded-xl shadow-sm animate-fade-in">
-      <CardHeader className="pb-0 pt-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Bell className="h-4 w-4 text-intranet-primary" />
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <Bell className="h-5 w-5 text-intranet-primary" />
           SCPNG Notice Board
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3">
+      <CardContent>
         <NewsCarousel />
-        <div className="space-y-2">
+        <div className="space-y-3">
           {notices.map((notice) => (
             <div 
               key={notice.id} 
-              className={`p-2 rounded-lg border border-border hover:border-intranet-primary/50 transition-colors duration-300 
+              className={`p-2.5 rounded-lg border border-border hover:border-intranet-primary/50 transition-colors duration-300 
                 ${notice.isPinned ? 'border-intranet-primary/50 bg-intranet-primary/5' : ''}`}
             >
-              <div className="flex justify-between items-start">
-                <h3 className="font-medium text-xs flex items-center gap-1">
-                  {notice.isPinned && <Pin size={10} className="text-intranet-primary animate-pulse" />}
+              <div className="flex justify-between items-start mb-1">
+                <h3 className="font-medium text-sm flex items-center gap-1">
+                  {notice.isPinned && <Pin size={12} className="text-intranet-primary animate-pulse" />}
                   {notice.title}
                 </h3>
                 <Badge 
                   variant="outline" 
-                  className={`flex items-center gap-1 text-white text-[10px] px-1 py-0 ${getCategoryDetails(notice.category).color}`}
+                  className={`flex items-center gap-1 text-white text-xs px-1.5 py-0.5 ${getCategoryDetails(notice.category).color}`}
                 >
                   {getCategoryDetails(notice.category).icon}
                 </Badge>
               </div>
-              <p className="text-[10px] text-gray-600 dark:text-gray-300 line-clamp-1">{notice.content}</p>
-              <div className="text-[10px] text-gray-500 dark:text-gray-400">{formatDate(notice.date)}</div>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1 line-clamp-2">{notice.content}</p>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(notice.date)}</div>
             </div>
           ))}
         </div>

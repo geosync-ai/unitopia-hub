@@ -34,16 +34,16 @@ const MetricCard: React.FC<MetricCardProps> = ({
   const trendSign = trendType === 'increase' ? '+' : '-';
 
   return (
-    <div className="bg-white p-3 rounded-xl shadow-sm h-full animate-fade-in">
-      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{title}</h3>
+    <div className="bg-white p-4 rounded-xl shadow-sm h-full animate-fade-in">
+      <h3 className="text-sm font-medium text-gray-500 uppercase mb-4">{title}</h3>
       
-      <div className="flex justify-between items-start mb-1">
+      <div className="flex justify-between items-start mb-2">
         <div>
-          <span className="text-2xl font-bold block">{value}</span>
-          <span className="text-xs text-gray-500">{subtitle}</span>
+          <span className="text-3xl font-bold block">{value}</span>
+          <span className="text-sm text-gray-500">{subtitle}</span>
         </div>
         
-        <div className="w-20 h-10">
+        <div className="w-24 h-12">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
               <Line 
@@ -58,8 +58,8 @@ const MetricCard: React.FC<MetricCardProps> = ({
         </div>
       </div>
       
-      <div className="mt-1">
-        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] ${trendColor}`}>
+      <div className="mt-2">
+        <span className={`inline-block px-2 py-1 rounded-full text-xs ${trendColor}`}>
           {trendSign}{Math.abs(trend)}% {trendLabel}
         </span>
       </div>

@@ -19,18 +19,17 @@ const ScheduledEvents: React.FC<ScheduledEventsProps> = ({
   stats
 }) => {
   return (
-    <Card className="bg-white rounded-xl shadow-sm animate-fade-in">
-      <CardHeader className="pb-0 pt-3">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-semibold">MY SCHEDULED EVENTS</h3>
-          <Button variant="outline" size="sm" className="h-6 text-xs">
-            Today
-            <ChevronDown size={12} className="ml-1" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-3 flex flex-col items-center">
-        <div className="mb-3 transform scale-90">
+    <div className="bg-white rounded-xl shadow-sm p-4 animate-fade-in">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">MY SCHEDULED EVENTS</h3>
+        <Button variant="outline" size="sm" className="h-8">
+          Today
+          <ChevronDown size={16} className="ml-1" />
+        </Button>
+      </div>
+      
+      <div className="flex flex-col items-center">
+        <div className="mb-4">
           <StatCircle 
             percentage={businessPercentage} 
             label="BUSINESS"
@@ -38,16 +37,16 @@ const ScheduledEvents: React.FC<ScheduledEventsProps> = ({
           />
         </div>
         
-        <div className="space-y-2 w-full">
+        <div className="space-y-3 w-full">
           {stats.map((stat, index) => (
             <div key={index} className="flex justify-between items-center">
-              <div className="text-base font-semibold">{stat.count}</div>
-              <div className="text-gray-500 text-sm">{stat.label}</div>
+              <div className="text-lg font-semibold">{stat.count}</div>
+              <div className="text-gray-500">{stat.label}</div>
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

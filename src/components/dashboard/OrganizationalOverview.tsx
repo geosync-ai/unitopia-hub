@@ -25,22 +25,22 @@ const OrganizationalOverview = () => {
   ];
 
   return (
-    <Card className="bg-gradient-to-br from-card to-muted/80 shadow-sm animate-fade-in">
-      <CardHeader className="pb-0 pt-3">
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+    <Card className="bg-gradient-to-br from-card to-muted/80 shadow-md animate-fade-in">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-xl">
           <Compass className="h-5 w-5 text-intranet-primary" />
           Organizational Overview
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-2">
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-1 mb-1">
                 <Flag className="h-4 w-4 text-intranet-primary" />
                 Our Mission
               </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-3">{orgMission}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">{orgMission}</p>
             </div>
             
             <div>
@@ -48,24 +48,24 @@ const OrganizationalOverview = () => {
                 <Target className="h-4 w-4 text-intranet-primary" />
                 Our Vision
               </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-3">{orgVision}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">{orgVision}</p>
             </div>
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-1 mb-1">
                 <BarChart2 className="h-4 w-4 text-intranet-primary" />
                 Core Values Performance
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {orgValues.map((value, index) => (
                   <div key={index} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span>{value.name}</span>
                       <span>{value.progress}%</span>
                     </div>
-                    <Progress value={value.progress} className="h-1" />
+                    <Progress value={value.progress} className="h-1.5" />
                   </div>
                 ))}
               </div>
@@ -76,14 +76,14 @@ const OrganizationalOverview = () => {
                 <Target className="h-4 w-4 text-intranet-primary" />
                 Strategic Objectives
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {orgObjectives.map((objective, index) => (
                   <div key={index} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span>{objective.name}</span>
                       <span>{objective.progress}%</span>
                     </div>
-                    <Progress value={objective.progress} className="h-1" />
+                    <Progress value={objective.progress} className="h-1.5" />
                   </div>
                 ))}
               </div>

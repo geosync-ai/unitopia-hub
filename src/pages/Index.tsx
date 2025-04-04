@@ -32,55 +32,46 @@ const Index = () => {
   
   return (
     <PageLayout>
-      {/* Welcome Banner */}
-      <div className="mb-4">
-        <WelcomeBanner />
-      </div>
+      <WelcomeBanner />
       
-      {/* Welcome Card */}
-      <div className="mb-4">
-        <WelcomeCard 
-          name={user?.name || "User"} 
-          date={currentDate}
-          greeting="Welcome to the SCPNG Intranet Portal"
-          location="MRDC House"
-        />
-      </div>
+      <WelcomeCard 
+        name={user?.name || "User"} 
+        date={currentDate}
+        greeting="Welcome to the SCPNG Intranet Portal"
+        location="MRDC House"
+      />
       
-      {/* Personal KPI Cards in row */}
-      <div className="mb-4">
-        <PersonalKPICards />
-      </div>
+      {/* Personal KPI Cards */}
+      <PersonalKPICards />
       
-      {/* Main content area with 3 columns layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        {/* First column - KPI Stats and Org Overview */}
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2 space-y-6">
           {/* Personal KPI Stats */}
           <PersonalKPIStats />
           
-          {/* Organizational Overview */}
+          {/* Organizational Overview moved to left side */}
           <OrganizationalOverview />
-          
+        </div>
+        
+        {/* Quick Access moved to right side */}
+        <div>
+          <QuickAccess />
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2">
           {/* KPI Statistics */}
           <KPIStatistics />
         </div>
-        
-        {/* Second column - Quick Access and Notice Board */}
-        <div className="space-y-4">
-          {/* Quick Access Links */}
-          <QuickAccess />
-          
-          {/* Notice Board with news slideshow */}
-          <NoticeBoard />
-          
-          {/* Scheduled Events */}
-          <ScheduledEvents 
-            businessPercentage={75} 
-            stats={eventStats} 
-          />
-        </div>
+        <NoticeBoard />
       </div>
+      
+      {/* Scheduled Events */}
+      <ScheduledEvents 
+        businessPercentage={75} 
+        stats={eventStats} 
+      />
     </PageLayout>
   );
 };

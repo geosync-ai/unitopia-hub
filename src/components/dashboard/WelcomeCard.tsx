@@ -15,7 +15,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
   location
 }) => {
   return (
-    <div className="bg-intranet-primary text-white p-4 rounded-xl relative overflow-hidden shadow-md animate-fade-in">
+    <div className="bg-intranet-primary text-white p-6 rounded-xl relative overflow-hidden shadow-md animate-fade-in">
       <div className="absolute right-0 top-0 h-full w-1/3 flex items-center justify-center opacity-90">
         <img 
           src="/lovable-uploads/b166a9bc-0aab-4f5a-be16-646f0fb087cc.png" 
@@ -25,10 +25,10 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
       </div>
       
       <div className="z-10 relative w-2/3">
-        <div className="text-xs font-light mb-1">{date}</div>
-        <h1 className="text-xl font-bold mb-1">Good Day, {name}!</h1>
-        <p className="opacity-90 text-sm">{greeting}</p>
-        {location && <p className="opacity-80 mt-1 text-xs">{location}</p>}
+        <div className="text-sm font-light mb-2">{date}</div>
+        <h1 className="text-2xl font-bold mb-2">Good Day, {name}!</h1>
+        <p className="opacity-90">{greeting}</p>
+        {location && <p className="opacity-80 mt-2 text-sm">{location}</p>}
       </div>
     </div>
   );
