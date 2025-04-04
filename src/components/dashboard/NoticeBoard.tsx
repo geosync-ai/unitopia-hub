@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Bell, Calendar, ExternalLink, Pin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface Notice {
   id: number;
@@ -12,6 +13,39 @@ interface Notice {
   category: 'announcement' | 'event' | 'update' | 'alert';
   isPinned?: boolean;
 }
+
+const NewsCarousel: React.FC = () => {
+  const newsImages = [
+    "https://picsum.photos/id/1033/800/400",
+    "https://picsum.photos/id/1025/800/400",
+    "https://picsum.photos/id/1015/800/400",
+    "https://picsum.photos/id/1018/800/400"
+  ];
+  
+  return (
+    <Carousel className="w-full mb-4">
+      <CarouselContent>
+        {newsImages.map((image, index) => (
+          <CarouselItem key={index}>
+            <div className="p-1">
+              <div className="overflow-hidden rounded-md">
+                <img
+                  src={image}
+                  alt={`News image ${index + 1}`}
+                  className="h-48 w-full object-cover transition-all hover:scale-105"
+                />
+              </div>
+            </div>
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+      <div className="flex justify-center mt-2">
+        <CarouselPrevious className="relative static left-0 translate-y-0 mr-2" />
+        <CarouselNext className="relative static right-0 translate-y-0" />
+      </div>
+    </Carousel>
+  );
+};
 
 const NoticeBoard = () => {
   // Mock notices data
@@ -79,6 +113,7 @@ const NoticeBoard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <NewsCarousel />
         <div className="space-y-3">
           {notices.map((notice) => (
             <div 

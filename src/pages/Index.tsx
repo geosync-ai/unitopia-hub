@@ -8,6 +8,8 @@ import ScheduledEvents from '@/components/dashboard/ScheduledEvents';
 import OrganizationalOverview from '@/components/dashboard/OrganizationalOverview';
 import KPIStatistics from '@/components/dashboard/KPIStatistics';
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
+import PersonalKPICards from '@/components/dashboard/PersonalKPICards';
+import PersonalKPIStats from '@/components/dashboard/PersonalKPIStats';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
@@ -39,23 +41,37 @@ const Index = () => {
         location="MRDC House"
       />
       
+      {/* Personal KPI Cards */}
+      <PersonalKPICards />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Personal KPI Stats */}
+          <PersonalKPIStats />
+          
+          {/* Organizational Overview moved to left side */}
+          <OrganizationalOverview />
+        </div>
+        
+        {/* Quick Access moved to right side */}
+        <div>
+          <QuickAccess />
+        </div>
+      </div>
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
-          <QuickAccess />
+          {/* KPI Statistics */}
+          <KPIStatistics />
         </div>
         <NoticeBoard />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2 space-y-6">
-          <ScheduledEvents 
-            businessPercentage={75} 
-            stats={eventStats} 
-          />
-          <KPIStatistics />
-        </div>
-        <OrganizationalOverview />
-      </div>
+      {/* Scheduled Events */}
+      <ScheduledEvents 
+        businessPercentage={75} 
+        stats={eventStats} 
+      />
     </PageLayout>
   );
 };
