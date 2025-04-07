@@ -879,288 +879,6 @@ const Unit = () => {
           
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Manage Data</CardTitle>
-              <CardDescription>Add, edit, or delete KRAs, KPIs, and Objectives</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="flex space-x-2 mb-4">
-                  <Button 
-                    variant={activeForm === 'kra' ? 'default' : 'outline'} 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setActiveForm('kra')}
-                  >
-                    <List className="h-4 w-4 mr-1" />
-                    KRAs
-                  </Button>
-                  <Button 
-                    variant={activeForm === 'kpi' ? 'default' : 'outline'} 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setActiveForm('kpi')}
-                  >
-                    <Target className="h-4 w-4 mr-1" />
-                    KPIs
-                  </Button>
-                  <Button 
-                    variant={activeForm === 'objective' ? 'default' : 'outline'} 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setActiveForm('objective')}
-                  >
-                    <Flag className="h-4 w-4 mr-1" />
-                    Objectives
-                  </Button>
-                </div>
-                
-                {formError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{formError}</AlertDescription>
-                  </Alert>
-                )}
-                
-                {activeForm === 'kra' && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="kra-name">KRA Name</Label>
-                      <Input 
-                        id="kra-name" 
-                        value={kraForm.name} 
-                        onChange={(e) => setKraForm({...kraForm, name: e.target.value})}
-                        placeholder="Enter KRA name" 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="objective">Linked Objective</Label>
-                      <Select 
-                        value={kraForm.objectiveId?.toString() || ''} 
-                        onValueChange={(value) => setKraForm({...kraForm, objectiveId: parseInt(value)})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select objective" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {objectives.map((objective) => (
-                            <SelectItem key={objective.id} value={objective.id.toString()}>
-                              {objective.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
-                      <Select 
-                        value={kraForm.status} 
-                        onValueChange={(value) => setKraForm({...kraForm, status: value as 'open' | 'in-progress' | 'closed'})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <Button onClick={handleAddKRA} className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add KRA
-                    </Button>
-                    
-                    <div className="space-y-2">
-                      <Label>Existing KRAs</Label>
-                      <div className="max-h-40 overflow-y-auto border rounded-md">
-                        {kras.map((kra) => (
-                          <div 
-                            key={kra.id} 
-                            className="flex items-center justify-between p-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800"
-                          >
-                            <div className="text-sm truncate">{kra.name}</div>
-                            <div className="flex space-x-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleDeleteKRA(kra.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {activeForm === 'kpi' && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="kra-select">Select KRA</Label>
-                      <Select 
-                        value={selectedKRA?.id.toString() || ''} 
-                        onValueChange={(value) => setSelectedKRA(kras.find(k => k.id === parseInt(value)) || null)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select KRA" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kras.map((kra) => (
-                            <SelectItem key={kra.id} value={kra.id.toString()}>
-                              {kra.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="kpi-name">KPI Name</Label>
-                      <Input 
-                        id="kpi-name" 
-                        value={kpiForm.name} 
-                        onChange={(e) => setKpiForm({...kpiForm, name: e.target.value})}
-                        placeholder="Enter KPI name" 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="kpi-target">Target</Label>
-                      <Input 
-                        id="kpi-target" 
-                        value={kpiForm.target} 
-                        onChange={(e) => setKpiForm({...kpiForm, target: e.target.value})}
-                        placeholder="Enter target value" 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="kpi-current">Current</Label>
-                      <Input 
-                        id="kpi-current" 
-                        value={kpiForm.current} 
-                        onChange={(e) => setKpiForm({...kpiForm, current: e.target.value})}
-                        placeholder="Enter current value" 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="kpi-status">Status</Label>
-                      <Select 
-                        value={kpiForm.status} 
-                        onValueChange={(value) => setKpiForm({...kpiForm, status: value as 'on-track' | 'needs-attention' | 'at-risk'})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="on-track">On Track</SelectItem>
-                          <SelectItem value="needs-attention">Needs Attention</SelectItem>
-                          <SelectItem value="at-risk">At Risk</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <Button 
-                      onClick={handleAddKPI} 
-                      className="w-full"
-                      disabled={!selectedKRA}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add KPI
-                    </Button>
-                    
-                    {selectedKRA && (
-                      <div className="space-y-2">
-                        <Label>KPIs for {selectedKRA.name}</Label>
-                        <div className="max-h-40 overflow-y-auto border rounded-md">
-                          {selectedKRA.kpis.map((kpi) => (
-                            <div 
-                              key={kpi.id} 
-                              className="flex items-center justify-between p-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800"
-                            >
-                              <div className="text-sm truncate">{kpi.name}</div>
-                              <div className="flex space-x-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => handleDeleteKRA(selectedKRA.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {activeForm === 'objective' && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="objective-name">Objective Name</Label>
-                      <Input 
-                        id="objective-name" 
-                        value={objectiveForm.name} 
-                        onChange={(e) => setObjectiveForm({...objectiveForm, name: e.target.value})}
-                        placeholder="Enter objective name" 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="objective-description">Description</Label>
-                      <Textarea 
-                        id="objective-description" 
-                        value={objectiveForm.description} 
-                        onChange={(e) => setObjectiveForm({...objectiveForm, description: e.target.value})}
-                        placeholder="Enter objective description" 
-                      />
-                    </div>
-                    
-                    <Button onClick={handleAddObjective} className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Objective
-                    </Button>
-                    
-                    <div className="space-y-2">
-                      <Label>Existing Objectives</Label>
-                      <div className="max-h-40 overflow-y-auto border rounded-md">
-                        {objectives.map((objective) => (
-                          <div 
-                            key={objective.id} 
-                            className="flex items-center justify-between p-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800"
-                          >
-                            <div className="text-sm truncate">{objective.name}</div>
-                            <div className="flex space-x-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleDeleteKRA(objective.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="mt-6">
-            <CardHeader>
               <CardTitle>Quick Stats</CardTitle>
             </CardHeader>
             <CardContent>
@@ -1223,78 +941,118 @@ const Unit = () => {
         </DialogContent>
       </Dialog>
       
-      {/* KRA Drawer */}
-      <Sheet open={isKRADrawerOpen} onOpenChange={setIsKRADrawerOpen}>
-        <SheetContent className="w-[400px] sm:w-[540px]">
-          <SheetHeader>
-            <SheetTitle>KRA Details</SheetTitle>
-            <SheetDescription>
+      {/* Replace Sheet with Dialog for KRA details */}
+      <Dialog open={isKRADrawerOpen} onOpenChange={setIsKRADrawerOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>KRA Details</DialogTitle>
+            <DialogDescription>
               View and edit KRA information
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
           
           {selectedKRADrawer && (
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label>KRA Name</Label>
-                <Input 
-                  value={selectedKRADrawer.name} 
-                  onChange={(e) => setSelectedKRADrawer({...selectedKRADrawer, name: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Linked Objective</Label>
-                <Select 
-                  value={selectedKRADrawer.objectiveId.toString()} 
-                  onValueChange={(value) => {
-                    const objective = objectives.find(obj => obj.id === parseInt(value));
-                    if (objective) {
-                      setSelectedKRADrawer({
-                        ...selectedKRADrawer,
-                        objectiveId: parseInt(value),
-                        objectiveName: objective.name
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select objective" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {objectives.map((objective) => (
-                      <SelectItem key={objective.id} value={objective.id.toString()}>
-                        {objective.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select 
-                  value={selectedKRADrawer.status} 
-                  onValueChange={(value) => setSelectedKRADrawer({...selectedKRADrawer, status: value as 'open' | 'in-progress' | 'closed'})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>KPIs</Label>
-                <div className="border rounded-md p-4 space-y-4">
-                  {selectedKRADrawer.kpis.map((kpi) => (
-                    <div key={kpi.id} className="space-y-4">
-                      <div>
-                        <Label htmlFor={`kpi-name-${kpi.id}`}>Name</Label>
+            <div className="overflow-y-auto pr-2 flex-1">
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>KRA Name</Label>
+                    <Input 
+                      value={selectedKRADrawer.name} 
+                      onChange={(e) => setSelectedKRADrawer({...selectedKRADrawer, name: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select 
+                      value={selectedKRADrawer.status} 
+                      onValueChange={(value) => setSelectedKRADrawer({...selectedKRADrawer, status: value as 'open' | 'in-progress' | 'closed'})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Linked Objective</Label>
+                  <Select 
+                    value={selectedKRADrawer.objectiveId.toString()} 
+                    onValueChange={(value) => {
+                      const objective = objectives.find(obj => obj.id === parseInt(value));
+                      if (objective) {
+                        setSelectedKRADrawer({
+                          ...selectedKRADrawer,
+                          objectiveId: parseInt(value),
+                          objectiveName: objective.name
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select objective" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {objectives.map((objective) => (
+                        <SelectItem key={objective.id} value={objective.id.toString()}>
+                          {objective.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-lg font-medium">KPIs</Label>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const newKPI: KPI = {
+                          id: Math.max(...selectedKRADrawer.kpis.map(k => k.id), 0) + 1,
+                          name: "New KPI",
+                          target: "0",
+                          current: "0",
+                          status: "on-track",
+                          progress: 0
+                        };
+                        setSelectedKRADrawer({
+                          ...selectedKRADrawer,
+                          kpis: [...selectedKRADrawer.kpis, newKPI]
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add KPI
+                    </Button>
+                  </div>
+                  <div className="border rounded-md p-4 space-y-6">
+                    {selectedKRADrawer.kpis.map((kpi) => (
+                      <div key={kpi.id} className="space-y-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
+                        <div className="flex justify-between items-center">
+                          <Label htmlFor={`kpi-name-${kpi.id}`} className="text-base">KPI Name</Label>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500"
+                            onClick={() => {
+                              setSelectedKRADrawer({
+                                ...selectedKRADrawer,
+                                kpis: selectedKRADrawer.kpis.filter(k => k.id !== kpi.id)
+                              });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <Input 
                           id={`kpi-name-${kpi.id}`}
                           value={kpi.name} 
@@ -1305,76 +1063,76 @@ const Unit = () => {
                             setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                           }}
                         />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2">
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`kpi-target-${kpi.id}`}>Target</Label>
+                            <Input 
+                              id={`kpi-target-${kpi.id}`}
+                              value={kpi.target} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, target: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`kpi-current-${kpi.id}`}>Current</Label>
+                            <Input 
+                              id={`kpi-current-${kpi.id}`}
+                              value={kpi.current} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, current: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                            />
+                          </div>
+                        </div>
+                        
                         <div>
-                          <Label htmlFor={`kpi-target-${kpi.id}`}>Target</Label>
-                          <Input 
-                            id={`kpi-target-${kpi.id}`}
-                            value={kpi.target} 
-                            onChange={(e) => {
+                          <Label htmlFor={`kpi-status-${kpi.id}`}>Status</Label>
+                          <Select 
+                            value={kpi.status} 
+                            onValueChange={(value) => {
                               const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                k.id === kpi.id ? {...k, target: e.target.value} : k
+                                k.id === kpi.id ? {...k, status: value as 'on-track' | 'needs-attention' | 'at-risk'} : k
                               );
                               setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                             }}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`kpi-current-${kpi.id}`}>Current</Label>
-                          <Input 
-                            id={`kpi-current-${kpi.id}`}
-                            value={kpi.current} 
-                            onChange={(e) => {
-                              const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                k.id === kpi.id ? {...k, current: e.target.value} : k
-                              );
-                              setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                            }}
-                          />
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="on-track">On Track</SelectItem>
+                              <SelectItem value="needs-attention">Needs Attention</SelectItem>
+                              <SelectItem value="at-risk">At Risk</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
-                      
-                      <div>
-                        <Label htmlFor={`kpi-status-${kpi.id}`}>Status</Label>
-                        <Select 
-                          value={kpi.status} 
-                          onValueChange={(value) => {
-                            const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                              k.id === kpi.id ? {...k, status: value as 'on-track' | 'needs-attention' | 'at-risk'} : k
-                            );
-                            setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="on-track">On Track</SelectItem>
-                            <SelectItem value="needs-attention">Needs Attention</SelectItem>
-                            <SelectItem value="at-risk">At Risk</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Dates</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label>Created</Label>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(selectedKRADrawer.createdAt).toLocaleDateString()}
-                    </div>
+                    ))}
                   </div>
-                  <div>
-                    <Label>Last Updated</Label>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(selectedKRADrawer.updatedAt).toLocaleDateString()}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-lg font-medium">Dates</Label>
+                  <div className="grid grid-cols-2 gap-4 p-4 border rounded-md">
+                    <div>
+                      <Label>Created</Label>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {new Date(selectedKRADrawer.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Last Updated</Label>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {new Date(selectedKRADrawer.updatedAt).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1382,7 +1140,7 @@ const Unit = () => {
             </div>
           )}
           
-          <SheetFooter className="mt-6">
+          <DialogFooter className="mt-6 pt-4 border-t">
             <div className="flex justify-between w-full">
               <Button 
                 variant="destructive" 
@@ -1400,9 +1158,9 @@ const Unit = () => {
                 </Button>
               </div>
             </div>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };
