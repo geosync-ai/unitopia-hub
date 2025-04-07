@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { LogIn } from 'lucide-react';
 
 const Login = () => {
-  const { loginWithMicrosoft, isAuthenticated } = useAuth();
+  const { loginWithMicrosoft, isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // Check if we're returning from Microsoft authentication
+  useEffect(() => {
+    // Check if we have a user in localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.id) {
+          console.log('Found stored user, redirecting to dashboard');
+          navigate('/', { replace: true });
+        }
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+      }
+    }
+  }, [navigate]);
+
+  // If already authenticated, redirect to dashboard
   if (isAuthenticated) {
-    return <Navigate to="/" />;
+    console.log('User is authenticated, redirecting to dashboard');
+    return <Navigate to="/" replace />;
   }
 
   const handleMicrosoftLogin = async () => {
@@ -20,7 +40,8 @@ const Login = () => {
 
     try {
       await loginWithMicrosoft();
-      navigate('/');
+      // The navigation will happen after the user is redirected back
+      // and the useEffect above detects the stored user
       toast.success('Successfully logged in with Microsoft');
     } catch (error) {
       toast.error('Microsoft authentication failed');

@@ -31,6 +31,7 @@ interface AuthContextType {
   selectedUnit: string | null;
   setSelectedUnit: (unitId: string | null) => void;
   msGraphConfig: MsGraphConfig | null;
+  setUser: (user: User | null) => void;
 }
 
 interface MsGraphConfig {
@@ -209,8 +210,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('MSAL instance not found');
       }
       
+      // Check if we already have an account
+      const existingAccount = getAccount(msalInstance);
+      if (existingAccount) {
+        console.log('User already logged in, getting profile');
+        
+        // Get user profile from MS Graph API
+        const userProfile = await getUserProfile(msalInstance, msGraphConfig.apiEndpoint);
+        
+        console.log('User profile from MS Graph:', userProfile);
+        
+        // Create user object
+        const userObj: User = {
+          id: existingAccount.localAccountId,
+          email: existingAccount.username,
+          name: userProfile.displayName || existingAccount.name || existingAccount.username.split('@')[0],
+          role: adminEmails.includes(existingAccount.username.toLowerCase()) ? 'admin' : 'user',
+          accessToken: 'ms-token', // We don't store the actual token for security
+          profilePicture: userProfile.photo || undefined
+        };
+        
+        setUser(userObj);
+        localStorage.setItem('user', JSON.stringify(userObj));
+        return Promise.resolve();
+      }
+      
       // Attempt login with Microsoft
       await msalLogin(msalInstance, msGraphConfig.permissions);
+      
+      // Note: The rest of this function will only execute if we're using popup flow
+      // For redirect flow, the page will reload and the useEffect in the Login component
+      // will handle the redirect after detecting the stored user
       
       // Get account info
       const account = getAccount(msalInstance);
@@ -283,7 +313,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     businessUnits: mockBusinessUnits,
     selectedUnit,
     setSelectedUnit,
-    msGraphConfig
+    msGraphConfig,
+    setUser
   };
 
   return (
