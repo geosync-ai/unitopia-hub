@@ -43,7 +43,17 @@ export function useSupabaseConfig() {
       }
       
       if (data) {
-        setConfig(data.value as SupabaseConfig);
+        const value = data.value as unknown;
+        if (typeof value === 'object' && value !== null) {
+          const config = value as Record<string, unknown>;
+          setConfig({
+            use_default: Boolean(config.use_default),
+            custom_url: String(config.custom_url || ''),
+            custom_key: String(config.custom_key || ''),
+            last_tested: config.last_tested ? String(config.last_tested) : null,
+            test_success: Boolean(config.test_success)
+          });
+        }
       }
     } catch (err) {
       console.error('Error fetching Supabase configuration:', err);

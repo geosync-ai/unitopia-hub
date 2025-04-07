@@ -19,6 +19,7 @@ export const MsalAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   
+  // Initialize MSAL
   useEffect(() => {
     if (msGraphConfig) {
       try {
@@ -32,36 +33,43 @@ export const MsalAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Initialize MSAL instance
         const instance = new PublicClientApplication(config);
         
-        // Set the instance for global access
-        window.msalInstance = instance;
-        
-        // Register callback functions
-        instance.addEventCallback((event) => {
-          if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
-            console.log('MSAL login success event:', event);
-            const result = event.payload as AuthenticationResult;
-            
-            // Check if the login was successful
-            if (result.account) {
-              console.log('Login successful for account:', result.account);
+        // Initialize the instance
+        instance.initialize().then(() => {
+          console.log('MSAL instance initialized successfully');
+          
+          // Set the instance for global access
+          window.msalInstance = instance;
+          
+          // Register callback functions
+          instance.addEventCallback((event) => {
+            if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
+              console.log('MSAL login success event:', event);
+              const result = event.payload as AuthenticationResult;
               
-              // If there are accounts already, check if user needs to login
-              if (instance.getAllAccounts().length > 0) {
-                console.log('User is already logged in:', instance.getAllAccounts()[0]);
+              // Check if the login was successful
+              if (result.account) {
+                console.log('Login successful for account:', result.account);
+                
+                // If there are accounts already, check if user needs to login
+                if (instance.getAllAccounts().length > 0) {
+                  console.log('User is already logged in:', instance.getAllAccounts()[0]);
+                }
               }
+            } else if (event.eventType === EventType.LOGIN_FAILURE) {
+              console.error('MSAL login failed:', event);
+            } else if (event.eventType === EventType.LOGOUT_SUCCESS) {
+              console.log('Logout successful');
             }
-          } else if (event.eventType === EventType.LOGIN_FAILURE) {
-            console.error('MSAL login failed:', event);
-          } else if (event.eventType === EventType.LOGOUT_SUCCESS) {
-            console.log('Logout successful');
-          }
+          });
+          
+          setMsalInstance(instance);
+          setIsInitialized(true);
+        }).catch(error => {
+          console.error('Failed to initialize MSAL instance:', error);
         });
         
-        setMsalInstance(instance);
-        setIsInitialized(true);
-        
       } catch (error) {
-        console.error('Failed to initialize MSAL:', error);
+        console.error('Failed to create MSAL instance:', error);
       }
     }
     
