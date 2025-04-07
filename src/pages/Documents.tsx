@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { FileIcon, Cloud, FolderIcon, Loader2 } from 'lucide-react';
+import { FileIcon, Cloud, FolderIcon, Loader2, RefreshCw } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 
 interface Document {
@@ -20,12 +20,13 @@ interface Document {
 
 const Documents = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login, loginWithMicrosoft } = useAuth();
   const { getSharePointDocuments, getOneDriveDocuments } = useMicrosoftGraph();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [source, setSource] = useState<'SharePoint' | 'OneDrive' | 'All'>('All');
+  const [authError, setAuthError] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -37,6 +38,7 @@ const Documents = () => {
 
   const fetchDocuments = async () => {
     setIsLoading(true);
+    setAuthError(false);
     try {
       let allDocs: Document[] = [];
 
@@ -63,9 +65,24 @@ const Documents = () => {
       setDocuments(allDocs);
     } catch (error) {
       console.error('Error fetching documents:', error);
-      toast.error('Failed to load documents');
+      if (error instanceof Error && error.message.includes('No accounts found')) {
+        setAuthError(true);
+        toast.error('Authentication issue detected. Please sign in again.');
+      } else {
+        toast.error('Failed to load documents');
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleReauthenticate = async () => {
+    try {
+      await loginWithMicrosoft();
+      // After login, the useEffect will trigger fetchDocuments
+    } catch (error) {
+      console.error('Error re-authenticating:', error);
+      toast.error('Failed to re-authenticate');
     }
   };
 
@@ -106,6 +123,21 @@ const Documents = () => {
             </Button>
           </div>
         </div>
+
+        {authError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="text-red-500 mr-2">⚠️</div>
+                <p className="text-red-700">Authentication issue detected. Please re-authenticate to access your documents.</p>
+              </div>
+              <Button onClick={handleReauthenticate} variant="outline" className="text-red-600 border-red-300 hover:bg-red-50">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Re-authenticate
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <div className="flex gap-2">
@@ -164,7 +196,7 @@ const Documents = () => {
           </div>
         )}
 
-        {!isLoading && filteredDocuments.length === 0 && (
+        {!isLoading && !authError && filteredDocuments.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500">No documents found.</p>
           </div>

@@ -14,10 +14,30 @@ export const useMicrosoftGraph = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const getSharePointDocuments = async (): Promise<Document[] | null> => {
+  // Helper function to check if MSAL is properly initialized and has an active account
+  const checkMsalAuth = () => {
     if (!window.msalInstance) {
       console.error('MSAL instance not found');
-      return null;
+      return false;
+    }
+    
+    const accounts = window.msalInstance.getAllAccounts();
+    if (accounts.length === 0) {
+      console.error('No accounts found');
+      return false;
+    }
+    
+    // Set active account if not already set
+    if (!window.msalInstance.getActiveAccount()) {
+      window.msalInstance.setActiveAccount(accounts[0]);
+    }
+    
+    return true;
+  };
+
+  const getSharePointDocuments = async (): Promise<Document[] | null> => {
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
     }
 
     try {
@@ -47,14 +67,13 @@ export const useMicrosoftGraph = () => {
     } catch (error) {
       console.error('Error fetching SharePoint documents:', error);
       toast.error('Failed to fetch SharePoint documents');
-      return null;
+      throw error; // Re-throw to let the component handle it
     }
   };
 
   const getOneDriveDocuments = async (): Promise<Document[] | null> => {
-    if (!window.msalInstance) {
-      console.error('MSAL instance not found');
-      return null;
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
     }
 
     try {
@@ -62,6 +81,7 @@ export const useMicrosoftGraph = () => {
         scopes: ['User.Read', 'Files.Read.All']
       });
 
+      // Using the same endpoint that worked in the test file
       const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
       const result = await fetch(graphEndpoint, {
         headers: {
@@ -84,7 +104,7 @@ export const useMicrosoftGraph = () => {
     } catch (error) {
       console.error('Error fetching OneDrive documents:', error);
       toast.error('Failed to fetch OneDrive documents');
-      return null;
+      throw error; // Re-throw to let the component handle it
     }
   };
 
