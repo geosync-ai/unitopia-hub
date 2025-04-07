@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import MainSidebar from './MainSidebar';
-import { Bell, Search, Menu, X } from 'lucide-react';
+import { Bell, Search, Menu, X, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
@@ -70,12 +69,34 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
             </button>
             
             {user && (
-              <div className="text-sm font-medium ml-2 hidden sm:block text-white">
-                {user.email}
-                {user.role && (
-                  <span className="ml-2 bg-white/20 text-white text-xs py-0.5 px-2 rounded-full">
-                    {user.role}
-                  </span>
+              <div className="flex items-center">
+                <div className="text-sm font-medium mr-3 hidden sm:block text-white">
+                  <div>{user.name || user.email}</div>
+                  {user.role && (
+                    <span className="bg-white/20 text-white text-xs py-0.5 px-2 rounded-full">
+                      {user.role}
+                    </span>
+                  )}
+                </div>
+                {user.profilePicture ? (
+                  <img 
+                    src={user.profilePicture} 
+                    alt="Profile" 
+                    className="h-9 w-9 rounded-full border-2 border-white/30 object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "";
+                      target.onerror = null;
+                      target.classList.add("bg-white/10");
+                      target.classList.add("flex");
+                      target.classList.add("items-center");
+                      target.classList.add("justify-center");
+                    }}
+                  />
+                ) : (
+                  <div className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center text-white">
+                    <User size={18} />
+                  </div>
                 )}
               </div>
             )}

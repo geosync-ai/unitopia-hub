@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, Navigate } from 'react-router-dom';
@@ -149,8 +148,9 @@ const Login = () => {
                 </Button>
                 
                 <div className="text-sm text-center text-gray-500">
-                  <p>Default admin credentials:</p>
-                  <p>Email: admin@scpng.com | Password: admin</p>
+                  <p>Admin access:</p>
+                  <p className="mb-1">Demo: admin@scpng.com | Password: admin</p>
+                  <p>Super Admin: geosyncsurvey@gmail.com | Use your Supabase password</p>
                 </div>
               </form>
             </Form>

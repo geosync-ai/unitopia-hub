@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import MsalAuthProvider from "@/integrations/microsoft/MsalProvider";
 import Index from "./pages/Index";
 import News from "./pages/News";
 import AIHub from "./pages/AIHub";
@@ -18,6 +18,7 @@ import Calendar from "./pages/Calendar";
 import Gallery from "./pages/Gallery";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import SupabaseTest from "./pages/SupabaseTest";
 
 const queryClient = new QueryClient();
 
@@ -47,22 +48,34 @@ const AppRoutes = () => {
       <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/supabase-test" element={<ProtectedRoute><SupabaseTest /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
 
+// Expose the MSAL instance globally for the auth hook to use
+// This is a workaround - in a production app you'd use React context properly
+// This will be set by the MsalAuthProvider when it initializes
+declare global {
+  interface Window {
+    msalInstance: any;
+  }
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <MsalAuthProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </MsalAuthProvider>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>

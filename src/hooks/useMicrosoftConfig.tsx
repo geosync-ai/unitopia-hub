@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface MicrosoftConfig {
   clientId: string;
@@ -11,6 +11,8 @@ export interface MicrosoftConfig {
   apiEndpoint: string;
   last_tested: string | null;
   test_success: boolean;
+  confirmed: boolean;
+  last_confirmed: string | null;
 }
 
 export function useMicrosoftConfig() {
@@ -21,7 +23,9 @@ export function useMicrosoftConfig() {
     permissions: ['User.Read'],
     apiEndpoint: 'https://graph.microsoft.com/v1.0/me',
     last_tested: null,
-    test_success: false
+    test_success: false,
+    confirmed: false,
+    last_confirmed: null
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +50,8 @@ export function useMicrosoftConfig() {
       }
       
       if (data) {
-        setConfig(data.value as MicrosoftConfig);
+        const parsedConfig = data.value as unknown as MicrosoftConfig;
+        setConfig(parsedConfig);
       }
     } catch (err) {
       console.error('Error fetching Microsoft configuration:', err);
@@ -58,24 +63,62 @@ export function useMicrosoftConfig() {
 
   const updateConfig = async (newConfig: MicrosoftConfig) => {
     try {
+      console.log('Updating config in Supabase:', newConfig);
+      
+      // Clean the object to avoid circular references and ensure proper serialization
+      const cleanConfig = JSON.parse(JSON.stringify(newConfig));
+      
+      // First attempt: Direct update
       const { error } = await supabase
         .from('app_config')
-        .update({ value: newConfig })
+        .update({ 
+          value: cleanConfig,
+          updated_at: new Date().toISOString()
+        })
         .eq('key', 'microsoft_config');
       
       if (error) {
-        throw error;
+        console.error('First update attempt failed:', error);
+        
+        // Second attempt: Cast as unknown first
+        const { error: secondError } = await supabase
+          .from('app_config')
+          .update({ 
+            value: cleanConfig as unknown as Json,
+            updated_at: new Date().toISOString()
+          })
+          .eq('key', 'microsoft_config');
+        
+        if (secondError) {
+          console.error('Second update attempt failed:', secondError);
+          throw secondError;
+        }
       }
       
+      // Verify the update was successful
+      const { data, error: verifyError } = await supabase
+        .from('app_config')
+        .select('value')
+        .eq('key', 'microsoft_config')
+        .single();
+      
+      if (verifyError) {
+        console.error('Verification query failed:', verifyError);
+        throw verifyError;
+      }
+      
+      console.log('Updated config in database:', data.value);
+      
+      // Update local state
       setConfig(newConfig);
       
       // Update localStorage for auth hook to use
-      localStorage.setItem('ms-api-config', JSON.stringify(newConfig));
+      localStorage.setItem('ms-api-config', JSON.stringify(cleanConfig));
       
       return true;
     } catch (err) {
       console.error('Error updating Microsoft configuration:', err);
-      toast.error('Failed to update Microsoft configuration');
+      toast.error('Failed to update Microsoft configuration: ' + (err instanceof Error ? err.message : 'Unknown error'));
       return false;
     }
   };

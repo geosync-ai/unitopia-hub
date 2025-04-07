@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { createClient } from '@supabase/supabase-js';
+import type { Json } from '@/integrations/supabase/types';
 
 interface SupabaseConfig {
   use_default: boolean;
@@ -55,9 +55,12 @@ export function useSupabaseConfig() {
 
   const updateConfig = async (newConfig: SupabaseConfig) => {
     try {
+      // Clean the object to avoid circular references
+      const cleanConfig = JSON.parse(JSON.stringify(newConfig));
+      
       const { error } = await supabase
         .from('app_config')
-        .update({ value: newConfig })
+        .update({ value: cleanConfig as unknown as Json })
         .eq('key', 'supabase_config');
       
       if (error) {
