@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export type UserRole = 'admin' | 'manager' | 'user';
 
@@ -10,6 +11,7 @@ export interface User {
   role: UserRole;
   unitId?: string;
   unitName?: string;
+  accessToken?: string; // For Microsoft Graph API
 }
 
 interface AuthContextType {
@@ -18,10 +20,20 @@ interface AuthContextType {
   isAdmin: boolean;
   isManager: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithMicrosoft: () => Promise<void>;
   logout: () => void;
   businessUnits: {id: string, name: string}[];
   selectedUnit: string | null;
   setSelectedUnit: (unitId: string | null) => void;
+  msGraphConfig: MsGraphConfig | null;
+}
+
+interface MsGraphConfig {
+  clientId: string;
+  authorityUrl: string;
+  redirectUri: string;
+  permissions: string[];
+  apiEndpoint: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,11 +61,19 @@ const mockBusinessUnits = [
 ];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(adminUser); // Auto logged in for demo
+  const [user, setUser] = useState<User | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [msGraphConfig, setMsGraphConfig] = useState<MsGraphConfig | null>(null);
   
-  // Simulating persistent auth
+  // Load saved config and user on mount
   useEffect(() => {
+    // Load Microsoft Graph API configuration
+    const savedMsConfig = localStorage.getItem('ms-api-config');
+    if (savedMsConfig) {
+      setMsGraphConfig(JSON.parse(savedMsConfig));
+    }
+
+    // Load user if saved in localStorage
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -61,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // In a real app, this would validate credentials against a backend
+    // Fallback login for demo purposes
     if (email && password) {
       const loggedInUser = adminUser;
       setUser(loggedInUser);
@@ -69,6 +89,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return Promise.resolve();
     }
     return Promise.reject(new Error('Invalid credentials'));
+  };
+
+  const loginWithMicrosoft = async () => {
+    // In a real implementation, this would use MSAL.js to authenticate with Microsoft
+    // For now, we'll simulate a successful auth for demo purposes
+    
+    if (!msGraphConfig) {
+      toast.error("Microsoft authentication is not configured. Please contact an administrator.");
+      return Promise.reject(new Error('Microsoft authentication not configured'));
+    }
+    
+    try {
+      // Simulate Microsoft authentication
+      // In a real implementation, this would redirect to Microsoft login
+      // and handle the authentication flow
+      
+      // For demo, we'll just simulate a successful authentication
+      const mockMsUser: User = {
+        id: 'ms-user-123',
+        email: 'user@scpng.gov.pg',
+        name: 'Microsoft User',
+        role: 'user',
+        accessToken: 'mock-access-token-' + Date.now()
+      };
+      
+      setUser(mockMsUser);
+      localStorage.setItem('user', JSON.stringify(mockMsUser));
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Microsoft login error:', error);
+      return Promise.reject(error);
+    }
   };
 
   const logout = () => {
@@ -82,10 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin: user?.role === 'admin',
     isManager: user?.role === 'manager',
     login,
+    loginWithMicrosoft,
     logout,
     businessUnits: mockBusinessUnits,
     selectedUnit,
-    setSelectedUnit
+    setSelectedUnit,
+    msGraphConfig
   };
 
   return (

@@ -1,37 +1,34 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { Microsoft } from 'lucide-react';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated, businessUnits, setSelectedUnit } = useAuth();
+  const { loginWithMicrosoft, isAuthenticated, businessUnits, setSelectedUnit } = useAuth();
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   if (isAuthenticated) {
     return <Navigate to="/" />;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleMicrosoftLogin = async () => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await loginWithMicrosoft();
       setSelectedUnit(selectedBusinessUnit || null);
       navigate('/');
-      toast.success('Successfully logged in');
+      toast.success('Successfully logged in with Microsoft');
     } catch (error) {
-      toast.error('Invalid credentials');
+      toast.error('Microsoft authentication failed');
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -48,60 +45,39 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl font-bold">SCPNG Intranet Portal</CardTitle>
           <CardDescription>
-            Enter your credentials to access the portal
+            Sign in with your Microsoft account to access the portal
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  placeholder="your.email@scpng.gov.pg" 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="business-unit">Business Unit</Label>
-                <Select 
-                  value={selectedBusinessUnit} 
-                  onValueChange={setSelectedBusinessUnit}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your business unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {businessUnits.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Select 
+                value={selectedBusinessUnit} 
+                onValueChange={setSelectedBusinessUnit}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your business unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {businessUnits.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            
             <Button 
-              type="submit" 
-              className="w-full mt-6" 
+              type="button"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleMicrosoftLogin}
               disabled={isLoading}
             >
-              {isLoading ? 'Logging in...' : 'Sign in'}
+              <Microsoft size={20} />
+              {isLoading ? 'Signing in...' : 'Sign in with Microsoft'}
             </Button>
-          </form>
+          </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-center text-gray-500">

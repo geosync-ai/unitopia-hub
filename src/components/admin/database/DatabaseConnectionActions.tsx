@@ -10,6 +10,7 @@ interface DatabaseConnectionActionsProps {
   onTestConnection: () => void;
   onSaveConfiguration: () => void;
   onCancel: () => void;
+  onConfirmLink?: () => void; // Added for MS API link confirmation
 }
 
 const DatabaseConnectionActions: React.FC<DatabaseConnectionActionsProps> = ({ 
@@ -17,7 +18,8 @@ const DatabaseConnectionActions: React.FC<DatabaseConnectionActionsProps> = ({
   testStatus, 
   onTestConnection, 
   onSaveConfiguration, 
-  onCancel 
+  onCancel,
+  onConfirmLink
 }) => {
   if (!selectedDbType) return null;
   
@@ -38,12 +40,20 @@ const DatabaseConnectionActions: React.FC<DatabaseConnectionActionsProps> = ({
         {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
       </Button>
       <Button 
-        disabled={testStatus !== 'success'}
+        variant="outline"
         onClick={onSaveConfiguration}
       >
-        <Check size={16} className="mr-2" />
         Save Configuration
       </Button>
+      {onConfirmLink && (
+        <Button 
+          disabled={testStatus !== 'success'}
+          onClick={onConfirmLink}
+        >
+          <Check size={16} className="mr-2" />
+          Confirm API Link
+        </Button>
+      )}
     </div>
   );
 };
