@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Phone, Mail, MapPin, Plus, RefreshCw, Building } from 'lucide-react';
+import { Search, Filter, Phone, Mail, MapPin, Plus, RefreshCw, Building, Users, Briefcase } from 'lucide-react';
 import OrganizationalStructure from '@/components/contacts/OrganizationalStructure';
 import useMicrosoftContacts, { MicrosoftContact } from '@/hooks/useMicrosoftContacts';
 import { useAuth } from '@/hooks/useAuth';
@@ -37,6 +37,16 @@ const Contacts = () => {
     
     return matchesSearch && matchesDepartmentFilter && matchesCompanyFilter;
   });
+
+  // Filter contacts by department (division)
+  const divisionContacts = contacts.filter(contact => 
+    contact.department && contact.department.trim() !== ''
+  );
+
+  // Filter contacts that are users (have userPrincipalName)
+  const userContacts = contacts.filter(contact => 
+    contact.userPrincipalName && contact.userPrincipalName.includes('@')
+  );
 
   const renderContactCard = (contact: MicrosoftContact, index: number) => (
     <Card key={contact.id} className="overflow-hidden animate-fade-in" style={{ animationDelay: `${0.3 + index * 0.05}s` }}>
@@ -98,6 +108,39 @@ const Contacts = () => {
     </Card>
   );
 
+  const renderContactsGrid = (contactsToRender: MicrosoftContact[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {isLoading ? (
+        // Loading skeletons
+        Array.from({ length: 8 }).map((_, index) => (
+          <Card key={index} className="overflow-hidden">
+            <div className="h-12 bg-gradient-to-r from-intranet-primary to-intranet-secondary"></div>
+            <CardContent className="p-6 pt-0 relative">
+              <div className="flex justify-center">
+                <Skeleton className="w-20 h-20 rounded-full -mt-10" />
+              </div>
+              <div className="text-center mt-2">
+                <Skeleton className="h-6 w-32 mx-auto mb-2" />
+                <Skeleton className="h-4 w-24 mx-auto" />
+              </div>
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      ) : contactsToRender.length > 0 ? (
+        contactsToRender.map((contact, index) => renderContactCard(contact, index))
+      ) : (
+        <div className="col-span-full text-center py-8 text-gray-500">
+          No contacts found matching your search criteria
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
@@ -105,13 +148,23 @@ const Contacts = () => {
         <p className="text-gray-500">Find and connect with colleagues across the SCPNG organization</p>
       </div>
       
-      <Tabs defaultValue="directory" className="space-y-6">
-        <TabsList className="grid grid-cols-2 w-full md:w-64">
-          <TabsTrigger value="directory">Directory</TabsTrigger>
-          <TabsTrigger value="structure">Organization Chart</TabsTrigger>
+      <Tabs defaultValue="all" className="space-y-6">
+        <TabsList className="grid grid-cols-3 w-full md:w-auto">
+          <TabsTrigger value="all" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            All Contacts
+          </TabsTrigger>
+          <TabsTrigger value="division" className="flex items-center gap-2">
+            <Briefcase className="h-4 w-4" />
+            Division Contacts
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            User Contacts
+          </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="directory">
+        <TabsContent value="all">
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-grow animate-fade-in">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -175,40 +228,95 @@ const Contacts = () => {
             </div>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {isLoading ? (
-              // Loading skeletons
-              Array.from({ length: 8 }).map((_, index) => (
-                <Card key={index} className="overflow-hidden">
-                  <div className="h-12 bg-gradient-to-r from-intranet-primary to-intranet-secondary"></div>
-                  <CardContent className="p-6 pt-0 relative">
-                    <div className="flex justify-center">
-                      <Skeleton className="w-20 h-20 rounded-full -mt-10" />
-                    </div>
-                    <div className="text-center mt-2">
-                      <Skeleton className="h-6 w-32 mx-auto mb-2" />
-                      <Skeleton className="h-4 w-24 mx-auto" />
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : filteredContacts.length > 0 ? (
-              filteredContacts.map((contact, index) => renderContactCard(contact, index))
-            ) : (
-              <div className="col-span-full text-center py-8 text-gray-500">
-                No contacts found matching your search criteria
-              </div>
-            )}
-          </div>
+          {renderContactsGrid(filteredContacts)}
         </TabsContent>
         
-        <TabsContent value="structure">
-          <OrganizationalStructure />
+        <TabsContent value="division">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-grow animate-fade-in">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search by name, position, or email..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept.toLowerCase()}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button 
+                className="whitespace-nowrap animate-fade-in btn-hover-effect" 
+                style={{ animationDelay: '0.2s' }}
+                onClick={refetch}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+          
+          {renderContactsGrid(divisionContacts.filter(contact => 
+            contact.displayName.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            (departmentFilter === 'all' || (contact.department?.toLowerCase() || '') === departmentFilter.toLowerCase())
+          ))}
+        </TabsContent>
+        
+        <TabsContent value="users">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-grow animate-fade-in">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search by name, position, or email..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button 
+                className="whitespace-nowrap animate-fade-in btn-hover-effect" 
+                style={{ animationDelay: '0.2s' }}
+                onClick={refetch}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+          
+          {renderContactsGrid(userContacts.filter(contact => 
+            contact.displayName.toLowerCase().includes(searchTerm.toLowerCase())
+          ))}
         </TabsContent>
       </Tabs>
     </PageLayout>

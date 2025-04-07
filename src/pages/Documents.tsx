@@ -10,6 +10,7 @@ import {
   File, FileArchive, FileCode, Video, Music,
   Folder, ChevronRight, ChevronDown, ArrowLeft, RefreshCw
 } from 'lucide-react';
+import PageLayout from '@/components/layout/PageLayout';
 
 export default function Documents() {
   const { getSharePointDocuments, getOneDriveDocuments, getFolderContents } = useMicrosoftGraph();
@@ -200,10 +201,14 @@ export default function Documents() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <PageLayout>
+      <div className="mb-6 animate-fade-in">
+        <h1 className="text-2xl font-bold mb-2">Documents</h1>
+        <p className="text-gray-500">Access and manage your SharePoint and OneDrive documents</p>
+      </div>
+      
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Documents</h1>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Select value={source} onValueChange={(value: 'All' | 'SharePoint' | 'OneDrive') => setSource(value)}>
               <SelectTrigger className="w-[180px]">
@@ -254,59 +259,56 @@ export default function Documents() {
             )}
 
             {isLoading ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-              </div>
-            ) : filteredDocuments.length === 0 ? (
-              <div className="text-center p-8 text-gray-500">
-                No documents found
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-intranet-primary"></div>
               </div>
             ) : (
-              <div className="grid gap-4">
-                {filteredDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center gap-3">
-                      {doc.isFolder ? (
-                        <Folder className="h-5 w-5 text-blue-500" />
-                      ) : (
-                        getFileIcon(doc.name)
-                      )}
-                      <div>
-                        <div className="font-medium">{doc.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(doc.lastModified)} • {formatFileSize(doc.size)}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredDocuments.length > 0 ? (
+                  filteredDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 cursor-pointer"
+                      onClick={() => doc.isFolder ? navigateToFolder(doc) : window.open(doc.url, '_blank')}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1">
+                          {doc.isFolder ? (
+                            <Folder className="h-6 w-6 text-blue-500" />
+                          ) : (
+                            getFileIcon(doc.name)
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium truncate">{doc.name}</h3>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {doc.isFolder ? (
+                              <span>Folder</span>
+                            ) : (
+                              <>
+                                <span>{formatFileSize(doc.size)}</span>
+                                <span className="mx-1">•</span>
+                                <span>{formatDate(doc.lastModified)}</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {doc.source}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {doc.isFolder ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigateToFolder(doc)}
-                        >
-                          Open
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(doc.url, '_blank')}
-                        >
-                          Open
-                        </Button>
-                      )}
-                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-8 text-gray-500">
+                    No documents found
                   </div>
-                ))}
+                )}
               </div>
             )}
           </>
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }
