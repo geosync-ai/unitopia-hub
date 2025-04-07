@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, PieChart, LineChart, AreaChart } from '@/components/charts';
 
@@ -64,6 +64,8 @@ const Unit = () => {
   const [aiAnalysis, setAIAnalysis] = useState<string>('');
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [includeAIAnalysis, setIncludeAIAnalysis] = useState(false);
+  const [activeForm, setActiveForm] = useState<'kra' | 'kpi' | 'objective'>('kra');
+  const [selectedKRA, setSelectedKRA] = useState<KRA | null>(null);
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -71,6 +73,19 @@ const Unit = () => {
     objectiveId: 0,
     kpis: [],
     status: 'open'
+  });
+  
+  const [kpiForm, setKpiForm] = useState<Partial<KPI>>({
+    name: '',
+    target: '',
+    current: '',
+    status: 'on-track',
+    progress: 0
+  });
+  
+  const [objectiveForm, setObjectiveForm] = useState<Partial<Objective>>({
+    name: '',
+    description: ''
   });
   
   // Mock data for units
@@ -83,12 +98,18 @@ const Unit = () => {
   ];
   
   // Mock data for objectives
-  const objectives: Objective[] = [
+  const [objectives, setObjectives] = useState<Objective[]>([
     { id: 1, name: 'Expand Market Presence', description: 'Increase market share across Australia and expand into New Zealand and Southeast Asia.' },
     { id: 2, name: 'Enhance Product Portfolio', description: 'Develop and launch innovative products that meet evolving customer needs.' },
     { id: 3, name: 'Operational Excellence', description: 'Optimize internal processes to improve efficiency and reduce costs.' },
     { id: 4, name: 'Talent Development', description: 'Build a high-performing workforce through recruitment, training and retention.' },
-  ];
+    { id: 5, name: 'Customer Satisfaction', description: 'Improve customer satisfaction scores and reduce response times.' },
+    { id: 6, name: 'Innovation Pipeline', description: 'Develop a robust pipeline of innovative products and services.' },
+    { id: 7, name: 'Market Leadership', description: 'Achieve market leadership position in key product categories.' },
+    { id: 8, name: 'Operational Efficiency', description: 'Reduce operational costs while maintaining quality standards.' },
+    { id: 9, name: 'Employee Engagement', description: 'Increase employee engagement and satisfaction scores.' },
+    { id: 10, name: 'Sustainability Goals', description: 'Implement sustainable practices across all operations.' },
+  ]);
   
   // Mock data for KRAs
   const [kras, setKras] = useState<KRA[]>([
@@ -131,18 +152,109 @@ const Unit = () => {
       createdAt: "2023-03-05",
       updatedAt: "2023-06-18"
     },
+    { 
+      id: 4, 
+      name: "Customer Service Improvement", 
+      objectiveId: 5,
+      objectiveName: "Customer Satisfaction",
+      kpis: [
+        { id: 7, name: "Customer Satisfaction Score", target: "90%", current: "92%", status: "on-track", progress: 100 },
+        { id: 8, name: "Response Time", target: "< 24h", current: "18h", status: "on-track", progress: 100 },
+      ],
+      status: "closed",
+      createdAt: "2022-11-20",
+      updatedAt: "2023-05-30"
+    },
+    { 
+      id: 5, 
+      name: "Innovation Lab Development", 
+      objectiveId: 6,
+      objectiveName: "Innovation Pipeline",
+      kpis: [
+        { id: 9, name: "Patents Filed", target: "10", current: "7", status: "on-track", progress: 70 },
+        { id: 10, name: "Innovation Projects", target: "15", current: "12", status: "on-track", progress: 80 },
+      ],
+      status: "in-progress",
+      createdAt: "2023-04-12",
+      updatedAt: "2023-06-22"
+    },
+    { 
+      id: 6, 
+      name: "Market Leadership Campaign", 
+      objectiveId: 7,
+      objectiveName: "Market Leadership",
+      kpis: [
+        { id: 11, name: "Market Share", target: "25%", current: "22%", status: "on-track", progress: 88 },
+        { id: 12, name: "Brand Recognition", target: "85%", current: "78%", status: "needs-attention", progress: 92 },
+      ],
+      status: "in-progress",
+      createdAt: "2023-05-08",
+      updatedAt: "2023-06-19"
+    },
+    { 
+      id: 7, 
+      name: "Supply Chain Optimization", 
+      objectiveId: 8,
+      objectiveName: "Operational Efficiency",
+      kpis: [
+        { id: 13, name: "Inventory Turnover", target: "8x", current: "6.5x", status: "needs-attention", progress: 81 },
+        { id: 14, name: "Logistics Costs", target: "-15%", current: "-10%", status: "on-track", progress: 67 },
+      ],
+      status: "open",
+      createdAt: "2023-06-01",
+      updatedAt: "2023-06-15"
+    },
+    { 
+      id: 8, 
+      name: "Employee Development Program", 
+      objectiveId: 9,
+      objectiveName: "Employee Engagement",
+      kpis: [
+        { id: 15, name: "Training Hours", target: "40", current: "25", status: "needs-attention", progress: 63 },
+        { id: 16, name: "Employee Satisfaction", target: "85%", current: "82%", status: "on-track", progress: 96 },
+      ],
+      status: "in-progress",
+      createdAt: "2023-05-15",
+      updatedAt: "2023-06-20"
+    },
+    { 
+      id: 9, 
+      name: "Green Initiative", 
+      objectiveId: 10,
+      objectiveName: "Sustainability Goals",
+      kpis: [
+        { id: 17, name: "Carbon Reduction", target: "20%", current: "12%", status: "on-track", progress: 60 },
+        { id: 18, name: "Recycling Rate", target: "75%", current: "68%", status: "needs-attention", progress: 91 },
+      ],
+      status: "open",
+      createdAt: "2023-06-05",
+      updatedAt: "2023-06-18"
+    },
+    { 
+      id: 10, 
+      name: "Digital Transformation", 
+      objectiveId: 3,
+      objectiveName: "Operational Excellence",
+      kpis: [
+        { id: 19, name: "Digital Adoption", target: "90%", current: "75%", status: "on-track", progress: 83 },
+        { id: 20, name: "Process Digitization", target: "70%", current: "55%", status: "needs-attention", progress: 79 },
+      ],
+      status: "in-progress",
+      createdAt: "2023-04-20",
+      updatedAt: "2023-06-21"
+    },
   ]);
   
   // Mock data for closed KRAs
   const [closedKras, setClosedKras] = useState<KRA[]>([
     { 
-      id: 4, 
+      id: 11, 
       name: "Customer Service Improvement", 
-      objectiveId: 4,
-      objectiveName: "Talent Development",
+      objectiveId: 5,
+      objectiveName: "Customer Satisfaction",
       kpis: [
-        { id: 7, name: "Customer Satisfaction Score", target: "90%", current: "92%", status: "on-track", progress: 100 },
-        { id: 8, name: "Response Time", target: "< 24h", current: "18h", status: "on-track", progress: 100 },
+        { id: 21, name: "Customer Satisfaction Score", target: "90%", current: "92%", status: "on-track", progress: 100 },
+        { id: 22, name: "Response Time", target: "< 24h", current: "18h", status: "on-track", progress: 100 },
       ],
       status: "closed",
       createdAt: "2022-11-20",
@@ -234,68 +346,91 @@ const Unit = () => {
     // Add to state
     setKras([...kras, newKRA]);
     
-    // Reset form and close dialog
+    // Reset form
     setKraForm({
       name: '',
       objectiveId: 0,
       kpis: [],
       status: 'open'
     });
-    setIsAddKRADialogOpen(false);
     setFormError(null);
     
     // Show success message
     toast.success("KRA added successfully");
   };
   
-  const handleEditKRA = (kra: KRA) => {
-    setKraForm({
-      id: kra.id,
-      name: kra.name,
-      objectiveId: kra.objectiveId,
-      kpis: kra.kpis,
-      status: kra.status
-    });
-    setIsEditKRADialogOpen(true);
-  };
-  
-  const handleUpdateKRA = () => {
+  const handleAddKPI = () => {
     // Validate form
-    if (!kraForm.name || !kraForm.objectiveId) {
-      setFormError("KRA Name and Linked Objective are required");
+    if (!kpiForm.name || !kpiForm.target || !selectedKRA) {
+      setFormError("KPI Name, Target, and KRA selection are required");
       return;
     }
     
-    // Find objective name
-    const objective = objectives.find(obj => obj.id === kraForm.objectiveId);
+    // Calculate progress
+    const current = parseFloat(kpiForm.current || '0');
+    const target = parseFloat(kpiForm.target || '0');
+    const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
     
-    // Update KRA
-    const updatedKRA: KRA = {
-      id: kraForm.id || 0,
-      name: kraForm.name || '',
-      objectiveId: kraForm.objectiveId || 0,
-      objectiveName: objective?.name || '',
-      kpis: kraForm.kpis || [],
-      status: kraForm.status as 'open' | 'in-progress' | 'closed' || 'open',
-      createdAt: kras.find(k => k.id === kraForm.id)?.createdAt || new Date().toISOString().split('T')[0],
+    // Create new KPI
+    const newKPI: KPI = {
+      id: Math.max(...kras.flatMap(k => k.kpis).map(k => k.id), ...closedKras.flatMap(k => k.kpis).map(k => k.id)) + 1,
+      name: kpiForm.name || '',
+      target: kpiForm.target || '',
+      current: kpiForm.current || '',
+      status: kpiForm.status as 'on-track' | 'needs-attention' | 'at-risk' || 'on-track',
+      progress: progress
+    };
+    
+    // Update KRA with new KPI
+    const updatedKRA = {
+      ...selectedKRA,
+      kpis: [...selectedKRA.kpis, newKPI],
       updatedAt: new Date().toISOString().split('T')[0]
     };
     
     // Update state
-    setKras(kras.map(k => k.id === updatedKRA.id ? updatedKRA : k));
+    setKras(kras.map(k => k.id === selectedKRA.id ? updatedKRA : k));
     
-    // Reset form and close dialog
-    setKraForm({
+    // Reset form
+    setKpiForm({
       name: '',
-      objectiveId: 0,
-      kpis: [],
-      status: 'open'
+      target: '',
+      current: '',
+      status: 'on-track',
+      progress: 0
     });
-    setIsEditKRADialogOpen(false);
     setFormError(null);
     
     // Show success message
-    toast.success("KRA updated successfully");
+    toast.success("KPI added successfully");
+  };
+  
+  const handleAddObjective = () => {
+    // Validate form
+    if (!objectiveForm.name) {
+      setFormError("Objective Name is required");
+      return;
+    }
+    
+    // Create new Objective
+    const newObjective: Objective = {
+      id: Math.max(...objectives.map(o => o.id)) + 1,
+      name: objectiveForm.name || '',
+      description: objectiveForm.description || ''
+    };
+    
+    // Add to state
+    setObjectives([...objectives, newObjective]);
+    
+    // Reset form
+    setObjectiveForm({
+      name: '',
+      description: ''
+    });
+    setFormError(null);
+    
+    // Show success message
+    toast.success("Objective added successfully");
   };
   
   const handleDeleteKRA = (id: number) => {
@@ -306,20 +441,38 @@ const Unit = () => {
     toast.success("KRA deleted successfully");
   };
   
-  const handleCloseKRA = (kra: KRA) => {
-    // Create closed KRA
-    const closedKRA: KRA = {
+  const handleDeleteKPI = (kraId: number, kpiId: number) => {
+    // Find KRA
+    const kra = kras.find(k => k.id === kraId);
+    if (!kra) return;
+    
+    // Update KRA with KPI removed
+    const updatedKRA = {
       ...kra,
-      status: 'closed',
+      kpis: kra.kpis.filter(k => k.id !== kpiId),
       updatedAt: new Date().toISOString().split('T')[0]
     };
     
-    // Remove from active KRAs and add to closed KRAs
-    setKras(kras.filter(k => k.id !== kra.id));
-    setClosedKras([...closedKras, closedKRA]);
+    // Update state
+    setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
     
     // Show success message
-    toast.success("KRA closed successfully");
+    toast.success("KPI deleted successfully");
+  };
+  
+  const handleDeleteObjective = (id: number) => {
+    // Check if objective is linked to any KRAs
+    const linkedKRAs = kras.filter(k => k.objectiveId === id);
+    if (linkedKRAs.length > 0) {
+      toast.error("Cannot delete objective that is linked to KRAs");
+      return;
+    }
+    
+    // Remove from state
+    setObjectives(objectives.filter(o => o.id !== id));
+    
+    // Show success message
+    toast.success("Objective deleted successfully");
   };
   
   const handleSendMessage = () => {
@@ -498,10 +651,6 @@ const Unit = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button onClick={() => setIsAddKRADialogOpen(true)} size="sm" className="flex items-center gap-1">
-                    <Plus className="h-4 w-4" />
-                    <span>Add KRA</span>
-                  </Button>
                   <Button onClick={generatePDFReport} size="sm" variant="outline" className="flex items-center gap-1">
                     <Download className="h-4 w-4" />
                     <span>Generate Report</span>
@@ -515,7 +664,6 @@ const Unit = () => {
                   <TabsTrigger value="active-kras">Active KRAs</TabsTrigger>
                   <TabsTrigger value="closed-kras">Closed KRAs</TabsTrigger>
                   <TabsTrigger value="insights">Insights</TabsTrigger>
-                  <TabsTrigger value="ai-analysis">AI Analysis</TabsTrigger>
                 </TabsList>
                 <TabsContent value="active-kras">
                   {filteredKras.length > 0 ? (
@@ -579,35 +727,6 @@ const Unit = () => {
                     </Card>
                   </div>
                 </TabsContent>
-                <TabsContent value="ai-analysis">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Brain className="h-5 w-5" />
-                        AI Analysis
-                      </CardTitle>
-                      <CardDescription>
-                        Get AI-powered insights and recommendations for your unit's performance
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <Button 
-                          onClick={generateAIAnalysis} 
-                          disabled={isGeneratingAnalysis}
-                          className="w-full"
-                        >
-                          {isGeneratingAnalysis ? 'Analyzing...' : 'Generate Analysis'}
-                        </Button>
-                        {aiAnalysis && (
-                          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <pre className="whitespace-pre-wrap text-sm">{aiAnalysis}</pre>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
@@ -654,7 +773,289 @@ const Unit = () => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Manage Data</CardTitle>
+              <CardDescription>Add, edit, or delete KRAs, KPIs, and Objectives</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="flex space-x-2 mb-4">
+                  <Button 
+                    variant={activeForm === 'kra' ? 'default' : 'outline'} 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => setActiveForm('kra')}
+                  >
+                    <List className="h-4 w-4 mr-1" />
+                    KRAs
+                  </Button>
+                  <Button 
+                    variant={activeForm === 'kpi' ? 'default' : 'outline'} 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => setActiveForm('kpi')}
+                  >
+                    <Target className="h-4 w-4 mr-1" />
+                    KPIs
+                  </Button>
+                  <Button 
+                    variant={activeForm === 'objective' ? 'default' : 'outline'} 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => setActiveForm('objective')}
+                  >
+                    <Flag className="h-4 w-4 mr-1" />
+                    Objectives
+                  </Button>
+                </div>
+                
+                {formError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{formError}</AlertDescription>
+                  </Alert>
+                )}
+                
+                {activeForm === 'kra' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="kra-name">KRA Name</Label>
+                      <Input 
+                        id="kra-name" 
+                        value={kraForm.name} 
+                        onChange={(e) => setKraForm({...kraForm, name: e.target.value})}
+                        placeholder="Enter KRA name" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="objective">Linked Objective</Label>
+                      <Select 
+                        value={kraForm.objectiveId?.toString() || ''} 
+                        onValueChange={(value) => setKraForm({...kraForm, objectiveId: parseInt(value)})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select objective" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {objectives.map((objective) => (
+                            <SelectItem key={objective.id} value={objective.id.toString()}>
+                              {objective.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select 
+                        value={kraForm.status} 
+                        onValueChange={(value) => setKraForm({...kraForm, status: value as 'open' | 'in-progress' | 'closed'})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <Button onClick={handleAddKRA} className="w-full">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add KRA
+                    </Button>
+                    
+                    <div className="space-y-2">
+                      <Label>Existing KRAs</Label>
+                      <div className="max-h-40 overflow-y-auto border rounded-md">
+                        {kras.map((kra) => (
+                          <div 
+                            key={kra.id} 
+                            className="flex items-center justify-between p-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800"
+                          >
+                            <div className="text-sm truncate">{kra.name}</div>
+                            <div className="flex space-x-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteKRA(kra.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {activeForm === 'kpi' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="kra-select">Select KRA</Label>
+                      <Select 
+                        value={selectedKRA?.id.toString() || ''} 
+                        onValueChange={(value) => setSelectedKRA(kras.find(k => k.id === parseInt(value)) || null)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select KRA" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {kras.map((kra) => (
+                            <SelectItem key={kra.id} value={kra.id.toString()}>
+                              {kra.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="kpi-name">KPI Name</Label>
+                      <Input 
+                        id="kpi-name" 
+                        value={kpiForm.name} 
+                        onChange={(e) => setKpiForm({...kpiForm, name: e.target.value})}
+                        placeholder="Enter KPI name" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="kpi-target">Target</Label>
+                      <Input 
+                        id="kpi-target" 
+                        value={kpiForm.target} 
+                        onChange={(e) => setKpiForm({...kpiForm, target: e.target.value})}
+                        placeholder="Enter target value" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="kpi-current">Current</Label>
+                      <Input 
+                        id="kpi-current" 
+                        value={kpiForm.current} 
+                        onChange={(e) => setKpiForm({...kpiForm, current: e.target.value})}
+                        placeholder="Enter current value" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="kpi-status">Status</Label>
+                      <Select 
+                        value={kpiForm.status} 
+                        onValueChange={(value) => setKpiForm({...kpiForm, status: value as 'on-track' | 'needs-attention' | 'at-risk'})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="on-track">On Track</SelectItem>
+                          <SelectItem value="needs-attention">Needs Attention</SelectItem>
+                          <SelectItem value="at-risk">At Risk</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleAddKPI} 
+                      className="w-full"
+                      disabled={!selectedKRA}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add KPI
+                    </Button>
+                    
+                    {selectedKRA && (
+                      <div className="space-y-2">
+                        <Label>KPIs for {selectedKRA.name}</Label>
+                        <div className="max-h-40 overflow-y-auto border rounded-md">
+                          {selectedKRA.kpis.map((kpi) => (
+                            <div 
+                              key={kpi.id} 
+                              className="flex items-center justify-between p-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            >
+                              <div className="text-sm truncate">{kpi.name}</div>
+                              <div className="flex space-x-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteKPI(selectedKRA.id, kpi.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {activeForm === 'objective' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="objective-name">Objective Name</Label>
+                      <Input 
+                        id="objective-name" 
+                        value={objectiveForm.name} 
+                        onChange={(e) => setObjectiveForm({...objectiveForm, name: e.target.value})}
+                        placeholder="Enter objective name" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="objective-description">Description</Label>
+                      <Textarea 
+                        id="objective-description" 
+                        value={objectiveForm.description} 
+                        onChange={(e) => setObjectiveForm({...objectiveForm, description: e.target.value})}
+                        placeholder="Enter objective description" 
+                      />
+                    </div>
+                    
+                    <Button onClick={handleAddObjective} className="w-full">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Objective
+                    </Button>
+                    
+                    <div className="space-y-2">
+                      <Label>Existing Objectives</Label>
+                      <div className="max-h-40 overflow-y-auto border rounded-md">
+                        {objectives.map((objective) => (
+                          <div 
+                            key={objective.id} 
+                            className="flex items-center justify-between p-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800"
+                          >
+                            <div className="text-sm truncate">{objective.name}</div>
+                            <div className="flex space-x-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteObjective(objective.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="mt-6">
             <CardHeader>
               <CardTitle>Quick Stats</CardTitle>
             </CardHeader>
@@ -686,102 +1087,6 @@ const Unit = () => {
         </div>
       </div>
       
-      {/* Edit KRA Dialog */}
-      <Dialog open={isEditKRADialogOpen} onOpenChange={setIsEditKRADialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit KRA</DialogTitle>
-            <DialogDescription>
-              Update the Key Result Area details.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {formError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{formError}</AlertDescription>
-            </Alert>
-          )}
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-kra-name">KRA Name</Label>
-              <Input 
-                id="edit-kra-name" 
-                value={kraForm.name} 
-                onChange={(e) => setKraForm({...kraForm, name: e.target.value})}
-                placeholder="Enter KRA name" 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-objective">Linked Objective</Label>
-              <Select 
-                value={kraForm.objectiveId?.toString() || ''} 
-                onValueChange={(value) => setKraForm({...kraForm, objectiveId: parseInt(value)})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select objective" />
-                </SelectTrigger>
-                <SelectContent>
-                  {objectives.map((objective) => (
-                    <SelectItem key={objective.id} value={objective.id.toString()}>
-                      {objective.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select 
-                value={kraForm.status} 
-                onValueChange={(value) => setKraForm({...kraForm, status: value as 'open' | 'in-progress' | 'closed'})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>KPIs</Label>
-              <div className="space-y-2">
-                {kraForm.kpis?.map((kpi, index) => (
-                  <div key={kpi.id} className="flex items-center gap-2 p-2 border rounded-md">
-                    <div className="flex-1">
-                      <div className="font-medium">{kpi.name}</div>
-                      <div className="text-sm text-gray-500">
-                        Target: {kpi.target}, Current: {kpi.current}
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add KPI
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditKRADialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpdateKRA}>Update KRA</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* PDF Report Dialog */}
       <Dialog open={isAIAnalysisOpen} onOpenChange={setIsAIAnalysisOpen}>
         <DialogContent>
