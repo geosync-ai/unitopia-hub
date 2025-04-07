@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -12,7 +11,8 @@ import {
   Database, 
   MessageSquare, 
   GalleryHorizontal,
-  LogOut
+  LogOut,
+  Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +42,7 @@ const MainSidebar = () => {
     { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
     { icon: Users, path: '/contacts', label: 'Contacts' },
     { icon: BarChart2, path: '/organization', label: 'Organization' },
+    { icon: Target, path: '/unit', label: 'Unit' },
     { icon: Calendar, path: '/calendar', label: 'Calendar' },
   ];
   

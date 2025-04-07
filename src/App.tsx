@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import Documents from "./pages/Documents";
 import Contacts from "./pages/Contacts";
 import Organization from "./pages/Organization";
+import Unit from "./pages/Unit";
 import Calendar from "./pages/Calendar";
 import Gallery from "./pages/Gallery";
 import Login from "./pages/Login";
@@ -43,6 +44,7 @@ const AppRoutes = () => {
       <Route path="/ai-hub" element={<ProtectedRoute><AIHub /></ProtectedRoute>} />
       <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
       <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
+      <Route path="/unit" element={<ProtectedRoute><Unit /></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
       <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
