@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Microsoft } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 const Login = () => {
   const { loginWithMicrosoft, isAuthenticated, businessUnits, setSelectedUnit } = useAuth();
@@ -74,7 +74,7 @@ const Login = () => {
               onClick={handleMicrosoftLogin}
               disabled={isLoading}
             >
-              <Microsoft size={20} />
+              <LogIn size={20} />
               {isLoading ? 'Signing in...' : 'Sign in with Microsoft'}
             </Button>
           </div>
