@@ -81,13 +81,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Fallback login for demo purposes
-    if (email && password) {
-      const loggedInUser = adminUser;
-      setUser(loggedInUser);
-      localStorage.setItem('user', JSON.stringify(loggedInUser));
+    // Check if it's the admin user
+    if (email === 'admin@scpng.com' && password === 'admin') {
+      setUser(adminUser);
+      localStorage.setItem('user', JSON.stringify(adminUser));
       return Promise.resolve();
     }
+    
+    // Fallback to Microsoft login if not admin
+    // In a real implementation, this would check against a database
     return Promise.reject(new Error('Invalid credentials'));
   };
 
