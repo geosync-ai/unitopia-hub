@@ -12,9 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, PieChart, LineChart, AreaChart } from '@/components/charts';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
+import { Upload } from 'lucide-react';
 
 // Types
 interface KRA {
@@ -66,6 +68,9 @@ const Unit = () => {
   const [includeAIAnalysis, setIncludeAIAnalysis] = useState(false);
   const [activeForm, setActiveForm] = useState<'kra' | 'kpi' | 'objective'>('kra');
   const [selectedKRA, setSelectedKRA] = useState<KRA | null>(null);
+  const [isKRADrawerOpen, setIsKRADrawerOpen] = useState(false);
+  const [selectedKRADrawer, setSelectedKRADrawer] = useState<KRA | null>(null);
+  const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -433,46 +438,117 @@ const Unit = () => {
     toast.success("Objective added successfully");
   };
   
-  const handleDeleteKRA = (id: number) => {
-    // Remove from state
-    setKras(kras.filter(k => k.id !== id));
-    
-    // Show success message
-    toast.success("KRA deleted successfully");
+  const handleEditKRA = (kra: KRA) => {
+    setSelectedKRADrawer(kra);
+    setIsKRADrawerOpen(true);
   };
-  
-  const handleDeleteKPI = (kraId: number, kpiId: number) => {
-    // Find KRA
+
+  const handleCloseKRADrawer = () => {
+    setIsKRADrawerOpen(false);
+    setSelectedKRADrawer(null);
+  };
+
+  const handleUpdateKRA = () => {
+    if (selectedKRADrawer) {
+      setKras(kras.map(k => k.id === selectedKRADrawer.id ? selectedKRADrawer : k));
+      toast.success('KRA updated successfully');
+      handleCloseKRADrawer();
+    }
+  };
+
+  const handleDeleteKRA = (kraId: number) => {
+    if (window.confirm('Are you sure you want to delete this KRA?')) {
+      setKras(kras.filter(k => k.id !== kraId));
+      toast.success('KRA deleted successfully');
+    }
+  };
+
+  const handleMoveKRA = (kraId: number, newObjectiveId: number) => {
     const kra = kras.find(k => k.id === kraId);
-    if (!kra) return;
-    
-    // Update KRA with KPI removed
-    const updatedKRA = {
-      ...kra,
-      kpis: kra.kpis.filter(k => k.id !== kpiId),
-      updatedAt: new Date().toISOString().split('T')[0]
-    };
-    
-    // Update state
-    setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
-    
-    // Show success message
-    toast.success("KPI deleted successfully");
+    if (kra) {
+      const objective = objectives.find(obj => obj.id === newObjectiveId);
+      if (objective) {
+        const updatedKRA = {
+          ...kra,
+          objectiveId: newObjectiveId,
+          objectiveName: objective.name
+        };
+        setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
+        toast.success('KRA moved successfully');
+      }
+    }
   };
-  
-  const handleDeleteObjective = (id: number) => {
-    // Check if objective is linked to any KRAs
-    const linkedKRAs = kras.filter(k => k.objectiveId === id);
-    if (linkedKRAs.length > 0) {
-      toast.error("Cannot delete objective that is linked to KRAs");
+
+  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check if file is an Excel file
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      toast.error('Please upload an Excel file (.xlsx or .xls)');
       return;
     }
-    
-    // Remove from state
-    setObjectives(objectives.filter(o => o.id !== id));
-    
-    // Show success message
-    toast.success("Objective deleted successfully");
+
+    setIsUploadingExcel(true);
+
+    try {
+      // TODO: Implement actual Excel parsing logic
+      // For now, we'll simulate the upload with a timeout
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Mock data from Excel
+      const mockKRAs: KRA[] = [
+        {
+          id: 1,
+          name: 'Increase Market Share',
+          objectiveId: 1,
+          objectiveName: 'Market Leadership',
+          status: 'in-progress',
+          kpis: [
+            {
+              id: 1,
+              name: 'Market Share',
+              current: '15',
+              target: '20',
+              status: 'on-track',
+              progress: 75
+            }
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: 'Improve Customer Satisfaction',
+          objectiveId: 2,
+          objectiveName: 'Customer Excellence',
+          status: 'open',
+          kpis: [
+            {
+              id: 2,
+              name: 'NPS Score',
+              current: '0',
+              target: '8',
+              status: 'needs-attention',
+              progress: 0
+            }
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+
+      // Update KRAs state with the new data
+      setKras(prevKRAs => [...prevKRAs, ...mockKRAs]);
+      toast.success('Excel file uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading Excel file:', error);
+      toast.error('Failed to upload Excel file');
+    } finally {
+      setIsUploadingExcel(false);
+      // Reset the file input
+      event.target.value = '';
+    }
   };
   
   const handleSendMessage = () => {
@@ -556,73 +632,101 @@ const Unit = () => {
   
   // Render functions
   const renderKRATable = (kras: KRA[], isClosed = false) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>KRA Name/ID</TableHead>
-          <TableHead>Objective Linked</TableHead>
-          <TableHead>KPIs</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {kras.map((kra) => (
-          <TableRow key={kra.id}>
-            <TableCell className="font-medium">
-              <div>{kra.name}</div>
-              <div className="text-xs text-gray-500">ID: {kra.id}</div>
-            </TableCell>
-            <TableCell>
-              <div>{kra.objectiveName}</div>
-              <div className="text-xs text-gray-500">ID: {kra.objectiveId}</div>
-            </TableCell>
-            <TableCell>
-              <div className="space-y-1">
-                {kra.kpis.map((kpi) => (
-                  <div key={kpi.id} className="flex items-center gap-2">
-                    <span>{kpi.name}:</span>
-                    <div className="flex items-center gap-1">
-                      {getKPIStatusIcon(kpi.status)}
-                      <span className="text-xs">{kpi.current} / {kpi.target}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TableCell>
-            <TableCell>
-              {getStatusBadge(kra.status)}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                {!isClosed && (
-                  <>
-                    <Button variant="outline" size="sm" onClick={() => handleEditKRA(kra)}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleCloseKRA(kra)}>
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Close
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDeleteKRA(kra.id)}>
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                  </>
-                )}
-                {isClosed && (
-                  <Button variant="outline" size="sm" disabled>
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Closed
-                  </Button>
-                )}
-              </div>
-            </TableCell>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">{isClosed ? 'Closed KRAs' : 'Active KRAs'}</h3>
+        {!isClosed && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
+              onClick={() => document.getElementById('excel-upload')?.click()}
+              disabled={isUploadingExcel}
+            >
+              {isUploadingExcel ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span>Import from Excel</span>
+                </>
+              )}
+            </Button>
+            <input 
+              id="excel-upload" 
+              type="file" 
+              accept=".xlsx,.xls" 
+              className="hidden" 
+              onChange={handleExcelUpload} 
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
+              onClick={() => setIsAddKRADialogOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add KRA</span>
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>KRA Name/ID</TableHead>
+            <TableHead>Objective Linked</TableHead>
+            <TableHead>KPIs</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {kras.map((kra) => (
+            <TableRow key={kra.id}>
+              <TableCell className="font-medium">
+                <div>{kra.name}</div>
+                <div className="text-xs text-gray-500">ID: {kra.id}</div>
+              </TableCell>
+              <TableCell>
+                <div>{kra.objectiveName}</div>
+                <div className="text-xs text-gray-500">ID: {kra.objectiveId}</div>
+              </TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  {kra.kpis.map((kpi) => (
+                    <div key={kpi.id} className="flex items-center gap-2">
+                      <span>{kpi.name}:</span>
+                      <div className="flex items-center gap-1">
+                        {getKPIStatusIcon(kpi.status)}
+                        <span className="text-xs">{kpi.current} / {kpi.target}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TableCell>
+              <TableCell>
+                {getStatusBadge(kra.status)}
+              </TableCell>
+              <TableCell>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleEditKRA(kra)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
   
   return (
@@ -987,7 +1091,7 @@ const Unit = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
-                                  onClick={() => handleDeleteKPI(selectedKRA.id, kpi.id)}
+                                  onClick={() => handleDeleteKRA(selectedKRA.id)}
                                 >
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
@@ -1040,7 +1144,7 @@ const Unit = () => {
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                onClick={() => handleDeleteObjective(objective.id)}
+                                onClick={() => handleDeleteKRA(objective.id)}
                               >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
@@ -1118,6 +1222,187 @@ const Unit = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* KRA Drawer */}
+      <Sheet open={isKRADrawerOpen} onOpenChange={setIsKRADrawerOpen}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle>KRA Details</SheetTitle>
+            <SheetDescription>
+              View and edit KRA information
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedKRADrawer && (
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <Label>KRA Name</Label>
+                <Input 
+                  value={selectedKRADrawer.name} 
+                  onChange={(e) => setSelectedKRADrawer({...selectedKRADrawer, name: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Linked Objective</Label>
+                <Select 
+                  value={selectedKRADrawer.objectiveId.toString()} 
+                  onValueChange={(value) => {
+                    const objective = objectives.find(obj => obj.id === parseInt(value));
+                    if (objective) {
+                      setSelectedKRADrawer({
+                        ...selectedKRADrawer,
+                        objectiveId: parseInt(value),
+                        objectiveName: objective.name
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select objective" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {objectives.map((objective) => (
+                      <SelectItem key={objective.id} value={objective.id.toString()}>
+                        {objective.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select 
+                  value={selectedKRADrawer.status} 
+                  onValueChange={(value) => setSelectedKRADrawer({...selectedKRADrawer, status: value as 'open' | 'in-progress' | 'closed'})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>KPIs</Label>
+                <div className="border rounded-md p-4 space-y-4">
+                  {selectedKRADrawer.kpis.map((kpi) => (
+                    <div key={kpi.id} className="space-y-4">
+                      <div>
+                        <Label htmlFor={`kpi-name-${kpi.id}`}>Name</Label>
+                        <Input 
+                          id={`kpi-name-${kpi.id}`}
+                          value={kpi.name} 
+                          onChange={(e) => {
+                            const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                              k.id === kpi.id ? {...k, name: e.target.value} : k
+                            );
+                            setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label htmlFor={`kpi-target-${kpi.id}`}>Target</Label>
+                          <Input 
+                            id={`kpi-target-${kpi.id}`}
+                            value={kpi.target} 
+                            onChange={(e) => {
+                              const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                k.id === kpi.id ? {...k, target: e.target.value} : k
+                              );
+                              setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`kpi-current-${kpi.id}`}>Current</Label>
+                          <Input 
+                            id={`kpi-current-${kpi.id}`}
+                            value={kpi.current} 
+                            onChange={(e) => {
+                              const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                k.id === kpi.id ? {...k, current: e.target.value} : k
+                              );
+                              setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`kpi-status-${kpi.id}`}>Status</Label>
+                        <Select 
+                          value={kpi.status} 
+                          onValueChange={(value) => {
+                            const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                              k.id === kpi.id ? {...k, status: value as 'on-track' | 'needs-attention' | 'at-risk'} : k
+                            );
+                            setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="on-track">On Track</SelectItem>
+                            <SelectItem value="needs-attention">Needs Attention</SelectItem>
+                            <SelectItem value="at-risk">At Risk</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Dates</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Created</Label>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(selectedKRADrawer.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Last Updated</Label>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(selectedKRADrawer.updatedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <SheetFooter className="mt-6">
+            <div className="flex justify-between w-full">
+              <Button 
+                variant="destructive" 
+                onClick={() => selectedKRADrawer && handleDeleteKRA(selectedKRADrawer.id)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleCloseKRADrawer}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateKRA}>
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </PageLayout>
   );
 };
