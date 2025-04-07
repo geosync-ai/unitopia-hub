@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/integrations/microsoft/msalConfig';
 import { login as msalLogin, getAccount, getUserProfile } from '@/integrations/microsoft/msalService';
+import microsoftAuthConfig from '@/config/microsoft-auth';
 
 export type UserRole = 'admin' | 'manager' | 'user';
 
@@ -82,88 +83,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Load Microsoft Graph API configuration
     const loadMsConfig = async () => {
       try {
-        console.log('Attempting to load Microsoft configuration...');
+        console.log('Loading Microsoft configuration from config file...');
         
-        // First try to get from Supabase
-        const { data, error } = await supabase
-          .from('app_config')
-          .select('value')
-          .eq('key', 'microsoft_config')
-          .single();
+        // Use the configuration from our config file
+        const config = {
+          clientId: microsoftAuthConfig.clientId,
+          authorityUrl: microsoftAuthConfig.authorityUrl,
+          redirectUri: microsoftAuthConfig.redirectUri,
+          permissions: microsoftAuthConfig.permissions,
+          apiEndpoint: microsoftAuthConfig.apiEndpoint
+        };
         
-        if (error) {
-          console.log('Failed to load from Supabase, checking localStorage:', error);
-          // Fall back to localStorage
-          const savedMsConfig = localStorage.getItem('ms-api-config');
-          console.log('localStorage ms-api-config:', savedMsConfig);
-          
-          if (savedMsConfig) {
-            try {
-              const config = JSON.parse(savedMsConfig);
-              console.log('Parsed config from localStorage:', config);
-              
-              // Only use configuration if testing was successful AND it's confirmed
-              if (config.test_success && config.confirmed) {
-                console.log('Loaded Microsoft config from localStorage:', config);
-                console.log('Using redirectUri:', config.redirectUri);
-                
-                setMsGraphConfig({
-                  clientId: config.clientId,
-                  authorityUrl: config.authorityUrl,
-                  redirectUri: config.redirectUri,
-                  permissions: config.permissions || ['User.Read'],
-                  apiEndpoint: config.apiEndpoint
-                });
-                setMsalInitialized(true);
-                console.log('Loaded Microsoft config:', { 
-                  clientId: config.clientId,
-                  authorityUrl: config.authorityUrl,
-                  redirectUri: config.redirectUri, 
-                  msalInitialized: true 
-                });
-              } else {
-                console.log('Found Microsoft config in localStorage but test_success or confirmed flag is false');
-              }
-            } catch (parseError) {
-              console.error('Error parsing localStorage config:', parseError);
-            }
-          }
-          return;
-        }
+        console.log('Loaded Microsoft config:', config);
+        setMsGraphConfig(config);
+        setMsalInitialized(true);
         
-        if (data && data.value) {
-          const config = data.value as unknown as MsGraphConfig & { 
-            test_success?: boolean; 
-            confirmed?: boolean;
-          };
-          console.log('Loaded Microsoft config from Supabase:', config);
-          console.log('Using redirectUri from Supabase:', config.redirectUri);
-          
-          // Only use configuration if testing was successful AND it's confirmed
-          if (config.test_success && config.confirmed) {
-            setMsGraphConfig({
-              clientId: config.clientId,
-              authorityUrl: config.authorityUrl,
-              redirectUri: config.redirectUri,
-              permissions: config.permissions || ['User.Read'],
-              apiEndpoint: config.apiEndpoint
-            });
-            // Also update localStorage to be in sync
-            localStorage.setItem('ms-api-config', JSON.stringify(config));
-            console.log('Microsoft config saved to localStorage for future use');
-            setMsalInitialized(true);
-            console.log('Loaded Microsoft config from Supabase:', { 
-              clientId: config.clientId,
-              authorityUrl: config.authorityUrl,
-              redirectUri: config.redirectUri, 
-              msalInitialized: true 
-            });
-          } else {
-            console.log('Found Microsoft config but test_success or confirmed flag is false');
-          }
-        }
+        // Also save to localStorage for persistence
+        localStorage.setItem('ms-api-config', JSON.stringify(microsoftAuthConfig));
+        
       } catch (error) {
         console.error('Error loading MS config:', error);
+        toast.error('Failed to load Microsoft authentication configuration');
       }
     };
 
