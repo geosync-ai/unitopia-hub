@@ -13,6 +13,7 @@ import UserDialogs from '@/components/admin/UserDialogs';
 import OrganizationalStrategy from '@/components/admin/OrganizationalStrategy';
 import BannerManagement from '@/components/admin/BannerManagement';
 import DatabaseIntegration from '@/components/admin/DatabaseIntegration';
+import BusinessUnitLinks from '@/components/admin/database/BusinessUnitLinks';
 
 // Mock users data
 const mockUsers = [
@@ -52,7 +53,7 @@ const AdminPage = () => {
       <h1 className="text-2xl font-bold mb-6">Admin Console</h1>
       
       <Tabs defaultValue="users">
-        <TabsList className="grid grid-cols-8 mb-6">
+        <TabsList className="grid grid-cols-9 mb-6">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="banner">Banner</TabsTrigger>
           <TabsTrigger value="theme">Theme</TabsTrigger>
@@ -61,6 +62,7 @@ const AdminPage = () => {
           <TabsTrigger value="strategy">Org Strategy</TabsTrigger>
           <TabsTrigger value="units">Business Units</TabsTrigger>
           <TabsTrigger value="database">Database</TabsTrigger>
+          <TabsTrigger value="links">Unit Links</TabsTrigger>
         </TabsList>
         
         {/* USER MANAGEMENT TAB */}
@@ -106,6 +108,11 @@ const AdminPage = () => {
         {/* DATABASE INTEGRATION TAB */}
         <TabsContent value="database">
           <DatabaseIntegration />
+        </TabsContent>
+        
+        {/* BUSINESS UNIT LINKS TAB */}
+        <TabsContent value="links">
+          <BusinessUnitLinks />
         </TabsContent>
       </Tabs>
       

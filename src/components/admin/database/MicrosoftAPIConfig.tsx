@@ -1,17 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Check } from 'lucide-react';
+import { Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MicrosoftAPIConfigProps {
-  msConfig: MicrosoftAPIConfig;
-  setMsConfig: React.Dispatch<React.SetStateAction<MicrosoftAPIConfig>>;
-  msTestResult: TestResult;
-  setMsTestResult: React.Dispatch<React.SetStateAction<TestResult>>;
   availablePermissions: { value: string; label: string }[];
 }
 
@@ -21,6 +18,8 @@ export interface MicrosoftAPIConfig {
   redirectUri: string;
   permissions: string[];
   apiEndpoint: string;
+  last_tested?: string | null;
+  test_success?: boolean;
 }
 
 export interface TestResult {
@@ -29,12 +28,45 @@ export interface TestResult {
 }
 
 const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
-  msConfig,
-  setMsConfig,
-  msTestResult,
-  setMsTestResult,
   availablePermissions
 }) => {
+  const [msConfig, setMsConfig] = useState<MicrosoftAPIConfig>({
+    clientId: '',
+    authorityUrl: 'https://login.microsoftonline.com/common',
+    redirectUri: window.location.origin,
+    permissions: ['User.Read'],
+    apiEndpoint: 'https://graph.microsoft.com/v1.0/me'
+  });
+  
+  const [msTestResult, setMsTestResult] = useState<TestResult>({
+    status: 'idle'
+  });
+  
+  // Fetch current Microsoft configuration from database
+  useEffect(() => {
+    const fetchMsConfig = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_config')
+          .select('value')
+          .eq('key', 'microsoft_config')
+          .single();
+        
+        if (error) {
+          console.error('Error fetching Microsoft config:', error);
+          return;
+        }
+        
+        if (data) {
+          setMsConfig(data.value as MicrosoftAPIConfig);
+        }
+      } catch (error) {
+        console.error('Error fetching Microsoft config:', error);
+      }
+    };
+    
+    fetchMsConfig();
+  }, []);
   
   const handleMicrosoftPermissionToggle = (permission: string) => {
     setMsConfig(prev => {
@@ -52,13 +84,40 @@ const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
     });
   };
   
-  const handleTestMicrosoftConnection = () => {
+  const handleTestMicrosoftConnection = async () => {
     setMsTestResult({ status: 'testing' });
     
-    // Simulate connection test with Microsoft Graph API
-    setTimeout(() => {
-      // In a real implementation, this would use MSAL.js to authenticate
-      const success = msConfig.clientId.length > 5; // Simple validation for demo
+    try {
+      // In a real implementation, this would verify connectivity to Microsoft Graph API
+      // For now, we'll do basic validation and simulate a response
+      if (!msConfig.clientId) {
+        throw new Error('Client ID is required');
+      }
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Simple validation: client ID should be at least 10 characters
+      const success = msConfig.clientId.length >= 10;
+      
+      // Update the configuration with test results
+      const updatedConfig: MicrosoftAPIConfig = {
+        ...msConfig,
+        last_tested: new Date().toISOString(),
+        test_success: success
+      };
+      
+      // Save the updated configuration to database
+      const { error } = await supabase
+        .from('app_config')
+        .update({ value: updatedConfig })
+        .eq('key', 'microsoft_config');
+      
+      if (error) {
+        throw error;
+      }
+      
+      setMsConfig(updatedConfig);
       
       if (success) {
         setMsTestResult({ 
@@ -69,24 +128,75 @@ const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
       } else {
         setMsTestResult({ 
           status: 'error',
-          message: 'Failed to authenticate. Please check your Client ID and other configuration details.'
+          message: 'Failed to authenticate. Client ID is too short or invalid.'
         });
         toast.error('Microsoft API connection failed. Please check your credentials.');
       }
-    }, 2000);
+    } catch (error) {
+      console.error('Error testing Microsoft connection:', error);
+      setMsTestResult({ 
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+      toast.error('Microsoft API connection failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      
+      // Update the configuration with test results
+      try {
+        const updatedConfig: MicrosoftAPIConfig = {
+          ...msConfig,
+          last_tested: new Date().toISOString(),
+          test_success: false
+        };
+        
+        await supabase
+          .from('app_config')
+          .update({ value: updatedConfig })
+          .eq('key', 'microsoft_config');
+        
+        setMsConfig(updatedConfig);
+      } catch (updateError) {
+        console.error('Error updating config:', updateError);
+      }
+    }
   };
   
-  const handleSaveMicrosoftConfig = () => {
-    // In a real application, save to database or secure storage
-    toast.success('Microsoft API configuration saved successfully!');
-    localStorage.setItem('ms-api-config', JSON.stringify(msConfig));
+  const handleSaveMicrosoftConfig = async () => {
+    try {
+      const { error } = await supabase
+        .from('app_config')
+        .update({ value: msConfig })
+        .eq('key', 'microsoft_config');
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('Microsoft API configuration saved successfully!');
+      
+      // Save to localStorage for useAuth hook to use
+      localStorage.setItem('ms-api-config', JSON.stringify(msConfig));
+    } catch (error) {
+      console.error('Error saving Microsoft config:', error);
+      toast.error('Failed to save Microsoft configuration');
+    }
   };
   
-  const handleConfirmMicrosoftLink = () => {
-    if (msTestResult.status === 'success') {
+  const handleConfirmMicrosoftLink = async () => {
+    try {
+      if (msTestResult.status !== 'success') {
+        toast.error('Please test the connection successfully before confirming the link.');
+        return;
+      }
+      
+      // In a real implementation, this would finalize the Microsoft API integration
+      // For now, we just update the configuration and notify the user
       toast.success('Microsoft API link established successfully! The configuration is now active.');
-    } else {
-      toast.error('Please test the connection successfully before confirming the link.');
+      
+      // Save to localStorage for useAuth hook to use
+      localStorage.setItem('ms-api-config', JSON.stringify(msConfig));
+    } catch (error) {
+      console.error('Error confirming Microsoft link:', error);
+      toast.error('Failed to confirm Microsoft link');
     }
   };
 
@@ -184,10 +294,16 @@ const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
             </p>
           )}
           {msTestResult.status === 'success' && (
-            <p className="text-green-700">{msTestResult.message}</p>
+            <p className="text-green-700 flex items-center">
+              <Check size={16} className="mr-2" />
+              {msTestResult.message}
+            </p>
           )}
           {msTestResult.status === 'error' && (
-            <p className="text-red-700">{msTestResult.message}</p>
+            <p className="text-red-700 flex items-center">
+              <AlertCircle size={16} className="mr-2" />
+              {msTestResult.message}
+            </p>
           )}
         </div>
         

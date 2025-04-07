@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export type UserRole = 'admin' | 'manager' | 'user';
 
@@ -68,10 +69,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load saved config and user on mount
   useEffect(() => {
     // Load Microsoft Graph API configuration
-    const savedMsConfig = localStorage.getItem('ms-api-config');
-    if (savedMsConfig) {
-      setMsGraphConfig(JSON.parse(savedMsConfig));
-    }
+    const loadMsConfig = async () => {
+      try {
+        // First try to get from Supabase
+        const { data, error } = await supabase
+          .from('app_config')
+          .select('value')
+          .eq('key', 'microsoft_config')
+          .single();
+        
+        if (error) {
+          // Fall back to localStorage
+          const savedMsConfig = localStorage.getItem('ms-api-config');
+          if (savedMsConfig) {
+            const config = JSON.parse(savedMsConfig);
+            if (config.test_success) {
+              setMsGraphConfig(config);
+            }
+          }
+          return;
+        }
+        
+        if (data && data.value) {
+          const config = data.value as MsGraphConfig & { test_success?: boolean };
+          if (config.test_success) {
+            setMsGraphConfig(config);
+            localStorage.setItem('ms-api-config', JSON.stringify(config));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading MS config:', error);
+      }
+    };
+
+    loadMsConfig();
 
     // Load user if saved in localStorage
     const storedUser = localStorage.getItem('user');

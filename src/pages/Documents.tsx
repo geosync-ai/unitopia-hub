@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 // Interface for Document objects
 interface DocumentItem {
@@ -42,12 +43,23 @@ interface DocumentItem {
   url?: string;
 }
 
+// Interface for Business Unit Links
+interface BusinessUnitLink {
+  id: string;
+  unit_id: string;
+  page_id: string;
+  title: string;
+  url: string;
+  source: 'SharePoint' | 'OneDrive' | 'Supabase';
+}
+
 const Documents = () => {
   const [folderView, setFolderView] = useState('all');
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [source, setSource] = useState<'SharePoint' | 'OneDrive' | 'Supabase' | 'All'>('All');
-  const { user, msGraphConfig } = useAuth();
+  const { user, msGraphConfig, selectedUnit } = useAuth();
+  const [unitLinks, setUnitLinks] = useState<BusinessUnitLink[]>([]);
   
   // Mock folders data
   const folders = [
@@ -57,45 +69,117 @@ const Documents = () => {
     { id: 'important', name: 'Important', count: 8 },
   ];
   
-  // Mock Supabase documents data
-  const mockSupabaseDocs: DocumentItem[] = [
-    { 
-      id: 'sp1', 
-      name: 'Supabase Strategic Plan 2023.pdf', 
-      icon: FileType,
-      type: 'PDF', 
-      size: '3.2 MB', 
-      owner: 'SCPNG Admin', 
-      modified: '1 week ago',
-      shared: true,
-      source: 'Supabase',
-      url: '#'
-    },
-    { 
-      id: 'sp2', 
-      name: 'Supabase Budget Report.xlsx', 
-      icon: FileText,
-      type: 'Excel', 
-      size: '1.5 MB', 
-      owner: 'SCPNG Admin', 
-      modified: '2 weeks ago',
-      shared: true,
-      source: 'Supabase',
-      url: '#'
-    },
-    { 
-      id: 'sp3', 
-      name: 'Supabase Annual Plan.pptx', 
-      icon: FileText,
-      type: 'PowerPoint', 
-      size: '4.7 MB', 
-      owner: 'SCPNG Admin', 
-      modified: '1 month ago',
-      shared: true,
-      source: 'Supabase',
-      url: '#'
-    },
-  ];
+  // Fetch business unit links for the documents page and current unit
+  useEffect(() => {
+    if (selectedUnit) {
+      fetchUnitLinks(selectedUnit);
+    }
+  }, [selectedUnit]);
+  
+  const fetchUnitLinks = async (unitId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('business_unit_links')
+        .select('*')
+        .eq('unit_id', unitId)
+        .eq('page_id', 'documents');
+      
+      if (error) {
+        console.error('Error fetching unit links:', error);
+        return;
+      }
+      
+      setUnitLinks(data || []);
+    } catch (error) {
+      console.error('Error fetching unit links:', error);
+    }
+  };
+  
+  // Function to fetch documents from database
+  const fetchDocumentsFromDB = async () => {
+    setIsLoading(true);
+    
+    try {
+      let query = supabase
+        .from('documents')
+        .select('*');
+      
+      if (selectedUnit) {
+        query = query.eq('unit_id', selectedUnit);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        throw error;
+      }
+      
+      const dbDocuments: DocumentItem[] = (data || []).map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        icon: getDocumentIcon(doc.type),
+        type: doc.type,
+        size: doc.size,
+        owner: doc.owner,
+        modified: doc.modified ? formatDate(new Date(doc.modified)) : 'Unknown',
+        shared: doc.shared,
+        source: 'Supabase',
+        url: doc.url
+      }));
+      
+      return dbDocuments;
+    } catch (error) {
+      console.error('Error fetching documents from database:', error);
+      return [];
+    }
+  };
+  
+  // Helper function to get the appropriate icon for the file type
+  const getDocumentIcon = (type: string): React.ElementType => {
+    switch (type.toLowerCase()) {
+      case 'pdf':
+        return FileType;
+      case 'word':
+      case 'docx':
+        return FileText;
+      case 'excel':
+      case 'xlsx':
+        return FileText;
+      case 'powerpoint':
+      case 'pptx':
+        return FileText;
+      case 'image':
+      case 'png':
+      case 'jpg':
+        return FileImage;
+      case 'archive':
+      case 'zip':
+        return FileArchive;
+      default:
+        return File;
+    }
+  };
+  
+  // Helper function to format the date in a user-friendly format
+  const formatDate = (date: Date): string => {
+    const now = new Date();
+    const diff = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else if (diffDays < 30) {
+      return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`;
+    } else if (diffDays < 365) {
+      return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? 's' : ''} ago`;
+    } else {
+      return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) > 1 ? 's' : ''} ago`;
+    }
+  };
   
   // Function to fetch documents from SharePoint and OneDrive with Supabase fallback
   const fetchDocuments = async () => {
@@ -187,6 +271,9 @@ const Documents = () => {
         },
       ];
       
+      // Get documents from database
+      const dbDocuments = await fetchDocumentsFromDB();
+      
       // Filter documents based on selected source
       let filteredDocs: DocumentItem[] = [];
       
@@ -195,15 +282,15 @@ const Documents = () => {
       } else if (source === 'OneDrive') {
         filteredDocs = mockOneDriveDocs;
       } else if (source === 'Supabase') {
-        filteredDocs = mockSupabaseDocs;
+        filteredDocs = dbDocuments;
       } else {
         // If All is selected, include Microsoft sources and Supabase
         if (msGraphConfig) {
           filteredDocs = [...mockSharePointDocs, ...mockOneDriveDocs];
         }
         
-        // Add Supabase documents as fallback
-        filteredDocs = [...filteredDocs, ...mockSupabaseDocs];
+        // Add Supabase documents
+        filteredDocs = [...filteredDocs, ...dbDocuments];
       }
       
       // Filter by folder view
@@ -211,7 +298,7 @@ const Documents = () => {
         filteredDocs = filteredDocs.filter(doc => doc.shared);
       } else if (folderView === 'recent') {
         filteredDocs = filteredDocs.filter(doc => 
-          doc.modified === 'Yesterday' || doc.modified === '2 days ago' || doc.modified === '3 days ago'
+          doc.modified === 'Today' || doc.modified === 'Yesterday' || doc.modified === '2 days ago' || doc.modified === '3 days ago'
         );
       } else if (folderView === 'important') {
         // For demo purposes, just get a few random files as "important"
@@ -225,7 +312,8 @@ const Documents = () => {
       toast.error('Failed to load documents from Microsoft services, falling back to Supabase');
       
       // Fallback to Supabase documents
-      setDocuments(mockSupabaseDocs);
+      const dbDocuments = await fetchDocumentsFromDB();
+      setDocuments(dbDocuments);
     } finally {
       setIsLoading(false);
     }
@@ -234,7 +322,7 @@ const Documents = () => {
   // Load documents when component mounts or when source/folder changes
   useEffect(() => {
     fetchDocuments();
-  }, [msGraphConfig, source, folderView]);
+  }, [msGraphConfig, source, folderView, selectedUnit]);
 
   return (
     <PageLayout>
@@ -294,6 +382,32 @@ const Documents = () => {
               </div>
             </CardContent>
           </Card>
+          
+          {unitLinks.length > 0 && (
+            <Card className="animate-fade-in gradient-card" style={{ animationDelay: '0.15s' }}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Unit Links</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {unitLinks.map((link) => (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full text-left px-3 py-2 rounded-md transition-colors flex items-center hover:bg-accent"
+                    >
+                      {link.source === 'SharePoint' && <FileText size={14} className="mr-2 text-blue-600" />}
+                      {link.source === 'OneDrive' && <FileText size={14} className="mr-2 text-green-600" />}
+                      {link.source === 'Supabase' && <Database size={14} className="mr-2 text-purple-600" />}
+                      <span>{link.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <Card className="animate-fade-in gradient-card" style={{ animationDelay: '0.2s' }}>
             <CardHeader className="pb-2">

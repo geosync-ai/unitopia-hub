@@ -9,7 +9,102 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      app_config: {
+        Row: {
+          created_at: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      business_unit_links: {
+        Row: {
+          created_at: string | null
+          id: string
+          page_id: string
+          source: string
+          title: string
+          unit_id: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          page_id: string
+          source: string
+          title: string
+          unit_id: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          page_id?: string
+          source?: string
+          title?: string
+          unit_id?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          created_at: string | null
+          id: string
+          modified: string | null
+          name: string
+          owner: string
+          shared: boolean | null
+          size: string
+          type: string
+          unit_id: string | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          modified?: string | null
+          name: string
+          owner: string
+          shared?: boolean | null
+          size: string
+          type: string
+          unit_id?: string | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          modified?: string | null
+          name?: string
+          owner?: string
+          shared?: boolean | null
+          size?: string
+          type?: string
+          unit_id?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

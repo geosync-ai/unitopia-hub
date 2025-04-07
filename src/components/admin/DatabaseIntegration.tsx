@@ -2,26 +2,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import MicrosoftAPIConfig, { MicrosoftAPIConfig as MicrosoftAPIConfigType, TestResult } from './database/MicrosoftAPIConfig';
+import MicrosoftAPIConfig from './database/MicrosoftAPIConfig';
 import DatabaseTab from './database/DatabaseTab';
 
 const DatabaseIntegration: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'database' | 'microsoft'>('database');
   
-  // Microsoft API Configuration state
-  const [msConfig, setMsConfig] = useState<MicrosoftAPIConfigType>({
-    clientId: '',
-    authorityUrl: 'https://login.microsoftonline.com/common',
-    redirectUri: window.location.origin,
-    permissions: ['User.Read'],
-    apiEndpoint: 'https://graph.microsoft.com/v1.0/me'
-  });
-  
-  const [msTestResult, setMsTestResult] = useState<TestResult>({
-    status: 'idle'
-  });
-  
-  const [availablePermissions] = useState([
+  const availablePermissions = [
     { value: 'User.Read', label: 'User Profile (User.Read)' },
     { value: 'Files.Read.All', label: 'Read All Files (Files.Read.All)' },
     { value: 'Files.ReadWrite.All', label: 'Read/Write All Files (Files.ReadWrite.All)' },
@@ -30,7 +17,7 @@ const DatabaseIntegration: React.FC = () => {
     { value: 'Mail.Read', label: 'Read Mail (Mail.Read)' },
     { value: 'Calendars.Read', label: 'Read Calendar (Calendars.Read)' },
     { value: 'People.Read', label: 'Read People (People.Read)' },
-  ]);
+  ];
   
   return (
     <Card>
@@ -53,10 +40,6 @@ const DatabaseIntegration: React.FC = () => {
         
         {activeTab === 'microsoft' && (
           <MicrosoftAPIConfig
-            msConfig={msConfig}
-            setMsConfig={setMsConfig}
-            msTestResult={msTestResult}
-            setMsTestResult={setMsTestResult}
             availablePermissions={availablePermissions}
           />
         )}
