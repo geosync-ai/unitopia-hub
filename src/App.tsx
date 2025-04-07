@@ -18,7 +18,6 @@ import Calendar from "./pages/Calendar";
 import Gallery from "./pages/Gallery";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import SupabaseTest from "./pages/SupabaseTest";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +47,11 @@ const AppRoutes = () => {
       <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/supabase-test" element={<ProtectedRoute><SupabaseTest /></ProtectedRoute>} />
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <Index />
+        </ProtectedRoute>
+      } />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

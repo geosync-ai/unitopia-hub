@@ -1,65 +1,81 @@
 import { Configuration, PopupRequest, RedirectRequest } from '@azure/msal-browser';
+import microsoftAuthConfig from '@/config/microsoft-auth';
 
-// This config will be dynamically updated from the values in useAuth
-const msalConfig: Configuration = {
+// Default configuration for MSAL
+const defaultConfig = {
   auth: {
-    clientId: '', // Will be populated dynamically
-    authority: '', // Will be populated dynamically
-    redirectUri: window.location.origin, // Default to current origin, will be updated dynamically if needed
-    postLogoutRedirectUri: window.location.origin,
-    navigateToLoginRequestUrl: true,
+    clientId: microsoftAuthConfig.clientId,
+    authority: microsoftAuthConfig.authorityUrl,
+    redirectUri: microsoftAuthConfig.redirectUri,
+    postLogoutRedirectUri: microsoftAuthConfig.redirectUri,
+    navigateToLoginRequestUrl: true
   },
   cache: {
     cacheLocation: 'sessionStorage',
-    storeAuthStateInCookie: false,
+    storeAuthStateInCookie: false
   },
   system: {
     loggerOptions: {
-      loggerCallback: (level, message, containsPii) => {
-        if (!containsPii) {
-          console.log(message);
+      loggerCallback: (level: any, message: string, containsPii: boolean) => {
+        if (containsPii) {
+          return;
         }
-      },
-      logLevel: 3, // Error
+        switch (level) {
+          case 0:
+            console.error(message);
+            return;
+          case 1:
+            console.warn(message);
+            return;
+          case 2:
+            console.info(message);
+            return;
+          case 3:
+            console.debug(message);
+            return;
+          default:
+            console.log(message);
+            return;
+        }
+      }
     }
   }
 };
 
-// Dynamic update of MSAL config from useAuth
-export const updateMsalConfig = (msGraphConfig: any) => {
-  if (msGraphConfig) {
-    msalConfig.auth.clientId = msGraphConfig.clientId;
-    msalConfig.auth.authority = msGraphConfig.authorityUrl;
-    
-    // Only update redirectUri if it's provided and not empty
-    if (msGraphConfig.redirectUri && msGraphConfig.redirectUri.trim() !== '') {
-      msalConfig.auth.redirectUri = msGraphConfig.redirectUri;
-    } else {
-      // Fallback to window.location.origin if not provided
-      msalConfig.auth.redirectUri = window.location.origin;
-    }
-    
-    console.log('Updated MSAL config:', msalConfig);
-  } else {
-    console.error('Cannot update MSAL config: msGraphConfig is null');
+// Function to update the configuration with custom values
+export const updateMsalConfig = (config: any): Configuration => {
+  console.log('Updating MSAL config with:', config);
+  
+  // Create a copy of the default config
+  const updatedConfig = { ...defaultConfig };
+  
+  // Update the client ID if provided
+  if (config.clientId) {
+    updatedConfig.auth.clientId = config.clientId;
   }
   
-  return msalConfig;
+  // Update the authority if provided
+  if (config.authorityUrl) {
+    updatedConfig.auth.authority = config.authorityUrl;
+  }
+  
+  // Update the redirect URI if provided
+  if (config.redirectUri) {
+    console.log('Using redirectUri:', config.redirectUri);
+    updatedConfig.auth.redirectUri = config.redirectUri;
+    updatedConfig.auth.postLogoutRedirectUri = config.redirectUri;
+  }
+  
+  console.log('Updated MSAL config:', updatedConfig);
+  return updatedConfig;
 };
 
-// Login request parameters
+// Default login request configuration
 export const loginRequest = {
-  scopes: ['User.Read']
+  scopes: microsoftAuthConfig.permissions
 };
 
-// Set to true for redirect flow, false for popup
-export const useRedirectFlow = true;
-
-// Configure request objects for login
-export const getLoginRequest = (scopes: string[]): RedirectRequest | PopupRequest => {
-  return {
-    scopes: scopes
-  };
-};
+// Default configuration
+const msalConfig: Configuration = defaultConfig;
 
 export default msalConfig; 

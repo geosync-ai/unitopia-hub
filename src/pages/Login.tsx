@@ -1,92 +1,82 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { LogIn } from 'lucide-react';
 
-const Login = () => {
-  const { loginWithMicrosoft, isAuthenticated, user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, loginWithMicrosoft } = useAuth();
 
-  // Check if we're returning from Microsoft authentication
   useEffect(() => {
-    // Check if we have a user in localStorage
+    // Check if user is already authenticated
+    if (isAuthenticated && user) {
+      console.log('User is already authenticated, redirecting to home...');
+      navigate('/');
+      return;
+    }
+
+    // Check if we're returning from Microsoft login
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser && parsedUser.id) {
-          console.log('Found stored user, redirecting to dashboard');
-          navigate('/', { replace: true });
-        }
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-      }
+      console.log('Found stored user, redirecting to home...');
+      navigate('/');
+      return;
     }
-  }, [navigate]);
 
-  // If already authenticated, redirect to dashboard
-  if (isAuthenticated) {
-    console.log('User is authenticated, redirecting to dashboard');
-    return <Navigate to="/" replace />;
-  }
+    // Check if we have a hash in the URL (indicating a redirect from Microsoft)
+    if (location.hash) {
+      console.log('Detected hash in URL, waiting for MSAL to handle redirect...');
+      // MSAL will handle this automatically
+    }
+  }, [isAuthenticated, user, navigate, location]);
 
   const handleMicrosoftLogin = async () => {
-    setIsLoading(true);
-
     try {
+      console.log('Initiating Microsoft login...');
       await loginWithMicrosoft();
-      // The navigation will happen after the user is redirected back
-      // and the useEffect above detects the stored user
-      toast.success('Successfully logged in with Microsoft');
+      console.log('Microsoft login initiated successfully');
+      // The page will redirect to Microsoft login
     } catch (error) {
-      toast.error('Microsoft authentication failed');
-      console.error('Login error:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error during Microsoft login:', error);
+      toast.error('Failed to login with Microsoft');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-intranet-primary/90 to-intranet-secondary p-4">
-      <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm shadow-xl animate-fade-in">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-intranet-primary flex items-center justify-center text-white text-xl font-bold">
-              SC
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold">SCPNG Intranet Portal</CardTitle>
-          <CardDescription>
-            Sign in with your Microsoft account
-          </CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <Card className="w-[400px]">
+        <CardHeader>
+          <CardTitle>Welcome to Unitopia Hub</CardTitle>
+          <CardDescription>Please sign in to continue</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button 
-            type="button"
-            className="w-full flex items-center justify-center gap-2"
+          <Button
             onClick={handleMicrosoftLogin}
-            disabled={isLoading}
+            className="w-full"
+            variant="outline"
           >
-            <LogIn size={20} />
-            {isLoading ? 'Signing in...' : 'Sign in with Microsoft'}
+            <svg
+              className="mr-2 h-4 w-4"
+              aria-hidden="true"
+              focusable="false"
+              data-prefix="fab"
+              data-icon="microsoft"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 448 512"
+            >
+              <path
+                fill="currentColor"
+                d="M0 256h214.6v214.6H0V256zm233.8 0H448v214.6H233.8V256zM0 0h214.6v214.6H0V0zm233.8 0H448v214.6H233.8V0z"
+              ></path>
+            </svg>
+            Sign in with Microsoft
           </Button>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-center text-gray-500">
-            <span>Authorized personnel only</span>
-          </div>
-          <div className="text-xs text-center text-gray-400">
-            <span>SCPNG Intranet Portal © {new Date().getFullYear()}</span>
-          </div>
-        </CardFooter>
       </Card>
     </div>
   );
-};
-
-export default Login;
+}

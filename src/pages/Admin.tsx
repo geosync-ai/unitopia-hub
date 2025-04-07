@@ -54,35 +54,6 @@ const AdminPage = () => {
     <PageLayout>
       <h1 className="text-2xl font-bold mb-6">Admin Console</h1>
       
-      <div className="mb-8">
-        <h2 className="text-lg font-medium mb-4">Quick Access Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Database className="h-5 w-5 text-primary" />
-                Supabase Database Test Tool
-              </CardTitle>
-              <CardDescription>
-                Verify connectivity and interact with your Supabase database
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-2 text-sm">
-              Create, fetch, update, or delete records directly in the app_config table. 
-              Great for troubleshooting configuration issues.
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/supabase-test" className="flex items-center justify-center gap-2">
-                  Open Test Tool
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
-      
       <Tabs defaultValue="users">
         <TabsList className="grid grid-cols-9 mb-6">
           <TabsTrigger value="users">User Management</TabsTrigger>

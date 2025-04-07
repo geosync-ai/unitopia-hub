@@ -3,123 +3,192 @@ import {
   RedirectRequest, 
   AuthenticationResult, 
   SilentRequest,
-  AccountInfo
+  AccountInfo,
+  PublicClientApplication,
+  IPublicClientApplication
 } from '@azure/msal-browser';
-import { loginRequest, useRedirectFlow, getLoginRequest } from './msalConfig';
+import { loginRequest } from './msalConfig';
+import microsoftAuthConfig from '@/config/microsoft-auth';
 
 // MSAL instance will be passed to these methods from the MsalProvider
-// These methods will handle the actual authentication calls
+let msalInstance: IPublicClientApplication | null = null;
+
+// Set the MSAL instance
+export const setMsalInstance = (instance: IPublicClientApplication) => {
+  msalInstance = instance;
+  (window as any).msalInstance = instance;
+};
+
+// Get the MSAL instance
+export const getMsalInstance = () => msalInstance;
 
 // Login with redirect
-export const loginWithRedirect = async (instance: any, request?: RedirectRequest): Promise<void> => {
+export const loginWithRedirect = async (instance: IPublicClientApplication, request: RedirectRequest): Promise<void> => {
   try {
-    const loginReq = request || loginRequest;
-    console.log('Initiating redirect login with scopes:', loginReq.scopes);
-    await instance.loginRedirect(loginReq);
+    await instance.loginRedirect(request);
   } catch (error) {
-    console.error('Error during redirect login:', error);
+    console.error('Error logging in with redirect:', error);
     throw error;
   }
 };
 
 // Login with popup
-export const loginWithPopup = async (instance: any, request?: PopupRequest): Promise<AuthenticationResult> => {
+export const loginWithPopup = async (instance: IPublicClientApplication, request: any): Promise<void> => {
   try {
-    const loginReq = request || loginRequest;
-    console.log('Initiating popup login with scopes:', loginReq.scopes);
-    return await instance.loginPopup(loginReq);
+    await instance.loginPopup(request);
   } catch (error) {
-    console.error('Error during popup login:', error);
+    console.error('Error logging in with popup:', error);
     throw error;
   }
 };
 
 // Get user account
-export const getAccount = (instance: any): AccountInfo | null => {
+export const getAccount = (instance: IPublicClientApplication): AccountInfo | null => {
   const accounts = instance.getAllAccounts();
-  if (accounts.length > 0) {
-    return accounts[0];
-  }
-  return null;
+  return accounts.length > 0 ? accounts[0] : null;
 };
 
-// Get access token silently
-export const getAccessToken = async (instance: any, scopes: string[]): Promise<string> => {
-  const account = getAccount(instance);
-  
-  if (!account) {
-    throw new Error('No active account! Sign in before getting an access token.');
-  }
-  
-  const request: SilentRequest = {
-    scopes,
-    account
-  };
-  
+// Get access token
+export const getAccessToken = async (instance: IPublicClientApplication): Promise<string> => {
   try {
-    const response = await instance.acquireTokenSilent(request);
-    return response.accessToken;
+    const account = getAccount(instance);
+    if (!account) {
+      throw new Error('No account found');
+    }
+
+    const tokenResponse = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account
+    });
+
+    return tokenResponse.accessToken;
   } catch (error) {
-    console.error('Silent token acquisition failed, falling back to interactive method:', error);
-    // Fall back to interactive method
-    const response = useRedirectFlow 
-      ? await instance.acquireTokenRedirect(request)
-      : await instance.acquireTokenPopup(request);
-    return response.accessToken;
+    console.error('Error getting access token:', error);
+    throw error;
   }
 };
 
 // Get MS Graph API data
-export const callMsGraphApi = async (accessToken: string, endpoint: string): Promise<any> => {
-  const headers = new Headers();
-  headers.append('Authorization', `Bearer ${accessToken}`);
-  
-  const options = {
-    method: 'GET',
-    headers
-  };
-  
+export const callMsGraphApi = async (instance: IPublicClientApplication, endpoint: string) => {
   try {
-    const response = await fetch(endpoint, options);
+    const accessToken = await getAccessToken(instance);
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to call Microsoft Graph API');
+    }
+
     return await response.json();
   } catch (error) {
-    console.error('Error calling MS Graph API:', error);
+    console.error('Error calling Microsoft Graph API:', error);
     throw error;
   }
 };
 
 // Get user profile from MS Graph
-export const getUserProfile = async (instance: any, endpoint: string): Promise<any> => {
+export const getUserProfile = async (instance: IPublicClientApplication, apiEndpoint: string) => {
   try {
-    const accessToken = await getAccessToken(instance, ['User.Read']);
-    return await callMsGraphApi(accessToken, endpoint);
+    const account = getAccount(instance);
+    if (!account) {
+      throw new Error('No account found');
+    }
+
+    const tokenResponse = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account
+    });
+
+    const response = await fetch(`${apiEndpoint}`, {
+      headers: {
+        Authorization: `Bearer ${tokenResponse.accessToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user profile');
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Error getting user profile:', error);
     throw error;
   }
 };
 
-// Logout
-export const logout = async (instance: any): Promise<void> => {
+// Get user photo from MS Graph
+export const getUserPhoto = async (instance: IPublicClientApplication, apiEndpoint: string) => {
   try {
-    const logoutRequest = {
-      account: getAccount(instance),
-      postLogoutRedirectUri: window.location.origin
-    };
-    
-    return useRedirectFlow
-      ? await instance.logoutRedirect(logoutRequest)
-      : await instance.logoutPopup(logoutRequest);
+    const account = getAccount(instance);
+    if (!account) {
+      throw new Error('No account found');
+    }
+
+    const tokenResponse = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account
+    });
+
+    const response = await fetch(`${apiEndpoint}/photo/$value`, {
+      headers: {
+        Authorization: `Bearer ${tokenResponse.accessToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user photo');
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   } catch (error) {
-    console.error('Error during logout:', error);
+    console.error('Error getting user photo:', error);
+    throw error;
+  }
+};
+
+// Login with Microsoft
+export const loginWithMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
+  try {
+    console.log('Starting Microsoft login with redirect...');
+    console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
+    await instance.loginRedirect(loginRequest);
+    console.log('Login redirect initiated');
+  } catch (error) {
+    console.error('Error during Microsoft login:', error);
+    throw error;
+  }
+};
+
+// Logout from Microsoft
+export const logoutFromMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
+  try {
+    await instance.logoutRedirect();
+  } catch (error) {
+    console.error('Error during Microsoft logout:', error);
+    throw error;
+  }
+};
+
+// Logout
+export const logout = async (instance: IPublicClientApplication): Promise<void> => {
+  try {
+    await instance.logoutRedirect();
+  } catch (error) {
+    console.error('Error logging out:', error);
     throw error;
   }
 };
 
 // Determine login method based on configuration
-export const login = async (instance: any, scopes: string[] = loginRequest.scopes): Promise<AuthenticationResult | void> => {
-  const request = getLoginRequest(scopes);
-  return useRedirectFlow 
-    ? await loginWithRedirect(instance, request as RedirectRequest)
-    : await loginWithPopup(instance, request as PopupRequest);
+export const login = async (instance: IPublicClientApplication, scopes: string[] = loginRequest.scopes): Promise<void> => {
+  const request = {
+    ...loginRequest,
+    scopes
+  };
+  
+  await loginWithRedirect(instance, request as RedirectRequest);
 }; 

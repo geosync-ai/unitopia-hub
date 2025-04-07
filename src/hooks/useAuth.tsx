@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/integrations/microsoft/msalConfig';
-import { login as msalLogin, getAccount, getUserProfile } from '@/integrations/microsoft/msalService';
+import { login as msalLogin, getAccount, getUserProfile, loginWithMicrosoft as loginWithMicrosoftService } from '@/integrations/microsoft/msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
 
 export type UserRole = 'admin' | 'manager' | 'user';
@@ -110,33 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     loadMsConfig();
 
-    // Check if user is already logged in with Supabase
+    // Check if user is already logged in
     const checkExistingSession = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (sessionData?.session) {
-        const supabaseUser = sessionData.session.user;
-        
-        // Determine role based on email
-        const isAdminUser = adminEmails.includes(supabaseUser.email?.toLowerCase() || '');
-        
-        // Create user object
-        const userObj: User = {
-          id: supabaseUser.id,
-          email: supabaseUser.email || '',
-          name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
-          role: isAdminUser ? 'admin' : 'user',
-          unitName: isAdminUser ? 'Administration' : undefined
-        };
-        
-        setUser(userObj);
-        localStorage.setItem('user', JSON.stringify(userObj));
-      } else {
-        // Check localStorage as fallback for default admin
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
+      // Check localStorage as fallback for default admin
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
     };
     
@@ -151,174 +129,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return Promise.resolve();
     }
     
-    try {
-      // Attempt to authenticate with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      
-      if (data.user) {
-        // Determine role based on email
-        const isAdminUser = adminEmails.includes(data.user.email?.toLowerCase() || '');
-        
-        // Create user object
-        const userObj: User = {
-          id: data.user.id,
-          email: data.user.email || email,
-          name: data.user.user_metadata?.name || email.split('@')[0] || 'User',
-          role: isAdminUser ? 'admin' : 'user',
-          unitName: isAdminUser ? 'Administration' : undefined
-        };
-        
-        setUser(userObj);
-        localStorage.setItem('user', JSON.stringify(userObj));
-        return Promise.resolve();
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      return Promise.reject(new Error('Invalid credentials'));
-    }
+    // For now, we'll just use the default admin for any login attempt
+    // In a real implementation, you would validate credentials against your backend
+    setUser(defaultAdmin);
+    localStorage.setItem('user', JSON.stringify(defaultAdmin));
+    return Promise.resolve();
   };
 
   const loginWithMicrosoft = async () => {
-    // Debug msGraphConfig and msalInitialized status
-    console.log('Microsoft authentication status:', { 
-      msGraphConfig: !!msGraphConfig, 
-      msGraphConfigDetails: msGraphConfig,
-      msalInitialized, 
-      windowMsalInstance: !!(window as any).msalInstance 
-    });
-    
-    if (!msGraphConfig || !msalInitialized) {
-      console.error('Microsoft authentication is not configured.');
-      toast.error("Microsoft authentication is not configured. Please contact an administrator.");
-      return Promise.reject(new Error('Microsoft authentication not configured'));
+    if (!msGraphConfig) {
+      console.error('Microsoft authentication is not configured');
+      toast.error('Microsoft authentication is not configured');
+      return;
     }
-    
-    console.log('Attempting Microsoft login with config:', msGraphConfig);
-    
+
+    if (!msalInitialized) {
+      console.error('MSAL is not initialized');
+      toast.error('Authentication service is not ready. Please try again later.');
+      return;
+    }
+
+    if (!window.msalInstance) {
+      console.error('MSAL instance not found');
+      toast.error('Authentication service is not ready. Please try again later.');
+      return;
+    }
+
     try {
-      // Get the MSAL instance
-      // We'll use a workaround here since we can't use useMsal() directly
-      // In a real implementation, this would be better organized
-      const msalInstance = (window as any).msalInstance;
-      
-      if (!msalInstance) {
-        throw new Error('MSAL instance not found');
-      }
-      
-      // Check if we already have an account
-      const existingAccount = getAccount(msalInstance);
-      if (existingAccount) {
-        console.log('User already logged in, getting profile');
-        
-        // Get user profile from MS Graph API
-        const userProfile = await getUserProfile(msalInstance, msGraphConfig.apiEndpoint);
-        
-        console.log('User profile from MS Graph:', userProfile);
-        
-        // Create user object
-        const userObj: User = {
-          id: existingAccount.localAccountId,
-          email: existingAccount.username,
-          name: userProfile.displayName || existingAccount.name || existingAccount.username.split('@')[0],
-          role: adminEmails.includes(existingAccount.username.toLowerCase()) ? 'admin' : 'user',
-          accessToken: 'ms-token', // We don't store the actual token for security
-          profilePicture: userProfile.photo || undefined
-        };
-        
-        setUser(userObj);
-        localStorage.setItem('user', JSON.stringify(userObj));
-        return Promise.resolve();
-      }
-      
-      // Attempt login with Microsoft
-      await msalLogin(msalInstance, msGraphConfig.permissions);
-      
-      // Note: The rest of this function will only execute if we're using popup flow
-      // For redirect flow, the page will reload and the useEffect in the Login component
-      // will handle the redirect after detecting the stored user
-      
-      // Get account info
-      const account = getAccount(msalInstance);
-      
-      if (!account) {
-        throw new Error('Failed to get account information after login');
-      }
-      
-      // Get user profile from MS Graph API
-      const userProfile = await getUserProfile(msalInstance, msGraphConfig.apiEndpoint);
-      
-      console.log('User profile from MS Graph:', userProfile);
-      
-      // Create user object
-      const userObj: User = {
-        id: account.localAccountId,
-        email: account.username,
-        name: userProfile.displayName || account.name || account.username.split('@')[0],
-        role: adminEmails.includes(account.username.toLowerCase()) ? 'admin' : 'user',
-        accessToken: 'ms-token', // We don't store the actual token for security
-        profilePicture: userProfile.photo || undefined
-      };
-      
-      setUser(userObj);
-      localStorage.setItem('user', JSON.stringify(userObj));
-      
-      return Promise.resolve();
+      console.log('Initiating Microsoft login...');
+      await loginWithMicrosoftService(window.msalInstance);
+      console.log('Microsoft login initiated successfully');
+      // The page will redirect to Microsoft login
     } catch (error) {
-      console.error('Microsoft login error:', error);
-      toast.error('Failed to login with Microsoft: ' + (error instanceof Error ? error.message : String(error)));
-      return Promise.reject(error);
+      console.error('Error during Microsoft login:', error);
+      toast.error('Failed to login with Microsoft');
     }
   };
 
   const logout = async () => {
     try {
-      // Sign out from Supabase
-      await supabase.auth.signOut();
+      // Clear user data
+      setUser(null);
+      localStorage.removeItem('user');
       
-      // Sign out from Microsoft if we're using Microsoft auth
-      if (user?.accessToken?.includes('ms-token')) {
-        const msalInstance = (window as any).msalInstance;
-        if (msalInstance) {
-          try {
-            await msalInstance.logoutRedirect({
-              postLogoutRedirectUri: window.location.origin
-            });
-          } catch (msLogoutError) {
-            console.error('Error logging out from Microsoft:', msLogoutError);
-          }
-        }
+      // If MSAL is initialized, log out from Microsoft
+      if (window.msalInstance) {
+        await window.msalInstance.logoutRedirect();
       }
     } catch (error) {
       console.error('Error during logout:', error);
-    } finally {
-      // Clear local state regardless of any errors
-      setUser(null);
-      localStorage.removeItem('user');
     }
   };
 
-  const authValue: AuthContextType = {
-    user,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isManager: user?.role === 'manager',
-    login,
-    loginWithMicrosoft,
-    logout,
-    businessUnits: mockBusinessUnits,
-    selectedUnit,
-    setSelectedUnit,
-    msGraphConfig,
-    setUser
-  };
+  // Compute derived values
+  const isAuthenticated = !!user;
+  const isAdmin = user?.role === 'admin';
+  const isManager = user?.role === 'manager';
 
   return (
-    <AuthContext.Provider value={authValue}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isAdmin,
+        isManager,
+        login,
+        loginWithMicrosoft,
+        logout,
+        businessUnits: mockBusinessUnits,
+        selectedUnit,
+        setSelectedUnit,
+        msGraphConfig,
+        setUser
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -331,3 +215,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default useAuth;

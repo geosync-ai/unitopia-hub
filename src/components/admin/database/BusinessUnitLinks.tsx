@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Plus, Trash2, Link as LinkIcon } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 interface BusinessUnitLink {
@@ -16,7 +14,7 @@ interface BusinessUnitLink {
   page_id: string;
   title: string;
   url: string;
-  source: 'SharePoint' | 'OneDrive' | 'Supabase';
+  source: 'SharePoint' | 'OneDrive';
 }
 
 const BusinessUnitLinks: React.FC = () => {
@@ -44,35 +42,45 @@ const BusinessUnitLinks: React.FC = () => {
     source: 'SharePoint'
   });
   
-  // Fetch links when selected unit changes
+  // Load links when selected unit changes
   useEffect(() => {
     if (selectedUnit) {
-      fetchLinks(selectedUnit);
+      loadLinks(selectedUnit);
       setNewLink(prev => ({ ...prev, unit_id: selectedUnit }));
     } else {
       setLinks([]);
     }
   }, [selectedUnit]);
   
-  const fetchLinks = async (unitId: string) => {
+  const loadLinks = (unitId: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('business_unit_links')
-        .select('*')
-        .eq('unit_id', unitId);
-      
-      if (error) throw error;
-      setLinks(data || []);
+      const storedLinks = localStorage.getItem(`unit_links_${unitId}`);
+      if (storedLinks) {
+        setLinks(JSON.parse(storedLinks));
+      } else {
+        setLinks([]);
+      }
     } catch (error) {
-      console.error('Error fetching links:', error);
+      console.error('Error loading links:', error);
       toast.error('Failed to load business unit links');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const saveLinks = (updatedLinks: BusinessUnitLink[]) => {
+    try {
+      if (selectedUnit) {
+        localStorage.setItem(`unit_links_${selectedUnit}`, JSON.stringify(updatedLinks));
+      }
+    } catch (error) {
+      console.error('Error saving links:', error);
+      toast.error('Failed to save links');
+    }
+  };
   
-  const handleAddLink = async () => {
+  const handleAddLink = () => {
     // Validate form
     if (!newLink.unit_id || !newLink.page_id || !newLink.title || !newLink.url || !newLink.source) {
       toast.error('Please fill in all fields');
@@ -80,43 +88,39 @@ const BusinessUnitLinks: React.FC = () => {
     }
     
     try {
-      const { data, error } = await supabase
-        .from('business_unit_links')
-        .insert([newLink])
-        .select();
+      const newLinkItem: BusinessUnitLink = {
+        id: Date.now().toString(),
+        unit_id: newLink.unit_id,
+        page_id: newLink.page_id,
+        title: newLink.title,
+        url: newLink.url,
+        source: newLink.source
+      };
       
-      if (error) throw error;
+      const updatedLinks = [...links, newLinkItem];
+      setLinks(updatedLinks);
+      saveLinks(updatedLinks);
+      toast.success('Link added successfully');
       
-      if (data && data[0]) {
-        setLinks([...links, data[0] as BusinessUnitLink]);
-        toast.success('Link added successfully');
-        
-        // Reset form
-        setNewLink({
-          unit_id: selectedUnit,
-          page_id: '',
-          title: '',
-          url: '',
-          source: 'SharePoint'
-        });
-      }
+      // Reset form
+      setNewLink({
+        unit_id: selectedUnit,
+        page_id: '',
+        title: '',
+        url: '',
+        source: 'SharePoint'
+      });
     } catch (error) {
       console.error('Error adding link:', error);
       toast.error('Failed to add link');
     }
   };
   
-  const handleDeleteLink = async (id: string) => {
+  const handleDeleteLink = (id: string) => {
     try {
-      const { error } = await supabase
-        .from('business_unit_links')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      // Update state
-      setLinks(links.filter(link => link.id !== id));
+      const updatedLinks = links.filter(link => link.id !== id);
+      setLinks(updatedLinks);
+      saveLinks(updatedLinks);
       toast.success('Link deleted successfully');
     } catch (error) {
       console.error('Error deleting link:', error);
