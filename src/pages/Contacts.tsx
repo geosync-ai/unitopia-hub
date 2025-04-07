@@ -4,31 +4,38 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Phone, Mail, MapPin, Plus, RefreshCw } from 'lucide-react';
+import { Search, Filter, Phone, Mail, MapPin, Plus, RefreshCw, Building } from 'lucide-react';
 import OrganizationalStructure from '@/components/contacts/OrganizationalStructure';
 import useMicrosoftContacts, { MicrosoftContact } from '@/hooks/useMicrosoftContacts';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
   const { contacts, isLoading, error, refetch } = useMicrosoftContacts();
   const { isAuthenticated, loginWithMicrosoft } = useAuth();
   
-  // Get unique departments from contacts
+  // Get unique departments and companies from contacts
   const departments = ['All', ...new Set(contacts
     .map(contact => contact.department)
     .filter((dept): dept is string => !!dept))];
+    
+  const companies = ['All', ...new Set(contacts
+    .map(contact => contact.companyName)
+    .filter((company): company is string => !!company))];
   
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = contact.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (contact.jobTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (contact.emailAddresses?.[0]?.address || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesFilter = filter === 'all' || (contact.department?.toLowerCase() || '') === filter.toLowerCase();
+    const matchesDepartmentFilter = departmentFilter === 'all' || (contact.department?.toLowerCase() || '') === departmentFilter.toLowerCase();
+    const matchesCompanyFilter = companyFilter === 'all' || (contact.companyName?.toLowerCase() || '') === companyFilter.toLowerCase();
     
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesDepartmentFilter && matchesCompanyFilter;
   });
 
   const renderContactCard = (contact: MicrosoftContact, index: number) => (
@@ -50,6 +57,12 @@ const Contacts = () => {
             <span className="inline-block px-3 py-1 bg-secondary text-secondary-foreground text-xs rounded-full mt-1">
               {contact.department}
             </span>
+          )}
+          {contact.companyName && (
+            <div className="mt-1 text-xs text-muted-foreground flex items-center justify-center">
+              <Building className="h-3 w-3 mr-1" />
+              {contact.companyName}
+            </div>
           )}
         </div>
         
@@ -88,8 +101,8 @@ const Contacts = () => {
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
-        <h1 className="text-2xl font-bold mb-2">Contact Directory</h1>
-        <p className="text-gray-500">Find and connect with colleagues across the organization</p>
+        <h1 className="text-2xl font-bold mb-2">Organization Directory</h1>
+        <p className="text-gray-500">Find and connect with colleagues across the SCPNG organization</p>
       </div>
       
       <Tabs defaultValue="directory" className="space-y-6">
@@ -110,25 +123,32 @@ const Contacts = () => {
               />
             </div>
             
-            <div className="flex gap-2 overflow-x-auto pb-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilter('all')}
-                className="whitespace-nowrap btn-hover-effect"
-              >
-                All Departments
-              </Button>
+            <div className="flex flex-col md:flex-row gap-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept.toLowerCase()}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               
-              {departments.slice(1).map((dept) => (
-                <Button
-                  key={dept}
-                  variant={filter === dept.toLowerCase() ? 'default' : 'outline'}
-                  onClick={() => setFilter(dept.toLowerCase())}
-                  className="whitespace-nowrap btn-hover-effect"
-                >
-                  {dept}
-                </Button>
-              ))}
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company} value={company.toLowerCase()}>
+                      {company}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="flex gap-2">

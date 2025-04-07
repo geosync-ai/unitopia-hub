@@ -15,6 +15,12 @@ export interface MicrosoftContact {
     name: string;
   }[];
   userPrincipalName?: string;
+  mail?: string;
+  givenName?: string;
+  surname?: string;
+  companyName?: string;
+  preferredLanguage?: string;
+  photo?: string;
 }
 
 export const useMicrosoftContacts = () => {
@@ -34,25 +40,43 @@ export const useMicrosoftContacts = () => {
 
     try {
       const response = await window.msalInstance.acquireTokenSilent({
-        scopes: ['People.Read']
+        scopes: ['User.Read', 'People.Read', 'Directory.Read.All']
       });
 
-      const result = await fetch('https://graph.microsoft.com/v1.0/me/contacts', {
+      const result = await fetch('https://graph.microsoft.com/v1.0/users?$select=id,displayName,givenName,surname,mail,jobTitle,department,officeLocation,businessPhones,mobilePhone,userPrincipalName,preferredLanguage,companyName', {
         headers: {
           Authorization: `Bearer ${response.accessToken}`
         }
       });
 
       if (!result.ok) {
-        throw new Error(`Failed to fetch contacts: ${result.statusText}`);
+        throw new Error(`Failed to fetch organization contacts: ${result.statusText}`);
       }
 
       const data = await result.json();
-      setContacts(data.value);
+      
+      const transformedContacts = data.value.map((user: any) => ({
+        id: user.id,
+        displayName: user.displayName || `${user.givenName || ''} ${user.surname || ''}`.trim(),
+        jobTitle: user.jobTitle,
+        department: user.department,
+        businessPhones: user.businessPhones,
+        mobilePhone: user.mobilePhone,
+        officeLocation: user.officeLocation,
+        emailAddresses: user.mail ? [{ address: user.mail, name: user.displayName }] : undefined,
+        userPrincipalName: user.userPrincipalName,
+        mail: user.mail,
+        givenName: user.givenName,
+        surname: user.surname,
+        companyName: user.companyName,
+        preferredLanguage: user.preferredLanguage
+      }));
+      
+      setContacts(transformedContacts);
     } catch (error) {
-      console.error('Error fetching contacts:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch contacts');
-      toast.error('Failed to fetch contacts from Microsoft');
+      console.error('Error fetching organization contacts:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch organization contacts');
+      toast.error('Failed to fetch organization contacts from Microsoft');
     } finally {
       setIsLoading(false);
     }
