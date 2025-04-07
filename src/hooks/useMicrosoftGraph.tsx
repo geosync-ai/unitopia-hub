@@ -59,10 +59,10 @@ export const useMicrosoftGraph = () => {
 
     try {
       const response = await window.msalInstance.acquireTokenSilent({
-        scopes: ['Files.Read.All']
+        scopes: ['User.Read', 'Files.Read.All']
       });
 
-      const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/recent';
+      const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
       const result = await fetch(graphEndpoint, {
         headers: {
           Authorization: `Bearer ${response.accessToken}`
@@ -77,9 +77,9 @@ export const useMicrosoftGraph = () => {
       return data.value.map((item: any) => ({
         id: item.id,
         name: item.name,
-        url: item.webUrl,
+        url: item.webUrl || item['@microsoft.graph.downloadUrl'],
         lastModified: item.lastModifiedDateTime,
-        size: item.size
+        size: item.size || 0
       }));
     } catch (error) {
       console.error('Error fetching OneDrive documents:', error);

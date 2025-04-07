@@ -4,11 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { FileIcon, Cloud, FolderIcon } from 'lucide-react';
+import { FileIcon, Cloud, FolderIcon, Loader2 } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 
 interface Document {
@@ -75,6 +73,14 @@ const Documents = () => {
     doc.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
@@ -89,7 +95,14 @@ const Documents = () => {
               className="w-64"
             />
             <Button onClick={fetchDocuments} disabled={isLoading}>
-              {isLoading ? 'Loading...' : 'Refresh'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Refresh'
+              )}
             </Button>
           </div>
         </div>
@@ -126,7 +139,7 @@ const Documents = () => {
               </CardHeader>
               <CardContent className="pb-2">
                 <p className="text-sm text-gray-500">
-                  Size: {(doc.size / 1024).toFixed(2)} KB
+                  Size: {formatFileSize(doc.size)}
                 </p>
                 <p className="text-sm text-gray-500">
                   Source: {doc.source}
@@ -146,13 +159,14 @@ const Documents = () => {
 
         {isLoading && (
           <div className="text-center py-8">
-            Loading documents...
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+            <p>Loading documents...</p>
           </div>
         )}
 
         {!isLoading && filteredDocuments.length === 0 && (
           <div className="text-center py-8">
-            No documents found.
+            <p className="text-gray-500">No documents found.</p>
           </div>
         )}
       </div>
