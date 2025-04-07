@@ -1,123 +1,89 @@
-
 import React, { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Phone, Mail, MapPin, Plus } from 'lucide-react';
+import { Search, Filter, Phone, Mail, MapPin, Plus, RefreshCw } from 'lucide-react';
 import OrganizationalStructure from '@/components/contacts/OrganizationalStructure';
-
-interface Contact {
-  id: number;
-  name: string;
-  position: string;
-  department: string;
-  location: string;
-  email: string;
-  phone: string;
-  avatar: string;
-}
+import useMicrosoftContacts, { MicrosoftContact } from '@/hooks/useMicrosoftContacts';
+import { useAuth } from '@/hooks/useAuth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const { contacts, isLoading, error, refetch } = useMicrosoftContacts();
+  const { isAuthenticated, loginWithMicrosoft } = useAuth();
   
-  // Mock contact data
-  const departments = ['All', 'Executive', 'IT', 'Finance', 'Marketing', 'HR', 'Operations'];
-  
-  const contacts: Contact[] = [
-    {
-      id: 1,
-      name: 'John Anderson',
-      position: 'CEO',
-      department: 'Executive',
-      location: 'Brisbane, Australia',
-      email: 'john.anderson@scpng.com',
-      phone: '+61 3 9876 5432',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=JA&backgroundColor=600018`
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      position: 'CTO',
-      department: 'IT',
-      location: 'Sydney, Australia',
-      email: 'sarah.johnson@scpng.com',
-      phone: '+61 2 8765 4321',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=SJ&backgroundColor=600018`
-    },
-    {
-      id: 3,
-      name: 'Michael Chen',
-      position: 'Finance Director',
-      department: 'Finance',
-      location: 'Melbourne, Australia',
-      email: 'michael.chen@scpng.com',
-      phone: '+61 4 7654 3210',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=MC&backgroundColor=600018`
-    },
-    {
-      id: 4,
-      name: 'Emily Wilson',
-      position: 'Marketing Manager',
-      department: 'Marketing',
-      location: 'Perth, Australia',
-      email: 'emily.wilson@scpng.com',
-      phone: '+61 8 6543 2109',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=EW&backgroundColor=600018`
-    },
-    {
-      id: 5,
-      name: 'David Thompson',
-      position: 'HR Director',
-      department: 'HR',
-      location: 'Brisbane, Australia',
-      email: 'david.thompson@scpng.com',
-      phone: '+61 7 5432 1098',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=DT&backgroundColor=600018`
-    },
-    {
-      id: 6,
-      name: 'Lisa Wang',
-      position: 'Operations Manager',
-      department: 'Operations',
-      location: 'Adelaide, Australia',
-      email: 'lisa.wang@scpng.com',
-      phone: '+61 8 4321 0987',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=LW&backgroundColor=600018`
-    },
-    {
-      id: 7,
-      name: 'Robert Brown',
-      position: 'IT Manager',
-      department: 'IT',
-      location: 'Sydney, Australia',
-      email: 'robert.brown@scpng.com',
-      phone: '+61 2 3210 9876',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=RB&backgroundColor=600018`
-    },
-    {
-      id: 8,
-      name: 'Jessica Lee',
-      position: 'Financial Analyst',
-      department: 'Finance',
-      location: 'Melbourne, Australia',
-      email: 'jessica.lee@scpng.com',
-      phone: '+61 3 2109 8765',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=JL&backgroundColor=600018`
-    },
-  ];
+  // Get unique departments from contacts
+  const departments = ['All', ...new Set(contacts
+    .map(contact => contact.department)
+    .filter((dept): dept is string => !!dept))];
   
   const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = contact.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (contact.jobTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (contact.emailAddresses?.[0]?.address || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesFilter = filter === 'all' || contact.department.toLowerCase() === filter.toLowerCase();
+    const matchesFilter = filter === 'all' || (contact.department?.toLowerCase() || '') === filter.toLowerCase();
     
     return matchesSearch && matchesFilter;
   });
+
+  const renderContactCard = (contact: MicrosoftContact, index: number) => (
+    <Card key={contact.id} className="overflow-hidden animate-fade-in" style={{ animationDelay: `${0.3 + index * 0.05}s` }}>
+      <div className="h-12 bg-gradient-to-r from-intranet-primary to-intranet-secondary"></div>
+      <CardContent className="p-6 pt-0 relative">
+        <div className="flex justify-center">
+          <img
+            src={`https://api.dicebear.com/7.x/initials/svg?seed=${contact.displayName}&backgroundColor=600018`}
+            alt={contact.displayName}
+            className="w-20 h-20 rounded-full border-4 border-background -mt-10 shadow-md"
+          />
+        </div>
+        
+        <div className="text-center mt-2">
+          <h3 className="font-bold">{contact.displayName}</h3>
+          <p className="text-sm text-muted-foreground">{contact.jobTitle || 'No position specified'}</p>
+          {contact.department && (
+            <span className="inline-block px-3 py-1 bg-secondary text-secondary-foreground text-xs rounded-full mt-1">
+              {contact.department}
+            </span>
+          )}
+        </div>
+        
+        <div className="mt-4 space-y-2">
+          {contact.emailAddresses?.[0] && (
+            <div className="flex items-center text-sm">
+              <Mail className="h-4 w-4 mr-2 text-intranet-primary" />
+              <span className="truncate">{contact.emailAddresses[0].address}</span>
+            </div>
+          )}
+          
+          {(contact.businessPhones?.[0] || contact.mobilePhone) && (
+            <div className="flex items-center text-sm">
+              <Phone className="h-4 w-4 mr-2 text-intranet-primary" />
+              <span>{contact.businessPhones?.[0] || contact.mobilePhone}</span>
+            </div>
+          )}
+          
+          {contact.officeLocation && (
+            <div className="flex items-center text-sm">
+              <MapPin className="h-4 w-4 mr-2 text-intranet-primary" />
+              <span>{contact.officeLocation}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-4 flex justify-between">
+          <Button variant="outline" size="sm" className="w-full icon-hover-effect">
+            View Profile
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <PageLayout>
@@ -165,58 +131,59 @@ const Contacts = () => {
               ))}
             </div>
             
-            <Button className="whitespace-nowrap animate-fade-in btn-hover-effect" style={{ animationDelay: '0.2s' }}>
-              <Plus size={16} className="mr-1" />
-              Add Contact
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                className="whitespace-nowrap animate-fade-in btn-hover-effect" 
+                style={{ animationDelay: '0.2s' }}
+                onClick={refetch}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              
+              <Button className="whitespace-nowrap animate-fade-in btn-hover-effect" style={{ animationDelay: '0.2s' }}>
+                <Plus size={16} className="mr-1" />
+                Add Contact
+              </Button>
+            </div>
           </div>
           
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredContacts.map((contact, index) => (
-              <Card key={contact.id} className="overflow-hidden animate-fade-in" style={{ animationDelay: `${0.3 + index * 0.05}s` }}>
-                <div className="h-12 bg-gradient-to-r from-intranet-primary to-intranet-secondary"></div>
-                <CardContent className="p-6 pt-0 relative">
-                  <div className="flex justify-center">
-                    <img
-                      src={contact.avatar}
-                      alt={contact.name}
-                      className="w-20 h-20 rounded-full border-4 border-background -mt-10 shadow-md"
-                    />
-                  </div>
-                  
-                  <div className="text-center mt-2">
-                    <h3 className="font-bold">{contact.name}</h3>
-                    <p className="text-sm text-muted-foreground">{contact.position}</p>
-                    <span className="inline-block px-3 py-1 bg-secondary text-secondary-foreground text-xs rounded-full mt-1">
-                      {contact.department}
-                    </span>
-                  </div>
-                  
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center text-sm">
-                      <Mail className="h-4 w-4 mr-2 text-intranet-primary" />
-                      <span className="truncate">{contact.email}</span>
+            {isLoading ? (
+              // Loading skeletons
+              Array.from({ length: 8 }).map((_, index) => (
+                <Card key={index} className="overflow-hidden">
+                  <div className="h-12 bg-gradient-to-r from-intranet-primary to-intranet-secondary"></div>
+                  <CardContent className="p-6 pt-0 relative">
+                    <div className="flex justify-center">
+                      <Skeleton className="w-20 h-20 rounded-full -mt-10" />
                     </div>
-                    
-                    <div className="flex items-center text-sm">
-                      <Phone className="h-4 w-4 mr-2 text-intranet-primary" />
-                      <span>{contact.phone}</span>
+                    <div className="text-center mt-2">
+                      <Skeleton className="h-6 w-32 mx-auto mb-2" />
+                      <Skeleton className="h-4 w-24 mx-auto" />
                     </div>
-                    
-                    <div className="flex items-center text-sm">
-                      <MapPin className="h-4 w-4 mr-2 text-intranet-primary" />
-                      <span>{contact.location}</span>
+                    <div className="mt-4 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
                     </div>
-                  </div>
-                  
-                  <div className="mt-4 flex justify-between">
-                    <Button variant="outline" size="sm" className="w-full icon-hover-effect">
-                      View Profile
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            ) : filteredContacts.length > 0 ? (
+              filteredContacts.map((contact, index) => renderContactCard(contact, index))
+            ) : (
+              <div className="col-span-full text-center py-8 text-gray-500">
+                No contacts found matching your search criteria
+              </div>
+            )}
           </div>
         </TabsContent>
         
