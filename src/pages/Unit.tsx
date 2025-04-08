@@ -24,28 +24,39 @@ import '@/styles/timeline.css';
 interface KPI {
   id: string;
   name: string;
-  date: Date;
-  target: string;
-  actual: string;
-  status: string;
-  description: string;
-  notes: string;
+  target: string | number;
+  current: string | number;
+  unit?: string;
+  frequency?: string;
+  status: 'on-track' | 'needs-attention' | 'at-risk';
+  description?: string;
+  department?: string;
+  strategicObjective?: string;
+  kra?: string;
+  measurementUnit?: string;
+  baselineValue?: string;
+  dataSource?: string;
+  responsibleOfficer?: string;
+  startDate?: string;
+  endDate?: string;
+  comments?: string;
+  progress?: number;
 }
 
 interface KRA {
   id: string;
   name: string;
   objectiveId: string;
-  objectiveName: string;
+  objectiveName?: string;
   department: string;
   responsible: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | string;
+  endDate: Date | string;
   progress: number;
   status: 'open' | 'in-progress' | 'closed';
   kpis: KPI[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Objective {
@@ -59,30 +70,6 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   message: string;
   timestamp: Date;
-}
-
-// Add these interfaces at the top of the file, after the existing interfaces
-interface TimelineKPI {
-  id: number;
-  name: string;
-  date: Date;
-  target: string;
-  actual: string;
-  status: string;
-  description: string;
-  notes: string;
-}
-
-interface TimelineKRA {
-  id: number;
-  name: string;
-  department: string;
-  responsible: string;
-  startDate: Date;
-  endDate: Date;
-  progress: number;
-  status: string;
-  kpis: TimelineKPI[];
 }
 
 const Unit = () => {
@@ -117,10 +104,10 @@ const Unit = () => {
   const [kpiForm, setKpiForm] = useState<Partial<KPI>>({
     name: '',
     target: '',
-    actual: '',
-    status: '',
+    current: '',
+    status: 'on-track' as const,
     description: '',
-    notes: ''
+    comments: ''
   });
   
   const [objectiveForm, setObjectiveForm] = useState<Partial<Objective>>({
@@ -544,8 +531,8 @@ const Unit = () => {
       startDate: kraForm.startDate || new Date(),
       endDate: kraForm.endDate || new Date(),
       progress: 0,
-      kpis: [],
       status: 'open',
+      kpis: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -566,63 +553,17 @@ const Unit = () => {
     toast.success("KRA added successfully");
   };
   
-  const handleAddKPI = () => {
-    // Validate form
-    if (!kpiForm.name || !kpiForm.target || !selectedKRA) {
-      setFormError("KPI Name, Target, and KRA selection are required");
-      return;
-    }
-    
-    // Calculate progress
-    const current = parseFloat(kpiForm.current || '0');
-    const target = parseFloat(kpiForm.target || '0');
-    const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-    
-    // Create new KPI
-    const newKPI: KPI = {
-      id: Math.max(...kras.flatMap(k => k.kpis).map(k => k.id), ...closedKras.flatMap(k => k.kpis).map(k => k.id)) + 1,
-      name: kpiForm.name || '',
-      description: "",
-      department: "",
-      strategicObjective: "",
-      kra: selectedKRA.name,
-      target: kpiForm.target || '',
-      measurementUnit: "",
-      baselineValue: "",
-      frequency: "Monthly",
-      dataSource: "",
-      responsibleOfficer: "",
-      current: kpiForm.current || '',
-      status: kpiForm.status as 'on-track' | 'needs-attention' | 'at-risk' || 'on-track',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
-      comments: "",
-      progress: progress
-    };
-    
-    // Update KRA with new KPI (replace existing KPI)
-    const updatedKRA = {
-      ...selectedKRA,
-      kpis: [newKPI], // Replace all KPIs with just this one
-      updatedAt: new Date().toISOString().split('T')[0]
-    };
-    
-    // Update state
-    setKras(kras.map(k => k.id === selectedKRA.id ? updatedKRA : k));
-    
-    // Reset form
-    setKpiForm({
-      name: '',
-      target: '',
-      actual: '',
-      status: '',
-      description: '',
-      notes: ''
+  const handleAddKPI = (kraId: string, kpi: KPI) => {
+    const updatedKRAs = kras.map(kra => {
+      if (kra.id === kraId) {
+        return {
+          ...kra,
+          kpis: [...kra.kpis, { ...kpi, id: String(kra.kpis.length + 1) }]
+        };
+      }
+      return kra;
     });
-    setFormError(null);
-    
-    // Show success message
-    toast.success("KPI updated successfully");
+    setKras(updatedKRAs);
   };
   
   const handleAddObjective = () => {
