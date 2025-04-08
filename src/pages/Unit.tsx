@@ -155,27 +155,7 @@ const Unit = () => {
           endDate: "2023-12-31",
           comments: "On track to meet target by Q4",
           progress: 66 
-        },
-        { 
-          id: 2, 
-          name: "Market Share Growth", 
-          description: "Percentage increase in market share",
-          department: "Marketing",
-          strategicObjective: "Increase brand presence",
-          kra: "Market Expansion",
-          target: "15%", 
-          measurementUnit: "Percentage",
-          baselineValue: "10%",
-          frequency: "Monthly",
-          dataSource: "Market Analysis Reports",
-          responsibleOfficer: "Marketing Manager",
-          current: "10%", 
-          status: "on-track", 
-          startDate: "2023-01-01",
-          endDate: "2023-12-31",
-          comments: "Steady growth observed",
-          progress: 67 
-        },
+        }
       ],
       status: "in-progress",
       createdAt: "2023-01-15",
@@ -187,8 +167,26 @@ const Unit = () => {
       objectiveId: 2,
       objectiveName: "Enhance Product Portfolio",
       kpis: [
-        { id: 3, name: "New Products Launched", target: "5", current: "3", status: "needs-attention", progress: 60 },
-        { id: 4, name: "R&D Investment", target: "$2M", current: "$1.5M", status: "on-track", progress: 75 },
+        { 
+          id: 2, 
+          name: "New Products Launched", 
+          description: "Number of new products launched to market",
+          department: "Product Development",
+          strategicObjective: "Enhance Product Portfolio",
+          kra: "Product Innovation",
+          target: "5", 
+          current: "3", 
+          measurementUnit: "Products",
+          baselineValue: "2",
+          frequency: "Quarterly",
+          dataSource: "Product Launch Reports",
+          responsibleOfficer: "Product Manager",
+          status: "needs-attention", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Behind schedule due to resource constraints",
+          progress: 60 
+        }
       ],
       status: "open",
       createdAt: "2023-02-10",
@@ -200,8 +198,26 @@ const Unit = () => {
       objectiveId: 3,
       objectiveName: "Operational Excellence",
       kpis: [
-        { id: 5, name: "Automation Coverage", target: "80%", current: "65%", status: "on-track", progress: 81 },
-        { id: 6, name: "Cost Reduction", target: "10%", current: "7%", status: "needs-attention", progress: 70 },
+        { 
+          id: 3, 
+          name: "Automation Coverage", 
+          description: "Percentage of processes automated",
+          department: "IT",
+          strategicObjective: "Operational Excellence",
+          kra: "Process Automation",
+          target: "80%", 
+          current: "65%", 
+          measurementUnit: "Percentage",
+          baselineValue: "50%",
+          frequency: "Monthly",
+          dataSource: "Process Audit Reports",
+          responsibleOfficer: "IT Director",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Making good progress with new automation tools",
+          progress: 81 
+        }
       ],
       status: "in-progress",
       createdAt: "2023-03-05",
@@ -213,8 +229,26 @@ const Unit = () => {
       objectiveId: 5,
       objectiveName: "Customer Satisfaction",
       kpis: [
-        { id: 7, name: "Customer Satisfaction Score", target: "90%", current: "92%", status: "on-track", progress: 100 },
-        { id: 8, name: "Response Time", target: "< 24h", current: "18h", status: "on-track", progress: 100 },
+        { 
+          id: 4, 
+          name: "Customer Satisfaction Score", 
+          description: "Overall customer satisfaction rating",
+          department: "Customer Service",
+          strategicObjective: "Customer Satisfaction",
+          kra: "Customer Service",
+          target: "90%", 
+          current: "92%", 
+          measurementUnit: "Percentage",
+          baselineValue: "85%",
+          frequency: "Monthly",
+          dataSource: "Customer Surveys",
+          responsibleOfficer: "Customer Service Manager",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Exceeding target, excellent performance",
+          progress: 100 
+        }
       ],
       status: "closed",
       createdAt: "2022-11-20",
@@ -226,8 +260,26 @@ const Unit = () => {
       objectiveId: 6,
       objectiveName: "Innovation Pipeline",
       kpis: [
-        { id: 9, name: "Patents Filed", target: "10", current: "7", status: "on-track", progress: 70 },
-        { id: 10, name: "Innovation Projects", target: "15", current: "12", status: "on-track", progress: 80 },
+        { 
+          id: 5, 
+          name: "Patents Filed", 
+          description: "Number of patents filed for new innovations",
+          department: "R&D",
+          strategicObjective: "Innovation Pipeline",
+          kra: "Innovation Lab",
+          target: "10", 
+          current: "7", 
+          measurementUnit: "Patents",
+          baselineValue: "5",
+          frequency: "Annually",
+          dataSource: "Patent Office Records",
+          responsibleOfficer: "R&D Director",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "On track to meet annual target",
+          progress: 70 
+        }
       ],
       status: "in-progress",
       createdAt: "2023-04-12",
@@ -239,8 +291,26 @@ const Unit = () => {
       objectiveId: 7,
       objectiveName: "Market Leadership",
       kpis: [
-        { id: 11, name: "Market Share", target: "25%", current: "22%", status: "on-track", progress: 88 },
-        { id: 12, name: "Brand Recognition", target: "85%", current: "78%", status: "needs-attention", progress: 92 },
+        { 
+          id: 6, 
+          name: "Market Share", 
+          description: "Percentage of market share in primary segments",
+          department: "Marketing",
+          strategicObjective: "Market Leadership",
+          kra: "Market Leadership",
+          target: "25%", 
+          current: "22%", 
+          measurementUnit: "Percentage",
+          baselineValue: "20%",
+          frequency: "Quarterly",
+          dataSource: "Market Research Reports",
+          responsibleOfficer: "Marketing Director",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Steady growth in market share",
+          progress: 88 
+        }
       ],
       status: "in-progress",
       createdAt: "2023-05-08",
@@ -252,8 +322,26 @@ const Unit = () => {
       objectiveId: 8,
       objectiveName: "Operational Efficiency",
       kpis: [
-        { id: 13, name: "Inventory Turnover", target: "8x", current: "6.5x", status: "needs-attention", progress: 81 },
-        { id: 14, name: "Logistics Costs", target: "-15%", current: "-10%", status: "on-track", progress: 67 },
+        { 
+          id: 7, 
+          name: "Inventory Turnover", 
+          description: "Number of times inventory is sold and replaced",
+          department: "Operations",
+          strategicObjective: "Operational Efficiency",
+          kra: "Supply Chain",
+          target: "8x", 
+          current: "6.5x", 
+          measurementUnit: "Ratio",
+          baselineValue: "5x",
+          frequency: "Quarterly",
+          dataSource: "Inventory Management System",
+          responsibleOfficer: "Operations Manager",
+          status: "needs-attention", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Inventory turnover below target, optimization needed",
+          progress: 81 
+        }
       ],
       status: "open",
       createdAt: "2023-06-01",
@@ -265,8 +353,26 @@ const Unit = () => {
       objectiveId: 9,
       objectiveName: "Employee Engagement",
       kpis: [
-        { id: 15, name: "Training Hours", target: "40", current: "25", status: "needs-attention", progress: 63 },
-        { id: 16, name: "Employee Satisfaction", target: "85%", current: "82%", status: "on-track", progress: 96 },
+        { 
+          id: 8, 
+          name: "Training Hours", 
+          description: "Average training hours per employee",
+          department: "HR",
+          strategicObjective: "Employee Engagement",
+          kra: "Employee Development",
+          target: "40", 
+          current: "25", 
+          measurementUnit: "Hours",
+          baselineValue: "15",
+          frequency: "Quarterly",
+          dataSource: "HR Management System",
+          responsibleOfficer: "HR Manager",
+          status: "needs-attention", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Training hours below target, additional programs needed",
+          progress: 63 
+        }
       ],
       status: "in-progress",
       createdAt: "2023-05-15",
@@ -278,8 +384,26 @@ const Unit = () => {
       objectiveId: 10,
       objectiveName: "Sustainability Goals",
       kpis: [
-        { id: 17, name: "Carbon Reduction", target: "20%", current: "12%", status: "on-track", progress: 60 },
-        { id: 18, name: "Recycling Rate", target: "75%", current: "68%", status: "needs-attention", progress: 91 },
+        { 
+          id: 9, 
+          name: "Carbon Reduction", 
+          description: "Percentage reduction in carbon emissions",
+          department: "Operations",
+          strategicObjective: "Sustainability Goals",
+          kra: "Green Initiative",
+          target: "20%", 
+          current: "12%", 
+          measurementUnit: "Percentage",
+          baselineValue: "0%",
+          frequency: "Annually",
+          dataSource: "Environmental Reports",
+          responsibleOfficer: "Sustainability Manager",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Carbon reduction initiatives progressing well",
+          progress: 60 
+        }
       ],
       status: "open",
       createdAt: "2023-06-05",
@@ -291,8 +415,26 @@ const Unit = () => {
       objectiveId: 3,
       objectiveName: "Operational Excellence",
       kpis: [
-        { id: 19, name: "Digital Adoption", target: "90%", current: "75%", status: "on-track", progress: 83 },
-        { id: 20, name: "Process Digitization", target: "70%", current: "55%", status: "needs-attention", progress: 79 },
+        { 
+          id: 10, 
+          name: "Digital Adoption", 
+          description: "Percentage of employees using digital tools",
+          department: "IT",
+          strategicObjective: "Operational Excellence",
+          kra: "Digital Transformation",
+          target: "90%", 
+          current: "75%", 
+          measurementUnit: "Percentage",
+          baselineValue: "60%",
+          frequency: "Monthly",
+          dataSource: "IT Usage Analytics",
+          responsibleOfficer: "IT Director",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Digital adoption increasing steadily",
+          progress: 83 
+        }
       ],
       status: "in-progress",
       createdAt: "2023-04-20",
@@ -308,8 +450,26 @@ const Unit = () => {
       objectiveId: 5,
       objectiveName: "Customer Satisfaction",
       kpis: [
-        { id: 21, name: "Customer Satisfaction Score", target: "90%", current: "92%", status: "on-track", progress: 100 },
-        { id: 22, name: "Response Time", target: "< 24h", current: "18h", status: "on-track", progress: 100 },
+        { 
+          id: 11, 
+          name: "Customer Satisfaction Score", 
+          description: "Overall customer satisfaction rating",
+          department: "Customer Service",
+          strategicObjective: "Customer Satisfaction",
+          kra: "Customer Service",
+          target: "90%", 
+          current: "92%", 
+          measurementUnit: "Percentage",
+          baselineValue: "85%",
+          frequency: "Monthly",
+          dataSource: "Customer Surveys",
+          responsibleOfficer: "Customer Service Manager",
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Exceeding target, excellent performance",
+          progress: 100 
+        }
       ],
       status: "closed",
       createdAt: "2022-11-20",
@@ -430,16 +590,28 @@ const Unit = () => {
     const newKPI: KPI = {
       id: Math.max(...kras.flatMap(k => k.kpis).map(k => k.id), ...closedKras.flatMap(k => k.kpis).map(k => k.id)) + 1,
       name: kpiForm.name || '',
+      description: "",
+      department: "",
+      strategicObjective: "",
+      kra: selectedKRA.name,
       target: kpiForm.target || '',
+      measurementUnit: "",
+      baselineValue: "",
+      frequency: "Monthly",
+      dataSource: "",
+      responsibleOfficer: "",
       current: kpiForm.current || '',
       status: kpiForm.status as 'on-track' | 'needs-attention' | 'at-risk' || 'on-track',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+      comments: "",
       progress: progress
     };
     
-    // Update KRA with new KPI
+    // Update KRA with new KPI (replace existing KPI)
     const updatedKRA = {
       ...selectedKRA,
-      kpis: [...selectedKRA.kpis, newKPI],
+      kpis: [newKPI], // Replace all KPIs with just this one
       updatedAt: new Date().toISOString().split('T')[0]
     };
     
@@ -457,7 +629,7 @@ const Unit = () => {
     setFormError(null);
     
     // Show success message
-    toast.success("KPI added successfully");
+    toast.success("KPI updated successfully");
   };
   
   const handleAddObjective = () => {
@@ -558,9 +730,21 @@ const Unit = () => {
             {
               id: 1,
               name: 'Market Share',
+              description: "Percentage of market share in primary segments",
+              department: "Marketing",
+              strategicObjective: "Market Leadership",
+              kra: "Increase Market Share",
               current: '15',
               target: '20',
+              measurementUnit: "Percentage",
+              baselineValue: "10%",
+              frequency: "Quarterly",
+              dataSource: "Market Research Reports",
+              responsibleOfficer: "Marketing Director",
               status: 'on-track',
+              startDate: "2023-01-01",
+              endDate: "2023-12-31",
+              comments: "Steady growth in market share",
               progress: 75
             }
           ],
@@ -577,9 +761,21 @@ const Unit = () => {
             {
               id: 2,
               name: 'NPS Score',
+              description: "Net Promoter Score measuring customer loyalty",
+              department: "Customer Service",
+              strategicObjective: "Customer Excellence",
+              kra: "Improve Customer Satisfaction",
               current: '0',
               target: '8',
+              measurementUnit: "Score",
+              baselineValue: "-2",
+              frequency: "Quarterly",
+              dataSource: "Customer Surveys",
+              responsibleOfficer: "Customer Service Manager",
               status: 'needs-attention',
+              startDate: "2023-01-01",
+              endDate: "2023-12-31",
+              comments: "NPS score needs improvement",
               progress: 0
             }
           ],
@@ -731,7 +927,7 @@ const Unit = () => {
           <TableRow>
             <TableHead>KRA Name/ID</TableHead>
             <TableHead>Objective Linked</TableHead>
-            <TableHead>KPIs</TableHead>
+            <TableHead>KPI</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
@@ -748,17 +944,17 @@ const Unit = () => {
                 <div className="text-xs text-gray-500">ID: {kra.objectiveId}</div>
               </TableCell>
               <TableCell>
-                <div className="space-y-1">
-                  {kra.kpis.map((kpi) => (
-                    <div key={kpi.id} className="flex items-center gap-2">
-                      <span>{kpi.name}:</span>
-                      <div className="flex items-center gap-1">
-                        {getKPIStatusIcon(kpi.status)}
-                        <span className="text-xs">{kpi.current} / {kpi.target}</span>
-                      </div>
+                {kra.kpis.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span>{kra.kpis[0].name}:</span>
+                    <div className="flex items-center gap-1">
+                      {getKPIStatusIcon(kra.kpis[0].status)}
+                      <span className="text-xs">{kra.kpis[0].current} / {kra.kpis[0].target}</span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">No KPI</span>
+                )}
               </TableCell>
               <TableCell>
                 {getStatusBadge(kra.status)}
@@ -1061,46 +1257,48 @@ const Unit = () => {
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-lg font-medium">KPIs</Label>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const newKPI: KPI = {
-                          id: Math.max(...selectedKRADrawer.kpis.map(k => k.id), 0) + 1,
-                          name: "New KPI",
-                          description: "",
-                          department: "",
-                          strategicObjective: "",
-                          kra: selectedKRADrawer.name,
-                          target: "0",
-                          measurementUnit: "",
-                          baselineValue: "",
-                          frequency: "Monthly",
-                          dataSource: "",
-                          responsibleOfficer: "",
-                          current: "0",
-                          status: "on-track",
-                          startDate: new Date().toISOString().split('T')[0],
-                          endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
-                          comments: "",
-                          progress: 0
-                        };
-                        setSelectedKRADrawer({
-                          ...selectedKRADrawer,
-                          kpis: [...selectedKRADrawer.kpis, newKPI]
-                        });
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add KPI
-                    </Button>
+                    <Label className="text-lg font-medium">KPI</Label>
+                    {selectedKRADrawer.kpis.length === 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const newKPI: KPI = {
+                            id: Math.max(...kras.flatMap(k => k.kpis).map(k => k.id), ...closedKras.flatMap(k => k.kpis).map(k => k.id), 0) + 1,
+                            name: "New KPI",
+                            description: "",
+                            department: "",
+                            strategicObjective: "",
+                            kra: selectedKRADrawer.name,
+                            target: "0",
+                            measurementUnit: "",
+                            baselineValue: "",
+                            frequency: "Monthly",
+                            dataSource: "",
+                            responsibleOfficer: "",
+                            current: "0",
+                            status: "on-track",
+                            startDate: new Date().toISOString().split('T')[0],
+                            endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+                            comments: "",
+                            progress: 0
+                          };
+                          setSelectedKRADrawer({
+                            ...selectedKRADrawer,
+                            kpis: [newKPI]
+                          });
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add KPI
+                      </Button>
+                    )}
                   </div>
                   <div className="border rounded-md p-4 space-y-6">
-                    {selectedKRADrawer.kpis.map((kpi) => (
-                      <div key={kpi.id} className="space-y-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
+                    {selectedKRADrawer.kpis.length > 0 ? (
+                      <div className="space-y-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
                         <div className="flex justify-between items-center">
-                          <Label htmlFor={`kpi-name-${kpi.id}`} className="text-base">KPI Details</Label>
+                          <Label className="text-base">KPI Details</Label>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -1108,7 +1306,7 @@ const Unit = () => {
                             onClick={() => {
                               setSelectedKRADrawer({
                                 ...selectedKRADrawer,
-                                kpis: selectedKRADrawer.kpis.filter(k => k.id !== kpi.id)
+                                kpis: []
                               });
                             }}
                           >
@@ -1118,14 +1316,12 @@ const Unit = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-name-${kpi.id}`}>KPI Title</Label>
+                            <Label>KPI Title</Label>
                             <Input 
-                              id={`kpi-name-${kpi.id}`}
-                              value={kpi.name} 
+                              value={selectedKRADrawer.kpis[0].name} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, name: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], name: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., System Uptime Percentage"
@@ -1133,14 +1329,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-department-${kpi.id}`}>Department / Unit</Label>
+                            <Label>Department / Unit</Label>
                             <Input 
-                              id={`kpi-department-${kpi.id}`}
-                              value={kpi.department} 
+                              value={selectedKRADrawer.kpis[0].department} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, department: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], department: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., Dept. of Finance – IT Services Unit"
@@ -1149,14 +1343,12 @@ const Unit = () => {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor={`kpi-description-${kpi.id}`}>Description</Label>
+                          <Label>Description</Label>
                           <Textarea 
-                            id={`kpi-description-${kpi.id}`}
-                            value={kpi.description} 
+                            value={selectedKRADrawer.kpis[0].description} 
                             onChange={(e) => {
-                              const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                k.id === kpi.id ? {...k, description: e.target.value} : k
-                              );
+                              const updatedKPIs = [...selectedKRADrawer.kpis];
+                              updatedKPIs[0] = {...updatedKPIs[0], description: e.target.value};
                               setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                             }}
                             placeholder="Brief explanation of what this KPI measures"
@@ -1166,14 +1358,12 @@ const Unit = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-strategic-objective-${kpi.id}`}>Strategic Objective</Label>
+                            <Label>Strategic Objective</Label>
                             <Input 
-                              id={`kpi-strategic-objective-${kpi.id}`}
-                              value={kpi.strategicObjective} 
+                              value={selectedKRADrawer.kpis[0].strategicObjective} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, strategicObjective: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], strategicObjective: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., Ensure uninterrupted digital services"
@@ -1181,14 +1371,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-kra-${kpi.id}`}>KRA (Key Result Area)</Label>
+                            <Label>KRA (Key Result Area)</Label>
                             <Input 
-                              id={`kpi-kra-${kpi.id}`}
-                              value={kpi.kra} 
+                              value={selectedKRADrawer.kpis[0].kra} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, kra: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], kra: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., Infrastructure Reliability"
@@ -1198,14 +1386,12 @@ const Unit = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-target-${kpi.id}`}>Target Value / Goal</Label>
+                            <Label>Target Value / Goal</Label>
                             <Input 
-                              id={`kpi-target-${kpi.id}`}
-                              value={kpi.target} 
+                              value={selectedKRADrawer.kpis[0].target} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, target: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], target: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., 99.5% uptime"
@@ -1213,14 +1399,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-measurement-unit-${kpi.id}`}>Measurement Unit</Label>
+                            <Label>Measurement Unit</Label>
                             <Input 
-                              id={`kpi-measurement-unit-${kpi.id}`}
-                              value={kpi.measurementUnit} 
+                              value={selectedKRADrawer.kpis[0].measurementUnit} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, measurementUnit: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], measurementUnit: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., Percentage, Hours"
@@ -1228,14 +1412,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-baseline-value-${kpi.id}`}>Baseline Value (Optional)</Label>
+                            <Label>Baseline Value (Optional)</Label>
                             <Input 
-                              id={`kpi-baseline-value-${kpi.id}`}
-                              value={kpi.baselineValue} 
+                              value={selectedKRADrawer.kpis[0].baselineValue} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, baselineValue: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], baselineValue: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., Last quarter: 98.2%"
@@ -1245,13 +1427,12 @@ const Unit = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-frequency-${kpi.id}`}>Frequency of Measurement</Label>
+                            <Label>Frequency of Measurement</Label>
                             <Select 
-                              value={kpi.frequency} 
+                              value={selectedKRADrawer.kpis[0].frequency} 
                               onValueChange={(value) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, frequency: value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], frequency: value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                             >
@@ -1269,14 +1450,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-data-source-${kpi.id}`}>Data Source / Method</Label>
+                            <Label>Data Source / Method</Label>
                             <Input 
-                              id={`kpi-data-source-${kpi.id}`}
-                              value={kpi.dataSource} 
+                              value={selectedKRADrawer.kpis[0].dataSource} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, dataSource: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], dataSource: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., Network Monitoring Tool Reports"
@@ -1284,14 +1463,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-responsible-officer-${kpi.id}`}>Responsible Officer</Label>
+                            <Label>Responsible Officer</Label>
                             <Input 
-                              id={`kpi-responsible-officer-${kpi.id}`}
-                              value={kpi.responsibleOfficer} 
+                              value={selectedKRADrawer.kpis[0].responsibleOfficer} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, responsibleOfficer: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], responsibleOfficer: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., ICT Manager"
@@ -1301,14 +1478,12 @@ const Unit = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-current-${kpi.id}`}>Current Value</Label>
+                            <Label>Current Value</Label>
                             <Input 
-                              id={`kpi-current-${kpi.id}`}
-                              value={kpi.current} 
+                              value={selectedKRADrawer.kpis[0].current} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, current: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], current: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                               placeholder="e.g., 98.5%"
@@ -1316,13 +1491,12 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-status-${kpi.id}`}>Current Status</Label>
+                            <Label>Current Status</Label>
                             <Select 
-                              value={kpi.status} 
+                              value={selectedKRADrawer.kpis[0].status} 
                               onValueChange={(value) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, status: value as 'on-track' | 'needs-attention' | 'at-risk'} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], status: value as 'on-track' | 'needs-attention' | 'at-risk'};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                             >
@@ -1338,40 +1512,36 @@ const Unit = () => {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-progress-${kpi.id}`}>Progress</Label>
+                            <Label>Progress</Label>
                             <div className="flex items-center gap-2">
-                              <Progress value={kpi.progress} className="flex-1" />
-                              <span className="text-sm font-medium">{kpi.progress}%</span>
+                              <Progress value={selectedKRADrawer.kpis[0].progress} className="flex-1" />
+                              <span className="text-sm font-medium">{selectedKRADrawer.kpis[0].progress}%</span>
                             </div>
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-start-date-${kpi.id}`}>Start Date</Label>
+                            <Label>Start Date</Label>
                             <Input 
-                              id={`kpi-start-date-${kpi.id}`}
                               type="date"
-                              value={kpi.startDate} 
+                              value={selectedKRADrawer.kpis[0].startDate} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, startDate: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], startDate: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                             />
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor={`kpi-end-date-${kpi.id}`}>End Date</Label>
+                            <Label>End Date</Label>
                             <Input 
-                              id={`kpi-end-date-${kpi.id}`}
                               type="date"
-                              value={kpi.endDate} 
+                              value={selectedKRADrawer.kpis[0].endDate} 
                               onChange={(e) => {
-                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                  k.id === kpi.id ? {...k, endDate: e.target.value} : k
-                                );
+                                const updatedKPIs = [...selectedKRADrawer.kpis];
+                                updatedKPIs[0] = {...updatedKPIs[0], endDate: e.target.value};
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
                             />
@@ -1379,14 +1549,12 @@ const Unit = () => {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor={`kpi-comments-${kpi.id}`}>Comments / Notes</Label>
+                          <Label>Comments / Notes</Label>
                           <Textarea 
-                            id={`kpi-comments-${kpi.id}`}
-                            value={kpi.comments} 
+                            value={selectedKRADrawer.kpis[0].comments} 
                             onChange={(e) => {
-                              const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                k.id === kpi.id ? {...k, comments: e.target.value} : k
-                              );
+                              const updatedKPIs = [...selectedKRADrawer.kpis];
+                              updatedKPIs[0] = {...updatedKPIs[0], comments: e.target.value};
                               setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                             }}
                             placeholder="Optional field for extra detail"
@@ -1394,24 +1562,28 @@ const Unit = () => {
                           />
                         </div>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="text-center py-6 text-gray-500">
+                        No KPI defined. Click "Add KPI" to create one.
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-lg font-medium">Dates</Label>
-                  <div className="grid grid-cols-2 gap-4 p-4 border rounded-md">
-                    <div>
-                      <Label>Created</Label>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {new Date(selectedKRADrawer.createdAt).toLocaleDateString()}
-                      </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-lg font-medium">Dates</Label>
+                <div className="grid grid-cols-2 gap-4 p-4 border rounded-md">
+                  <div>
+                    <Label>Created</Label>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {new Date(selectedKRADrawer.createdAt).toLocaleDateString()}
                     </div>
-                    <div>
-                      <Label>Last Updated</Label>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {new Date(selectedKRADrawer.updatedAt).toLocaleDateString()}
-                      </div>
+                  </div>
+                  <div>
+                    <Label>Last Updated</Label>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {new Date(selectedKRADrawer.updatedAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
