@@ -102,6 +102,48 @@ interface Risk {
   kraName?: string;
 }
 
+// Add Project interface
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  manager: string;
+  startDate: string;
+  endDate: string;
+  status: 'planning' | 'in-progress' | 'on-hold' | 'completed';
+  budget: string;
+  progress: number;
+  department: string;
+  kraIds: string[];
+  kraNames: string[];
+}
+
+// Add TimelineKRA interface based on KRATimeline component
+interface TimelineKPI {
+  id: string;
+  name: string;
+  date: Date;
+  target: string | number;
+  actual: string | number;
+  status: string;
+  description?: string;
+  notes?: string;
+}
+
+interface TimelineKRA {
+  id: string;
+  name: string;
+  objectiveId: string;
+  objectiveName: string;
+  department: string;
+  responsible: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  progress: number;
+  status: string;
+  kpis: TimelineKPI[];
+}
+
 const Unit = () => {
   // State
   const [activeTab, setActiveTab] = useState('kras');
@@ -185,12 +227,11 @@ const Unit = () => {
         {
           id: '1',
           name: "New Market Entry",
-          date: new Date(2024, 1, 15), // Middle of Q1
           target: "5",
-          actual: "3",
-          status: "In Progress",
+          current: "3",
+          status: "needs-attention",
           description: "Number of new markets entered",
-          notes: "Expansion plan in progress"
+          comments: "Expansion plan in progress"
         }
       ],
       createdAt: "2024-01-01",
@@ -211,12 +252,11 @@ const Unit = () => {
         {
           id: '2',
           name: "System Migration",
-          date: new Date(2024, 4, 15), // Middle of Q2
           target: "100",
-          actual: "45",
-          status: "In Progress",
+          current: "45",
+          status: "needs-attention",
           description: "Percentage of systems migrated",
-          notes: "Migration ongoing"
+          comments: "Migration ongoing"
         }
       ],
       createdAt: "2024-04-01T00:00:00Z",
@@ -237,12 +277,11 @@ const Unit = () => {
         {
           id: '3',
           name: "Quality Metrics",
-          date: new Date(2024, 7, 15), // Middle of Q3
           target: "98",
-          actual: "95",
-          status: "On Track",
+          current: "95",
+          status: "on-track",
           description: "Service quality score",
-          notes: "Implementing new quality measures"
+          comments: "Implementing new quality measures"
         }
       ],
       createdAt: "2024-07-01T00:00:00Z",
@@ -263,12 +302,11 @@ const Unit = () => {
         {
           id: '4',
           name: "New Solutions",
-          date: new Date(2024, 10, 15), // Middle of Q4
           target: "10",
-          actual: "4",
-          status: "In Progress",
+          current: "4",
+          status: "needs-attention",
           description: "Number of new solutions developed",
-          notes: "Research phase ongoing"
+          comments: "Research phase ongoing"
         }
       ],
       createdAt: "2024-10-01T00:00:00Z",
@@ -296,12 +334,8 @@ const Unit = () => {
           description: "Overall customer satisfaction rating",
           target: "90",
           current: "92",
-          unit: "percentage",
-          frequency: "Monthly",
           status: "on-track",
-          startDate: "2023-01-01",
-          endDate: "2023-12-31",
-          notes: "Exceeding target, excellent performance"
+          comments: "Exceeding target, excellent performance"
         }
       ],
       createdAt: "2022-11-20",
@@ -540,47 +574,49 @@ const Unit = () => {
     }
   };
   
+  // Add isAddingKRA state
+  const [isAddingKRA, setIsAddingKRA] = useState(false);
+  
+  // Fix the handleAddKRA function to use setIsAddingKRA
   const handleAddKRA = () => {
-    // Validate form
+    // Validation
     if (!kraForm.name || !kraForm.objectiveId) {
-      setFormError("KRA Name and Linked Objective are required");
+      toast.error('Please fill in all required fields.');
       return;
     }
-    
-    // Find objective name
-    const objective = objectives.find(obj => obj.id === parseInt(kraForm.objectiveId));
-    
+
     // Create new KRA
     const newKRA: KRA = {
-      id: Math.max(...kras.map(k => k.id), ...closedKras.map(k => k.id)) + 1,
+      id: String(Math.max(...kras.map(k => Number(k.id)), ...closedKras.map(k => Number(k.id))) + 1),
       name: kraForm.name || '',
       objectiveId: kraForm.objectiveId || '',
-      objectiveName: objectives.find(obj => obj.id === parseInt(kraForm.objectiveId))?.name || '',
+      objectiveName: objectives.find(obj => obj.id === parseInt(kraForm.objectiveId || '0'))?.name || '',
       department: kraForm.department || '',
       responsible: kraForm.responsible || '',
-      startDate: kraForm.startDate || new Date(),
-      endDate: kraForm.endDate || new Date(),
+      startDate: kraForm.startDate ? new Date(kraForm.startDate) : new Date(),
+      endDate: kraForm.endDate ? new Date(kraForm.endDate) : new Date(),
       progress: 0,
       status: 'open',
       kpis: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
-    // Add to state
+
+    // Add the new KRA
     setKras([...kras, newKRA]);
     
     // Reset form
     setKraForm({
       name: '',
       objectiveId: '',
-      kpis: [],
-      status: 'open'
+      department: '',
+      responsible: '',
+      startDate: '',
+      endDate: ''
     });
-    setFormError(null);
     
-    // Show success message
-    toast.success("KRA added successfully");
+    setIsAddingKRA(false);
+    toast.success('KRA added successfully');
   };
   
   const handleAddKPI = (kraId: string, kpi: KPI) => {
@@ -652,99 +688,118 @@ const Unit = () => {
   const handleMoveKRA = (kraId: string, newObjectiveId: string) => {
     const kra = kras.find(k => k.id === kraId);
     if (kra) {
-      const objective = objectives.find(obj => obj.id === newObjectiveId);
+      const objective = objectives.find(obj => String(obj.id) === newObjectiveId);
       if (objective) {
         const updatedKRA = {
           ...kra,
           objectiveId: newObjectiveId,
-          objectiveName: objective.name
+          objectiveName: objective.name,
+          updatedAt: new Date().toISOString()
         };
+        
         setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
-        toast.success('KRA moved successfully');
+        toast.success(`KRA moved to objective: ${objective.name}`);
       }
     }
   };
 
+  // Fix the Excel upload KPIs
+  const sampleKPIs = [
+    {
+      id: '1',
+      name: 'Market Share',
+      target: '20',
+      current: '15',
+      unit: '%',
+      frequency: 'Quarterly',
+      status: 'on-track',
+      description: 'Market share percentage'
+    },
+    {
+      id: '2',
+      name: 'NPS Score',
+      target: '8',
+      current: '0',
+      unit: 'Score',
+      frequency: 'Quarterly',
+      status: 'on-track',
+      description: 'Net Promoter Score'
+    }
+  ];
+  
+  // Update Excel upload function to use proper KPI objects
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Check if file is an Excel file
-    if (!file.name.match(/\.(xlsx|xls)$/)) {
-      toast.error('Please upload an Excel file (.xlsx or .xls)');
+    if (!event.target.files || event.target.files.length === 0) {
       return;
     }
 
     setIsUploadingExcel(true);
 
-    try {
-      // TODO: Implement actual Excel parsing logic
-      // For now, we'll simulate the upload with a timeout
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulate Excel processing
+    setTimeout(() => {
+      // Create sample KRAs from "Excel"
+      const newKRA1: KRA = {
+        id: String(Math.max(...kras.map(k => Number(k.id)), ...closedKras.map(k => Number(k.id))) + 1),
+        name: 'Market Growth Initiative (Imported)',
+        objectiveId: '1',
+        objectiveName: 'Market Growth',
+        department: 'Marketing',
+        responsible: 'Marketing Director',
+        startDate: new Date(),
+        endDate: new Date(new Date().setMonth(new Date().getMonth() + 6)),
+        progress: 0,
+        status: 'in-progress',
+        kpis: [
+          {
+            id: '1',
+            name: 'Market Share',
+            target: '20',
+            current: '15',
+            unit: '%',
+            frequency: 'Quarterly',
+            status: 'on-track',
+            description: 'Market share percentage'
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      // Mock data from Excel
-      const mockKRAs: KRA[] = [
-        {
-          id: '1',
-          name: 'Increase Market Share',
-          objectiveId: '1',
-          objectiveName: 'Market Leadership',
-          department: 'Marketing',
-          responsible: 'Marketing Director',
-          startDate: new Date(2023, 0, 1),
-          endDate: new Date(2023, 11, 31),
-          progress: 75,
-          status: 'in-progress',
-          kpis: [
-            {
-              id: '1',
-              name: 'Market Share',
-              target: 20,
-              current: 15,
-              unit: '%',
-              frequency: 'Quarterly'
-            }
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'Improve Customer Satisfaction',
-          objectiveId: '2',
-          objectiveName: 'Customer Excellence',
-          department: 'Customer Service',
-          responsible: 'Customer Service Manager',
-          startDate: new Date(2023, 0, 1),
-          endDate: new Date(2023, 11, 31),
-          progress: 0,
-          status: 'open',
-          kpis: [
-            {
-              id: '2',
-              name: 'NPS Score',
-              target: 8,
-              current: 0,
-              unit: 'Score',
-              frequency: 'Quarterly'
-            }
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
+      const newKRA2: KRA = {
+        id: String(Number(newKRA1.id) + 1),
+        name: 'Customer Satisfaction Program (Imported)',
+        objectiveId: '5',
+        objectiveName: 'Customer Satisfaction',
+        department: 'Customer Service',
+        responsible: 'Customer Service Manager',
+        startDate: new Date(),
+        endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)),
+        progress: 0,
+        status: 'open',
+        kpis: [
+          {
+            id: '2',
+            name: 'NPS Score',
+            target: '8',
+            current: '0',
+            unit: 'Score',
+            frequency: 'Quarterly',
+            status: 'on-track',
+            description: 'Net Promoter Score'
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      // Update KRAs state with the new data
-      setKras(prevKRAs => [...prevKRAs, ...mockKRAs]);
-      toast.success('Excel file uploaded successfully');
-    } catch (error) {
-      console.error('Error uploading Excel file:', error);
-      toast.error('Failed to upload Excel file');
-    } finally {
+      setKras([...kras, newKRA1, newKRA2]);
       setIsUploadingExcel(false);
-      // Reset the file input
+      
+      // Reset file input
       event.target.value = '';
-    }
+      
+      toast.success('Excel data imported successfully');
+    }, 2000);
   };
   
   const handleSendMessage = () => {
@@ -834,8 +889,12 @@ const Unit = () => {
   } | null>(null);
 
   // Add a function to handle inline editing
-  const handleInlineEdit = (kraId: string, field: string, value: string) => {
-    setEditingCell({ kraId, field, value });
+  const handleInlineEdit = (kraId: string, field: string, value: string | number) => {
+    setEditingCell({
+      kraId,
+      field,
+      value: String(value)
+    });
   };
 
   // Add a function to save inline edits
@@ -844,60 +903,60 @@ const Unit = () => {
     
     const { kraId, field, value } = editingCell;
     
-    // Find the KRA to update
-    const kraToUpdate = kras.find(k => k.id === kraId);
-    if (!kraToUpdate) return;
+    // Find the KRA being edited
+    const updatedKRA = kras.find(k => k.id === kraId);
     
-    // Create a copy of the KRA
-    const updatedKRA = { ...kraToUpdate };
-    
-    // Update the appropriate field
-    if (field === 'name') {
-      updatedKRA.name = value;
-    } else if (field === 'status') {
-      updatedKRA.status = value as 'open' | 'in-progress' | 'closed';
-    } else if (field.startsWith('kpi_')) {
-      // Handle KPI field updates
-      const kpiField = field.split('_')[1];
-      if (updatedKRA.kpis.length > 0) {
-        const updatedKPI = { ...updatedKRA.kpis[0] };
+    if (updatedKRA) {
+      // Handle different fields
+      if (field === 'name') {
+        updatedKRA.name = value;
+      } else if (field === 'status') {
+        updatedKRA.status = value as any;
+      } else if (field.startsWith('kpi_')) {
+        // Get the KPI field (after 'kpi_')
+        const kpiField = field.split('_')[1];
         
-        if (kpiField === 'name') {
-          updatedKPI.name = value;
-        } else if (kpiField === 'current') {
-          updatedKPI.current = value;
-          // Recalculate progress
-          const current = parseFloat(value);
-          const target = parseFloat(updatedKPI.target);
-          updatedKPI.progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-        } else if (kpiField === 'target') {
-          updatedKPI.target = value;
-          // Recalculate progress
-          const current = parseFloat(updatedKPI.current);
-          const target = parseFloat(value);
-          updatedKPI.progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-        } else if (kpiField === 'department') {
-          updatedKPI.department = value;
-        } else if (kpiField === 'responsibleOfficer') {
-          updatedKPI.responsibleOfficer = value;
-        } else if (kpiField === 'startDate') {
-          updatedKPI.startDate = value;
-        } else if (kpiField === 'endDate') {
-          updatedKPI.endDate = value;
+        // Find the first KPI (we're working with the first KPI for now)
+        const updatedKPI = updatedKRA.kpis[0];
+        
+        if (updatedKPI) {
+          if (kpiField === 'name') {
+            updatedKPI.name = value;
+          } else if (kpiField === 'current') {
+            updatedKPI.current = value;
+            // Recalculate progress - convert to string before using parseFloat
+            const current = parseFloat(String(value));
+            const target = parseFloat(String(updatedKPI.target));
+            updatedKPI.progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+          } else if (kpiField === 'target') {
+            updatedKPI.target = value;
+            // Recalculate progress - convert to string before using parseFloat
+            const current = parseFloat(String(updatedKPI.current));
+            const target = parseFloat(String(value));
+            updatedKPI.progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+          } else if (kpiField === 'department') {
+            updatedKPI.department = value;
+          } else if (kpiField === 'responsibleOfficer') {
+            updatedKPI.responsibleOfficer = value;
+          } else if (kpiField === 'startDate') {
+            updatedKPI.startDate = value;
+          } else if (kpiField === 'endDate') {
+            updatedKPI.endDate = value;
+          }
+          
+          updatedKRA.kpis = [updatedKPI];
         }
-        
-        updatedKRA.kpis = [updatedKPI];
       }
+      
+      // Update the KRAs state
+      setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
+      
+      // Clear the editing cell
+      setEditingCell(null);
+      
+      // Show success message
+      toast.success('KRA updated successfully');
     }
-    
-    // Update the KRAs state
-    setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
-    
-    // Clear the editing cell
-    setEditingCell(null);
-    
-    // Show success message
-    toast.success('KRA updated successfully');
   };
 
   // Add a function to cancel inline editing
@@ -914,121 +973,47 @@ const Unit = () => {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">{isClosed ? 'Closed KRAs' : 'Active KRAs'}</h3>
           {!isClosed && (
-            <div className="flex items-center gap-2">
+            <div className="flex space-x-2">
               <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-1"
-                onClick={() => document.getElementById('excel-upload')?.click()}
-                disabled={isUploadingExcel}
+                variant={kraFilter === 'all' ? 'default' : 'outline'} 
+                onClick={() => setKraFilter('all')}
+                size="sm"
               >
-                {isUploadingExcel ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileSpreadsheet className="h-4 w-4" />
-                    <span>Import from Excel</span>
-                  </>
-                )}
+                All
               </Button>
-              <input 
-                id="excel-upload" 
-                type="file" 
-                accept=".xlsx,.xls" 
-                className="hidden" 
-                onChange={handleExcelUpload} 
-              />
               <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-1"
-                onClick={() => setIsAddKRADialogOpen(true)}
+                variant={kraFilter === 'open' ? 'default' : 'outline'} 
+                onClick={() => setKraFilter('open')}
+                size="sm"
               >
-                <Plus className="h-4 w-4" />
-                <span>Add KRA</span>
+                Open
+              </Button>
+              <Button 
+                variant={kraFilter === 'in-progress' ? 'default' : 'outline'} 
+                onClick={() => setKraFilter('in-progress')}
+                size="sm"
+              >
+                In Progress
+              </Button>
+              <Button 
+                variant={kraFilter === 'closed' ? 'default' : 'outline'} 
+                onClick={() => setKraFilter('closed')}
+                size="sm"
+              >
+                Closed
               </Button>
             </div>
           )}
-        </div>
-        
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
-          <div className="space-y-2">
-            <Label>Department</Label>
-            <Select 
-              value={filters.department} 
-              onValueChange={(value) => setFilters({...filters, department: value})}
+          {!isClosed && (
+            <Button 
+              className="bg-[#781623] hover:bg-[#5d101b] text-white"
+              onClick={() => setIsKRADrawerOpen(true)}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="All Departments" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {uniqueDepartments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Responsible Officer</Label>
-            <Select 
-              value={filters.responsibleOfficer} 
-              onValueChange={(value) => setFilters({...filters, responsibleOfficer: value})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Officers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Officers</SelectItem>
-                {uniqueResponsibleOfficers.map((officer) => (
-                  <SelectItem key={officer} value={officer}>{officer}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select 
-              value={filters.status} 
-              onValueChange={(value) => setFilters({...filters, status: value})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Progress Range</Label>
-            <Select 
-              value={filters.progressRange} 
-              onValueChange={(value) => setFilters({...filters, progressRange: value})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Progress" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Progress</SelectItem>
-                <SelectItem value="low">Low (&lt; 50%)</SelectItem>
-                <SelectItem value="medium">Medium (50% - 80%)</SelectItem>
-                <SelectItem value="high">High (&gt; 80%)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <Plus className="h-4 w-4 mr-2" />
+              Add KRA
+            </Button>
+          )}
         </div>
         
         <Table>
@@ -1244,37 +1229,20 @@ const Unit = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {editingCell && editingCell.kraId === kra.id && editingCell.field === 'status' ? (
-                      <div className="flex items-center gap-1">
-                        <Select 
-                          value={editingCell.value} 
-                          onValueChange={(value) => setEditingCell({...editingCell, value})}
-                          open={true}
-                        >
-                          <SelectTrigger className="h-7 py-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div 
-                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
-                        onClick={() => handleInlineEdit(kra.id, 'status', kra.status)}
-                      >
-                        {getStatusBadge(kra.status)}
-                      </div>
-                    )}
+                    <select
+                      value={kra.status}
+                      onChange={(e) => handleInlineEdit(kra.id, 'status', e.target.value)}
+                      className={`rounded px-2 py-1 text-xs ${
+                        kra.status === 'open' ? 'bg-blue-200 text-blue-800' :
+                        kra.status === 'in-progress' ? 'bg-yellow-200 text-yellow-800' :
+                        kra.status === 'closed' ? 'bg-green-200 text-green-800' :
+                        'bg-gray-200 text-gray-800'
+                      }`}
+                    >
+                      <option value="open">Open</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="closed">Closed</option>
+                    </select>
                   </TableCell>
                   {isSidebarCollapsed && (
                     <>
@@ -1447,8 +1415,8 @@ const Unit = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isSidebarCollapsed ? 10 : 5} className="text-center py-6 text-gray-500">
-                  No KRAs match the selected filters.
+                <TableCell colSpan={isSidebarCollapsed ? 10 : 5} className="text-center py-4 text-gray-500">
+                  No KRAs found matching the criteria
                 </TableCell>
               </TableRow>
             )}
@@ -1757,6 +1725,167 @@ const Unit = () => {
   const getFilteredRisks = () => {
     if (riskFilter === 'all') return risks;
     return risks.filter(risk => risk.status === riskFilter);
+  };
+  
+  // Add projects state
+  const [projects, setProjects] = useState<Project[]>([
+    {
+      id: '1',
+      name: 'Market Expansion - Southeast Asia',
+      description: 'Project to expand market presence in Indonesia, Malaysia and Singapore',
+      manager: 'John Smith',
+      startDate: '2024-01-15',
+      endDate: '2024-12-31',
+      status: 'in-progress',
+      budget: '$350,000',
+      progress: 65,
+      department: 'Sales',
+      kraIds: ['1'],
+      kraNames: ['Market Expansion Strategy']
+    },
+    {
+      id: '2',
+      name: 'Cloud Migration Initiative',
+      description: 'Project to migrate all on-premise systems to cloud infrastructure',
+      manager: 'Michael Wong',
+      startDate: '2024-03-01',
+      endDate: '2024-08-31',
+      status: 'in-progress',
+      budget: '$580,000',
+      progress: 40,
+      department: 'IT',
+      kraIds: ['2'],
+      kraNames: ['Digital Transformation Initiative']
+    },
+    {
+      id: '3',
+      name: 'Quality Management System Implementation',
+      description: 'Implementation of new quality management system and processes',
+      manager: 'Lisa Chen',
+      startDate: '2024-06-01',
+      endDate: '2024-09-30',
+      status: 'planning',
+      budget: '$120,000',
+      progress: 15,
+      department: 'Quality',
+      kraIds: ['3'],
+      kraNames: ['Quality Assurance Enhancement']
+    },
+    {
+      id: '4',
+      name: 'Product Innovation Lab',
+      description: 'Establishment of innovation lab for new product development',
+      manager: 'David Miller',
+      startDate: '2024-08-01',
+      endDate: '2025-02-28',
+      status: 'planning',
+      budget: '$275,000',
+      progress: 5,
+      department: 'R&D',
+      kraIds: ['4'],
+      kraNames: ['Innovation Pipeline']
+    },
+    {
+      id: '5',
+      name: 'Customer Service Enhancement',
+      description: 'Project to improve customer service metrics and response times',
+      manager: 'Sarah Johnson',
+      startDate: '2023-05-15',
+      endDate: '2023-12-15',
+      status: 'completed',
+      budget: '$95,000',
+      progress: 100,
+      department: 'Customer Service',
+      kraIds: ['11'],
+      kraNames: ['Customer Service Improvement']
+    }
+  ]);
+
+  const [projectFilter, setProjectFilter] = useState('all');
+
+  // Project handlers
+  const getProjectStatusColor = (status: Project['status']) => {
+    switch (status) {
+      case 'planning': return 'bg-blue-200 text-blue-800';
+      case 'in-progress': return 'bg-yellow-200 text-yellow-800';
+      case 'on-hold': return 'bg-orange-200 text-orange-800';
+      case 'completed': return 'bg-green-200 text-green-800';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
+
+  const getFilteredProjects = () => {
+    if (projectFilter === 'all') return projects;
+    return projects.filter(project => project.status === projectFilter);
+  };
+
+  // Add KRA filter state
+  const [kraFilter, setKraFilter] = useState('all');
+
+  // KRA filter handler
+  const getFilteredKRAs = () => {
+    if (kraFilter === 'all') return filteredKras;
+    return filteredKras.filter(kra => kra.status === kraFilter);
+  };
+  
+  // Add handleSetIsAddingKRA function
+  const handleSetIsAddingKRA = (value: boolean) => {
+    setIsAddingKRA(value);
+  };
+
+  // Fix Excel upload sample KPIs
+  const sampleKpis = [
+    {
+      id: '1',
+      name: 'Market Share',
+      target: '20',
+      current: '15',
+      unit: '%',
+      frequency: 'Quarterly',
+      status: 'on-track',
+      description: 'Market share percentage'
+    },
+    {
+      id: '2',
+      name: 'NPS Score',
+      target: '8',
+      current: '6',
+      unit: 'Score',
+      frequency: 'Quarterly',
+      status: 'on-track',
+      description: 'Net Promoter Score'
+    }
+  ];
+  
+  // Fix the newKPI function to ensure id is a string
+  const handleNewKPI = (kraName?: string): KPI => {
+    // Get highest KPI ID as a number and convert it to string for the new KPI
+    const maxId = Math.max(
+      ...kras.flatMap(k => k.kpis).map(k => isNaN(Number(k.id)) ? 0 : Number(k.id)),
+      ...closedKras.flatMap(k => k.kpis).map(k => isNaN(Number(k.id)) ? 0 : Number(k.id)),
+      0
+    );
+    
+    return {
+      id: String(maxId + 1),
+      name: "New KPI",
+      description: "",
+      department: "",
+      strategicObjective: "",
+      kra: kraName || "",
+      target: "0",
+      measurementUnit: "",
+      baselineValue: "",
+      frequency: "Monthly",
+      dataSource: "",
+      responsibleOfficer: "",
+      current: "0",
+      status: "on-track" as const,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+      comments: "",
+      progress: 0
+    };
   };
   
   return (
@@ -2100,9 +2229,12 @@ const Unit = () => {
                     
                     <TabsContent value="timeline">
                       <KRATimeline kras={kras.map(kra => {
-                        const timelineKra: TimelineKRA = {
+                        // Convert our KRA to the format expected by KRATimeline
+                        return {
                           id: kra.id,
                           name: kra.name,
+                          objectiveId: kra.objectiveId,
+                          objectiveName: kra.objectiveName || '',
                           department: kra.department,
                           responsible: kra.responsible,
                           startDate: kra.startDate,
@@ -2112,23 +2244,145 @@ const Unit = () => {
                           kpis: kra.kpis.map(kpi => ({
                             id: kpi.id,
                             name: kpi.name,
-                            date: new Date(kpi.date),
+                            date: new Date(), // Use current date as fallback
                             target: kpi.target,
-                            actual: kpi.actual,
+                            actual: kpi.current,
                             status: kpi.status,
-                            description: kpi.description,
-                            notes: kpi.notes
-                          }))
+                            description: kpi.description || '',
+                            notes: kpi.comments || ''
+                          })),
+                          createdAt: kra.createdAt,
+                          updatedAt: kra.updatedAt
                         };
-                        return timelineKra as unknown as KRA; // Use a more specific type assertion
-                      })} />
+                      }) as any} />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
 
                 <TabsContent value="projects">
-                  <div className="text-center py-6 text-gray-500">
-                    Projects content will be displayed here.
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant={projectFilter === 'all' ? 'default' : 'outline'} 
+                          onClick={() => setProjectFilter('all')}
+                          size="sm"
+                        >
+                          All
+                        </Button>
+                        <Button 
+                          variant={projectFilter === 'planning' ? 'default' : 'outline'} 
+                          onClick={() => setProjectFilter('planning')}
+                          size="sm"
+                        >
+                          Planning
+                        </Button>
+                        <Button 
+                          variant={projectFilter === 'in-progress' ? 'default' : 'outline'} 
+                          onClick={() => setProjectFilter('in-progress')}
+                          size="sm"
+                        >
+                          In Progress
+                        </Button>
+                        <Button 
+                          variant={projectFilter === 'on-hold' ? 'default' : 'outline'} 
+                          onClick={() => setProjectFilter('on-hold')}
+                          size="sm"
+                        >
+                          On Hold
+                        </Button>
+                        <Button 
+                          variant={projectFilter === 'completed' ? 'default' : 'outline'} 
+                          onClick={() => setProjectFilter('completed')}
+                          size="sm"
+                        >
+                          Completed
+                        </Button>
+                      </div>
+                      <Button className="bg-[#781623] hover:bg-[#5d101b] text-white">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Project
+                      </Button>
+                    </div>
+
+                    <Card>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Project</TableHead>
+                              <TableHead>Manager</TableHead>
+                              <TableHead>Timeline</TableHead>
+                              <TableHead>Progress</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Budget</TableHead>
+                              <TableHead>Related KRAs</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {getFilteredProjects().map(project => (
+                              <TableRow key={project.id}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{project.name}</div>
+                                    <div className="text-sm text-gray-500">{project.description}</div>
+                                    <div className="text-xs text-gray-400 mt-1">{project.department}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{project.manager}</TableCell>
+                                <TableCell>
+                                  <div className="text-xs">
+                                    <div>Start: {new Date(project.startDate).toLocaleDateString()}</div>
+                                    <div>End: {new Date(project.endDate).toLocaleDateString()}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-intranet-primary"
+                                      style={{ width: `${project.progress}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="text-xs text-center mt-1">{project.progress}%</div>
+                                </TableCell>
+                                <TableCell>
+                                  <select
+                                    value={project.status}
+                                    className={`rounded px-2 py-1 text-xs ${getProjectStatusColor(project.status)}`}
+                                  >
+                                    <option value="planning">Planning</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="on-hold">On Hold</option>
+                                    <option value="completed">Completed</option>
+                                  </select>
+                                </TableCell>
+                                <TableCell>{project.budget}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {project.kraNames.map((kraName, idx) => (
+                                      <span key={idx} className="text-xs rounded bg-gray-100 dark:bg-gray-800 px-2 py-1">
+                                        {kraName}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button variant="ghost" size="sm" title="View Details">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" title="Edit">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
                   </div>
                 </TabsContent>
 
@@ -2600,34 +2854,13 @@ const Unit = () => {
                         variant="outline" 
                         size="sm"
                         onClick={() => {
-                          const newKPI: KPI = {
-                            id: Math.max(...kras.flatMap(k => k.kpis).map(k => k.id), ...closedKras.flatMap(k => k.kpis).map(k => k.id), 0) + 1,
-                            name: "New KPI",
-                            description: "",
-                            department: "",
-                            strategicObjective: "",
-                            kra: selectedKRADrawer.name,
-                            target: "0",
-                            measurementUnit: "",
-                            baselineValue: "",
-                            frequency: "Monthly",
-                            dataSource: "",
-                            responsibleOfficer: "",
-                            current: "0",
-                            status: "on-track",
-                            startDate: new Date().toISOString().split('T')[0],
-                            endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
-                            comments: "",
-                            progress: 0
-                          };
-                          setSelectedKRADrawer({
-                            ...selectedKRADrawer,
-                            kpis: [newKPI]
-                          });
+                          const newKPI = handleNewKPI(selectedKRADrawer.name);
+                          selectedKRADrawer.kpis.push(newKPI);
+                          setSelectedKRADrawer({...selectedKRADrawer});
                         }}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add KPI
+                        Add new KPI
                       </Button>
                     )}
                   </div>
