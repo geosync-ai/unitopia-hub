@@ -1888,6 +1888,295 @@ const Unit = () => {
     };
   };
   
+  // Add Task Dialog
+  const AddTaskDialog = () => {
+    const [newTask, setNewTask] = useState<Partial<Task>>({
+      title: '',
+      description: '',
+      status: 'pending',
+      priority: 'medium',
+      assignee: '',
+      dueDate: new Date().toISOString().split('T')[0],
+    });
+  
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const taskId = String(Math.max(...tasks.map(t => Number(t.id)), 0) + 1);
+      const task: Task = {
+        ...newTask as Task,
+        id: taskId,
+      };
+      setTasks([...tasks, task]);
+      setIsAddTaskDialogOpen(false);
+    };
+  
+    return (
+      <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Task</DialogTitle>
+            <DialogDescription>
+              Create a new task for tracking and management.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Task Title</Label>
+                <Input
+                  id="title"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  placeholder="Enter task title"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  placeholder="Enter task description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={newTask.status}
+                    onValueChange={(value: Task['status']) => setNewTask({ ...newTask, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select
+                    value={newTask.priority}
+                    onValueChange={(value: Task['priority']) => setNewTask({ ...newTask, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="assignee">Assignee</Label>
+                  <Input
+                    id="assignee"
+                    value={newTask.assignee}
+                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    placeholder="Enter assignee name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="dueDate">Due Date</Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="kraId">Related KRA</Label>
+                <Select
+                  value={newTask.kraId}
+                  onValueChange={(value) => setNewTask({ ...newTask, kraId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select related KRA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kras.map((kra) => (
+                      <SelectItem key={kra.id} value={kra.id}>
+                        {kra.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Add Task</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+  
+  // Add Risk Dialog
+  const AddRiskDialog = () => {
+    const [newRisk, setNewRisk] = useState<Partial<Risk>>({
+      title: '',
+      description: '',
+      impact: 'medium',
+      probability: 'medium',
+      status: 'open',
+      owner: '',
+      dateIdentified: new Date().toISOString().split('T')[0],
+      mitigation: '',
+      kraId: '',
+      kraName: ''
+    });
+  
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const riskId = String(Math.max(...risks.map(r => Number(r.id)), 0) + 1);
+      const risk: Risk = {
+        ...newRisk as Risk,
+        id: riskId,
+      };
+      setRisks([...risks, risk]);
+      setIsAddRiskDialogOpen(false);
+    };
+  
+    return (
+      <Dialog open={isAddRiskDialogOpen} onOpenChange={setIsAddRiskDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Risk</DialogTitle>
+            <DialogDescription>
+              Create a new risk for tracking and mitigation.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Risk Title</Label>
+                <Input
+                  id="title"
+                  value={newRisk.title}
+                  onChange={(e) => setNewRisk({ ...newRisk, title: e.target.value })}
+                  placeholder="Enter risk title"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newRisk.description}
+                  onChange={(e) => setNewRisk({ ...newRisk, description: e.target.value })}
+                  placeholder="Enter risk description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="impact">Impact</Label>
+                  <Select
+                    value={newRisk.impact}
+                    onValueChange={(value: Risk['impact']) => setNewRisk({ ...newRisk, impact: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select impact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="severe">Severe</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="probability">Probability</Label>
+                  <Select
+                    value={newRisk.probability}
+                    onValueChange={(value: Risk['probability']) => setNewRisk({ ...newRisk, probability: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select probability" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="certain">Certain</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="owner">Risk Owner</Label>
+                <Input
+                  id="owner"
+                  value={newRisk.owner}
+                  onChange={(e) => setNewRisk({ ...newRisk, owner: e.target.value })}
+                  placeholder="Enter risk owner"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="dateIdentified">Date Identified</Label>
+                <Input
+                  id="dateIdentified"
+                  type="date"
+                  value={newRisk.dateIdentified}
+                  onChange={(e) => setNewRisk({ ...newRisk, dateIdentified: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mitigation">Mitigation Plan</Label>
+                <Textarea
+                  id="mitigation"
+                  value={newRisk.mitigation}
+                  onChange={(e) => setNewRisk({ ...newRisk, mitigation: e.target.value })}
+                  placeholder="Enter mitigation plan"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="kraId">Related KRA</Label>
+                <Select
+                  value={newRisk.kraId}
+                  onValueChange={(value) => {
+                    const kra = [...kras, ...closedKras].find(k => k.id === value);
+                    setNewRisk({
+                      ...newRisk,
+                      kraId: value,
+                      kraName: kra?.name || ''
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select related KRA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {[...kras, ...closedKras].map((kra) => (
+                      <SelectItem key={kra.id} value={kra.id}>
+                        {kra.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Add Risk</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+  
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
@@ -2057,100 +2346,7 @@ const Unit = () => {
                   </div>
 
                   {/* Add Task Dialog */}
-                  <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Task</DialogTitle>
-                        <DialogDescription>
-                          Create a new task and assign it to a team member.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="title">Title</Label>
-                          <Input
-                            id="title"
-                            value={taskForm.title || ''}
-                            onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea
-                            id="description"
-                            value={taskForm.description || ''}
-                            onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="priority">Priority</Label>
-                          <Select 
-                            value={taskForm.priority || 'medium'}
-                            onValueChange={(value) => setTaskForm({...taskForm, priority: value as Task['priority']})}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                              <SelectItem value="critical">Critical</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="assignee">Assignee</Label>
-                          <Input
-                            id="assignee"
-                            value={taskForm.assignee || ''}
-                            onChange={(e) => setTaskForm({...taskForm, assignee: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="dueDate">Due Date</Label>
-                          <Input
-                            id="dueDate"
-                            type="date"
-                            value={taskForm.dueDate || ''}
-                            onChange={(e) => setTaskForm({...taskForm, dueDate: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="kraId">Related KRA</Label>
-                          <Select 
-                            value={taskForm.kraId || ''}
-                            onValueChange={(value) => {
-                              const kra = [...kras, ...closedKras].find(k => k.id === value);
-                              setTaskForm({
-                                ...taskForm, 
-                                kraId: value,
-                                kraName: kra?.name || ''
-                              });
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a KRA" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">None</SelectItem>
-                              {[...kras, ...closedKras].map(kra => (
-                                <SelectItem key={kra.id} value={kra.id}>{kra.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddTaskDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleAddTask}>
-                          Add Task
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <AddTaskDialog />
                 </TabsContent>
 
                 <TabsContent value="kras">
@@ -2515,127 +2711,7 @@ const Unit = () => {
                   </div>
 
                   {/* Add Risk Dialog */}
-                  <Dialog open={isAddRiskDialogOpen} onOpenChange={setIsAddRiskDialogOpen}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Risk</DialogTitle>
-                        <DialogDescription>
-                          Identify a new risk and assign ownership for mitigation.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="title">Title</Label>
-                          <Input
-                            id="title"
-                            value={riskForm.title || ''}
-                            onChange={(e) => setRiskForm({...riskForm, title: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea
-                            id="description"
-                            value={riskForm.description || ''}
-                            onChange={(e) => setRiskForm({...riskForm, description: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="impact">Impact</Label>
-                            <Select 
-                              value={riskForm.impact || 'medium'}
-                              onValueChange={(value) => setRiskForm({...riskForm, impact: value as Risk['impact']})}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select impact" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="low">Low</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="severe">Severe</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="probability">Probability</Label>
-                            <Select 
-                              value={riskForm.probability || 'medium'}
-                              onValueChange={(value) => setRiskForm({...riskForm, probability: value as Risk['probability']})}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select probability" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="low">Low</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="certain">Certain</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="owner">Owner</Label>
-                          <Input
-                            id="owner"
-                            value={riskForm.owner || ''}
-                            onChange={(e) => setRiskForm({...riskForm, owner: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="dateIdentified">Date Identified</Label>
-                          <Input
-                            id="dateIdentified"
-                            type="date"
-                            value={riskForm.dateIdentified || ''}
-                            onChange={(e) => setRiskForm({...riskForm, dateIdentified: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="mitigation">Mitigation Plan</Label>
-                          <Textarea
-                            id="mitigation"
-                            value={riskForm.mitigation || ''}
-                            onChange={(e) => setRiskForm({...riskForm, mitigation: e.target.value})}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="kraId">Related KRA</Label>
-                          <Select 
-                            value={riskForm.kraId || ''}
-                            onValueChange={(value) => {
-                              const kra = [...kras, ...closedKras].find(k => k.id === value);
-                              setRiskForm({
-                                ...riskForm, 
-                                kraId: value,
-                                kraName: kra?.name || ''
-                              });
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a KRA" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">None</SelectItem>
-                              {[...kras, ...closedKras].map(kra => (
-                                <SelectItem key={kra.id} value={kra.id}>{kra.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddRiskDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleAddRisk}>
-                          Add Risk
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <AddRiskDialog />
                 </TabsContent>
 
                 <TabsContent value="reports">
