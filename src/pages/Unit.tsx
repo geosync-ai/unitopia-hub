@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { BarChart, PieChart, LineChart, AreaChart } from '@/components/charts';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Upload } from 'lucide-react';
+import KRATimeline from '@/components/KRATimeline';
+import '@/styles/timeline.css';
 
 // Types
 interface KRA {
@@ -24,8 +26,13 @@ interface KRA {
   name: string;
   objectiveId: number;
   objectiveName: string;
-  kpis: KPI[];
+  department: string;
+  responsible: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
   status: 'open' | 'in-progress' | 'closed';
+  kpis: KPI[];
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +69,30 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   message: string;
   timestamp: Date;
+}
+
+// Add these interfaces at the top of the file, after the existing interfaces
+interface TimelineKPI {
+  id: number;
+  name: string;
+  date: Date;
+  target: string;
+  actual: string;
+  status: string;
+  description: string;
+  notes: string;
+}
+
+interface TimelineKRA {
+  id: number;
+  name: string;
+  department: string;
+  responsible: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
+  status: string;
+  kpis: TimelineKPI[];
 }
 
 const Unit = () => {
@@ -136,6 +167,12 @@ const Unit = () => {
       name: "Market Expansion Strategy", 
       objectiveId: 1,
       objectiveName: "Expand Market Presence",
+      department: "Sales",
+      responsible: "Sales Director",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 66,
+      status: "in-progress",
       kpis: [
         { 
           id: 1, 
@@ -158,289 +195,333 @@ const Unit = () => {
           progress: 66 
         }
       ],
-      status: "in-progress",
       createdAt: "2023-01-15",
       updatedAt: "2023-06-20"
     },
     { 
       id: 2, 
-      name: "Product Innovation Pipeline", 
+      name: "Customer Satisfaction Improvement", 
       objectiveId: 2,
-      objectiveName: "Enhance Product Portfolio",
+      objectiveName: "Enhance Customer Experience",
+      department: "Customer Service",
+      responsible: "Customer Service Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 45,
+      status: "open",
       kpis: [
         { 
           id: 2, 
-          name: "New Products Launched", 
-          description: "Number of new products launched to market",
-          department: "Product Development",
-          strategicObjective: "Enhance Product Portfolio",
-          kra: "Product Innovation",
-          target: "5", 
-          current: "3", 
-          measurementUnit: "Products",
-          baselineValue: "2",
-          frequency: "Quarterly",
-          dataSource: "Product Launch Reports",
-          responsibleOfficer: "Product Manager",
-          status: "needs-attention", 
-          startDate: "2023-01-01",
-          endDate: "2023-12-31",
-          comments: "Behind schedule due to resource constraints",
-          progress: 60 
-        }
-      ],
-      status: "open",
-      createdAt: "2023-02-10",
-      updatedAt: "2023-06-15"
-    },
-    { 
-      id: 3, 
-      name: "Process Automation Initiative", 
-      objectiveId: 3,
-      objectiveName: "Operational Excellence",
-      kpis: [
-        { 
-          id: 3, 
-          name: "Automation Coverage", 
-          description: "Percentage of processes automated",
-          department: "IT",
-          strategicObjective: "Operational Excellence",
-          kra: "Process Automation",
-          target: "80%", 
-          current: "65%", 
-          measurementUnit: "Percentage",
-          baselineValue: "50%",
-          frequency: "Monthly",
-          dataSource: "Process Audit Reports",
-          responsibleOfficer: "IT Director",
-          status: "on-track", 
-          startDate: "2023-01-01",
-          endDate: "2023-12-31",
-          comments: "Making good progress with new automation tools",
-          progress: 81 
-        }
-      ],
-      status: "in-progress",
-      createdAt: "2023-03-05",
-      updatedAt: "2023-06-18"
-    },
-    { 
-      id: 4, 
-      name: "Customer Service Improvement", 
-      objectiveId: 5,
-      objectiveName: "Customer Satisfaction",
-      kpis: [
-        { 
-          id: 4, 
           name: "Customer Satisfaction Score", 
           description: "Overall customer satisfaction rating",
           department: "Customer Service",
-          strategicObjective: "Customer Satisfaction",
-          kra: "Customer Service",
-          target: "90%", 
-          current: "92%", 
-          measurementUnit: "Percentage",
-          baselineValue: "85%",
+          strategicObjective: "Improve customer satisfaction",
+          kra: "Customer Experience",
+          target: "90", 
+          measurementUnit: "Score",
+          baselineValue: "75",
           frequency: "Monthly",
           dataSource: "Customer Surveys",
           responsibleOfficer: "Customer Service Manager",
+          current: "82", 
+          status: "at-risk", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Need to improve response times",
+          progress: 45 
+        }
+      ],
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
+    },
+    { 
+      id: 3, 
+      name: "Product Development Pipeline", 
+      objectiveId: 3,
+      objectiveName: "Innovation and Product Development",
+      department: "Product",
+      responsible: "Product Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 80,
+      status: "in-progress",
+      kpis: [
+        { 
+          id: 3, 
+          name: "New Product Launches", 
+          description: "Number of successful product launches",
+          department: "Product",
+          strategicObjective: "Drive innovation",
+          kra: "Product Development",
+          target: "5", 
+          measurementUnit: "Products",
+          baselineValue: "2",
+          frequency: "Quarterly",
+          dataSource: "Product Development Reports",
+          responsibleOfficer: "Product Manager",
+          current: "4", 
           status: "on-track", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Exceeding target, excellent performance",
+          comments: "Ahead of schedule",
+          progress: 80 
+        }
+      ],
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
+    },
+    { 
+      id: 4, 
+      name: "Employee Training Program", 
+      objectiveId: 4,
+      objectiveName: "Workforce Development",
+      department: "HR",
+      responsible: "HR Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 100,
+      status: "closed",
+      kpis: [
+        { 
+          id: 4, 
+          name: "Training Completion Rate", 
+          description: "Percentage of employees completing required training",
+          department: "HR",
+          strategicObjective: "Improve employee skills",
+          kra: "Employee Development",
+          target: "100", 
+          measurementUnit: "Percentage",
+          baselineValue: "60",
+          frequency: "Quarterly",
+          dataSource: "HR Records",
+          responsibleOfficer: "HR Manager",
+          current: "100", 
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "All targets achieved",
           progress: 100 
         }
       ],
-      status: "closed",
-      createdAt: "2022-11-20",
-      updatedAt: "2023-05-30"
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
     },
     { 
       id: 5, 
-      name: "Innovation Lab Development", 
-      objectiveId: 6,
-      objectiveName: "Innovation Pipeline",
+      name: "Cost Reduction Initiative", 
+      objectiveId: 5,
+      objectiveName: "Operational Efficiency",
+      department: "Finance",
+      responsible: "Finance Director",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 75,
+      status: "in-progress",
       kpis: [
         { 
           id: 5, 
-          name: "Patents Filed", 
-          description: "Number of patents filed for new innovations",
-          department: "R&D",
-          strategicObjective: "Innovation Pipeline",
-          kra: "Innovation Lab",
-          target: "10", 
-          current: "7", 
-          measurementUnit: "Patents",
-          baselineValue: "5",
-          frequency: "Annually",
-          dataSource: "Patent Office Records",
-          responsibleOfficer: "R&D Director",
+          name: "Operational Cost Reduction", 
+          description: "Percentage reduction in operational costs",
+          department: "Finance",
+          strategicObjective: "Improve efficiency",
+          kra: "Cost Management",
+          target: "15", 
+          measurementUnit: "Percentage",
+          baselineValue: "0",
+          frequency: "Monthly",
+          dataSource: "Financial Reports",
+          responsibleOfficer: "Finance Director",
+          current: "11", 
           status: "on-track", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "On track to meet annual target",
-          progress: 70 
+          comments: "Making good progress",
+          progress: 75 
         }
       ],
-      status: "in-progress",
-      createdAt: "2023-04-12",
-      updatedAt: "2023-06-22"
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
     },
     { 
       id: 6, 
-      name: "Market Leadership Campaign", 
-      objectiveId: 7,
-      objectiveName: "Market Leadership",
+      name: "Digital Transformation", 
+      objectiveId: 6,
+      objectiveName: "Technology Modernization",
+      department: "IT",
+      responsible: "IT Director",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 60,
+      status: "in-progress",
       kpis: [
         { 
           id: 6, 
-          name: "Market Share", 
-          description: "Percentage of market share in primary segments",
-          department: "Marketing",
-          strategicObjective: "Market Leadership",
-          kra: "Market Leadership",
-          target: "25%", 
-          current: "22%", 
+          name: "System Modernization", 
+          description: "Percentage of legacy systems modernized",
+          department: "IT",
+          strategicObjective: "Modernize infrastructure",
+          kra: "Digital Transformation",
+          target: "100", 
           measurementUnit: "Percentage",
-          baselineValue: "20%",
+          baselineValue: "20",
           frequency: "Quarterly",
-          dataSource: "Market Research Reports",
-          responsibleOfficer: "Marketing Director",
+          dataSource: "IT Reports",
+          responsibleOfficer: "IT Director",
+          current: "60", 
           status: "on-track", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Steady growth in market share",
-          progress: 88 
+          comments: "On schedule",
+          progress: 60 
         }
       ],
-      status: "in-progress",
-      createdAt: "2023-05-08",
-      updatedAt: "2023-06-19"
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
     },
     { 
       id: 7, 
-      name: "Supply Chain Optimization", 
-      objectiveId: 8,
-      objectiveName: "Operational Efficiency",
+      name: "Quality Assurance Program", 
+      objectiveId: 7,
+      objectiveName: "Product Quality",
+      department: "Quality",
+      responsible: "Quality Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 30,
+      status: "open",
       kpis: [
         { 
           id: 7, 
-          name: "Inventory Turnover", 
-          description: "Number of times inventory is sold and replaced",
-          department: "Operations",
-          strategicObjective: "Operational Efficiency",
-          kra: "Supply Chain",
-          target: "8x", 
-          current: "6.5x", 
-          measurementUnit: "Ratio",
-          baselineValue: "5x",
-          frequency: "Quarterly",
-          dataSource: "Inventory Management System",
-          responsibleOfficer: "Operations Manager",
-          status: "needs-attention", 
+          name: "Defect Rate", 
+          description: "Percentage of products meeting quality standards",
+          department: "Quality",
+          strategicObjective: "Ensure product quality",
+          kra: "Quality Assurance",
+          target: "99.9", 
+          measurementUnit: "Percentage",
+          baselineValue: "98",
+          frequency: "Monthly",
+          dataSource: "Quality Reports",
+          responsibleOfficer: "Quality Manager",
+          current: "98.5", 
+          status: "at-risk", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Inventory turnover below target, optimization needed",
-          progress: 81 
+          comments: "Need to improve quality control",
+          progress: 30 
         }
       ],
-      status: "open",
-      createdAt: "2023-06-01",
-      updatedAt: "2023-06-15"
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
     },
     { 
       id: 8, 
-      name: "Employee Development Program", 
-      objectiveId: 9,
-      objectiveName: "Employee Engagement",
+      name: "Supply Chain Optimization", 
+      objectiveId: 8,
+      objectiveName: "Supply Chain Efficiency",
+      department: "Operations",
+      responsible: "Operations Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 50,
+      status: "in-progress",
       kpis: [
         { 
           id: 8, 
-          name: "Training Hours", 
-          description: "Average training hours per employee",
-          department: "HR",
-          strategicObjective: "Employee Engagement",
-          kra: "Employee Development",
-          target: "40", 
-          current: "25", 
-          measurementUnit: "Hours",
-          baselineValue: "15",
+          name: "Supply Chain Efficiency", 
+          description: "Percentage improvement in supply chain efficiency",
+          department: "Operations",
+          strategicObjective: "Optimize operations",
+          kra: "Supply Chain",
+          target: "20", 
+          measurementUnit: "Percentage",
+          baselineValue: "0",
           frequency: "Quarterly",
-          dataSource: "HR Management System",
-          responsibleOfficer: "HR Manager",
-          status: "needs-attention", 
+          dataSource: "Operations Reports",
+          responsibleOfficer: "Operations Manager",
+          current: "10", 
+          status: "on-track", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Training hours below target, additional programs needed",
-          progress: 63 
+          comments: "Making steady progress",
+          progress: 50 
         }
       ],
-      status: "in-progress",
-      createdAt: "2023-05-15",
+      createdAt: "2023-01-15",
       updatedAt: "2023-06-20"
     },
     { 
       id: 9, 
-      name: "Green Initiative", 
-      objectiveId: 10,
-      objectiveName: "Sustainability Goals",
+      name: "Environmental Sustainability", 
+      objectiveId: 9,
+      objectiveName: "Environmental Impact",
+      department: "Sustainability",
+      responsible: "Sustainability Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 40,
+      status: "open",
       kpis: [
         { 
           id: 9, 
-          name: "Carbon Reduction", 
-          description: "Percentage reduction in carbon emissions",
-          department: "Operations",
-          strategicObjective: "Sustainability Goals",
-          kra: "Green Initiative",
-          target: "20%", 
-          current: "12%", 
+          name: "Carbon Footprint Reduction", 
+          description: "Percentage reduction in carbon footprint",
+          department: "Sustainability",
+          strategicObjective: "Reduce environmental impact",
+          kra: "Environmental Sustainability",
+          target: "25", 
           measurementUnit: "Percentage",
-          baselineValue: "0%",
+          baselineValue: "0",
           frequency: "Annually",
           dataSource: "Environmental Reports",
           responsibleOfficer: "Sustainability Manager",
-          status: "on-track", 
+          current: "10", 
+          status: "at-risk", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Carbon reduction initiatives progressing well",
-          progress: 60 
+          comments: "Need to accelerate initiatives",
+          progress: 40 
         }
       ],
-      status: "open",
-      createdAt: "2023-06-05",
-      updatedAt: "2023-06-18"
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
     },
     { 
       id: 10, 
-      name: "Digital Transformation", 
-      objectiveId: 3,
-      objectiveName: "Operational Excellence",
+      name: "Market Research Initiative", 
+      objectiveId: 10,
+      objectiveName: "Market Intelligence",
+      department: "Marketing",
+      responsible: "Marketing Director",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 55,
+      status: "in-progress",
       kpis: [
         { 
           id: 10, 
-          name: "Digital Adoption", 
-          description: "Percentage of employees using digital tools",
-          department: "IT",
-          strategicObjective: "Operational Excellence",
-          kra: "Digital Transformation",
-          target: "90%", 
-          current: "75%", 
+          name: "Market Research Coverage", 
+          description: "Percentage of target markets covered by research",
+          department: "Marketing",
+          strategicObjective: "Improve market understanding",
+          kra: "Market Research",
+          target: "100", 
           measurementUnit: "Percentage",
-          baselineValue: "60%",
-          frequency: "Monthly",
-          dataSource: "IT Usage Analytics",
-          responsibleOfficer: "IT Director",
+          baselineValue: "40",
+          frequency: "Quarterly",
+          dataSource: "Market Research Reports",
+          responsibleOfficer: "Marketing Director",
+          current: "55", 
           status: "on-track", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Digital adoption increasing steadily",
-          progress: 83 
+          comments: "Progressing as planned",
+          progress: 55 
         }
       ],
-      status: "in-progress",
-      createdAt: "2023-04-20",
-      updatedAt: "2023-06-21"
-    },
+      createdAt: "2023-01-15",
+      updatedAt: "2023-06-20"
+    }
   ]);
   
   // Mock data for closed KRAs
@@ -450,6 +531,11 @@ const Unit = () => {
       name: "Customer Service Improvement", 
       objectiveId: 5,
       objectiveName: "Customer Satisfaction",
+      department: "Customer Service",
+      responsible: "Customer Service Manager",
+      startDate: new Date(2023, 0, 1),
+      endDate: new Date(2023, 11, 31),
+      progress: 100,
       kpis: [
         { 
           id: 11, 
@@ -722,11 +808,16 @@ const Unit = () => {
       id: Math.max(...kras.map(k => k.id), ...closedKras.map(k => k.id)) + 1,
       name: kraForm.name || '',
       objectiveId: kraForm.objectiveId || 0,
-      objectiveName: objective?.name || '',
-      kpis: kraForm.kpis || [],
-      status: kraForm.status as 'open' | 'in-progress' | 'closed' || 'open',
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0]
+      objectiveName: objectives.find(obj => obj.id === kraForm.objectiveId)?.name || '',
+      department: kraForm.department || '',
+      responsible: kraForm.responsible || '',
+      startDate: kraForm.startDate || new Date(),
+      endDate: kraForm.endDate || new Date(),
+      progress: 0,
+      kpis: [],
+      status: 'open',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
     // Add to state
@@ -896,6 +987,11 @@ const Unit = () => {
           name: 'Increase Market Share',
           objectiveId: 1,
           objectiveName: 'Market Leadership',
+          department: 'Marketing',
+          responsible: 'Marketing Director',
+          startDate: new Date(2023, 0, 1),
+          endDate: new Date(2023, 11, 31),
+          progress: 75,
           status: 'in-progress',
           kpis: [
             {
@@ -927,6 +1023,11 @@ const Unit = () => {
           name: 'Improve Customer Satisfaction',
           objectiveId: 2,
           objectiveName: 'Customer Excellence',
+          department: 'Customer Service',
+          responsible: 'Customer Service Manager',
+          startDate: new Date(2023, 0, 1),
+          endDate: new Date(2023, 11, 31),
+          progress: 0,
           status: 'open',
           kpis: [
             {
@@ -1718,6 +1819,7 @@ const Unit = () => {
                   <TabsTrigger value="active-kras">Active KRAs</TabsTrigger>
                   <TabsTrigger value="closed-kras">Closed KRAs</TabsTrigger>
                   <TabsTrigger value="insights">Insights</TabsTrigger>
+                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 </TabsList>
                 <TabsContent value="active-kras">
                   {filteredKras.length > 0 ? (
@@ -1780,6 +1882,31 @@ const Unit = () => {
                       </CardContent>
                     </Card>
                   </div>
+                </TabsContent>
+                <TabsContent value="timeline">
+                  <KRATimeline kras={kras.map(kra => {
+                    const timelineKra: TimelineKRA = {
+                      id: kra.id,
+                      name: kra.name,
+                      department: kra.department,
+                      responsible: kra.responsible,
+                      startDate: kra.startDate,
+                      endDate: kra.endDate,
+                      progress: kra.progress,
+                      status: kra.status,
+                      kpis: kra.kpis.map(kpi => ({
+                        id: kpi.id,
+                        name: kpi.name,
+                        date: new Date(kpi.startDate),
+                        target: kpi.target,
+                        actual: kpi.current,
+                        status: kpi.status,
+                        description: kpi.description,
+                        notes: kpi.comments
+                      }))
+                    };
+                    return timelineKra as any; // Use type assertion to bypass the type mismatch
+                  })} />
                 </TabsContent>
               </Tabs>
             </CardContent>
