@@ -930,6 +930,15 @@ const Unit = () => {
             <TableHead>Objective Linked</TableHead>
             <TableHead>KPI</TableHead>
             <TableHead>Status</TableHead>
+            {isSidebarCollapsed && (
+              <>
+                <TableHead>Progress</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Responsible Officer</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>End Date</TableHead>
+              </>
+            )}
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -960,6 +969,32 @@ const Unit = () => {
               <TableCell>
                 {getStatusBadge(kra.status)}
               </TableCell>
+              {isSidebarCollapsed && (
+                <>
+                  <TableCell>
+                    {kra.kpis.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <Progress value={kra.kpis[0].progress} className="w-16" />
+                        <span className="text-xs">{kra.kpis[0].progress}%</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {kra.kpis.length > 0 ? kra.kpis[0].department : <span className="text-gray-400">-</span>}
+                  </TableCell>
+                  <TableCell>
+                    {kra.kpis.length > 0 ? kra.kpis[0].responsibleOfficer : <span className="text-gray-400">-</span>}
+                  </TableCell>
+                  <TableCell>
+                    {kra.kpis.length > 0 ? new Date(kra.kpis[0].startDate).toLocaleDateString() : <span className="text-gray-400">-</span>}
+                  </TableCell>
+                  <TableCell>
+                    {kra.kpis.length > 0 ? new Date(kra.kpis[0].endDate).toLocaleDateString() : <span className="text-gray-400">-</span>}
+                  </TableCell>
+                </>
+              )}
               <TableCell>
                 <Button 
                   variant="ghost" 
@@ -1167,13 +1202,13 @@ const Unit = () => {
           </div>
         </div>
 
-        {/* Floating toggle button when sidebar is collapsed */}
+        {/* Improved floating toggle button when sidebar is collapsed */}
         {isSidebarCollapsed && (
           <Button 
             variant="outline" 
             size="sm" 
             onClick={() => setIsSidebarCollapsed(false)}
-            className="fixed right-4 top-20 z-10 shadow-md"
+            className="fixed right-4 top-24 z-10 shadow-md bg-white dark:bg-gray-800 border-2 border-intranet-primary"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             <span>Show Sidebar</span>
