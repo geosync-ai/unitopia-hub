@@ -186,6 +186,7 @@ const Unit = () => {
   // State for editing tasks
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingKRA, setEditingKRA] = useState<KRA | null>(null); // State for KRA being edited
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -683,21 +684,13 @@ const Unit = () => {
   };
   
   const handleEditKRA = (kra: KRA) => {
-    setSelectedKRADrawer(kra);
-    setIsKRADrawerOpen(true);
+    setEditingKRA(kra); // Set the KRA to be edited
+    setIsEditKRADialogOpen(true); // Open the dialog
   };
 
   const handleCloseKRADrawer = () => {
     setIsKRADrawerOpen(false);
     setSelectedKRADrawer(null);
-  };
-
-  const handleUpdateKRA = () => {
-    if (selectedKRADrawer) {
-      setKras(kras.map(k => k.id === selectedKRADrawer.id ? selectedKRADrawer : k));
-      toast.success('KRA updated successfully');
-      handleCloseKRADrawer();
-    }
   };
 
   const handleDeleteKRA = (kraId: string) => {
@@ -1431,7 +1424,7 @@ const Unit = () => {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        // onClick={() => handleEditKRA(kra)} // Keep existing edit logic link
+                        onClick={() => handleEditKRA(kra)} // Call handleEditKRA with the kra object
                         title="Edit KRA"
                       >
                         <Pencil className="h-4 w-4" />
@@ -2087,6 +2080,167 @@ const Unit = () => {
     );
   };
 
+  // Handler to save updated task
+  const handleUpdateTask = (updatedTask: Task) => {
+    setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
+    setIsEditTaskDialogOpen(false);
+    setEditingTask(null);
+    toast.success('Task updated successfully');
+  };
+
+  // Handler to save updated KRA
+  const handleUpdateKRA = (updatedKRA: KRA) => {
+    setKras(kras.map(kra => (kra.id === updatedKRA.id ? updatedKRA : kra)));
+    setClosedKras(closedKras.map(kra => (kra.id === updatedKRA.id ? updatedKRA : kra))); // Update in closed list too if applicable
+    setIsEditKRADialogOpen(false);
+    setEditingKRA(null);
+    toast.success('KRA updated successfully');
+  };
+
+  // Edit KRA Dialog Component
+  const EditKRADialog = () => {
+    const [editedKra, setEditedKra] = useState<KRA | null>(editingKRA);
+
+    useEffect(() => {
+      setEditedKra(editingKRA); // Sync with external state when dialog opens
+    }, [editingKRA]);
+
+    if (!editedKra) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editedKra.name || !editedKra.objectiveId) {
+        toast.error('Please fill in KRA Name and Linked Objective.');
+        return;
+      }
+      // Update KRA using the handler function
+      handleUpdateKRA({
+        ...editedKra,
+        updatedAt: new Date().toISOString(), // Update timestamp
+        objectiveName: objectives.find(obj => String(obj.id) === editedKra.objectiveId)?.name || editedKra.objectiveName || '', // Ensure objective name is synced
+      });
+    };
+
+    return (
+      <Dialog open={isEditKRADialogOpen} onOpenChange={setIsEditKRADialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit KRA</DialogTitle>
+            <DialogDescription>
+              Update the details for this Key Result Area.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              {/* KRA Name */}
+              <div className="grid gap-2">
+                <Label htmlFor="editKraName">KRA Name</Label>
+                <Input
+                  id="editKraName"
+                  value={editedKra.name}
+                  onChange={(e) => setEditedKra({ ...editedKra, name: e.target.value })}
+                  placeholder="Enter KRA name"
+                />
+              </div>
+              {/* Linked Objective */}
+              <div className="grid gap-2">
+                <Label htmlFor="editObjectiveId">Linked Objective</Label>
+                <Select
+                  value={editedKra.objectiveId}
+                  onValueChange={(value) => setEditedKra({ ...editedKra, objectiveId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select linked objective" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {objectives.map((objective) => (
+                      <SelectItem key={objective.id} value={String(objective.id)}>
+                        {objective.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Department & Responsible */}
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                   <Label htmlFor="editDepartment">Department</Label>
+                   <Input
+                     id="editDepartment"
+                     value={editedKra.department}
+                     onChange={(e) => setEditedKra({ ...editedKra, department: e.target.value })}
+                     placeholder="Enter department"
+                   />
+                 </div>
+                 <div className="grid gap-2">
+                   <Label htmlFor="editResponsible">Responsible</Label>
+                   <Input
+                     id="editResponsible"
+                     value={editedKra.responsible}
+                     onChange={(e) => setEditedKra({ ...editedKra, responsible: e.target.value })}
+                     placeholder="Enter responsible person/role"
+                   />
+                 </div>
+              </div>
+              {/* Start & End Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editStartDate">Start Date</Label>
+                  <Input
+                    id="editStartDate"
+                    type="date"
+                    value={typeof editedKra.startDate === 'string' ? editedKra.startDate.split('T')[0] : (editedKra.startDate as Date).toISOString().split('T')[0]}
+                    onChange={(e) => setEditedKra({ ...editedKra, startDate: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editEndDate">End Date</Label>
+                  <Input
+                    id="editEndDate"
+                    type="date"
+                    value={typeof editedKra.endDate === 'string' ? editedKra.endDate.split('T')[0] : (editedKra.endDate as Date).toISOString().split('T')[0]}
+                    onChange={(e) => setEditedKra({ ...editedKra, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              {/* Status */}
+              <div className="grid gap-2">
+                 <Label htmlFor="editStatus">Status</Label>
+                 <Select
+                   value={editedKra.status}
+                   onValueChange={(value: KRA['status']) => setEditedKra({ ...editedKra, status: value })}
+                 >
+                   <SelectTrigger>
+                     <SelectValue placeholder="Select status" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="open">Open</SelectItem>
+                     <SelectItem value="in-progress">In Progress</SelectItem>
+                     <SelectItem value="closed">Closed</SelectItem>
+                   </SelectContent>
+                 </Select>
+              </div>
+              {/* Description */}
+              <div className="grid gap-2">
+                <Label htmlFor="editKraDescription">Description (Optional)</Label>
+                <Textarea
+                  id="editKraDescription"
+                  value={editedKra.description || ''}
+                  onChange={(e) => setEditedKra({ ...editedKra, description: e.target.value })}
+                  placeholder="Enter a brief description for the KRA"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+               <Button variant="outline" type="button" onClick={() => setIsEditKRADialogOpen(false)}>Cancel</Button>
+               <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   return (
     <PageLayout>
       <div className="flex justify-between items-center mb-6">
@@ -2119,6 +2273,7 @@ const Unit = () => {
 
       {/* Add dialogs referenced elsewhere */}
       {isAddTaskDialogOpen && <AddTaskDialog />}
+      {isEditKRADialogOpen && <EditKRADialog />}
     </PageLayout>
   );
 };
