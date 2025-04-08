@@ -21,10 +21,20 @@ import KRATimeline from '@/components/KRATimeline';
 import '@/styles/timeline.css';
 
 // Types
+interface KPI {
+  id: string;
+  name: string;
+  target: number;
+  current: number;
+  unit: string;
+  frequency: string;
+}
+
 interface KRA {
   id: string;
   name: string;
   objectiveId: string;
+  objectiveName: string;
   department: string;
   responsible: string;
   startDate: Date;
@@ -34,27 +44,6 @@ interface KRA {
   kpis: KPI[];
   createdAt: string;
   updatedAt: string;
-}
-
-interface KPI {
-  id: string;
-  name: string;
-  description: string;
-  department: string;
-  strategicObjective: string;
-  kra: string;
-  target: string;
-  measurementUnit: string;
-  baselineValue: string;
-  frequency: string;
-  dataSource: string;
-  responsibleOfficer: string;
-  current: string;
-  status: 'on-track' | 'needs-attention' | 'at-risk';
-  startDate: string;
-  endDate: string;
-  comments: string;
-  progress: number;
 }
 
 interface Objective {
@@ -125,8 +114,8 @@ const Unit = () => {
   
   const [kpiForm, setKpiForm] = useState<Partial<KPI>>({
     name: '',
-    target: '',
-    current: '',
+    target: 0,
+    current: 0,
     status: 'on-track',
     progress: 0
   });
@@ -180,13 +169,13 @@ const Unit = () => {
           department: "Sales",
           strategicObjective: "Expand geographic presence",
           kra: "Market Expansion",
-          target: "3", 
+          target: 3, 
           measurementUnit: "Markets",
           baselineValue: "0",
           frequency: "Quarterly",
           dataSource: "Sales Reports",
           responsibleOfficer: "Sales Director",
-          current: "2", 
+          current: 2, 
           status: "on-track", 
           startDate: "2023-01-01",
           endDate: "2023-12-31",
