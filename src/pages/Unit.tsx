@@ -281,10 +281,12 @@ const Unit = () => {
   
   // Add new state variables for filters and sorting
   const [filters, setFilters] = useState({
-    department: '',
-    responsibleOfficer: '',
-    status: '',
-    progressRange: ''
+    department: 'all',
+    responsibleOfficer: 'all',
+    status: 'all',
+    progressRange: 'all',
+    sortBy: 'name',
+    sortDirection: 'asc' as 'asc' | 'desc'
   });
 
   const [sortConfig, setSortConfig] = useState<{
@@ -308,23 +310,23 @@ const Unit = () => {
     let filteredKRAs = [...kras];
     
     // Apply filters
-    if (filters.department) {
+    if (filters.department && filters.department !== 'all') {
       filteredKRAs = filteredKRAs.filter(kra => 
         kra.kpis.length > 0 && kra.kpis[0].department === filters.department
       );
     }
     
-    if (filters.responsibleOfficer) {
+    if (filters.responsibleOfficer && filters.responsibleOfficer !== 'all') {
       filteredKRAs = filteredKRAs.filter(kra => 
         kra.kpis.length > 0 && kra.kpis[0].responsibleOfficer === filters.responsibleOfficer
       );
     }
     
-    if (filters.status) {
+    if (filters.status && filters.status !== 'all') {
       filteredKRAs = filteredKRAs.filter(kra => kra.status === filters.status);
     }
     
-    if (filters.progressRange) {
+    if (filters.progressRange && filters.progressRange !== 'all') {
       filteredKRAs = filteredKRAs.filter(kra => {
         if (kra.kpis.length === 0) return false;
         
@@ -334,9 +336,9 @@ const Unit = () => {
           case 'low':
             return progress < 50;
           case 'medium':
-            return progress >= 50 && progress < 80;
+            return progress >= 50 && progress <= 80;
           case 'high':
-            return progress >= 80;
+            return progress > 80;
           default:
             return true;
         }
@@ -975,7 +977,7 @@ const Unit = () => {
                 <SelectValue placeholder="All Departments" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Departments</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 {uniqueDepartments.map((dept) => (
                   <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                 ))}
@@ -993,7 +995,7 @@ const Unit = () => {
                 <SelectValue placeholder="All Officers" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Officers</SelectItem>
+                <SelectItem value="all">All Officers</SelectItem>
                 {uniqueResponsibleOfficers.map((officer) => (
                   <SelectItem key={officer} value={officer}>{officer}</SelectItem>
                 ))}
@@ -1011,7 +1013,7 @@ const Unit = () => {
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
@@ -1029,7 +1031,7 @@ const Unit = () => {
                 <SelectValue placeholder="All Progress" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Progress</SelectItem>
+                <SelectItem value="all">All Progress</SelectItem>
                 <SelectItem value="low">Low (&lt; 50%)</SelectItem>
                 <SelectItem value="medium">Medium (50% - 80%)</SelectItem>
                 <SelectItem value="high">High (&gt; 80%)</SelectItem>
