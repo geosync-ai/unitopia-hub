@@ -12,13 +12,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings, FileSpreadsheet, ChevronLeft, ChevronRight, Pencil, Trash, Eye, Share, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, PieChart, LineChart, AreaChart } from '@/components/charts';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Upload } from 'lucide-react';
 import KRATimeline from '@/components/KRATimeline';
 import '@/styles/timeline.css';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 
 // Types
 interface KPI {
@@ -70,6 +72,34 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   message: string;
   timestamp: Date;
+}
+
+// Add Task interface
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'blocked';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  assignee: string;
+  dueDate: string;
+  kraId?: string;
+  kraName?: string;
+}
+
+// Add Risk interface
+interface Risk {
+  id: string;
+  title: string;
+  description: string;
+  impact: 'low' | 'medium' | 'high' | 'severe';
+  probability: 'low' | 'medium' | 'high' | 'certain';
+  status: 'open' | 'mitigating' | 'closed' | 'accepted';
+  owner: string;
+  dateIdentified: string;
+  mitigation: string;
+  kraId?: string;
+  kraName?: string;
 }
 
 const Unit = () => {
@@ -1428,6 +1458,307 @@ const Unit = () => {
     );
   };
   
+  // Add tasks state
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: '1',
+      title: 'Finalize market entry strategy for Indonesia',
+      description: 'Complete market analysis and develop entry strategy document',
+      status: 'in-progress',
+      priority: 'high',
+      assignee: 'John Smith',
+      dueDate: '2024-06-30',
+      kraId: '1',
+      kraName: 'Market Expansion Strategy'
+    },
+    {
+      id: '2',
+      title: 'Prepare Q2 progress report',
+      description: 'Compile KPI data and prepare quarterly progress report',
+      status: 'pending',
+      priority: 'medium',
+      assignee: 'Sarah Johnson',
+      dueDate: '2024-07-15',
+      kraId: '2',
+      kraName: 'Digital Transformation Initiative'
+    },
+    {
+      id: '3',
+      title: 'Resolve system migration blocker',
+      description: 'Address the data inconsistency issue blocking cloud migration',
+      status: 'blocked',
+      priority: 'critical',
+      assignee: 'Michael Wong',
+      dueDate: '2024-06-15',
+      kraId: '2',
+      kraName: 'Digital Transformation Initiative'
+    },
+    {
+      id: '4',
+      title: 'Update quality assurance documentation',
+      description: 'Revise QA procedures to include new quality metrics',
+      status: 'completed',
+      priority: 'medium',
+      assignee: 'Lisa Chen',
+      dueDate: '2024-06-10',
+      kraId: '3',
+      kraName: 'Quality Assurance Enhancement'
+    },
+    {
+      id: '5',
+      title: 'Coordinate innovation workshop',
+      description: 'Plan and schedule innovation workshop with key stakeholders',
+      status: 'in-progress',
+      priority: 'high',
+      assignee: 'David Miller',
+      dueDate: '2024-07-05',
+      kraId: '4',
+      kraName: 'Innovation Pipeline'
+    }
+  ]);
+
+  const [taskForm, setTaskForm] = useState<Partial<Task>>({
+    title: '',
+    description: '',
+    status: 'pending',
+    priority: 'medium',
+    assignee: '',
+    dueDate: '',
+    kraId: '',
+    kraName: ''
+  });
+
+  const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false);
+  const [taskFilter, setTaskFilter] = useState('all');
+
+  // Task handlers
+  const handleAddTask = () => {
+    const newTask: Task = {
+      id: String(tasks.length + 1),
+      title: taskForm.title || '',
+      description: taskForm.description || '',
+      status: taskForm.status || 'pending',
+      priority: taskForm.priority || 'medium',
+      assignee: taskForm.assignee || '',
+      dueDate: taskForm.dueDate || new Date().toISOString().split('T')[0],
+      kraId: taskForm.kraId,
+      kraName: taskForm.kraName
+    };
+    
+    setTasks([...tasks, newTask]);
+    setTaskForm({
+      title: '',
+      description: '',
+      status: 'pending',
+      priority: 'medium',
+      assignee: '',
+      dueDate: '',
+      kraId: '',
+      kraName: ''
+    });
+    setIsAddTaskDialogOpen(false);
+  };
+
+  const handleUpdateTaskStatus = (taskId: string, newStatus: Task['status']) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, status: newStatus } : task
+    ));
+  };
+
+  const getTaskStatusColor = (status: Task['status']) => {
+    switch (status) {
+      case 'pending': return 'bg-gray-200 text-gray-800';
+      case 'in-progress': return 'bg-blue-200 text-blue-800';
+      case 'completed': return 'bg-green-200 text-green-800';
+      case 'blocked': return 'bg-red-200 text-red-800';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
+
+  const getTaskPriorityColor = (priority: Task['priority']) => {
+    switch (priority) {
+      case 'low': return 'bg-gray-100 text-gray-800';
+      case 'medium': return 'bg-blue-100 text-blue-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'critical': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getFilteredTasks = () => {
+    if (taskFilter === 'all') return tasks;
+    return tasks.filter(task => task.status === taskFilter);
+  };
+  
+  // Add risks state
+  const [risks, setRisks] = useState<Risk[]>([
+    {
+      id: '1',
+      title: 'Regulatory changes in Indonesia market',
+      description: 'New regulations may impact market entry strategy',
+      impact: 'high',
+      probability: 'medium',
+      status: 'open',
+      owner: 'Legal Department',
+      dateIdentified: '2024-05-15',
+      mitigation: 'Engage with local legal experts to develop compliance strategy',
+      kraId: '1',
+      kraName: 'Market Expansion Strategy'
+    },
+    {
+      id: '2',
+      title: 'System compatibility issues',
+      description: 'Legacy systems may not be compatible with new cloud infrastructure',
+      impact: 'severe',
+      probability: 'high',
+      status: 'mitigating',
+      owner: 'IT Director',
+      dateIdentified: '2024-04-10',
+      mitigation: 'Develop middleware solution and phase migration approach',
+      kraId: '2',
+      kraName: 'Digital Transformation Initiative'
+    },
+    {
+      id: '3',
+      title: 'Staff resistance to new QA procedures',
+      description: 'Team members showing resistance to implementing new quality metrics',
+      impact: 'medium',
+      probability: 'high',
+      status: 'mitigating',
+      owner: 'QA Manager',
+      dateIdentified: '2024-07-01',
+      mitigation: 'Additional training sessions and one-on-one meetings with key influencers',
+      kraId: '3',
+      kraName: 'Quality Assurance Enhancement'
+    },
+    {
+      id: '4',
+      title: 'Budget constraints for innovation projects',
+      description: 'Potential reduction in R&D budget may impact innovation initiatives',
+      impact: 'high',
+      probability: 'medium',
+      status: 'open',
+      owner: 'Finance Director',
+      dateIdentified: '2024-06-25',
+      mitigation: 'Prioritize projects with highest ROI and seek external funding options',
+      kraId: '4',
+      kraName: 'Innovation Pipeline'
+    },
+    {
+      id: '5',
+      title: 'Vendor reliability issues',
+      description: 'Key technology vendor experiencing service disruptions',
+      impact: 'medium',
+      probability: 'low',
+      status: 'closed',
+      owner: 'Procurement Manager',
+      dateIdentified: '2024-03-20',
+      mitigation: 'Alternative vendor identified and transition completed',
+      kraId: '2',
+      kraName: 'Digital Transformation Initiative'
+    }
+  ]);
+
+  const [riskForm, setRiskForm] = useState<Partial<Risk>>({
+    title: '',
+    description: '',
+    impact: 'medium',
+    probability: 'medium',
+    status: 'open',
+    owner: '',
+    dateIdentified: new Date().toISOString().split('T')[0],
+    mitigation: '',
+    kraId: '',
+    kraName: ''
+  });
+
+  const [isAddRiskDialogOpen, setIsAddRiskDialogOpen] = useState(false);
+  const [riskFilter, setRiskFilter] = useState('all');
+
+  // Risk handlers
+  const handleAddRisk = () => {
+    const newRisk: Risk = {
+      id: String(risks.length + 1),
+      title: riskForm.title || '',
+      description: riskForm.description || '',
+      impact: riskForm.impact || 'medium',
+      probability: riskForm.probability || 'medium',
+      status: riskForm.status || 'open',
+      owner: riskForm.owner || '',
+      dateIdentified: riskForm.dateIdentified || new Date().toISOString().split('T')[0],
+      mitigation: riskForm.mitigation || '',
+      kraId: riskForm.kraId,
+      kraName: riskForm.kraName
+    };
+    
+    setRisks([...risks, newRisk]);
+    setRiskForm({
+      title: '',
+      description: '',
+      impact: 'medium',
+      probability: 'medium',
+      status: 'open',
+      owner: '',
+      dateIdentified: new Date().toISOString().split('T')[0],
+      mitigation: '',
+      kraId: '',
+      kraName: ''
+    });
+    setIsAddRiskDialogOpen(false);
+  };
+
+  const handleUpdateRiskStatus = (riskId: string, newStatus: Risk['status']) => {
+    setRisks(risks.map(risk => 
+      risk.id === riskId ? { ...risk, status: newStatus } : risk
+    ));
+  };
+
+  const getRiskImpactColor = (impact: Risk['impact']) => {
+    switch (impact) {
+      case 'low': return 'bg-green-100 text-green-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'severe': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRiskProbabilityColor = (probability: Risk['probability']) => {
+    switch (probability) {
+      case 'low': return 'bg-blue-100 text-blue-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'certain': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRiskStatusColor = (status: Risk['status']) => {
+    switch (status) {
+      case 'open': return 'bg-red-200 text-red-800';
+      case 'mitigating': return 'bg-yellow-200 text-yellow-800';
+      case 'closed': return 'bg-green-200 text-green-800';
+      case 'accepted': return 'bg-blue-200 text-blue-800';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
+
+  const getRiskSeverity = (impact: Risk['impact'], probability: Risk['probability']) => {
+    const impactScore = impact === 'severe' ? 4 : impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
+    const probScore = probability === 'certain' ? 4 : probability === 'high' ? 3 : probability === 'medium' ? 2 : 1;
+    const score = impactScore * probScore;
+    
+    if (score >= 12) return 'Critical';
+    if (score >= 8) return 'High';
+    if (score >= 4) return 'Medium';
+    return 'Low';
+  };
+
+  const getFilteredRisks = () => {
+    if (riskFilter === 'all') return risks;
+    return risks.filter(risk => risk.status === riskFilter);
+  };
+  
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
@@ -1482,9 +1813,215 @@ const Unit = () => {
                 </TabsList>
 
                 <TabsContent value="tasks">
-                  <div className="text-center py-6 text-gray-500">
-                    Tasks and daily operations content will be displayed here.
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant={taskFilter === 'all' ? 'default' : 'outline'} 
+                          onClick={() => setTaskFilter('all')}
+                          size="sm"
+                        >
+                          All
+                        </Button>
+                        <Button 
+                          variant={taskFilter === 'pending' ? 'default' : 'outline'} 
+                          onClick={() => setTaskFilter('pending')}
+                          size="sm"
+                        >
+                          Pending
+                        </Button>
+                        <Button 
+                          variant={taskFilter === 'in-progress' ? 'default' : 'outline'} 
+                          onClick={() => setTaskFilter('in-progress')}
+                          size="sm"
+                        >
+                          In Progress
+                        </Button>
+                        <Button 
+                          variant={taskFilter === 'blocked' ? 'default' : 'outline'} 
+                          onClick={() => setTaskFilter('blocked')}
+                          size="sm"
+                        >
+                          Blocked
+                        </Button>
+                        <Button 
+                          variant={taskFilter === 'completed' ? 'default' : 'outline'} 
+                          onClick={() => setTaskFilter('completed')}
+                          size="sm"
+                        >
+                          Completed
+                        </Button>
+                      </div>
+                      <Button onClick={() => setIsAddTaskDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Task
+                      </Button>
+                    </div>
+
+                    <Card>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Title</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Priority</TableHead>
+                              <TableHead>Assignee</TableHead>
+                              <TableHead>Due Date</TableHead>
+                              <TableHead>Related KRA</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {getFilteredTasks().map(task => (
+                              <TableRow key={task.id}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{task.title}</div>
+                                    <div className="text-sm text-gray-500">{task.description}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <select
+                                    value={task.status}
+                                    onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as Task['status'])}
+                                    className={`rounded px-2 py-1 text-xs ${getTaskStatusColor(task.status)}`}
+                                  >
+                                    <option value="pending">Pending</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="blocked">Blocked</option>
+                                  </select>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`rounded px-2 py-1 text-xs ${getTaskPriorityColor(task.priority)}`}>
+                                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>{task.assignee}</TableCell>
+                                <TableCell>
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  {task.kraName && (
+                                    <span className="text-xs rounded bg-gray-100 dark:bg-gray-800 px-2 py-1">
+                                      {task.kraName}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button variant="ghost" size="sm">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm">
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
                   </div>
+
+                  {/* Add Task Dialog */}
+                  <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Task</DialogTitle>
+                        <DialogDescription>
+                          Create a new task and assign it to a team member.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="title">Title</Label>
+                          <Input
+                            id="title"
+                            value={taskForm.title || ''}
+                            onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea
+                            id="description"
+                            value={taskForm.description || ''}
+                            onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="priority">Priority</Label>
+                          <Select 
+                            value={taskForm.priority || 'medium'}
+                            onValueChange={(value) => setTaskForm({...taskForm, priority: value as Task['priority']})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="critical">Critical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="assignee">Assignee</Label>
+                          <Input
+                            id="assignee"
+                            value={taskForm.assignee || ''}
+                            onChange={(e) => setTaskForm({...taskForm, assignee: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="dueDate">Due Date</Label>
+                          <Input
+                            id="dueDate"
+                            type="date"
+                            value={taskForm.dueDate || ''}
+                            onChange={(e) => setTaskForm({...taskForm, dueDate: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="kraId">Related KRA</Label>
+                          <Select 
+                            value={taskForm.kraId || ''}
+                            onValueChange={(value) => {
+                              const kra = [...kras, ...closedKras].find(k => k.id === value);
+                              setTaskForm({
+                                ...taskForm, 
+                                kraId: value,
+                                kraName: kra?.name || ''
+                              });
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a KRA" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {[...kras, ...closedKras].map(kra => (
+                                <SelectItem key={kra.id} value={kra.id}>{kra.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddTaskDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAddTask}>
+                          Add Task
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </TabsContent>
 
                 <TabsContent value="kras">
@@ -1596,9 +2133,255 @@ const Unit = () => {
                 </TabsContent>
 
                 <TabsContent value="risks">
-                  <div className="text-center py-6 text-gray-500">
-                    Risks and issues content will be displayed here.
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant={riskFilter === 'all' ? 'default' : 'outline'} 
+                          onClick={() => setRiskFilter('all')}
+                          size="sm"
+                        >
+                          All
+                        </Button>
+                        <Button 
+                          variant={riskFilter === 'open' ? 'default' : 'outline'} 
+                          onClick={() => setRiskFilter('open')}
+                          size="sm"
+                        >
+                          Open
+                        </Button>
+                        <Button 
+                          variant={riskFilter === 'mitigating' ? 'default' : 'outline'} 
+                          onClick={() => setRiskFilter('mitigating')}
+                          size="sm"
+                        >
+                          Mitigating
+                        </Button>
+                        <Button 
+                          variant={riskFilter === 'closed' ? 'default' : 'outline'} 
+                          onClick={() => setRiskFilter('closed')}
+                          size="sm"
+                        >
+                          Closed
+                        </Button>
+                        <Button 
+                          variant={riskFilter === 'accepted' ? 'default' : 'outline'} 
+                          onClick={() => setRiskFilter('accepted')}
+                          size="sm"
+                        >
+                          Accepted
+                        </Button>
+                      </div>
+                      <Button onClick={() => setIsAddRiskDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Risk
+                      </Button>
+                    </div>
+
+                    <Card>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Risk</TableHead>
+                              <TableHead>Severity</TableHead>
+                              <TableHead>Impact</TableHead>
+                              <TableHead>Probability</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Owner</TableHead>
+                              <TableHead>Related KRA</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {getFilteredRisks().map(risk => (
+                              <TableRow key={risk.id}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{risk.title}</div>
+                                    <div className="text-sm text-gray-500">{risk.description}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`rounded px-2 py-1 text-xs ${
+                                    getRiskSeverity(risk.impact, risk.probability) === 'Critical' ? 'bg-red-100 text-red-800' :
+                                    getRiskSeverity(risk.impact, risk.probability) === 'High' ? 'bg-orange-100 text-orange-800' :
+                                    getRiskSeverity(risk.impact, risk.probability) === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {getRiskSeverity(risk.impact, risk.probability)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`rounded px-2 py-1 text-xs ${getRiskImpactColor(risk.impact)}`}>
+                                    {risk.impact.charAt(0).toUpperCase() + risk.impact.slice(1)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`rounded px-2 py-1 text-xs ${getRiskProbabilityColor(risk.probability)}`}>
+                                    {risk.probability.charAt(0).toUpperCase() + risk.probability.slice(1)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <select
+                                    value={risk.status}
+                                    onChange={(e) => handleUpdateRiskStatus(risk.id, e.target.value as Risk['status'])}
+                                    className={`rounded px-2 py-1 text-xs ${getRiskStatusColor(risk.status)}`}
+                                  >
+                                    <option value="open">Open</option>
+                                    <option value="mitigating">Mitigating</option>
+                                    <option value="closed">Closed</option>
+                                    <option value="accepted">Accepted</option>
+                                  </select>
+                                </TableCell>
+                                <TableCell>{risk.owner}</TableCell>
+                                <TableCell>
+                                  {risk.kraName && (
+                                    <span className="text-xs rounded bg-gray-100 dark:bg-gray-800 px-2 py-1">
+                                      {risk.kraName}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button variant="ghost" size="sm" title="View Details">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" title="Edit">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
                   </div>
+
+                  {/* Add Risk Dialog */}
+                  <Dialog open={isAddRiskDialogOpen} onOpenChange={setIsAddRiskDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Risk</DialogTitle>
+                        <DialogDescription>
+                          Identify a new risk and assign ownership for mitigation.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="title">Title</Label>
+                          <Input
+                            id="title"
+                            value={riskForm.title || ''}
+                            onChange={(e) => setRiskForm({...riskForm, title: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea
+                            id="description"
+                            value={riskForm.description || ''}
+                            onChange={(e) => setRiskForm({...riskForm, description: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="impact">Impact</Label>
+                            <Select 
+                              value={riskForm.impact || 'medium'}
+                              onValueChange={(value) => setRiskForm({...riskForm, impact: value as Risk['impact']})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select impact" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="severe">Severe</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="probability">Probability</Label>
+                            <Select 
+                              value={riskForm.probability || 'medium'}
+                              onValueChange={(value) => setRiskForm({...riskForm, probability: value as Risk['probability']})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select probability" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="certain">Certain</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="owner">Owner</Label>
+                          <Input
+                            id="owner"
+                            value={riskForm.owner || ''}
+                            onChange={(e) => setRiskForm({...riskForm, owner: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="dateIdentified">Date Identified</Label>
+                          <Input
+                            id="dateIdentified"
+                            type="date"
+                            value={riskForm.dateIdentified || ''}
+                            onChange={(e) => setRiskForm({...riskForm, dateIdentified: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="mitigation">Mitigation Plan</Label>
+                          <Textarea
+                            id="mitigation"
+                            value={riskForm.mitigation || ''}
+                            onChange={(e) => setRiskForm({...riskForm, mitigation: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="kraId">Related KRA</Label>
+                          <Select 
+                            value={riskForm.kraId || ''}
+                            onValueChange={(value) => {
+                              const kra = [...kras, ...closedKras].find(k => k.id === value);
+                              setRiskForm({
+                                ...riskForm, 
+                                kraId: value,
+                                kraName: kra?.name || ''
+                              });
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a KRA" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {[...kras, ...closedKras].map(kra => (
+                                <SelectItem key={kra.id} value={kra.id}>{kra.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddRiskDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAddRisk}>
+                          Add Risk
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </TabsContent>
 
                 <TabsContent value="reports">
