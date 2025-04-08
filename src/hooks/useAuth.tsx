@@ -46,7 +46,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Default admin for demo purposes only
 const defaultAdmin = {
   id: '1',
-  email: 'admin@scpng.com',
+  email: 'admin@app.com',
   name: 'Admin User',
   role: 'admin' as UserRole,
   unitName: 'IT'
@@ -55,7 +55,7 @@ const defaultAdmin = {
 // List of emails that should receive admin role when authenticating
 const adminEmails = [
   'geosyncsurvey@gmail.com',
-  'admin@scpng.com'
+  'admin@app.com'
 ];
 
 // Mock business units for SCPNG context
@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     // Special case for the default admin (demo only)
-    if (email.toLowerCase() === 'admin@scpng.com' && password === 'admin') {
+    if (email.toLowerCase() === 'admin@app.com' && password === 'admin') {
       setUser(defaultAdmin);
       localStorage.setItem('user', JSON.stringify(defaultAdmin));
       return Promise.resolve();

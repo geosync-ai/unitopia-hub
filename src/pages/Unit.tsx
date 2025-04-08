@@ -510,6 +510,176 @@ const Unit = () => {
     progress: Math.random() * 100 // In a real app, this would be calculated from actual data
   }));
   
+  // Add new state variables for filters and sorting
+  const [filters, setFilters] = useState({
+    department: '',
+    responsibleOfficer: '',
+    status: '',
+    progressRange: ''
+  });
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'ascending' | 'descending';
+  } | null>(null);
+
+  // Add a function to handle sorting
+  const handleSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    
+    setSortConfig({ key, direction });
+  };
+
+  // Add a function to get sorted and filtered KRAs
+  const getSortedAndFilteredKRAs = (kras: KRA[]) => {
+    let filteredKRAs = [...kras];
+    
+    // Apply filters
+    if (filters.department) {
+      filteredKRAs = filteredKRAs.filter(kra => 
+        kra.kpis.length > 0 && kra.kpis[0].department === filters.department
+      );
+    }
+    
+    if (filters.responsibleOfficer) {
+      filteredKRAs = filteredKRAs.filter(kra => 
+        kra.kpis.length > 0 && kra.kpis[0].responsibleOfficer === filters.responsibleOfficer
+      );
+    }
+    
+    if (filters.status) {
+      filteredKRAs = filteredKRAs.filter(kra => kra.status === filters.status);
+    }
+    
+    if (filters.progressRange) {
+      filteredKRAs = filteredKRAs.filter(kra => {
+        if (kra.kpis.length === 0) return false;
+        
+        const progress = kra.kpis[0].progress;
+        
+        switch (filters.progressRange) {
+          case 'low':
+            return progress < 50;
+          case 'medium':
+            return progress >= 50 && progress < 80;
+          case 'high':
+            return progress >= 80;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Apply sorting
+    if (sortConfig) {
+      filteredKRAs.sort((a, b) => {
+        let aValue: any = '';
+        let bValue: any = '';
+        
+        switch (sortConfig.key) {
+          case 'name':
+            aValue = a.name;
+            bValue = b.name;
+            break;
+          case 'objective':
+            aValue = a.objectiveName;
+            bValue = b.objectiveName;
+            break;
+          case 'status':
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case 'progress':
+            aValue = a.kpis.length > 0 ? a.kpis[0].progress : 0;
+            bValue = b.kpis.length > 0 ? b.kpis[0].progress : 0;
+            break;
+          case 'department':
+            aValue = a.kpis.length > 0 ? a.kpis[0].department : '';
+            bValue = b.kpis.length > 0 ? b.kpis[0].department : '';
+            break;
+          case 'responsibleOfficer':
+            aValue = a.kpis.length > 0 ? a.kpis[0].responsibleOfficer : '';
+            bValue = b.kpis.length > 0 ? b.kpis[0].responsibleOfficer : '';
+            break;
+          case 'startDate':
+            aValue = a.kpis.length > 0 ? new Date(a.kpis[0].startDate).getTime() : 0;
+            bValue = b.kpis.length > 0 ? new Date(b.kpis[0].startDate).getTime() : 0;
+            break;
+          case 'endDate':
+            aValue = a.kpis.length > 0 ? new Date(a.kpis[0].endDate).getTime() : 0;
+            bValue = b.kpis.length > 0 ? new Date(b.kpis[0].endDate).getTime() : 0;
+            break;
+          default:
+            return 0;
+        }
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    
+    return filteredKRAs;
+  };
+
+  // Add a function to get progress color
+  const getProgressColor = (progress: number) => {
+    if (progress < 50) return 'bg-red-500';
+    if (progress < 80) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  // Add a function to check if KRA is overdue
+  const isKRAOverdue = (kra: KRA) => {
+    if (kra.kpis.length === 0) return false;
+    
+    const endDate = new Date(kra.kpis[0].endDate);
+    const today = new Date();
+    
+    return endDate < today && kra.kpis[0].progress < 100;
+  };
+
+  // Add a function to check if KRA is at risk
+  const isKRAAtRisk = (kra: KRA) => {
+    if (kra.kpis.length === 0) return false;
+    
+    const endDate = new Date(kra.kpis[0].endDate);
+    const today = new Date();
+    const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return daysLeft < 30 && kra.kpis[0].progress < 50;
+  };
+
+  // Add a function to get unique departments
+  const getUniqueDepartments = (kras: KRA[]) => {
+    const departments = new Set<string>();
+    kras.forEach(kra => {
+      if (kra.kpis.length > 0 && kra.kpis[0].department) {
+        departments.add(kra.kpis[0].department);
+      }
+    });
+    return Array.from(departments);
+  };
+
+  // Add a function to get unique responsible officers
+  const getUniqueResponsibleOfficers = (kras: KRA[]) => {
+    const officers = new Set<string>();
+    kras.forEach(kra => {
+      if (kra.kpis.length > 0 && kra.kpis[0].responsibleOfficer) {
+        officers.add(kra.kpis[0].responsibleOfficer);
+      }
+    });
+    return Array.from(officers);
+  };
+
   // Functions
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -877,139 +1047,637 @@ const Unit = () => {
     }
   };
   
+  // Add new state variables for inline editing
+  const [editingCell, setEditingCell] = useState<{
+    kraId: number;
+    field: string;
+    value: string;
+  } | null>(null);
+
+  // Add a function to handle inline editing
+  const handleInlineEdit = (kraId: number, field: string, value: string) => {
+    setEditingCell({ kraId, field, value });
+  };
+
+  // Add a function to save inline edits
+  const saveInlineEdit = () => {
+    if (!editingCell) return;
+    
+    const { kraId, field, value } = editingCell;
+    
+    // Find the KRA to update
+    const kraToUpdate = kras.find(k => k.id === kraId);
+    if (!kraToUpdate) return;
+    
+    // Create a copy of the KRA
+    const updatedKRA = { ...kraToUpdate };
+    
+    // Update the appropriate field
+    if (field === 'name') {
+      updatedKRA.name = value;
+    } else if (field === 'status') {
+      updatedKRA.status = value as 'open' | 'in-progress' | 'closed';
+    } else if (field.startsWith('kpi_')) {
+      // Handle KPI field updates
+      const kpiField = field.split('_')[1];
+      if (updatedKRA.kpis.length > 0) {
+        const updatedKPI = { ...updatedKRA.kpis[0] };
+        
+        if (kpiField === 'name') {
+          updatedKPI.name = value;
+        } else if (kpiField === 'current') {
+          updatedKPI.current = value;
+          // Recalculate progress
+          const current = parseFloat(value);
+          const target = parseFloat(updatedKPI.target);
+          updatedKPI.progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        } else if (kpiField === 'target') {
+          updatedKPI.target = value;
+          // Recalculate progress
+          const current = parseFloat(updatedKPI.current);
+          const target = parseFloat(value);
+          updatedKPI.progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        } else if (kpiField === 'department') {
+          updatedKPI.department = value;
+        } else if (kpiField === 'responsibleOfficer') {
+          updatedKPI.responsibleOfficer = value;
+        } else if (kpiField === 'startDate') {
+          updatedKPI.startDate = value;
+        } else if (kpiField === 'endDate') {
+          updatedKPI.endDate = value;
+        }
+        
+        updatedKRA.kpis = [updatedKPI];
+      }
+    }
+    
+    // Update the KRAs state
+    setKras(kras.map(k => k.id === kraId ? updatedKRA : k));
+    
+    // Clear the editing cell
+    setEditingCell(null);
+    
+    // Show success message
+    toast.success('KRA updated successfully');
+  };
+
+  // Add a function to cancel inline editing
+  const cancelInlineEdit = () => {
+    setEditingCell(null);
+  };
+  
   // Render functions
-  const renderKRATable = (kras: KRA[], isClosed = false) => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">{isClosed ? 'Closed KRAs' : 'Active KRAs'}</h3>
-        {!isClosed && (
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1"
-              onClick={() => document.getElementById('excel-upload')?.click()}
-              disabled={isUploadingExcel}
-            >
-              {isUploadingExcel ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <span>Uploading...</span>
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className="h-4 w-4" />
-                  <span>Import from Excel</span>
-                </>
-              )}
-            </Button>
-            <input 
-              id="excel-upload" 
-              type="file" 
-              accept=".xlsx,.xls" 
-              className="hidden" 
-              onChange={handleExcelUpload} 
-            />
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1"
-              onClick={() => setIsAddKRADialogOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add KRA</span>
-            </Button>
-          </div>
-        )}
-      </div>
-      
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>KRA Name/ID</TableHead>
-            <TableHead>Objective Linked</TableHead>
-            <TableHead>KPI</TableHead>
-            <TableHead>Status</TableHead>
-            {isSidebarCollapsed && (
-              <>
-                <TableHead>Progress</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Responsible Officer</TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>End Date</TableHead>
-              </>
-            )}
-            <TableHead className="w-[100px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {kras.map((kra) => (
-            <TableRow key={kra.id}>
-              <TableCell className="font-medium">
-                <div>{kra.name}</div>
-                <div className="text-xs text-gray-500">ID: {kra.id}</div>
-              </TableCell>
-              <TableCell>
-                <div>{kra.objectiveName}</div>
-                <div className="text-xs text-gray-500">ID: {kra.objectiveId}</div>
-              </TableCell>
-              <TableCell>
-                {kra.kpis.length > 0 ? (
-                  <div className="flex items-center gap-2">
-                    <span>{kra.kpis[0].name}:</span>
-                    <div className="flex items-center gap-1">
-                      {getKPIStatusIcon(kra.kpis[0].status)}
-                      <span className="text-xs">{kra.kpis[0].current} / {kra.kpis[0].target}</span>
-                    </div>
-                  </div>
+  const renderKRATable = (kras: KRA[], isClosed = false) => {
+    const sortedAndFilteredKRAs = getSortedAndFilteredKRAs(kras);
+    const uniqueDepartments = getUniqueDepartments(kras);
+    const uniqueResponsibleOfficers = getUniqueResponsibleOfficers(kras);
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-medium">{isClosed ? 'Closed KRAs' : 'Active KRAs'}</h3>
+          {!isClosed && (
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={() => document.getElementById('excel-upload')?.click()}
+                disabled={isUploadingExcel}
+              >
+                {isUploadingExcel ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span>Uploading...</span>
+                  </>
                 ) : (
-                  <span className="text-gray-400">No KPI</span>
+                  <>
+                    <FileSpreadsheet className="h-4 w-4" />
+                    <span>Import from Excel</span>
+                  </>
                 )}
-              </TableCell>
-              <TableCell>
-                {getStatusBadge(kra.status)}
-              </TableCell>
+              </Button>
+              <input 
+                id="excel-upload" 
+                type="file" 
+                accept=".xlsx,.xls" 
+                className="hidden" 
+                onChange={handleExcelUpload} 
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={() => setIsAddKRADialogOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add KRA</span>
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
+          <div className="space-y-2">
+            <Label>Department</Label>
+            <Select 
+              value={filters.department} 
+              onValueChange={(value) => setFilters({...filters, department: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Departments</SelectItem>
+                {uniqueDepartments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Responsible Officer</Label>
+            <Select 
+              value={filters.responsibleOfficer} 
+              onValueChange={(value) => setFilters({...filters, responsibleOfficer: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Officers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Officers</SelectItem>
+                {uniqueResponsibleOfficers.map((officer) => (
+                  <SelectItem key={officer} value={officer}>{officer}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select 
+              value={filters.status} 
+              onValueChange={(value) => setFilters({...filters, status: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Progress Range</Label>
+            <Select 
+              value={filters.progressRange} 
+              onValueChange={(value) => setFilters({...filters, progressRange: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Progress" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Progress</SelectItem>
+                <SelectItem value="low">Low (&lt; 50%)</SelectItem>
+                <SelectItem value="medium">Medium (50% - 80%)</SelectItem>
+                <SelectItem value="high">High (&gt; 80%)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead 
+                className="cursor-pointer"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1">
+                  KRA Name/ID
+                  {sortConfig?.key === 'name' && (
+                    <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer"
+                onClick={() => handleSort('objective')}
+              >
+                <div className="flex items-center gap-1">
+                  Objective Linked
+                  {sortConfig?.key === 'objective' && (
+                    <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </TableHead>
+              <TableHead>KPI</TableHead>
+              <TableHead 
+                className="cursor-pointer"
+                onClick={() => handleSort('status')}
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  {sortConfig?.key === 'status' && (
+                    <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </TableHead>
               {isSidebarCollapsed && (
                 <>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort('progress')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Progress
+                      {sortConfig?.key === 'progress' && (
+                        <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort('department')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Department
+                      {sortConfig?.key === 'department' && (
+                        <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort('responsibleOfficer')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Responsible Officer
+                      {sortConfig?.key === 'responsibleOfficer' && (
+                        <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort('startDate')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Start Date
+                      {sortConfig?.key === 'startDate' && (
+                        <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSort('endDate')}
+                  >
+                    <div className="flex items-center gap-1">
+                      End Date
+                      {sortConfig?.key === 'endDate' && (
+                        <span>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                </>
+              )}
+              <TableHead className="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedAndFilteredKRAs.length > 0 ? (
+              sortedAndFilteredKRAs.map((kra) => (
+                <TableRow 
+                  key={kra.id}
+                  className={isKRAOverdue(kra) ? 'bg-red-50 dark:bg-red-900/20' : ''}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {isKRAAtRisk(kra) && (
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <div>
+                        {editingCell && editingCell.kraId === kra.id && editingCell.field === 'name' ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={editingCell.value}
+                              onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveInlineEdit();
+                                if (e.key === 'Escape') cancelInlineEdit();
+                              }}
+                              autoFocus
+                              className="h-7 py-1"
+                            />
+                            <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div 
+                            className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                            onClick={() => handleInlineEdit(kra.id, 'name', kra.name)}
+                          >
+                            <div>{kra.name}</div>
+                            <div className="text-xs text-gray-500">ID: {kra.id}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>{kra.objectiveName}</div>
+                    <div className="text-xs text-gray-500">ID: {kra.objectiveId}</div>
+                  </TableCell>
                   <TableCell>
                     {kra.kpis.length > 0 ? (
                       <div className="flex items-center gap-2">
-                        <Progress value={kra.kpis[0].progress} className="w-16" />
-                        <span className="text-xs">{kra.kpis[0].progress}%</span>
+                        {editingCell && editingCell.kraId === kra.id && editingCell.field === 'kpi_name' ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={editingCell.value}
+                              onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveInlineEdit();
+                                if (e.key === 'Escape') cancelInlineEdit();
+                              }}
+                              autoFocus
+                              className="h-7 py-1"
+                            />
+                            <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div 
+                            className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                            onClick={() => handleInlineEdit(kra.id, 'kpi_name', kra.kpis[0].name)}
+                          >
+                            <span>{kra.kpis[0].name}:</span>
+                            <div className="flex items-center gap-1">
+                              {getKPIStatusIcon(kra.kpis[0].status)}
+                              {editingCell && editingCell.kraId === kra.id && editingCell.field === 'kpi_current' ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    value={editingCell.value}
+                                    onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveInlineEdit();
+                                      if (e.key === 'Escape') cancelInlineEdit();
+                                    }}
+                                    autoFocus
+                                    className="h-7 py-1 w-16"
+                                  />
+                                  <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                                    <XCircle className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span 
+                                  className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                                  onClick={() => handleInlineEdit(kra.id, 'kpi_current', kra.kpis[0].current)}
+                                >
+                                  {kra.kpis[0].current} / {kra.kpis[0].target}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400">No KPI</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    {kra.kpis.length > 0 ? kra.kpis[0].department : <span className="text-gray-400">-</span>}
+                    {editingCell && editingCell.kraId === kra.id && editingCell.field === 'status' ? (
+                      <div className="flex items-center gap-1">
+                        <Select 
+                          value={editingCell.value} 
+                          onValueChange={(value) => setEditingCell({...editingCell, value})}
+                          open={true}
+                        >
+                          <SelectTrigger className="h-7 py-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div 
+                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                        onClick={() => handleInlineEdit(kra.id, 'status', kra.status)}
+                      >
+                        {getStatusBadge(kra.status)}
+                      </div>
+                    )}
                   </TableCell>
+                  {isSidebarCollapsed && (
+                    <>
+                      <TableCell>
+                        {kra.kpis.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${getProgressColor(kra.kpis[0].progress)}`} 
+                                style={{ width: `${kra.kpis[0].progress}%` }}
+                              />
+                            </div>
+                            <span className="text-xs">{kra.kpis[0].progress}%</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {kra.kpis.length > 0 ? (
+                          editingCell && editingCell.kraId === kra.id && editingCell.field === 'kpi_department' ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editingCell.value}
+                                onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveInlineEdit();
+                                  if (e.key === 'Escape') cancelInlineEdit();
+                                }}
+                                autoFocus
+                                className="h-7 py-1"
+                              />
+                              <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                              onClick={() => handleInlineEdit(kra.id, 'kpi_department', kra.kpis[0].department)}
+                            >
+                              {kra.kpis[0].department}
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {kra.kpis.length > 0 ? (
+                          editingCell && editingCell.kraId === kra.id && editingCell.field === 'kpi_responsibleOfficer' ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editingCell.value}
+                                onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveInlineEdit();
+                                  if (e.key === 'Escape') cancelInlineEdit();
+                                }}
+                                autoFocus
+                                className="h-7 py-1"
+                              />
+                              <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                              onClick={() => handleInlineEdit(kra.id, 'kpi_responsibleOfficer', kra.kpis[0].responsibleOfficer)}
+                            >
+                              {kra.kpis[0].responsibleOfficer}
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {kra.kpis.length > 0 ? (
+                          editingCell && editingCell.kraId === kra.id && editingCell.field === 'kpi_startDate' ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="date"
+                                value={editingCell.value}
+                                onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveInlineEdit();
+                                  if (e.key === 'Escape') cancelInlineEdit();
+                                }}
+                                autoFocus
+                                className="h-7 py-1"
+                              />
+                              <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                              onClick={() => handleInlineEdit(kra.id, 'kpi_startDate', kra.kpis[0].startDate)}
+                            >
+                              {new Date(kra.kpis[0].startDate).toLocaleDateString()}
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {kra.kpis.length > 0 ? (
+                          editingCell && editingCell.kraId === kra.id && editingCell.field === 'kpi_endDate' ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="date"
+                                value={editingCell.value}
+                                onChange={(e) => setEditingCell({...editingCell, value: e.target.value})}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveInlineEdit();
+                                  if (e.key === 'Escape') cancelInlineEdit();
+                                }}
+                                autoFocus
+                                className="h-7 py-1"
+                              />
+                              <Button size="sm" variant="ghost" onClick={saveInlineEdit} className="h-7 px-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={cancelInlineEdit} className="h-7 px-2">
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <div 
+                                className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                                onClick={() => handleInlineEdit(kra.id, 'kpi_endDate', kra.kpis[0].endDate)}
+                              >
+                                {new Date(kra.kpis[0].endDate).toLocaleDateString()}
+                              </div>
+                              {isKRAOverdue(kra) && (
+                                <AlertCircle className="h-3 w-3 text-red-500" />
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    </>
+                  )}
                   <TableCell>
-                    {kra.kpis.length > 0 ? kra.kpis[0].responsibleOfficer : <span className="text-gray-400">-</span>}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleEditKRA(kra)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </TableCell>
-                  <TableCell>
-                    {kra.kpis.length > 0 ? new Date(kra.kpis[0].startDate).toLocaleDateString() : <span className="text-gray-400">-</span>}
-                  </TableCell>
-                  <TableCell>
-                    {kra.kpis.length > 0 ? new Date(kra.kpis[0].endDate).toLocaleDateString() : <span className="text-gray-400">-</span>}
-                  </TableCell>
-                </>
-              )}
-              <TableCell>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleEditKRA(kra)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={isSidebarCollapsed ? 10 : 5} className="text-center py-6 text-gray-500">
+                  No KRAs match the selected filters.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
   
   return (
     <PageLayout>
