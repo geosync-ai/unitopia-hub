@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings, FileSpreadsheet } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Target, Flag, Award, BarChart2, TrendingUp, Clock, Plus, Edit, Trash2, CheckCircle, XCircle, MessageSquare, AlertCircle, Download, Brain, List, Settings, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, PieChart, LineChart, AreaChart } from '@/components/charts';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
@@ -83,6 +83,7 @@ const Unit = () => {
   const [isKRADrawerOpen, setIsKRADrawerOpen] = useState(false);
   const [selectedKRADrawer, setSelectedKRADrawer] = useState<KRA | null>(null);
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -982,8 +983,8 @@ const Unit = () => {
         <p className="text-gray-500">Track and manage unit-level KRAs, KPIs, and objectives</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3">
+      <div className="flex gap-6">
+        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-full' : 'w-3/4'}`}>
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -1082,77 +1083,102 @@ const Unit = () => {
           </Card>
         </div>
 
-        <div className="lg:col-span-1">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>AI Assistant</CardTitle>
-              <CardDescription>Ask questions about KRAs, KPIs, and objectives</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[400px] flex flex-col">
-                <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-                  {chatMessages.map((message) => (
-                    <div 
-                      key={message.id} 
-                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div 
-                        className={`max-w-[80%] rounded-lg p-3 ${
-                          message.sender === 'user' 
-                            ? 'bg-intranet-primary text-white' 
-                            : 'bg-gray-100 dark:bg-gray-800'
-                        }`}
-                      >
-                        {message.message}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Ask a question..." 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  />
-                  <Button onClick={handleSendMessage}>
-                    <MessageSquare className="h-4 w-4" />
+        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-1/4'}`}>
+          <div className="sticky top-4">
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>AI Assistant</CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className="ml-auto"
+                  >
+                    {isSidebarCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm text-gray-500">Active KRAs</div>
-                  <div className="text-2xl font-bold">{kras.length}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Closed KRAs</div>
-                  <div className="text-2xl font-bold">{closedKras.length}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Total KPIs</div>
-                  <div className="text-2xl font-bold">
-                    {[...kras, ...closedKras].flatMap(k => k.kpis).length}
+                <CardDescription>Ask questions about KRAs, KPIs, and objectives</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[400px] flex flex-col">
+                  <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+                    {chatMessages.map((message) => (
+                      <div 
+                        key={message.id} 
+                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div 
+                          className={`max-w-[80%] rounded-lg p-3 ${
+                            message.sender === 'user' 
+                              ? 'bg-intranet-primary text-white' 
+                              : 'bg-gray-100 dark:bg-gray-800'
+                          }`}
+                        >
+                          {message.message}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Ask a question..." 
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    />
+                    <Button onClick={handleSendMessage}>
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <div>
-                  <div className="text-sm text-gray-500">KPIs On Track</div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {[...kras, ...closedKras].flatMap(k => k.kpis).filter(k => k.status === 'on-track').length}
+              </CardContent>
+            </Card>
+            
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Quick Stats</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm text-gray-500">Active KRAs</div>
+                    <div className="text-2xl font-bold">{kras.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Closed KRAs</div>
+                    <div className="text-2xl font-bold">{closedKras.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Total KPIs</div>
+                    <div className="text-2xl font-bold">
+                      {[...kras, ...closedKras].flatMap(k => k.kpis).length}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">KPIs On Track</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {[...kras, ...closedKras].flatMap(k => k.kpis).filter(k => k.status === 'on-track').length}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+
+        {/* Floating toggle button when sidebar is collapsed */}
+        {isSidebarCollapsed && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setIsSidebarCollapsed(false)}
+            className="fixed right-4 top-20 z-10 shadow-md"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            <span>Show Sidebar</span>
+          </Button>
+        )}
       </div>
       
       {/* PDF Report Dialog */}
