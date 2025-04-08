@@ -87,7 +87,7 @@ interface TimelineKRA {
 
 const Unit = () => {
   // State
-  const [activeTab, setActiveTab] = useState('active-kras');
+  const [activeTab, setActiveTab] = useState('kras');
   const [selectedUnit, setSelectedUnit] = useState('all');
   const [isAddKRADialogOpen, setIsAddKRADialogOpen] = useState(false);
   const [isEditKRADialogOpen, setIsEditKRADialogOpen] = useState(false);
@@ -1679,97 +1679,147 @@ const Unit = () => {
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="mb-4">
-                  <TabsTrigger value="active-kras">Active KRAs</TabsTrigger>
-                  <TabsTrigger value="closed-kras">Closed KRAs</TabsTrigger>
-                  <TabsTrigger value="insights">Insights</TabsTrigger>
-                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  <TabsTrigger value="tasks" className="flex items-center gap-2">
+                    <span>📝</span> Tasks / Daily Ops
+                  </TabsTrigger>
+                  <TabsTrigger value="kras" className="flex items-center gap-2">
+                    <span>🎯</span> KRAs/KPIs
+                  </TabsTrigger>
+                  <TabsTrigger value="projects" className="flex items-center gap-2">
+                    <span>📁</span> Projects
+                  </TabsTrigger>
+                  <TabsTrigger value="risks" className="flex items-center gap-2">
+                    <span>⚠️</span> Risks & Issues
+                  </TabsTrigger>
+                  <TabsTrigger value="reports" className="flex items-center gap-2">
+                    <span>📊</span> Reports
+                  </TabsTrigger>
                 </TabsList>
-                <TabsContent value="active-kras">
-                  {filteredKras.length > 0 ? (
-                    renderKRATable(filteredKras)
-                  ) : (
-                    <div className="text-center py-6 text-gray-500">
-                      No active KRAs found. Click "Add KRA" to create one.
-                    </div>
-                  )}
-                </TabsContent>
-                <TabsContent value="closed-kras">
-                  {filteredClosedKras.length > 0 ? (
-                    renderKRATable(filteredClosedKras, true)
-                  ) : (
-                    <div className="text-center py-6 text-gray-500">
-                      No closed KRAs found.
-                    </div>
-                  )}
-                </TabsContent>
-                <TabsContent value="insights">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>KRA Status Distribution</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-64">
-                          <PieChart data={kraStatusData} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>KPI Progress</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-64">
-                          <BarChart data={kpiProgressData} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="md:col-span-2">
-                      <CardHeader>
-                        <CardTitle>KPI Trends Over Time</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-64">
-                          <LineChart data={kpiTrendData} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="md:col-span-2">
-                      <CardHeader>
-                        <CardTitle>Objective Progress</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-64">
-                          <AreaChart data={objectiveProgressData} />
-                        </div>
-                      </CardContent>
-                    </Card>
+
+                <TabsContent value="tasks">
+                  <div className="text-center py-6 text-gray-500">
+                    Tasks and daily operations content will be displayed here.
                   </div>
                 </TabsContent>
-                <TabsContent value="timeline">
-                  <KRATimeline kras={kras.map(kra => {
-                    const timelineKra: TimelineKRA = {
-                      id: kra.id,
-                      name: kra.name,
-                      department: kra.department,
-                      responsible: kra.responsible,
-                      startDate: kra.startDate,
-                      endDate: kra.endDate,
-                      progress: kra.progress,
-                      status: kra.status,
-                      kpis: kra.kpis.map(kpi => ({
-                        id: kpi.id,
-                        name: kpi.name,
-                        date: new Date(kpi.date),
-                        target: kpi.target,
-                        actual: kpi.actual,
-                        status: kpi.status,
-                        description: kpi.description,
-                        notes: kpi.notes
-                      }))
-                    };
-                    return timelineKra as unknown as KRA; // Use a more specific type assertion
-                  })} />
+
+                <TabsContent value="kras">
+                  <Tabs defaultValue="active-kras">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="active-kras">Active KRAs</TabsTrigger>
+                      <TabsTrigger value="closed-kras">Closed KRAs</TabsTrigger>
+                      <TabsTrigger value="insights">Insights</TabsTrigger>
+                      <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="active-kras">
+                      {filteredKras.length > 0 ? (
+                        renderKRATable(filteredKras)
+                      ) : (
+                        <div className="text-center py-6 text-gray-500">
+                          No active KRAs found. Click "Add KRA" to create one.
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="closed-kras">
+                      {filteredClosedKras.length > 0 ? (
+                        renderKRATable(filteredClosedKras, true)
+                      ) : (
+                        <div className="text-center py-6 text-gray-500">
+                          No closed KRAs found.
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="insights">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>KRA Status Distribution</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="h-64">
+                              <PieChart data={kraStatusData} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>KPI Progress</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="h-64">
+                              <BarChart data={kpiProgressData} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="md:col-span-2">
+                          <CardHeader>
+                            <CardTitle>KPI Trends Over Time</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="h-64">
+                              <LineChart data={kpiTrendData} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="md:col-span-2">
+                          <CardHeader>
+                            <CardTitle>Objective Progress</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="h-64">
+                              <AreaChart data={objectiveProgressData} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="timeline">
+                      <KRATimeline kras={kras.map(kra => {
+                        const timelineKra: TimelineKRA = {
+                          id: kra.id,
+                          name: kra.name,
+                          department: kra.department,
+                          responsible: kra.responsible,
+                          startDate: kra.startDate,
+                          endDate: kra.endDate,
+                          progress: kra.progress,
+                          status: kra.status,
+                          kpis: kra.kpis.map(kpi => ({
+                            id: kpi.id,
+                            name: kpi.name,
+                            date: new Date(kpi.date),
+                            target: kpi.target,
+                            actual: kpi.actual,
+                            status: kpi.status,
+                            description: kpi.description,
+                            notes: kpi.notes
+                          }))
+                        };
+                        return timelineKra as unknown as KRA; // Use a more specific type assertion
+                      })} />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+
+                <TabsContent value="projects">
+                  <div className="text-center py-6 text-gray-500">
+                    Projects content will be displayed here.
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="risks">
+                  <div className="text-center py-6 text-gray-500">
+                    Risks and issues content will be displayed here.
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="reports">
+                  <div className="text-center py-6 text-gray-500">
+                    Reports content will be displayed here.
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
