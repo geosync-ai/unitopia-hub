@@ -171,6 +171,7 @@ const Unit = () => {
   const [kraFilters, setKraFilters] = useState({ status: 'all', department: 'all', responsible: 'all' });
   const [projectFilters, setProjectFilters] = useState({ status: 'all', department: 'all', manager: 'all' });
   const [riskFilters, setRiskFilters] = useState({ status: 'all', impact: 'all', probability: 'all', owner: 'all' });
+  const [taskFilters, setTaskFilters] = useState({ status: 'all', priority: 'all', assignee: 'all' }); // <-- Add Task Filter State
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -1576,8 +1577,17 @@ const Unit = () => {
   };
 
   const getFilteredTasks = () => {
-    if (taskFilter === 'all') return tasks;
-    return tasks.filter(task => task.status === taskFilter);
+    let items = [...tasks];
+    if (taskFilters.status !== 'all') {
+      items = items.filter(task => task.status === taskFilters.status);
+    }
+    if (taskFilters.priority !== 'all') {
+      items = items.filter(task => task.priority === taskFilters.priority);
+    }
+    if (taskFilters.assignee !== 'all') {
+      items = items.filter(task => task.assignee === taskFilters.assignee);
+    }
+    return items;
   };
   
   // Add risks state
@@ -2640,43 +2650,36 @@ const Unit = () => {
 
                 <TabsContent value="tasks">
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
+                      {/* Add Task Filters */}
                       <div className="flex space-x-2">
-                        <Button 
-                          variant={taskFilter === 'all' ? 'default' : 'outline'} 
-                          onClick={() => setTaskFilter('all')}
-                          size="sm"
-                        >
-                          All
-                        </Button>
-                        <Button 
-                          variant={taskFilter === 'pending' ? 'default' : 'outline'} 
-                          onClick={() => setTaskFilter('pending')}
-                          size="sm"
-                        >
-                          Pending
-                        </Button>
-                        <Button 
-                          variant={taskFilter === 'in-progress' ? 'default' : 'outline'} 
-                          onClick={() => setTaskFilter('in-progress')}
-                          size="sm"
-                        >
-                          In Progress
-                        </Button>
-                        <Button 
-                          variant={taskFilter === 'blocked' ? 'default' : 'outline'} 
-                          onClick={() => setTaskFilter('blocked')}
-                          size="sm"
-                        >
-                          Blocked
-                        </Button>
-                        <Button 
-                          variant={taskFilter === 'completed' ? 'default' : 'outline'} 
-                          onClick={() => setTaskFilter('completed')}
-                          size="sm"
-                        >
-                          Completed
-                        </Button>
+                        <Select value={taskFilters.status} onValueChange={(value) => setTaskFilters({...taskFilters, status: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="blocked">Blocked</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={taskFilters.priority} onValueChange={(value) => setTaskFilters({...taskFilters, priority: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Priority" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Priorities</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={taskFilters.assignee} onValueChange={(value) => setTaskFilters({...taskFilters, assignee: value})}>
+                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Assignee" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Assignees</SelectItem>
+                            {[...new Set(tasks.map(t => t.assignee))].map(assignee => assignee && <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <Button onClick={() => setIsAddTaskDialogOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -2767,7 +2770,7 @@ const Unit = () => {
                     </TabsList>
                     
                     <TabsContent value="active-kras">
-                      {/* Add KRA Filters */} 
+                      {/* Add KRA Filters */}
                       <div className="flex space-x-2 mb-4">
                         <Select value={kraFilters.status} onValueChange={(value) => setKraFilters({...kraFilters, status: value})}>
                           <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
