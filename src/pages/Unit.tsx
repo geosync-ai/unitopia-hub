@@ -3093,6 +3093,25 @@ const Unit = () => {
     );
   };
 
+  // Add a converter function to convert our KRA type to KRATimeline component's KRA type
+  const convertKRAsForTimeline = (kras: KRA[]): any[] => {
+    return kras.map(kra => ({
+      id: kra.id,
+      name: kra.name,
+      objectiveId: kra.objectiveId,
+      objectiveName: kra.objectiveName || '',
+      department: kra.department,
+      responsible: kra.responsible,
+      startDate: typeof kra.startDate === 'string' ? new Date(kra.startDate) : kra.startDate,
+      endDate: typeof kra.endDate === 'string' ? new Date(kra.endDate) : kra.endDate,
+      progress: kra.progress,
+      status: kra.status,
+      kpis: kra.kpis,
+      createdAt: kra.createdAt || new Date().toISOString(),
+      updatedAt: kra.updatedAt || new Date().toISOString()
+    }));
+  };
+
   return (
     <PageLayout>
       <div className="flex justify-between items-center mb-6">
@@ -3100,47 +3119,155 @@ const Unit = () => {
         {/* Unit selector and other controls would go here */}
       </div>
 
-      <Tabs defaultValue="kras" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="kras" className="flex items-center gap-1">
-            <Target className="h-4 w-4" />
-            KRAs/KPIs
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            Tasks/Daily Operations
-          </TabsTrigger>
-          <TabsTrigger value="projects" className="flex items-center gap-1">
-            <BarChart2 className="h-4 w-4" />
-            Projects
-          </TabsTrigger>
-          <TabsTrigger value="risks" className="flex items-center gap-1">
-            <AlertCircle className="h-4 w-4" />
-            Risks
-          </TabsTrigger>
-        </TabsList>
+      {/* Main content grid with left and right sections */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left section (main content) - takes 2/3 of the width on medium screens and up */}
+        <div className="md:col-span-2">
+          <Tabs defaultValue="kras" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="kras" className="flex items-center gap-1">
+                <Target className="h-4 w-4" />
+                KRAs/KPIs
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                Tasks/Daily Operations
+              </TabsTrigger>
+              <TabsTrigger value="projects" className="flex items-center gap-1">
+                <BarChart2 className="h-4 w-4" />
+                Projects
+              </TabsTrigger>
+              <TabsTrigger value="risks" className="flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                Risks
+              </TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="kras">
-          {renderKRATable(kras)} 
-          <h2 className="text-xl font-semibold mt-6 mb-3">Closed KRAs</h2>
-          {renderKRATable(closedKras, true)}
-        </TabsContent>
+            <TabsContent value="kras">
+              {renderKRATable(kras)} 
+              <h2 className="text-xl font-semibold mt-6 mb-3">Closed KRAs</h2>
+              {renderKRATable(closedKras, true)}
+            </TabsContent>
 
-        <TabsContent value="tasks">
-          {renderTasksTable(tasks)} {/* Render the tasks table */}
-        </TabsContent>
+            <TabsContent value="tasks">
+              {renderTasksTable(tasks)} {/* Render the tasks table */}
+            </TabsContent>
 
-        <TabsContent value="projects">
-          {renderProjectsTable()} {/* Render the projects table */}
-        </TabsContent>
+            <TabsContent value="projects">
+              {renderProjectsTable()} {/* Render the projects table */}
+            </TabsContent>
 
-        <TabsContent value="risks">
-          {renderRisksTable()} {/* Render the risks table */}
-        </TabsContent>
+            <TabsContent value="risks">
+              {renderRisksTable()} {/* Render the risks table */}
+            </TabsContent>
 
-        {/* Reports tab can be added later */}
-        
-      </Tabs>
+            {/* Reports tab can be added later */}
+          </Tabs>
+        </div>
+
+        {/* Right section (sidebar) - takes 1/3 of the width on medium screens and up */}
+        <div className="space-y-6">
+          {/* AI Assistant Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-[#781623]" />
+                  AI Assistant
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setIsChatOpen(!isChatOpen)} 
+                  className="h-8 w-8 p-0"
+                >
+                  {isChatOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                </Button>
+              </CardTitle>
+              <CardDescription>
+                Get help with KRAs, KPIs, and performance data analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isChatOpen ? (
+                <div className="space-y-4">
+                  <div className="h-[300px] overflow-y-auto border rounded-md p-3 bg-gray-50">
+                    {chatMessages.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-gray-500">
+                        <p>Ask me anything about your KRAs and KPIs</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {chatMessages.map((msg) => (
+                          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[75%] rounded-lg px-3 py-2 ${
+                              msg.sender === 'user' 
+                                ? 'bg-[#781623] text-white' 
+                                : 'bg-gray-200 text-gray-800'
+                            }`}>
+                              <p>{msg.message}</p>
+                              <p className="text-xs opacity-70 mt-1">
+                                {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Ask a question..." 
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    />
+                    <Button 
+                      className="bg-[#781623] hover:bg-[#5d101b] text-white"
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim()}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {isGeneratingAnalysis && (
+                    <div className="flex items-center justify-center text-[#781623]">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span className="text-sm">Analyzing data...</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Button 
+                  className="w-full bg-[#781623] hover:bg-[#5d101b] text-white"
+                  onClick={() => setIsChatOpen(true)}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Start Chat
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* KRA Timeline Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-[#781623]" />
+                KRA Timeline
+              </CardTitle>
+              <CardDescription>View KRA progression over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] overflow-y-auto pr-2">
+                <KRATimeline kras={convertKRAsForTimeline([...kras, ...closedKras])} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional cards for analytics or quick actions can be added here */}
+        </div>
+      </div>
 
       {/* Add dialogs referenced elsewhere */}
       {isAddTaskDialogOpen && <AddTaskDialog />}
