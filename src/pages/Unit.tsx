@@ -22,10 +22,9 @@ import '@/styles/timeline.css';
 
 // Types
 interface KRA {
-  id: number;
+  id: string;
   name: string;
-  objectiveId: number;
-  objectiveName: string;
+  objectiveId: string;
   department: string;
   responsible: string;
   startDate: Date;
@@ -38,7 +37,7 @@ interface KRA {
 }
 
 interface KPI {
-  id: number;
+  id: string;
   name: string;
   description: string;
   department: string;
@@ -119,7 +118,7 @@ const Unit = () => {
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
     name: '',
-    objectiveId: 0,
+    objectiveId: '',
     kpis: [],
     status: 'open'
   });
@@ -163,9 +162,9 @@ const Unit = () => {
   // Mock data for KRAs
   const [kras, setKras] = useState<KRA[]>([
     { 
-      id: 1, 
+      id: '1', 
       name: "Market Expansion Strategy", 
-      objectiveId: 1,
+      objectiveId: '1',
       objectiveName: "Expand Market Presence",
       department: "Sales",
       responsible: "Sales Director",
@@ -175,7 +174,7 @@ const Unit = () => {
       status: "in-progress",
       kpis: [
         { 
-          id: 1, 
+          id: '1', 
           name: "New Market Entry", 
           description: "Number of new markets successfully entered",
           department: "Sales",
@@ -199,9 +198,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 2, 
+      id: '2', 
       name: "Customer Satisfaction Improvement", 
-      objectiveId: 2,
+      objectiveId: '2',
       objectiveName: "Enhance Customer Experience",
       department: "Customer Service",
       responsible: "Customer Service Manager",
@@ -211,7 +210,7 @@ const Unit = () => {
       status: "open",
       kpis: [
         { 
-          id: 2, 
+          id: '2', 
           name: "Customer Satisfaction Score", 
           description: "Overall customer satisfaction rating",
           department: "Customer Service",
@@ -235,9 +234,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 3, 
+      id: '3', 
       name: "Product Development Pipeline", 
-      objectiveId: 3,
+      objectiveId: '3',
       objectiveName: "Innovation and Product Development",
       department: "Product",
       responsible: "Product Manager",
@@ -247,7 +246,7 @@ const Unit = () => {
       status: "in-progress",
       kpis: [
         { 
-          id: 3, 
+          id: '3', 
           name: "New Product Launches", 
           description: "Number of successful product launches",
           department: "Product",
@@ -271,9 +270,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 4, 
+      id: '4', 
       name: "Employee Training Program", 
-      objectiveId: 4,
+      objectiveId: '4',
       objectiveName: "Workforce Development",
       department: "HR",
       responsible: "HR Manager",
@@ -283,7 +282,7 @@ const Unit = () => {
       status: "closed",
       kpis: [
         { 
-          id: 4, 
+          id: '4', 
           name: "Training Completion Rate", 
           description: "Percentage of employees completing required training",
           department: "HR",
@@ -307,9 +306,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 5, 
+      id: '5', 
       name: "Cost Reduction Initiative", 
-      objectiveId: 5,
+      objectiveId: '5',
       objectiveName: "Operational Efficiency",
       department: "Finance",
       responsible: "Finance Director",
@@ -319,7 +318,7 @@ const Unit = () => {
       status: "in-progress",
       kpis: [
         { 
-          id: 5, 
+          id: '5', 
           name: "Operational Cost Reduction", 
           description: "Percentage reduction in operational costs",
           department: "Finance",
@@ -343,9 +342,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 6, 
+      id: '6', 
       name: "Digital Transformation", 
-      objectiveId: 6,
+      objectiveId: '6',
       objectiveName: "Technology Modernization",
       department: "IT",
       responsible: "IT Director",
@@ -355,7 +354,7 @@ const Unit = () => {
       status: "in-progress",
       kpis: [
         { 
-          id: 6, 
+          id: '6', 
           name: "System Modernization", 
           description: "Percentage of legacy systems modernized",
           department: "IT",
@@ -379,9 +378,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 7, 
+      id: '7', 
       name: "Quality Assurance Program", 
-      objectiveId: 7,
+      objectiveId: '7',
       objectiveName: "Product Quality",
       department: "Quality",
       responsible: "Quality Manager",
@@ -391,7 +390,7 @@ const Unit = () => {
       status: "open",
       kpis: [
         { 
-          id: 7, 
+          id: '7', 
           name: "Defect Rate", 
           description: "Percentage of products meeting quality standards",
           department: "Quality",
@@ -415,9 +414,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 8, 
+      id: '8', 
       name: "Supply Chain Optimization", 
-      objectiveId: 8,
+      objectiveId: '8',
       objectiveName: "Supply Chain Efficiency",
       department: "Operations",
       responsible: "Operations Manager",
@@ -427,7 +426,7 @@ const Unit = () => {
       status: "in-progress",
       kpis: [
         { 
-          id: 8, 
+          id: '8', 
           name: "Supply Chain Efficiency", 
           description: "Percentage improvement in supply chain efficiency",
           department: "Operations",
@@ -451,9 +450,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 9, 
+      id: '9', 
       name: "Environmental Sustainability", 
-      objectiveId: 9,
+      objectiveId: '9',
       objectiveName: "Environmental Impact",
       department: "Sustainability",
       responsible: "Sustainability Manager",
@@ -463,7 +462,7 @@ const Unit = () => {
       status: "open",
       kpis: [
         { 
-          id: 9, 
+          id: '9', 
           name: "Carbon Footprint Reduction", 
           description: "Percentage reduction in carbon footprint",
           department: "Sustainability",
@@ -487,9 +486,9 @@ const Unit = () => {
       updatedAt: "2023-06-20"
     },
     { 
-      id: 10, 
+      id: '10', 
       name: "Market Research Initiative", 
-      objectiveId: 10,
+      objectiveId: '10',
       objectiveName: "Market Intelligence",
       department: "Marketing",
       responsible: "Marketing Director",
@@ -499,7 +498,7 @@ const Unit = () => {
       status: "in-progress",
       kpis: [
         { 
-          id: 10, 
+          id: '10', 
           name: "Market Research Coverage", 
           description: "Percentage of target markets covered by research",
           department: "Marketing",
@@ -527,9 +526,9 @@ const Unit = () => {
   // Mock data for closed KRAs
   const [closedKras, setClosedKras] = useState<KRA[]>([
     { 
-      id: 11, 
+      id: '11', 
       name: "Customer Service Improvement", 
-      objectiveId: 5,
+      objectiveId: '5',
       objectiveName: "Customer Satisfaction",
       department: "Customer Service",
       responsible: "Customer Service Manager",
@@ -538,7 +537,7 @@ const Unit = () => {
       progress: 100,
       kpis: [
         { 
-          id: 11, 
+          id: '11', 
           name: "Customer Satisfaction Score", 
           description: "Overall customer satisfaction rating",
           department: "Customer Service",
@@ -663,8 +662,8 @@ const Unit = () => {
     // Apply sorting
     if (sortConfig) {
       filteredKRAs.sort((a, b) => {
-        let aValue: any = '';
-        let bValue: any = '';
+        let aValue: string | number | Date = '';
+        let bValue: string | number | Date = '';
         
         switch (sortConfig.key) {
           case 'name':
@@ -801,14 +800,14 @@ const Unit = () => {
     }
     
     // Find objective name
-    const objective = objectives.find(obj => obj.id === kraForm.objectiveId);
+    const objective = objectives.find(obj => obj.id === parseInt(kraForm.objectiveId));
     
     // Create new KRA
     const newKRA: KRA = {
       id: Math.max(...kras.map(k => k.id), ...closedKras.map(k => k.id)) + 1,
       name: kraForm.name || '',
-      objectiveId: kraForm.objectiveId || 0,
-      objectiveName: objectives.find(obj => obj.id === kraForm.objectiveId)?.name || '',
+      objectiveId: kraForm.objectiveId || '',
+      objectiveName: objectives.find(obj => obj.id === parseInt(kraForm.objectiveId))?.name || '',
       department: kraForm.department || '',
       responsible: kraForm.responsible || '',
       startDate: kraForm.startDate || new Date(),
@@ -826,7 +825,7 @@ const Unit = () => {
     // Reset form
     setKraForm({
       name: '',
-      objectiveId: 0,
+      objectiveId: '',
       kpis: [],
       status: 'open'
     });
@@ -940,14 +939,14 @@ const Unit = () => {
     }
   };
 
-  const handleDeleteKRA = (kraId: number) => {
+  const handleDeleteKRA = (kraId: string) => {
     if (window.confirm('Are you sure you want to delete this KRA?')) {
       setKras(kras.filter(k => k.id !== kraId));
       toast.success('KRA deleted successfully');
     }
   };
 
-  const handleMoveKRA = (kraId: number, newObjectiveId: number) => {
+  const handleMoveKRA = (kraId: string, newObjectiveId: string) => {
     const kra = kras.find(k => k.id === kraId);
     if (kra) {
       const objective = objectives.find(obj => obj.id === newObjectiveId);
@@ -983,9 +982,9 @@ const Unit = () => {
       // Mock data from Excel
       const mockKRAs: KRA[] = [
         {
-          id: 1,
+          id: '1',
           name: 'Increase Market Share',
-          objectiveId: 1,
+          objectiveId: '1',
           objectiveName: 'Market Leadership',
           department: 'Marketing',
           responsible: 'Marketing Director',
@@ -995,7 +994,7 @@ const Unit = () => {
           status: 'in-progress',
           kpis: [
             {
-              id: 1,
+              id: '1',
               name: 'Market Share',
               description: "Percentage of market share in primary segments",
               department: "Marketing",
@@ -1019,9 +1018,9 @@ const Unit = () => {
           updatedAt: new Date().toISOString()
         },
         {
-          id: 2,
+          id: '2',
           name: 'Improve Customer Satisfaction',
-          objectiveId: 2,
+          objectiveId: '2',
           objectiveName: 'Customer Excellence',
           department: 'Customer Service',
           responsible: 'Customer Service Manager',
@@ -1031,7 +1030,7 @@ const Unit = () => {
           status: 'open',
           kpis: [
             {
-              id: 2,
+              id: '2',
               name: 'NPS Score',
               description: "Net Promoter Score measuring customer loyalty",
               department: "Customer Service",
@@ -1150,13 +1149,13 @@ const Unit = () => {
   
   // Add new state variables for inline editing
   const [editingCell, setEditingCell] = useState<{
-    kraId: number;
+    kraId: string;
     field: string;
     value: string;
   } | null>(null);
 
   // Add a function to handle inline editing
-  const handleInlineEdit = (kraId: number, field: string, value: string) => {
+  const handleInlineEdit = (kraId: string, field: string, value: string) => {
     setEditingCell({ kraId, field, value });
   };
 
@@ -1905,7 +1904,7 @@ const Unit = () => {
                         notes: kpi.comments
                       }))
                     };
-                    return timelineKra as any; // Use type assertion to bypass the type mismatch
+                    return timelineKra as unknown as KRA; // Use a more specific type assertion
                   })} />
                 </TabsContent>
               </Tabs>
@@ -2092,7 +2091,7 @@ const Unit = () => {
                       if (objective) {
                         setSelectedKRADrawer({
                           ...selectedKRADrawer,
-                          objectiveId: parseInt(value),
+                          objectiveId: value,
                           objectiveName: objective.name
                         });
                       }
