@@ -44,19 +44,22 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
 
   // Helper functions
   const calculatePosition = (date: Date) => {
-    const startOfYear = new Date(2023, 0, 1);
-    const endOfYear = new Date(2023, 11, 31);
+    const year = date.getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31);
     const totalDays = (endOfYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
     const daysFromStart = (date.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
-    return (daysFromStart / totalDays) * 100;
+    return Math.max(0, Math.min(100, (daysFromStart / totalDays) * 100));
   };
 
   const calculateWidth = (startDate: Date, endDate: Date) => {
-    const startOfYear = new Date(2023, 0, 1);
-    const endOfYear = new Date(2023, 11, 31);
+    const year = startDate.getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31);
     const totalDays = (endOfYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
     const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-    return (duration / totalDays) * 100;
+    const width = (duration / totalDays) * 100;
+    return Math.max(0, Math.min(100 - calculatePosition(startDate), width));
   };
 
   const getStatusColorClass = (status: string) => {
@@ -227,16 +230,40 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
             <div className="relative">
               <div className="absolute top-0 left-64 right-0 h-full flex">
                 {currentViewMode === 'quarters' && quarters.map((_, i) => (
-                  <div key={i} className="flex-1 border-r border-dashed border-gray-200" />
+                  <div 
+                    key={i} 
+                    className="flex-1 border-r border-dashed border-gray-200"
+                    style={{ 
+                      left: `${i * 25}%`,
+                      height: '100%',
+                      position: 'absolute',
+                      borderRight: i < 3 ? '1px dashed #e5e7eb' : 'none'
+                    }}
+                  />
                 ))}
                 {currentViewMode === 'months' && months.map((_, i) => (
-                  <div key={i} className="flex-1 border-r border-dashed border-gray-200" />
+                  <div 
+                    key={i} 
+                    className="flex-1 border-r border-dashed border-gray-200"
+                    style={{ 
+                      left: `${(i * 100) / 12}%`,
+                      height: '100%',
+                      position: 'absolute',
+                      borderRight: i < 11 ? '1px dashed #e5e7eb' : 'none'
+                    }}
+                  />
                 ))}
                 {currentViewMode === 'weeks' && weeks.map((_, i) => (
                   <div
                     key={i}
                     className="border-r border-dashed border-gray-200"
-                    style={{ width: '1.92%' }}
+                    style={{ 
+                      left: `${(i * 100) / 52}%`,
+                      height: '100%',
+                      position: 'absolute',
+                      borderRight: i < 51 ? '1px dashed #e5e7eb' : 'none',
+                      width: '1.92%'
+                    }}
                   />
                 ))}
               </div>
@@ -244,7 +271,7 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
               {/* KRA rows */}
               <div>
                 {kras.map(kra => (
-                  <div key={kra.id} className="flex items-start hover:bg-gray-50">
+                  <div key={kra.id} className="flex items-start hover:bg-gray-50 relative" style={{ minHeight: '4rem' }}>
                     <div className="w-48 px-4 py-2 text-sm">
                       <span className="font-medium text-gray-900">{kra.objectiveName}</span>
                     </div>
@@ -252,9 +279,9 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
                       <div className="text-sm font-medium text-gray-900">{kra.name}</div>
                       <div className="text-xs text-gray-500">{kra.department}</div>
                     </div>
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative px-2">
                       <div
-                        className="absolute h-8 rounded-md shadow-sm flex items-center"
+                        className="absolute h-8 rounded-md shadow-sm flex items-center overflow-hidden"
                         style={{
                           left: `${calculatePosition(kra.startDate)}%`,
                           width: `${calculateWidth(kra.startDate, kra.endDate)}%`,
@@ -269,11 +296,11 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
                         <span className="absolute right-2 text-xs font-medium text-gray-700">
                           {kra.progress}%
                         </span>
-
+                        
                         {kra.kpis.map(kpi => {
                           const kpiPosition = calculatePosition(kpi.date);
                           const relativePosition = (kpiPosition - calculatePosition(kra.startDate)) / calculateWidth(kra.startDate, kra.endDate) * 100;
-
+                          
                           if (relativePosition >= 0 && relativePosition <= 100) {
                             return (
                               <React.Fragment key={kpi.id}>
