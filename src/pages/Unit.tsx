@@ -119,6 +119,16 @@ interface Project {
   kraNames: string[];
 }
 
+// Define Asset interface
+interface Asset {
+  id: string;
+  name: string;
+  issuedDate: string;
+  status: 'active' | 'maintenance' | 'retired' | 'lost';
+  location?: string;
+  assignedTo: string; // Assuming it's assigned to the current user context, maybe simplify later
+}
+
 // Add TimelineKRA interface based on KRATimeline component
 interface TimelineKPI {
   id: string;
@@ -171,7 +181,11 @@ const Unit = () => {
   const [kraFilters, setKraFilters] = useState({ status: 'all', department: 'all', responsible: 'all' });
   const [projectFilters, setProjectFilters] = useState({ status: 'all', department: 'all', manager: 'all' });
   const [riskFilters, setRiskFilters] = useState({ status: 'all', impact: 'all', probability: 'all', owner: 'all' });
-  const [taskFilters, setTaskFilters] = useState({ status: 'all', priority: 'all', assignee: 'all' }); // <-- Add Task Filter State
+  const [taskFilters, setTaskFilters] = useState({ status: 'all', priority: 'all', assignee: 'all' });
+  
+  // State for editing tasks
+  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -1558,11 +1572,11 @@ const Unit = () => {
 
   const getTaskStatusColor = (status: Task['status']) => {
     switch (status) {
-      case 'pending': return 'bg-gray-200 text-gray-800';
-      case 'in-progress': return 'bg-blue-200 text-blue-800';
-      case 'completed': return 'bg-green-200 text-green-800';
-      case 'blocked': return 'bg-red-200 text-red-800';
-      default: return 'bg-gray-200 text-gray-800';
+      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-300'; // Adjusted colors for select
+      case 'in-progress': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+      case 'blocked': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -2595,1107 +2609,465 @@ const Unit = () => {
     toast.success('Project added successfully');
   };
   
-  return (
-    <PageLayout>
-      <div className="mb-6 animate-fade-in">
-        <h1 className="text-2xl font-bold mb-2">Unit Performance Dashboard</h1>
-        <p className="text-gray-500">Track and manage unit-level KRAs, KPIs, and objectives</p>
-      </div>
+  // Asset state
+  const [assets, setAssets] = useState<Asset[]>([ // Mock Asset Data
+    { id: 'ASSET-001', name: 'Laptop XPS 15', issuedDate: '2023-01-10', status: 'active', location: 'Dev Team', assignedTo: 'Current User' },
+    { id: 'ASSET-002', name: 'Monitor Dell U2723QE', issuedDate: '2023-01-10', status: 'active', location: 'Dev Team', assignedTo: 'Current User' },
+    { id: 'ASSET-003', name: 'Keyboard MX Keys', issuedDate: '2023-01-10', status: 'active', location: 'Dev Team', assignedTo: 'Current User' },
+    { id: 'ASSET-004', name: 'Docking Station WD19', issuedDate: '2023-05-20', status: 'maintenance', location: 'IT Support', assignedTo: 'Current User' },
+    { id: 'ASSET-005', name: 'Company Phone iPhone 14', issuedDate: '2022-11-01', status: 'active', assignedTo: 'Current User' },
+  ]);
+  const [assetSearchTerm, setAssetSearchTerm] = useState('');
+  const [assetStatusFilter, setAssetStatusFilter] = useState('all');
 
-      <div className="flex gap-6">
-        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-full' : 'w-3/4'}`}>
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Key Result Areas (KRAs)</CardTitle>
-                <div className="flex items-center gap-4">
-                  <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select Unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {units.map((unit) => (
-                        <SelectItem key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={generatePDFReport} size="sm" variant="outline" className="flex items-center gap-1">
-                    <Download className="h-4 w-4" />
-                    <span>Generate Report</span>
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="mb-4">
-                  <TabsTrigger value="tasks" className="flex items-center gap-2">
-                    <span>📝</span> Tasks / Daily Ops
-                  </TabsTrigger>
-                  <TabsTrigger value="kras" className="flex items-center gap-2">
-                    <span>🎯</span> KRAs/KPIs
-                  </TabsTrigger>
-                  <TabsTrigger value="projects" className="flex items-center gap-2">
-                    <span>📁</span> Projects
-                  </TabsTrigger>
-                  <TabsTrigger value="risks" className="flex items-center gap-2">
-                    <span>⚠️</span> Risks & Issues
-                  </TabsTrigger>
-                  <TabsTrigger value="reports" className="flex items-center gap-2">
-                    <span>📊</span> Reports
-                  </TabsTrigger>
-                </TabsList>
+  // Function to filter assets
+  const getFilteredAssets = () => {
+    let items = assets.filter(asset => asset.assignedTo === 'Current User'); // Simple filter for demo
 
-                <TabsContent value="tasks">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center mb-4">
-                      {/* Add Task Filters */}
-                      <div className="flex space-x-2">
-                        <Select value={taskFilters.status} onValueChange={(value) => setTaskFilters({...taskFilters, status: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="blocked">Blocked</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={taskFilters.priority} onValueChange={(value) => setTaskFilters({...taskFilters, priority: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Priority" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Priorities</SelectItem>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={taskFilters.assignee} onValueChange={(value) => setTaskFilters({...taskFilters, assignee: value})}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Assignee" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Assignees</SelectItem>
-                            {[...new Set(tasks.map(t => t.assignee))].map(assignee => assignee && <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={() => setIsAddTaskDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Task
-                      </Button>
-                    </div>
+    if (assetStatusFilter !== 'all') {
+      items = items.filter(asset => asset.status === assetStatusFilter);
+    }
 
-                    <Card>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Title</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Priority</TableHead>
-                              <TableHead>Assignee</TableHead>
-                              <TableHead>Due Date</TableHead>
-                              <TableHead>Related KRA</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {getFilteredTasks().map(task => (
-                              <TableRow key={task.id}>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium">{task.title}</div>
-                                    <div className="text-sm text-gray-500">{task.description}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <select
-                                    value={task.status}
-                                    onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as Task['status'])}
-                                    className={`rounded px-2 py-1 text-xs ${getTaskStatusColor(task.status)}`}
-                                  >
-                                    <option value="pending">Pending</option>
-                                    <option value="in-progress">In Progress</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="blocked">Blocked</option>
-                                  </select>
-                                </TableCell>
-                                <TableCell>
-                                  <span className={`rounded px-2 py-1 text-xs ${getTaskPriorityColor(task.priority)}`}>
-                                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                                  </span>
-                                </TableCell>
-                                <TableCell>{task.assignee}</TableCell>
-                                <TableCell>
-                                  {new Date(task.dueDate).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  {task.kraName && (
-                                    <span className="text-xs rounded bg-gray-100 dark:bg-gray-800 px-2 py-1">
-                                      {task.kraName}
-                                    </span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex space-x-2">
-                                    <Button variant="ghost" size="sm">
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm">
-                                      <Trash className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  </div>
+    if (assetSearchTerm) {
+      const lowerSearch = assetSearchTerm.toLowerCase();
+      items = items.filter(asset => 
+        asset.id.toLowerCase().includes(lowerSearch) || 
+        asset.name.toLowerCase().includes(lowerSearch) ||
+        (asset.location && asset.location.toLowerCase().includes(lowerSearch))
+      );
+    }
 
-                  {/* Add Task Dialog */}
-                  <AddTaskDialog />
-                </TabsContent>
+    return items;
+  };
 
-                <TabsContent value="kras">
-                  <Tabs defaultValue="active-kras">
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="active-kras">Active KRAs</TabsTrigger>
-                      <TabsTrigger value="closed-kras">Closed KRAs</TabsTrigger>
-                      <TabsTrigger value="insights">Insights</TabsTrigger>
-                      <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="active-kras">
-                      {/* Add KRA Filters */}
-                      <div className="flex space-x-2 mb-4">
-                        <Select value={kraFilters.status} onValueChange={(value) => setKraFilters({...kraFilters, status: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={kraFilters.department} onValueChange={(value) => setKraFilters({...kraFilters, department: value})}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Department" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Departments</SelectItem>
-                            {[...new Set(kras.map(k => k.department))].map(dept => dept && <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                         <Select value={kraFilters.responsible} onValueChange={(value) => setKraFilters({...kraFilters, responsible: value})}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Responsible" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Responsible</SelectItem>
-                            {[...new Set(kras.map(k => k.responsible))].map(resp => resp && <SelectItem key={resp} value={resp}>{resp}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
+  // Function to get asset status color (similar to others)
+  const getAssetStatusColor = (status: Asset['status']) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800 border-green-300';
+      case 'maintenance': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'retired': return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'lost': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+  
+  // Handler to open edit dialog
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsEditTaskDialogOpen(true);
+  };
 
-                      {getFilteredKRAs().length > 0 ? (
-                        renderKRATable(getFilteredKRAs())
-                      ) : (
-                        <div className="text-center py-6 text-gray-500">
-                          No active KRAs found. Click "Add KRA" to create one.
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="closed-kras">
-                      {filteredClosedKras.length > 0 ? (
-                        renderKRATable(filteredClosedKras, true)
-                      ) : (
-                        <div className="text-center py-6 text-gray-500">
-                          No closed KRAs found.
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="insights">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>KRA Status Distribution</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="h-64">
-                              <PieChart data={kraStatusData} />
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>KPI Progress</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="h-64">
-                              <BarChart data={kpiProgressData} />
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card className="md:col-span-2">
-                          <CardHeader>
-                            <CardTitle>KPI Trends Over Time</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="h-64">
-                              <LineChart data={kpiTrendData} />
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card className="md:col-span-2">
-                          <CardHeader>
-                            <CardTitle>Objective Progress</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="h-64">
-                              <AreaChart data={objectiveProgressData} />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="timeline">
-                      <KRATimeline kras={kras.map(kra => {
-                        // Convert our KRA to the format expected by KRATimeline
-                        return {
-                          id: kra.id,
-                          name: kra.name,
-                          objectiveId: kra.objectiveId,
-                          objectiveName: kra.objectiveName || '',
-                          department: kra.department,
-                          responsible: kra.responsible,
-                          startDate: kra.startDate,
-                          endDate: kra.endDate,
-                          progress: kra.progress,
-                          status: kra.status,
-                          kpis: kra.kpis.map(kpi => ({
-                            id: kpi.id,
-                            name: kpi.name,
-                            date: new Date(), // Use current date as fallback
-                            target: kpi.target,
-                            actual: kpi.current,
-                            status: kpi.status,
-                            description: kpi.description || '',
-                            notes: kpi.comments || ''
-                          })),
-                          createdAt: kra.createdAt,
-                          updatedAt: kra.updatedAt
-                        };
-                      }) as any} />
-                    </TabsContent>
-                  </Tabs>
-                </TabsContent>
+  // Handler to save updated task
+  const handleUpdateTask = (updatedTask: Task) => {
+    setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
+    setIsEditTaskDialogOpen(false);
+    setEditingTask(null);
+    toast.success('Task updated successfully');
+  };
 
-                <TabsContent value="projects">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center mb-4"> {/* Add mb-4 */} 
-                      {/* Add Project Filters */}
-                      <div className="flex space-x-2">
-                        <Select value={projectFilters.status} onValueChange={(value) => setProjectFilters({...projectFilters, status: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="planning">Planning</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="on-hold">On Hold</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={projectFilters.department} onValueChange={(value) => setProjectFilters({...projectFilters, department: value})}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Department" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Departments</SelectItem>
-                            {[...new Set(projects.map(p => p.department))].map(dept => dept && <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Select value={projectFilters.manager} onValueChange={(value) => setProjectFilters({...projectFilters, manager: value})}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Manager" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Managers</SelectItem>
-                            {[...new Set(projects.map(p => p.manager))].map(mgr => mgr && <SelectItem key={mgr} value={mgr}>{mgr}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={() => setIsAddProjectDialogOpen(true)} className="bg-[#781623] hover:bg-[#5d101b] text-white">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Project
-                      </Button>
-                    </div>
+  const handleUpdateTaskStatus = (taskId: string, newStatus: Task['status']) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, status: newStatus } : task
+    ));
+  };
 
-                    <Card>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Project</TableHead>
-                              <TableHead>Manager</TableHead>
-                              <TableHead>Timeline</TableHead>
-                              <TableHead>Progress</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Budget</TableHead>
-                              <TableHead>Related KRAs</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {getFilteredProjects().map(project => (
-                              <TableRow key={project.id}>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium">{project.name}</div>
-                                    <div className="text-sm text-gray-500">{project.description}</div>
-                                    <div className="text-xs text-gray-400 mt-1">{project.department}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>{project.manager}</TableCell>
-                                <TableCell>
-                                  <div className="text-xs">
-                                    <div>Start: {new Date(project.startDate).toLocaleDateString()}</div>
-                                    <div>End: {new Date(project.endDate).toLocaleDateString()}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-intranet-primary"
-                                      style={{ width: `${project.progress}%` }}
-                                    ></div>
-                                  </div>
-                                  <div className="text-xs text-center mt-1">{project.progress}%</div>
-                                </TableCell>
-                                <TableCell>
-                                  {/* Project Status Dropdown - Consistent with Tasks */}
-                                  <select
-                                    value={project.status}
-                                    // Add onChange handler to update Project status
-                                    // onChange={(e) => handleUpdateProjectStatus(project.id, e.target.value as Project['status'])}
-                                    className={`rounded px-2 py-1 text-xs font-medium border ${getProjectStatusColor(project.status).replace('bg-', 'border-').replace('text-', 'bg-') /* Crude color conversion */}`}
-                                  >
-                                    <option value="planning">Planning</option>
-                                    <option value="in-progress">In Progress</option>
-                                    <option value="on-hold">On Hold</option>
-                                    <option value="completed">Completed</option>
-                                  </select>
-                                </TableCell>
-                                <TableCell>{project.budget}</TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {project.kraNames.map((kraName, idx) => (
-                                      <span key={idx} className="text-xs rounded bg-gray-100 dark:bg-gray-800 px-2 py-1">
-                                        {kraName}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {/* Consistent Actions - Edit/Delete */}
-                                  <div className="flex space-x-1">
-                                    <Button variant="ghost" size="sm" title="Edit Project">
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                     <Button variant="ghost" size="sm" title="Delete Project" className="text-red-600 hover:text-red-700">
-                                      <Trash className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
+  const getTaskStatusColor = (status: Task['status']) => {
+    switch (status) {
+      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-300'; // Adjusted colors for select
+      case 'in-progress': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+      case 'blocked': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
 
-                <TabsContent value="risks">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center mb-4"> {/* Add mb-4 */} 
-                       {/* Add Risk Filters */} 
-                      <div className="flex space-x-2 flex-wrap gap-y-2"> {/* Added flex-wrap and gap-y */} 
-                        <Select value={riskFilters.status} onValueChange={(value) => setRiskFilters({...riskFilters, status: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="mitigating">Mitigating</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
-                            <SelectItem value="accepted">Accepted</SelectItem>
-                          </SelectContent>
-                        </Select>
-                         <Select value={riskFilters.impact} onValueChange={(value) => setRiskFilters({...riskFilters, impact: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Impact" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Impacts</SelectItem>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="severe">Severe</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={riskFilters.probability} onValueChange={(value) => setRiskFilters({...riskFilters, probability: value})}>
-                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Probability" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Probabilities</SelectItem>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="certain">Certain</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={riskFilters.owner} onValueChange={(value) => setRiskFilters({...riskFilters, owner: value})}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Owner" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Owners</SelectItem>
-                            {[...new Set(risks.map(r => r.owner))].map(owner => owner && <SelectItem key={owner} value={owner}>{owner}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={() => setIsAddRiskDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Risk
-                      </Button>
-                    </div>
+  const getTaskPriorityColor = (priority: Task['priority']) => {
+    switch (priority) {
+      case 'low': return 'bg-gray-100 text-gray-800';
+      case 'medium': return 'bg-blue-100 text-blue-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'critical': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-                    <Card>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Risk</TableHead>
-                              <TableHead>Severity</TableHead>
-                              <TableHead>Impact</TableHead>
-                              <TableHead>Probability</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Owner</TableHead>
-                              <TableHead>Related KRA</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {getFilteredRisks().map(risk => (
-                              <TableRow key={risk.id}>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium">{risk.title}</div>
-                                    <div className="text-sm text-gray-500">{risk.description}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <span className={`rounded px-2 py-1 text-xs ${
-                                    getRiskSeverity(risk.impact, risk.probability) === 'Critical' ? 'bg-red-100 text-red-800' :
-                                    getRiskSeverity(risk.impact, risk.probability) === 'High' ? 'bg-orange-100 text-orange-800' :
-                                    getRiskSeverity(risk.impact, risk.probability) === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-green-100 text-green-800'
-                                  }`}>
-                                    {getRiskSeverity(risk.impact, risk.probability)}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <span className={`rounded px-2 py-1 text-xs ${getRiskImpactColor(risk.impact)}`}>
-                                    {risk.impact.charAt(0).toUpperCase() + risk.impact.slice(1)}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <span className={`rounded px-2 py-1 text-xs ${getRiskProbabilityColor(risk.probability)}`}>
-                                    {risk.probability.charAt(0).toUpperCase() + risk.probability.slice(1)}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  {/* Risk Status Dropdown - Consistent with Tasks */}
-                                  <select
-                                    value={risk.status}
-                                    // Add onChange handler to update Risk status
-                                    // onChange={(e) => handleUpdateRiskStatus(risk.id, e.target.value as Risk['status'])}
-                                    className={`rounded px-2 py-1 text-xs font-medium border ${getRiskStatusColor(risk.status).replace('bg-', 'border-').replace('text-', 'bg-') /* Crude color conversion */}`}
-                                  >
-                                    <option value="open">Open</option>
-                                    <option value="mitigating">Mitigating</option>
-                                    <option value="closed">Closed</option>
-                                    <option value="accepted">Accepted</option>
-                                  </select>
-                                </TableCell>
-                                <TableCell>{risk.owner}</TableCell>
-                                <TableCell>
-                                  {risk.kraName && (
-                                    <span className="text-xs rounded bg-gray-100 dark:bg-gray-800 px-2 py-1">
-                                      {risk.kraName}
-                                    </span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  {/* Consistent Actions - Edit/Delete */}
-                                  <div className="flex space-x-1">
-                                    <Button variant="ghost" size="sm" title="Edit Risk">
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" title="Delete Risk" className="text-red-600 hover:text-red-700">
-                                      <Trash className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  </div>
+  const getFilteredTasks = () => {
+    let items = [...tasks];
+    if (taskFilters.status !== 'all') {
+      items = items.filter(task => task.status === taskFilters.status);
+    }
+    if (taskFilters.priority !== 'all') {
+      items = items.filter(task => task.priority === taskFilters.priority);
+    }
+    if (taskFilters.assignee !== 'all') {
+      items = items.filter(task => task.assignee === taskFilters.assignee);
+    }
+    return items;
+  };
+  
+  // Add risks state
+  const [risks, setRisks] = useState<Risk[]>([
+    {
+      id: '1',
+      title: 'Regulatory changes in Indonesia market',
+      description: 'New regulations may impact market entry strategy',
+      impact: 'high',
+      probability: 'medium',
+      status: 'open',
+      owner: 'Legal Department',
+      dateIdentified: '2024-05-15',
+      mitigation: 'Engage with local legal experts to develop compliance strategy',
+      kraId: '1',
+      kraName: 'Market Expansion Strategy'
+    },
+    {
+      id: '2',
+      title: 'System compatibility issues',
+      description: 'Legacy systems may not be compatible with new cloud infrastructure',
+      impact: 'severe',
+      probability: 'high',
+      status: 'mitigating',
+      owner: 'IT Director',
+      dateIdentified: '2024-04-10',
+      mitigation: 'Develop middleware solution and phase migration approach',
+      kraId: '2',
+      kraName: 'Digital Transformation Initiative'
+    },
+    {
+      id: '3',
+      title: 'Staff resistance to new QA procedures',
+      description: 'Team members showing resistance to implementing new quality metrics',
+      impact: 'medium',
+      probability: 'high',
+      status: 'mitigating',
+      owner: 'QA Manager',
+      dateIdentified: '2024-07-01',
+      mitigation: 'Additional training sessions and one-on-one meetings with key influencers',
+      kraId: '3',
+      kraName: 'Quality Assurance Enhancement'
+    },
+    {
+      id: '4',
+      title: 'Budget constraints for innovation projects',
+      description: 'Potential reduction in R&D budget may impact innovation initiatives',
+      impact: 'high',
+      probability: 'medium',
+      status: 'open',
+      owner: 'Finance Director',
+      dateIdentified: '2024-06-25',
+      mitigation: 'Prioritize projects with highest ROI and seek external funding options',
+      kraId: '4',
+      kraName: 'Innovation Pipeline'
+    },
+    {
+      id: '5',
+      title: 'Vendor reliability issues',
+      description: 'Key technology vendor experiencing service disruptions',
+      impact: 'medium',
+      probability: 'low',
+      status: 'closed',
+      owner: 'Procurement Manager',
+      dateIdentified: '2024-03-20',
+      mitigation: 'Alternative vendor identified and transition completed',
+      kraId: '2',
+      kraName: 'Digital Transformation Initiative'
+    }
+  ]);
 
-                  {/* Add Risk Dialog */}
-                  <AddRiskDialog />
-                </TabsContent>
+  const [riskForm, setRiskForm] = useState<Partial<Risk>>({
+    title: '',
+    description: '',
+    impact: 'medium',
+    probability: 'medium',
+    status: 'open',
+    owner: '',
+    dateIdentified: new Date().toISOString().split('T')[0],
+    mitigation: '',
+    kraId: '',
+    kraName: ''
+  });
 
-                <TabsContent value="reports">
-                  <div className="text-center py-6 text-gray-500">
-                    Reports content will be displayed here.
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
+  const [isAddRiskDialogOpen, setIsAddRiskDialogOpen] = useState(false);
+  const [riskFilter, setRiskFilter] = useState('all');
 
-        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-1/4'}`}>
-          <div className="sticky top-4">
-            <Card className="mb-6">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>AI Assistant</CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    className="ml-auto"
-                  >
-                    {isSidebarCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <CardDescription>Ask questions about KRAs, KPIs, and objectives</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px] flex flex-col">
-                  <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-                    {chatMessages.map((message) => (
-                      <div 
-                        key={message.id} 
-                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div 
-                          className={`max-w-[80%] rounded-lg p-3 ${
-                            message.sender === 'user' 
-                              ? 'bg-intranet-primary text-white' 
-                              : 'bg-gray-100 dark:bg-gray-800'
-                          }`}
-                        >
-                          {message.message}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input 
-                      placeholder="Ask a question..." 
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    />
-                    <Button onClick={handleSendMessage}>
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm text-gray-500">Active KRAs</div>
-                    <div className="text-2xl font-bold">{kras.length}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Closed KRAs</div>
-                    <div className="text-2xl font-bold">{closedKras.length}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Total KPIs</div>
-                    <div className="text-2xl font-bold">
-                      {[...kras, ...closedKras].flatMap(k => k.kpis).length}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">KPIs On Track</div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {[...kras, ...closedKras].flatMap(k => k.kpis).filter(k => k.status === 'on-track').length}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+  // Risk handlers
+  const handleAddRisk = () => {
+    const newRisk: Risk = {
+      id: String(risks.length + 1),
+      title: riskForm.title || '',
+      description: riskForm.description || '',
+      impact: riskForm.impact || 'medium',
+      probability: riskForm.probability || 'medium',
+      status: riskForm.status || 'open',
+      owner: riskForm.owner || '',
+      dateIdentified: riskForm.dateIdentified || new Date().toISOString().split('T')[0],
+      mitigation: riskForm.mitigation || '',
+      kraId: riskForm.kraId,
+      kraName: riskForm.kraName
+    };
+    
+    setRisks([...risks, newRisk]);
+    setRiskForm({
+      title: '',
+      description: '',
+      impact: 'medium',
+      probability: 'medium',
+      status: 'open',
+      owner: '',
+      dateIdentified: new Date().toISOString().split('T')[0],
+      mitigation: '',
+      kraId: '',
+      kraName: ''
+    });
+    setIsAddRiskDialogOpen(false);
+  };
 
-        {/* Improved floating toggle button when sidebar is collapsed */}
-        {isSidebarCollapsed && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setIsSidebarCollapsed(false)}
-            className="fixed right-4 top-24 z-10 shadow-md bg-white dark:bg-gray-800 border-2 border-intranet-primary"
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            <span>Show Sidebar</span>
-          </Button>
-        )}
-      </div>
-      
-      {/* PDF Report Dialog */}
-      <Dialog open={isAIAnalysisOpen} onOpenChange={setIsAIAnalysisOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Generate PDF Report</DialogTitle>
-            <DialogDescription>
-              Choose whether to include AI analysis in your report
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="include-ai"
-                checked={includeAIAnalysis}
-                onChange={(e) => setIncludeAIAnalysis(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <Label htmlFor="include-ai">Include AI Analysis</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAIAnalysisOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={generatePDFReport}>
-              Generate Report
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Replace Sheet with Dialog for KRA details */}
-      <Dialog open={isKRADrawerOpen} onOpenChange={setIsKRADrawerOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>KRA Details</DialogTitle>
-            <DialogDescription>
-              View and edit KRA information
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedKRADrawer && (
-            <div className="overflow-y-auto pr-2 flex-1">
-              <div className="space-y-6 py-4">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>KRA Name</Label>
-                    <Input 
-                      value={selectedKRADrawer.name} 
-                      onChange={(e) => setSelectedKRADrawer({...selectedKRADrawer, name: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select 
-                      value={selectedKRADrawer.status} 
-                      onValueChange={(value) => setSelectedKRADrawer({...selectedKRADrawer, status: value as 'open' | 'in-progress' | 'closed'})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Linked Objective</Label>
-                  <Select 
-                    value={selectedKRADrawer.objectiveId.toString()} 
-                    onValueChange={(value) => {
-                      const objective = objectives.find(obj => obj.id === parseInt(value));
-                      if (objective) {
-                        setSelectedKRADrawer({
-                          ...selectedKRADrawer,
-                          objectiveId: value,
-                          objectiveName: objective.name
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select objective" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {objectives.map((objective) => (
-                        <SelectItem key={objective.id} value={objective.id.toString()}>
-                          {objective.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-lg font-medium">KPI</Label>
-                    {selectedKRADrawer.kpis.length === 0 && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          const newKPI = handleNewKPI(selectedKRADrawer.name);
-                          selectedKRADrawer.kpis.push(newKPI);
-                          setSelectedKRADrawer({...selectedKRADrawer});
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add new KPI
-                      </Button>
-                    )}
-                  </div>
-                  <div className="border rounded-md p-4 space-y-6">
-                    {selectedKRADrawer.kpis.length > 0 ? (
-                      <div className="space-y-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
-                        <div className="flex justify-between items-center">
-                          <Label className="text-base">KPI Details</Label>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-red-500"
-                            onClick={() => {
-                              setSelectedKRADrawer({
-                                ...selectedKRADrawer,
-                                kpis: []
-                              });
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>KPI Title</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].name} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], name: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., System Uptime Percentage"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Department / Unit</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].department} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], department: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., Dept. of Finance – IT Services Unit"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Description</Label>
-                          <Textarea 
-                            value={selectedKRADrawer.kpis[0].description} 
-                            onChange={(e) => {
-                              const updatedKPIs = [...selectedKRADrawer.kpis];
-                              updatedKPIs[0] = {...updatedKPIs[0], description: e.target.value};
-                              setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                            }}
-                            placeholder="Brief explanation of what this KPI measures"
-                            className="h-20"
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Strategic Objective</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].strategicObjective} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], strategicObjective: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., Ensure uninterrupted digital services"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>KRA (Key Result Area)</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].kra} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], kra: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., Infrastructure Reliability"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>Target Value / Goal</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].target} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], target: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., 99.5% uptime"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Measurement Unit</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].measurementUnit} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], measurementUnit: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., Percentage, Hours"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Baseline Value (Optional)</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].baselineValue} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], baselineValue: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., Last quarter: 98.2%"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>Frequency of Measurement</Label>
-                            <Select 
-                              value={selectedKRADrawer.kpis[0].frequency} 
-                              onValueChange={(value) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], frequency: value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select frequency" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Daily">Daily</SelectItem>
-                                <SelectItem value="Weekly">Weekly</SelectItem>
-                                <SelectItem value="Monthly">Monthly</SelectItem>
-                                <SelectItem value="Quarterly">Quarterly</SelectItem>
-                                <SelectItem value="Annually">Annually</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Data Source / Method</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].dataSource} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], dataSource: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., Network Monitoring Tool Reports"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Responsible Officer</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].responsibleOfficer} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], responsibleOfficer: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., ICT Manager"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>Current Value</Label>
-                            <Input 
-                              value={selectedKRADrawer.kpis[0].current} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], current: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                              placeholder="e.g., 98.5%"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Current Status</Label>
-                            <Select 
-                              value={selectedKRADrawer.kpis[0].status} 
-                              onValueChange={(value) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], status: value as 'on-track' | 'needs-attention' | 'at-risk'};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="on-track">On Track</SelectItem>
-                                <SelectItem value="needs-attention">Needs Attention</SelectItem>
-                                <SelectItem value="at-risk">At Risk</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>Progress</Label>
-                            <div className="flex items-center gap-2">
-                              <Progress value={selectedKRADrawer.kpis[0].progress} className="flex-1" />
-                              <span className="text-sm font-medium">{selectedKRADrawer.kpis[0].progress}%</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Start Date</Label>
-                            <Input 
-                              type="date"
-                              value={selectedKRADrawer.kpis[0].startDate} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], startDate: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label>End Date</Label>
-                            <Input 
-                              type="date"
-                              value={selectedKRADrawer.kpis[0].endDate} 
-                              onChange={(e) => {
-                                const updatedKPIs = [...selectedKRADrawer.kpis];
-                                updatedKPIs[0] = {...updatedKPIs[0], endDate: e.target.value};
-                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                              }}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Comments / Notes</Label>
-                          <Textarea 
-                            value={selectedKRADrawer.kpis[0].comments} 
-                            onChange={(e) => {
-                              const updatedKPIs = [...selectedKRADrawer.kpis];
-                              updatedKPIs[0] = {...updatedKPIs[0], comments: e.target.value};
-                              setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                            }}
-                            placeholder="Optional field for extra detail"
-                            className="h-20"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 text-gray-500">
-                        No KPI defined. Click "Add KPI" to create one.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-lg font-medium">Dates</Label>
-                <div className="grid grid-cols-2 gap-4 p-4 border rounded-md">
-                  <div>
-                    <Label>Created</Label>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {new Date(selectedKRADrawer.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Last Updated</Label>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {new Date(selectedKRADrawer.updatedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="mt-6 pt-4 border-t">
-            <div className="flex justify-between w-full">
-              <Button 
-                variant="destructive" 
-                onClick={() => selectedKRADrawer && handleDeleteKRA(selectedKRADrawer.id)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleCloseKRADrawer}>
-                  Cancel
-                </Button>
-                <Button onClick={handleUpdateKRA}>
-                  Save Changes
-                </Button>
-              </div>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+  const handleUpdateRiskStatus = (riskId: string, newStatus: Risk['status']) => {
+    setRisks(risks.map(risk => 
+      risk.id === riskId ? { ...risk, status: newStatus } : risk
+    ));
+  };
+
+  const getRiskImpactColor = (impact: Risk['impact']) => {
+    switch (impact) {
+      case 'low': return 'bg-green-100 text-green-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'severe': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRiskProbabilityColor = (probability: Risk['probability']) => {
+    switch (probability) {
+      case 'low': return 'bg-blue-100 text-blue-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'certain': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRiskStatusColor = (status: Risk['status']) => {
+    switch (status) {
+      case 'open': return 'bg-red-200 text-red-800';
+      case 'mitigating': return 'bg-yellow-200 text-yellow-800';
+      case 'closed': return 'bg-green-200 text-green-800';
+      case 'accepted': return 'bg-blue-200 text-blue-800';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
+
+  const getRiskSeverity = (impact: Risk['impact'], probability: Risk['probability']) => {
+    const impactScore = impact === 'severe' ? 4 : impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
+    const probScore = probability === 'certain' ? 4 : probability === 'high' ? 3 : probability === 'medium' ? 2 : 1;
+    const score = impactScore * probScore;
+    
+    if (score >= 12) return 'Critical';
+    if (score >= 8) return 'High';
+    if (score >= 4) return 'Medium';
+    return 'Low';
+  };
+
+  const getFilteredRisks = () => {
+    let items = [...risks];
+    if (riskFilters.status !== 'all') {
+      items = items.filter(risk => risk.status === riskFilters.status);
+    }
+    if (riskFilters.impact !== 'all') {
+      items = items.filter(risk => risk.impact === riskFilters.impact);
+    }
+    if (riskFilters.probability !== 'all') {
+      items = items.filter(risk => risk.probability === riskFilters.probability);
+    }
+    if (riskFilters.owner !== 'all') {
+      items = items.filter(risk => risk.owner === riskFilters.owner);
+    }
+    return items;
+  };
+  
+  // Add projects state
+  const [projects, setProjects] = useState<Project[]>([
+    {
+      id: '1',
+      name: 'Market Expansion - Southeast Asia',
+      description: 'Project to expand market presence in Indonesia, Malaysia and Singapore',
+      manager: 'John Smith',
+      startDate: '2024-01-15',
+      endDate: '2024-12-31',
+      status: 'in-progress',
+      budget: '$350,000',
+      progress: 65,
+      department: 'Sales',
+      kraIds: ['1'],
+      kraNames: ['Market Expansion Strategy']
+    },
+    {
+      id: '2',
+      name: 'Cloud Migration Initiative',
+      description: 'Project to migrate all on-premise systems to cloud infrastructure',
+      manager: 'Michael Wong',
+      startDate: '2024-03-01',
+      endDate: '2024-08-31',
+      status: 'in-progress',
+      budget: '$580,000',
+      progress: 40,
+      department: 'IT',
+      kraIds: ['2'],
+      kraNames: ['Digital Transformation Initiative']
+    },
+    {
+      id: '3',
+      name: 'Quality Management System Implementation',
+      description: 'Implementation of new quality management system and processes',
+      manager: 'Lisa Chen',
+      startDate: '2024-06-01',
+      endDate: '2024-09-30',
+      status: 'planning',
+      budget: '$120,000',
+      progress: 15,
+      department: 'Quality',
+      kraIds: ['3'],
+      kraNames: ['Quality Assurance Enhancement']
+    },
+    {
+      id: '4',
+      name: 'Product Innovation Lab',
+      description: 'Establishment of innovation lab for new product development',
+      manager: 'David Miller',
+      startDate: '2024-08-01',
+      endDate: '2025-02-28',
+      status: 'planning',
+      budget: '$275,000',
+      progress: 5,
+      department: 'R&D',
+      kraIds: ['4'],
+      kraNames: ['Innovation Pipeline']
+    },
+    {
+      id: '5',
+      name: 'Customer Service Enhancement',
+      description: 'Project to improve customer service metrics and response times',
+      manager: 'Sarah Johnson',
+      startDate: '2023-05-15',
+      endDate: '2023-12-15',
+      status: 'completed',
+      budget: '$95,000',
+      progress: 100,
+      department: 'Customer Service',
+      kraIds: ['11'],
+      kraNames: ['Customer Service Improvement']
+    }
+  ]);
+
+  const [projectFilter, setProjectFilter] = useState('all');
+
+  // Project handlers
+  const getProjectStatusColor = (status: Project['status']) => {
+    switch (status) {
+      case 'planning': return 'bg-blue-200 text-blue-800';
+      case 'in-progress': return 'bg-yellow-200 text-yellow-800';
+      case 'on-hold': return 'bg-orange-200 text-orange-800';
+      case 'completed': return 'bg-green-200 text-green-800';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
+
+  const getFilteredProjects = () => {
+    let items = [...projects];
+    if (projectFilters.status !== 'all') {
+      items = items.filter(project => project.status === projectFilters.status);
+    }
+    if (projectFilters.department !== 'all') {
+      items = items.filter(project => project.department === projectFilters.department);
+    }
+    if (projectFilters.manager !== 'all') {
+      items = items.filter(project => project.manager === projectFilters.manager);
+    }
+    return items;
+  };
+
+  // Add KRA filter state
+  const [kraFilter, setKraFilter] = useState('all');
+
+  // KRA filter handler
+  const getFilteredKRAs = () => {
+    let items = [...kras]; // Use active KRAs
+    if (kraFilters.status !== 'all') {
+      items = items.filter(kra => kra.status === kraFilters.status);
+    }
+    if (kraFilters.department !== 'all') {
+      items = items.filter(kra => kra.department === kraFilters.department);
+    }
+    if (kraFilters.responsible !== 'all') {
+      items = items.filter(kra => kra.responsible === kraFilters.responsible);
+    }
+    // Keep existing sort logic if needed, apply it to 'items'
+    return items; 
+  };
+  
+  // Add handleSetIsAddingKRA function
+  const handleSetIsAddingKRA = (value: boolean) => {
+    setIsAddingKRA(value);
+  };
+
+  // Fix Excel upload sample KPIs
+  const sampleKpis = [
+    {
+      id: '1',
+      name: 'Market Share',
+      target: '20',
+      current: '15',
+      unit: '%',
+      frequency: 'Quarterly',
+      status: 'on-track',
+      description: 'Market share percentage'
+    },
+    {
+      id: '2',
+      name: 'NPS Score',
+      target: '8',
+      current: '6',
+      unit: 'Score',
+      frequency: 'Quarterly',
+      status: 'on-track',
+      description: 'Net Promoter Score'
+    }
+  ];
+  
+  // Fix the newKPI function to ensure id is a string
+  const handleNewKPI = (kraName?: string): KPI => {
+    // Get highest KPI ID as a number and convert it to string for the new KPI
+    const maxId = Math.max(
+      ...kras.flatMap(k => k.kpis).map(k => isNaN(Number(k.id)) ? 0 : Number(k.id)),
+      ...closedKras.flatMap(k => k.kpis).map(k => isNaN(Number(k.id)) ? 0 : Number(k.id)),
+      0
+    );
+    
+    return {
+      id: String(maxId + 1),
+      name: "New KPI",
+      description: "",
+      department: "",
+      strategicObjective: "",
+      kra: kraName || "",
+      target: "0",
+      measurementUnit: "",
+      baselineValue: "",
+      frequency: "Monthly",
+      dataSource: "",
+      responsibleOfficer: "",
+      current: "0",
+      status: "on-track" as const,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+      comments: "",
+      progress: 0
+    };
+  };
+  
+  // Add Task Dialog
+  const AddTaskDialog = () => {
       
       {/* Render the Add KRA Dialog */}
       <AddKRADialog />
