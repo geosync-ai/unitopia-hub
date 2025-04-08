@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface KPI {
-  id: number;
+  id: string;
   name: string;
   date: Date;
   target: string;
@@ -15,15 +15,19 @@ interface KPI {
 }
 
 interface KRA {
-  id: number;
+  id: string;
   name: string;
+  objectiveId: string;
+  objectiveName: string;
   department: string;
   responsible: string;
   startDate: Date;
   endDate: Date;
   progress: number;
-  status: string;
+  status: 'open' | 'in-progress' | 'closed';
   kpis: KPI[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface KRATimelineProps {
@@ -81,6 +85,73 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
       default: return "#6b7280";
     }
   };
+
+  const mockKRAs: KRA[] = [
+    {
+      id: '1',
+      name: 'Increase Market Share',
+      objectiveId: '1',
+      objectiveName: 'Market Expansion',
+      department: 'Sales',
+      responsible: 'John Doe',
+      startDate: new Date('2024-01-01'),
+      endDate: new Date('2024-12-31'),
+      progress: 75,
+      status: 'in-progress',
+      kpis: [
+        {
+          id: '1',
+          name: 'Market Share Percentage',
+          target: 25,
+          current: 18,
+          unit: '%',
+          frequency: 'Monthly'
+        },
+        {
+          id: '2',
+          name: 'New Customer Acquisition',
+          target: 1000,
+          current: 750,
+          unit: 'customers',
+          frequency: 'Quarterly'
+        }
+      ],
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-03-15T00:00:00Z'
+    },
+    {
+      id: '2',
+      name: 'Improve Customer Satisfaction',
+      objectiveId: '2',
+      objectiveName: 'Customer Experience',
+      department: 'Customer Service',
+      responsible: 'Jane Smith',
+      startDate: new Date('2024-02-01'),
+      endDate: new Date('2024-12-31'),
+      progress: 60,
+      status: 'in-progress',
+      kpis: [
+        {
+          id: '3',
+          name: 'Customer Satisfaction Score',
+          target: 90,
+          current: 85,
+          unit: 'points',
+          frequency: 'Monthly'
+        },
+        {
+          id: '4',
+          name: 'Response Time',
+          target: 2,
+          current: 2.5,
+          unit: 'hours',
+          frequency: 'Daily'
+        }
+      ],
+      createdAt: '2024-02-01T00:00:00Z',
+      updatedAt: '2024-03-15T00:00:00Z'
+    }
+  ];
 
   return (
     <Card>
