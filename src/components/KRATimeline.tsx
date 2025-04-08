@@ -157,7 +157,10 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle>Key Result Areas Timeline</CardTitle>
+          <div className="flex items-center gap-4">
+            <img src="/images/scpng-logo.png" alt="SCPNG Logo" className="h-10 w-auto" />
+            <CardTitle>Key Result Areas Timeline</CardTitle>
+          </div>
           <div className="flex bg-gray-100 rounded-lg p-1">
             <Button
               variant={currentViewMode === 'quarters' ? 'default' : 'ghost'}
@@ -191,6 +194,7 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
           <div className="timeline-view">
             {/* Timeline header */}
             <div className="flex border-b border-gray-200 pb-2">
+              <div className="w-48 px-4 py-2 text-sm font-medium text-gray-700">Objectives</div>
               <div className="w-64 px-4 py-2 text-sm font-medium text-gray-700">KRA Details</div>
               <div className="flex-1 flex">
                 {currentViewMode === 'quarters' && quarters.map(quarter => (
@@ -240,18 +244,14 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
               {/* KRA rows */}
               <div>
                 {kras.map(kra => (
-                  <div key={kra.id} className="flex relative py-4 hover:bg-gray-50 border-b border-gray-200">
-                    <div className="w-64 px-4 flex flex-col">
-                      <div className="font-medium text-gray-900">{kra.name}</div>
-                      <div className="flex items-center mt-1">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColorClass(kra.status)}`}>
-                          {kra.status}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-500">{kra.department}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">{kra.responsible}</div>
+                  <div key={kra.id} className="flex items-start hover:bg-gray-50">
+                    <div className="w-48 px-4 py-2 text-sm">
+                      <span className="font-medium text-gray-900">{kra.objectiveName}</span>
                     </div>
-
+                    <div className="w-64 px-4 py-2">
+                      <div className="text-sm font-medium text-gray-900">{kra.name}</div>
+                      <div className="text-xs text-gray-500">{kra.department}</div>
+                    </div>
                     <div className="flex-1 relative">
                       <div
                         className="absolute h-8 rounded-md shadow-sm flex items-center"

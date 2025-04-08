@@ -56,31 +56,6 @@ interface Objective {
 
 interface ChatMessage {
   id: number;
-  department: string;
-  strategicObjective: string;
-  kra: string;
-  target: string;
-  measurementUnit: string;
-  baselineValue: string;
-  frequency: string;
-  dataSource: string;
-  responsibleOfficer: string;
-  current: string;
-  status: 'on-track' | 'needs-attention' | 'at-risk';
-  startDate: string;
-  endDate: string;
-  comments: string;
-  progress: number;
-}
-
-interface Objective {
-  id: number;
-  name: string;
-  description: string;
-}
-
-interface ChatMessage {
-  id: number;
   sender: 'user' | 'ai';
   message: string;
   timestamp: Date;
@@ -141,7 +116,6 @@ const Unit = () => {
   
   const [kpiForm, setKpiForm] = useState<Partial<KPI>>({
     name: '',
-    date: new Date(),
     target: '',
     actual: '',
     status: '',
@@ -179,39 +153,273 @@ const Unit = () => {
   
   // Mock data for KRAs
   const [kras, setKras] = useState<KRA[]>([
-    { 
-      id: '1', 
-      name: "Market Expansion Strategy", 
+    {
+      id: '1',
+      name: "Market Expansion Strategy",
       objectiveId: '1',
-      objectiveName: "Expand Market Presence",
+      objectiveName: "Market Growth",
       department: "Sales",
       responsible: "Sales Director",
       startDate: new Date(2023, 0, 1),
       endDate: new Date(2023, 11, 31),
-      progress: 66,
+      progress: 75,
       status: "in-progress",
       kpis: [
-        { 
-          id: '1', 
+        {
+          id: '1',
           name: "New Market Entry",
           date: new Date(2023, 3, 1),
-          target: "3",
-          actual: "2",
+          target: "5",
+          actual: "3",
           status: "In Progress",
-          description: "Number of new markets successfully entered",
-          notes: "On track to meet target by Q4"
+          description: "Number of new markets entered",
+          notes: "Expansion plan in progress"
         }
       ],
-      createdAt: "2023-01-01T00:00:00Z",
-      updatedAt: "2023-03-15T00:00:00Z"
+      createdAt: "2023-01-01",
+      updatedAt: "2023-06-15"
+    },
+    {
+      id: '2',
+      name: "Digital Transformation Initiative",
+      objectiveId: '2',
+      objectiveName: "Modernize Infrastructure",
+      department: "IT",
+      responsible: "IT Director",
+      startDate: new Date(2024, 1, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 45,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '2',
+          name: "System Migration",
+          date: new Date(2024, 2, 1),
+          target: "100",
+          actual: "45",
+          status: "In Progress",
+          description: "Percentage of systems migrated",
+          notes: "Migration ongoing"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '3',
+      name: "Customer Service Excellence",
+      objectiveId: '3',
+      objectiveName: "Enhance Customer Experience",
+      department: "Customer Service",
+      responsible: "CS Manager",
+      startDate: new Date(2024, 0, 15),
+      endDate: new Date(2024, 11, 31),
+      progress: 78,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '3',
+          name: "Customer Satisfaction",
+          date: new Date(2024, 3, 1),
+          target: "90",
+          actual: "85",
+          status: "On Track",
+          description: "Customer satisfaction score",
+          notes: "Implementing feedback system"
+        }
+      ],
+      createdAt: "2024-01-15T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '4',
+      name: "Operational Efficiency",
+      objectiveId: '4',
+      objectiveName: "Optimize Operations",
+      department: "Operations",
+      responsible: "Operations Manager",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 55,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '4',
+          name: "Process Optimization",
+          date: new Date(2024, 3, 1),
+          target: 30,
+          actual: 15,
+          status: "In Progress",
+          description: "Reduction in processing time (minutes)",
+          notes: "Implementing automation"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '5',
+      name: "Employee Development Program",
+      objectiveId: '5',
+      objectiveName: "Strengthen Workforce",
+      department: "HR",
+      responsible: "HR Director",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 70,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '5',
+          name: "Training Completion",
+          date: new Date(2024, 3, 1),
+          target: 100,
+          actual: 70,
+          status: "On Track",
+          description: "Percentage of staff completing training",
+          notes: "New training modules launched"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '6',
+      name: "Quality Assurance Enhancement",
+      objectiveId: '6',
+      objectiveName: "Improve Service Quality",
+      department: "Quality",
+      responsible: "QA Manager",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 85,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '6',
+          name: "Quality Metrics",
+          date: new Date(2024, 3, 1),
+          target: 98,
+          actual: 95,
+          status: "On Track",
+          description: "Service quality score",
+          notes: "Implementing new quality measures"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '7',
+      name: "Innovation Pipeline",
+      objectiveId: '7',
+      objectiveName: "Drive Innovation",
+      department: "R&D",
+      responsible: "R&D Director",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 40,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '7',
+          name: "New Solutions",
+          date: new Date(2024, 3, 1),
+          target: 10,
+          actual: 4,
+          status: "In Progress",
+          description: "Number of new solutions developed",
+          notes: "Research phase ongoing"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '8',
+      name: "Sustainability Initiative",
+      objectiveId: '8',
+      objectiveName: "Environmental Impact",
+      department: "Sustainability",
+      responsible: "Sustainability Lead",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 60,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '8',
+          name: "Carbon Footprint",
+          date: new Date(2024, 3, 1),
+          target: 50,
+          actual: 30,
+          status: "In Progress",
+          description: "Reduction in carbon emissions (%)",
+          notes: "Green initiatives in progress"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '9',
+      name: "Risk Management Framework",
+      objectiveId: '9',
+      objectiveName: "Strengthen Governance",
+      department: "Risk",
+      responsible: "Risk Manager",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 75,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '9',
+          name: "Risk Assessment",
+          date: new Date(2024, 3, 1),
+          target: 100,
+          actual: 75,
+          status: "On Track",
+          description: "Completion of risk assessments",
+          notes: "Framework implementation ongoing"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
+    },
+    {
+      id: '10',
+      name: "Financial Performance",
+      objectiveId: '10',
+      objectiveName: "Optimize Financial Results",
+      department: "Finance",
+      responsible: "Finance Director",
+      startDate: new Date(2024, 0, 1),
+      endDate: new Date(2024, 11, 31),
+      progress: 80,
+      status: "in-progress",
+      kpis: [
+        {
+          id: '10',
+          name: "Cost Reduction",
+          date: new Date(2024, 3, 1),
+          target: 20,
+          actual: 16,
+          status: "On Track",
+          description: "Percentage reduction in operational costs",
+          notes: "Cost optimization ongoing"
+        }
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-03-15T00:00:00Z"
     }
   ]);
   
   // Mock data for closed KRAs
   const [closedKras, setClosedKras] = useState<KRA[]>([
-    { 
-      id: '11', 
-      name: "Customer Service Improvement", 
+    {
+      id: '11',
+      name: "Customer Service Improvement",
       objectiveId: '5',
       objectiveName: "Customer Satisfaction",
       department: "Customer Service",
@@ -219,29 +427,22 @@ const Unit = () => {
       startDate: new Date(2023, 0, 1),
       endDate: new Date(2023, 11, 31),
       progress: 100,
+      status: "closed",
       kpis: [
-        { 
-          id: '11', 
-          name: "Customer Satisfaction Score", 
+        {
+          id: '11',
+          name: "Customer Satisfaction Score",
           description: "Overall customer satisfaction rating",
-          department: "Customer Service",
-          strategicObjective: "Customer Satisfaction",
-          kra: "Customer Service",
-          target: "90%", 
-          current: "92%", 
-          measurementUnit: "Percentage",
-          baselineValue: "85%",
+          target: "90",
+          current: "92",
+          unit: "percentage",
           frequency: "Monthly",
-          dataSource: "Customer Surveys",
-          responsibleOfficer: "Customer Service Manager",
-          status: "on-track", 
+          status: "on-track",
           startDate: "2023-01-01",
           endDate: "2023-12-31",
-          comments: "Exceeding target, excellent performance",
-          progress: 100 
+          notes: "Exceeding target, excellent performance"
         }
       ],
-      status: "closed",
       createdAt: "2022-11-20",
       updatedAt: "2023-05-30"
     },
@@ -568,7 +769,6 @@ const Unit = () => {
     // Reset form
     setKpiForm({
       name: '',
-      date: new Date(),
       target: '',
       actual: '',
       status: '',
@@ -684,22 +884,10 @@ const Unit = () => {
             {
               id: '1',
               name: 'Market Share',
-              description: "Percentage of market share in primary segments",
-              department: "Marketing",
-              strategicObjective: "Market Leadership",
-              kra: "Increase Market Share",
-              current: '15',
-              target: '20',
-              measurementUnit: "Percentage",
-              baselineValue: "10%",
-              frequency: "Quarterly",
-              dataSource: "Market Research Reports",
-              responsibleOfficer: "Marketing Director",
-              status: 'on-track',
-              startDate: "2023-01-01",
-              endDate: "2023-12-31",
-              comments: "Steady growth in market share",
-              progress: 75
+              target: 20,
+              current: 15,
+              unit: '%',
+              frequency: 'Quarterly'
             }
           ],
           createdAt: new Date().toISOString(),
@@ -720,22 +908,10 @@ const Unit = () => {
             {
               id: '2',
               name: 'NPS Score',
-              description: "Net Promoter Score measuring customer loyalty",
-              department: "Customer Service",
-              strategicObjective: "Customer Excellence",
-              kra: "Improve Customer Satisfaction",
-              current: '0',
-              target: '8',
-              measurementUnit: "Score",
-              baselineValue: "-2",
-              frequency: "Quarterly",
-              dataSource: "Customer Surveys",
-              responsibleOfficer: "Customer Service Manager",
-              status: 'needs-attention',
-              startDate: "2023-01-01",
-              endDate: "2023-12-31",
-              comments: "NPS score needs improvement",
-              progress: 0
+              target: 8,
+              current: 0,
+              unit: 'Score',
+              frequency: 'Quarterly'
             }
           ],
           createdAt: new Date().toISOString(),
