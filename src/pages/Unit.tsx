@@ -1637,92 +1637,102 @@ const Unit = () => {
                     </TabsList>
                     
                     <TabsContent value="kpis">
-                      {kras.map((kra) => (
-                        <div key={kra.id} className="mb-8">
-                          <div className="flex justify-between items-center mb-4">
-                            <div>
-                              <h3 className="text-lg font-semibold">{kra.name}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {kra.objectiveName} • {kra.department} • {kra.responsible}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <StatusBadge status={kra.status} />
-                              <Progress value={kra.progress} className="w-[100px]" />
-                              <span className="text-sm">{kra.progress}%</span>
-                            </div>
-                          </div>
-                          
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>KPI</TableHead>
-                                <TableHead>Start Date</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Target</TableHead>
-                                <TableHead>Actual</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {kra.kpis.map((kpi) => (
-                                <TableRow key={kpi.id}>
-                                  <TableCell className="font-medium">{kpi.name}</TableCell>
-                                  <TableCell>{kpi.startDate.toLocaleDateString()}</TableCell>
-                                  <TableCell>{kpi.date.toLocaleDateString()}</TableCell>
-                                  <TableCell>{kpi.target}</TableCell>
-                                  <TableCell>{kpi.actual}</TableCell>
-                                  <TableCell>
-                                    <StatusDropdown 
-                                      currentStatus={kpi.status} 
-                                      onStatusChange={(status) => {
-                                        // Handle status change
-                                        const updatedKras = kras.map(k => {
-                                          if (k.id === kra.id) {
-                                            const updatedKpis = k.kpis.map(p => 
-                                              p.id === kpi.id ? {...p, status} : p
-                                            );
-                                            return {...k, kpis: updatedKpis};
-                                          }
-                                          return k;
-                                        });
-                                        setKras(updatedKras);
-                                      }}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon"
-                                        onClick={() => {
-                                          // Show edit modal with this KPI's data
-                                          setEditingKpi({...kpi, kraId: kra.id});
-                                          setShowEditKpiModal(true);
-                                        }}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon"
-                                        onClick={() => {
-                                          // Show delete confirmation modal for this KPI
-                                          setDeletingKpi({...kpi, kraId: kra.id});
-                                          setShowDeleteKpiModal(true);
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead width="25%">KRA</TableHead>
+                            <TableHead>KPI</TableHead>
+                            <TableHead>Start Date</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Target</TableHead>
+                            <TableHead>Actual</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {kras.flatMap((kra) => 
+                            kra.kpis.map((kpi, kpiIndex) => (
+                              <TableRow key={`${kra.id}-${kpi.id}`}>
+                                {kpiIndex === 0 ? (
+                                  <TableCell 
+                                    className="font-medium border-r" 
+                                    rowSpan={kra.kpis.length}
+                                    style={{ 
+                                      position: kra.kpis.length > 1 ? 'relative' : 'static',
+                                      verticalAlign: 'top',
+                                      paddingTop: '1rem'
+                                    }}
+                                  >
+                                    <div className="mb-1">
+                                      <h3 className="text-lg font-semibold">{kra.name}</h3>
+                                      <p className="text-sm text-muted-foreground">
+                                        {kra.objectiveName} • {kra.department} • {kra.responsible}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-col gap-2 mt-4">
+                                      <div className="flex items-center justify-between">
+                                        <StatusBadge status={kra.status} />
+                                        <span className="text-sm">{kra.progress}%</span>
+                                      </div>
+                                      <Progress value={kra.progress} className="w-full" />
                                     </div>
                                   </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      ))}
+                                ) : null}
+                                <TableCell className="font-medium">{kpi.name}</TableCell>
+                                <TableCell>{kpi.startDate.toLocaleDateString()}</TableCell>
+                                <TableCell>{kpi.date.toLocaleDateString()}</TableCell>
+                                <TableCell>{kpi.target}</TableCell>
+                                <TableCell>{kpi.actual}</TableCell>
+                                <TableCell>
+                                  <StatusDropdown 
+                                    currentStatus={kpi.status} 
+                                    onStatusChange={(status) => {
+                                      // Handle status change
+                                      const updatedKras = kras.map(k => {
+                                        if (k.id === kra.id) {
+                                          const updatedKpis = k.kpis.map(p => 
+                                            p.id === kpi.id ? {...p, status} : p
+                                          );
+                                          return {...k, kpis: updatedKpis};
+                                        }
+                                        return k;
+                                      });
+                                      setKras(updatedKras);
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => {
+                                        // Show edit modal with this KPI's data
+                                        setEditingKpi({...kpi, kraId: kra.id});
+                                        setShowEditKpiModal(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => {
+                                        // Show delete confirmation modal for this KPI
+                                        setDeletingKpi({...kpi, kraId: kra.id});
+                                        setShowDeleteKpiModal(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
                     </TabsContent>
                     
                     <TabsContent value="timeline">
