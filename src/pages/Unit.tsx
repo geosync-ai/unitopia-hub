@@ -164,6 +164,7 @@ const Unit = () => {
   const [selectedKRADrawer, setSelectedKRADrawer] = useState<KRA | null>(null);
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false); // <-- Add this state
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -1008,7 +1009,7 @@ const Unit = () => {
           {!isClosed && (
             <Button 
               className="bg-[#781623] hover:bg-[#5d101b] text-white"
-              onClick={() => setIsKRADrawerOpen(true)}
+              onClick={() => setIsAddKRADialogOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add KRA
@@ -2177,6 +2178,351 @@ const Unit = () => {
     );
   };
   
+  // Add KRA Dialog Component
+  const AddKRADialog = () => {
+    const [newKra, setNewKra] = useState<Partial<KRA>>({
+      name: '',
+      objectiveId: '',
+      department: '',
+      responsible: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+      status: 'open',
+      kpis: []
+    });
+  
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Validation
+      if (!newKra.name || !newKra.objectiveId) {
+        toast.error('Please fill in KRA Name and Linked Objective.');
+        return;
+      }
+  
+      // Create new KRA
+      const kraToAdd: KRA = {
+        id: String(Math.max(...kras.map(k => Number(k.id)), ...closedKras.map(k => Number(k.id)), 0) + 1),
+        name: newKra.name || '',
+        objectiveId: newKra.objectiveId || '',
+        objectiveName: objectives.find(obj => String(obj.id) === newKra.objectiveId)?.name || '',
+        department: newKra.department || '',
+        responsible: newKra.responsible || '',
+        startDate: newKra.startDate ? new Date(newKra.startDate) : new Date(),
+        endDate: newKra.endDate ? new Date(newKra.endDate) : new Date(),
+        progress: 0,
+        status: newKra.status || 'open',
+        kpis: [], // Start with no KPIs, they can be added via edit
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+  
+      setKras([...kras, kraToAdd]);
+      setIsAddKRADialogOpen(false);
+      toast.success('KRA added successfully');
+    };
+  
+    return (
+      <Dialog open={isAddKRADialogOpen} onOpenChange={setIsAddKRADialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New KRA</DialogTitle>
+            <DialogDescription>
+              Define a new Key Result Area for tracking.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="kraName">KRA Name</Label>
+                <Input
+                  id="kraName"
+                  value={newKra.name}
+                  onChange={(e) => setNewKra({ ...newKra, name: e.target.value })}
+                  placeholder="Enter KRA name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="objectiveId">Linked Objective</Label>
+                <Select
+                  value={newKra.objectiveId}
+                  onValueChange={(value) => setNewKra({ ...newKra, objectiveId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select linked objective" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {objectives.map((objective) => (
+                      <SelectItem key={objective.id} value={String(objective.id)}>
+                        {objective.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                   <Label htmlFor="department">Department</Label>
+                   <Input
+                     id="department"
+                     value={newKra.department}
+                     onChange={(e) => setNewKra({ ...newKra, department: e.target.value })}
+                     placeholder="Enter department"
+                   />
+                 </div>
+                 <div className="grid gap-2">
+                   <Label htmlFor="responsible">Responsible</Label>
+                   <Input
+                     id="responsible"
+                     value={newKra.responsible}
+                     onChange={(e) => setNewKra({ ...newKra, responsible: e.target.value })}
+                     placeholder="Enter responsible person/role"
+                   />
+                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={newKra.startDate ? String(newKra.startDate).split('T')[0] : ''}
+                    onChange={(e) => setNewKra({ ...newKra, startDate: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={newKra.endDate ? String(newKra.endDate).split('T')[0] : ''}
+                    onChange={(e) => setNewKra({ ...newKra, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                 <Label htmlFor="status">Initial Status</Label>
+                 <Select
+                   value={newKra.status}
+                   onValueChange={(value: KRA['status']) => setNewKra({ ...newKra, status: value })}
+                 >
+                   <SelectTrigger>
+                     <SelectValue placeholder="Select initial status" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="open">Open</SelectItem>
+                     <SelectItem value="in-progress">In Progress</SelectItem>
+                   </SelectContent>
+                 </Select>
+              </div>
+            </div>
+            <DialogFooter>
+               <Button variant="outline" onClick={() => setIsAddKRADialogOpen(false)}>Cancel</Button>
+               <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Add KRA</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+  
+  // Add Project Dialog
+  const AddProjectDialog = () => {
+    const [newProject, setNewProject] = useState<Partial<Project>>({
+      name: '',
+      description: '',
+      manager: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+      status: 'planning',
+      budget: '',
+      progress: 0,
+      department: '',
+      kraIds: [],
+      kraNames: []
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newProject.name || !newProject.manager || !newProject.department) {
+        toast.error('Please fill in Project Name, Manager, and Department.');
+        return;
+      }
+
+      const projectToAdd: Project = {
+        id: String(Math.max(...projects.map(p => Number(p.id)), 0) + 1),
+        name: newProject.name || '',
+        description: newProject.description || '',
+        manager: newProject.manager || '',
+        startDate: newProject.startDate || '',
+        endDate: newProject.endDate || '',
+        status: newProject.status || 'planning',
+        budget: newProject.budget ? `$${Number(newProject.budget).toLocaleString()}` : '$0', // Format budget
+        progress: newProject.progress || 0,
+        department: newProject.department || '',
+        kraIds: newProject.kraIds || [],
+        kraNames: kras.filter(k => newProject.kraIds?.includes(k.id)).map(k => k.name) // Get names from selected IDs
+      };
+
+      handleAddProject(projectToAdd); // Use the handler function
+    };
+
+    return (
+      <Dialog open={isAddProjectDialogOpen} onOpenChange={setIsAddProjectDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Add New Project</DialogTitle>
+            <DialogDescription>
+              Define a new project for tracking and management.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="projectName">Project Name</Label>
+                  <Input
+                    id="projectName"
+                    value={newProject.name}
+                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                    placeholder="Enter project name"
+                  />
+                </div>
+                 <div className="grid gap-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    value={newProject.department}
+                    onChange={(e) => setNewProject({ ...newProject, department: e.target.value })}
+                    placeholder="Enter department"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                  placeholder="Enter project description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                  <Label htmlFor="manager">Project Manager</Label>
+                  <Input
+                    id="manager"
+                    value={newProject.manager}
+                    onChange={(e) => setNewProject({ ...newProject, manager: e.target.value })}
+                    placeholder="Enter project manager"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={newProject.status}
+                    onValueChange={(value: Project['status']) => setNewProject({ ...newProject, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="planning">Planning</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="on-hold">On Hold</SelectItem>
+                      {/* Completed might not make sense for adding new */}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={newProject.startDate}
+                    onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={newProject.endDate}
+                    onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="budget">Budget ($)</Label>
+                    <Input
+                      id="budget"
+                      type="number" // Use number input for budget value
+                      value={newProject.budget}
+                      onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
+                      placeholder="Enter budget amount"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="progress">Initial Progress (%)</Label>
+                    <Input
+                      id="progress"
+                      type="number"
+                      min="0" max="100"
+                      value={newProject.progress}
+                      onChange={(e) => setNewProject({ ...newProject, progress: parseInt(e.target.value) || 0 })}
+                      placeholder="Enter initial progress"
+                    />
+                  </div>
+              </div>
+
+              <div className="grid gap-2">
+                  <Label htmlFor="relatedKRAs">Related KRAs (Optional)</Label>
+                   {/* Basic Multi-Select using Checkboxes - Consider a dedicated component for better UX */}
+                   <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
+                       {kras.map(kra => (
+                           <div key={kra.id} className="flex items-center space-x-2">
+                               <Checkbox
+                                   id={`kra-${kra.id}`}
+                                   checked={newProject.kraIds?.includes(kra.id)}
+                                   onCheckedChange={(checked) => {
+                                       const currentIds = newProject.kraIds || [];
+                                       const updatedIds = checked
+                                           ? [...currentIds, kra.id]
+                                           : currentIds.filter(id => id !== kra.id);
+                                       setNewProject({ ...newProject, kraIds: updatedIds });
+                                   }}
+                               />
+                               <Label htmlFor={`kra-${kra.id}`} className="text-sm font-normal">{kra.name}</Label>
+                           </div>
+                       ))}
+                   </div>
+              </div>
+
+            </div>
+            <DialogFooter className="mt-4 pt-4 border-t">
+              <Button variant="outline" onClick={() => setIsAddProjectDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Add Project</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+  
+  // Add Project handlers (similar structure)
+  const handleAddProject = (newProjectData: Project) => {
+    setProjects([...projects, newProjectData]);
+    setIsAddProjectDialogOpen(false);
+    toast.success('Project added successfully');
+  };
+  
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
@@ -2495,7 +2841,7 @@ const Unit = () => {
                           Completed
                         </Button>
                       </div>
-                      <Button className="bg-[#781623] hover:bg-[#5d101b] text-white">
+                      <Button onClick={() => setIsAddProjectDialogOpen(true)} className="bg-[#781623] hover:bg-[#5d101b] text-white">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Project
                       </Button>
@@ -3258,6 +3604,10 @@ const Unit = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Render the Add KRA Dialog */}
+      <AddKRADialog />
+      <AddProjectDialog /> {/* <-- Render the Add Project Dialog */}
     </PageLayout>
   );
 };
