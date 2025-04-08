@@ -93,12 +93,15 @@ interface Risk {
   id: string;
   title: string;
   description: string;
-  impact: 'low' | 'medium' | 'high' | 'severe';
-  probability: 'low' | 'medium' | 'high' | 'certain';
-  status: 'open' | 'mitigating' | 'closed' | 'accepted';
+  impact: 'low' | 'medium' | 'high' | 'critical';
+  likelihood: 'low' | 'medium' | 'high' | 'very-high';
+  status: 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'resolved';
   owner: string;
   dateIdentified: string;
   mitigation: string;
+  category: string;
+  projectId?: string;
+  projectName?: string;
   kraId?: string;
   kraName?: string;
 }
@@ -187,6 +190,10 @@ const Unit = () => {
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingKRA, setEditingKRA] = useState<KRA | null>(null); // State for KRA being edited
+  const [editingProject, setEditingProject] = useState<Project | null>(null); // State for project being edited
+  const [editingRisk, setEditingRisk] = useState<Risk | null>(null); // State for risk being edited
+  const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
+  const [isEditRiskDialogOpen, setIsEditRiskDialogOpen] = useState(false);
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -1556,6 +1563,12 @@ const Unit = () => {
     setIsAddTaskDialogOpen(false);
   };
 
+  // Handler to open edit task dialog
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task); // Set the task to be edited
+    setIsEditTaskDialogOpen(true); // Open the dialog
+  };
+
   // Add KRA status update handler function
   const handleUpdateKRAStatus = (kraId: string, newStatus: KRA['status']) => {
     setKras(kras.map(kra => 
@@ -1608,14 +1621,17 @@ const Unit = () => {
   const [risks, setRisks] = useState<Risk[]>([
     {
       id: '1',
-      title: 'Regulatory changes in Indonesia market',
+      title: 'Regulatory Compliance Risk',
       description: 'New regulations may impact market entry strategy',
       impact: 'high',
-      probability: 'medium',
-      status: 'open',
+      likelihood: 'medium',
+      status: 'identified', // Changed from 'open' to 'identified'
       owner: 'Legal Department',
       dateIdentified: '2024-05-15',
       mitigation: 'Engage with local legal experts to develop compliance strategy',
+      category: 'Financial',
+      projectId: '1',
+      projectName: 'Market Expansion - Southeast Asia',
       kraId: '1',
       kraName: 'Market Expansion Strategy'
     },
@@ -1623,51 +1639,63 @@ const Unit = () => {
       id: '2',
       title: 'System compatibility issues',
       description: 'Legacy systems may not be compatible with new cloud infrastructure',
-      impact: 'severe',
-      probability: 'high',
-      status: 'mitigating',
+      impact: 'critical', // Changed from 'severe' to 'critical'
+      likelihood: 'high',
+      status: 'analyzing',
       owner: 'IT Director',
       dateIdentified: '2024-04-10',
       mitigation: 'Develop middleware solution and phase migration approach',
+      category: 'Technical',
+      projectId: '2',
+      projectName: 'Cloud Migration Initiative',
       kraId: '2',
       kraName: 'Digital Transformation Initiative'
     },
     {
       id: '3',
-      title: 'Staff resistance to new QA procedures',
+      title: 'Team Resistance',
       description: 'Team members showing resistance to implementing new quality metrics',
       impact: 'medium',
-      probability: 'high',
+      likelihood: 'high',
       status: 'mitigating',
       owner: 'QA Manager',
       dateIdentified: '2024-07-01',
       mitigation: 'Additional training sessions and one-on-one meetings with key influencers',
+      category: 'Operational',
+      projectId: '3',
+      projectName: 'Quality Management System Implementation',
       kraId: '3',
       kraName: 'Quality Assurance Enhancement'
     },
     {
       id: '4',
-      title: 'Budget constraints for innovation projects',
+      title: 'Budget Constraints',
       description: 'Potential reduction in R&D budget may impact innovation initiatives',
       impact: 'high',
-      probability: 'medium',
-      status: 'open',
+      likelihood: 'medium',
+      status: 'identified', // Changed from 'open' to 'identified'
       owner: 'Finance Director',
       dateIdentified: '2024-06-25',
       mitigation: 'Prioritize projects with highest ROI and seek external funding options',
+      category: 'Financial',
+      projectId: '4',
+      projectName: 'Product Innovation Lab',
       kraId: '4',
       kraName: 'Innovation Pipeline'
     },
     {
       id: '5',
-      title: 'Vendor reliability issues',
+      title: 'Vendor Disruption',
       description: 'Key technology vendor experiencing service disruptions',
       impact: 'medium',
-      probability: 'low',
-      status: 'closed',
+      likelihood: 'low',
+      status: 'resolved', // Changed from 'closed' to 'resolved'
       owner: 'Procurement Manager',
       dateIdentified: '2024-03-20',
       mitigation: 'Alternative vendor identified and transition completed',
+      category: 'Operational',
+      projectId: '5',
+      projectName: 'Customer Service Enhancement',
       kraId: '2',
       kraName: 'Digital Transformation Initiative'
     }
@@ -1677,11 +1705,14 @@ const Unit = () => {
     title: '',
     description: '',
     impact: 'medium',
-    probability: 'medium',
-    status: 'open',
+    likelihood: 'medium',
+    status: 'identified', // Change from 'open' to 'identified'
     owner: '',
     dateIdentified: new Date().toISOString().split('T')[0],
     mitigation: '',
+    category: '',
+    projectId: '',
+    projectName: '',
     kraId: '',
     kraName: ''
   });
@@ -1696,11 +1727,14 @@ const Unit = () => {
       title: riskForm.title || '',
       description: riskForm.description || '',
       impact: riskForm.impact || 'medium',
-      probability: riskForm.probability || 'medium',
-      status: riskForm.status || 'open',
+      likelihood: riskForm.likelihood || 'medium',
+      status: riskForm.status || 'identified', // Change from 'open' to 'identified'
       owner: riskForm.owner || '',
       dateIdentified: riskForm.dateIdentified || new Date().toISOString().split('T')[0],
       mitigation: riskForm.mitigation || '',
+      category: riskForm.category || '',
+      projectId: riskForm.projectId,
+      projectName: riskForm.projectName,
       kraId: riskForm.kraId,
       kraName: riskForm.kraName
     };
@@ -1710,11 +1744,14 @@ const Unit = () => {
       title: '',
       description: '',
       impact: 'medium',
-      probability: 'medium',
-      status: 'open',
+      likelihood: 'medium',
+      status: 'identified', // Change from 'open' to 'identified'
       owner: '',
       dateIdentified: new Date().toISOString().split('T')[0],
       mitigation: '',
+      category: '',
+      projectId: '',
+      projectName: '',
       kraId: '',
       kraName: ''
     });
@@ -1732,34 +1769,35 @@ const Unit = () => {
       case 'low': return 'bg-green-100 text-green-800';
       case 'medium': return 'bg-yellow-100 text-yellow-800';
       case 'high': return 'bg-orange-100 text-orange-800';
-      case 'severe': return 'bg-red-100 text-red-800';
+      case 'critical': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getRiskProbabilityColor = (probability: Risk['probability']) => {
+  const getRiskProbabilityColor = (probability: Risk['likelihood']) => {
     switch (probability) {
       case 'low': return 'bg-blue-100 text-blue-800';
       case 'medium': return 'bg-yellow-100 text-yellow-800';
       case 'high': return 'bg-orange-100 text-orange-800';
-      case 'certain': return 'bg-red-100 text-red-800';
+      case 'very-high': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getRiskStatusColor = (status: Risk['status']) => {
     switch (status) {
-      case 'open': return 'bg-red-200 text-red-800';
-      case 'mitigating': return 'bg-yellow-200 text-yellow-800';
-      case 'closed': return 'bg-green-200 text-green-800';
-      case 'accepted': return 'bg-blue-200 text-blue-800';
+      case 'identified': return 'bg-red-200 text-red-800';
+      case 'analyzing': return 'bg-yellow-200 text-yellow-800';
+      case 'mitigating': return 'bg-green-200 text-green-800';
+      case 'monitoring': return 'bg-blue-200 text-blue-800';
+      case 'resolved': return 'bg-green-200 text-green-800';
       default: return 'bg-gray-200 text-gray-800';
     }
   };
 
-  const getRiskSeverity = (impact: Risk['impact'], probability: Risk['probability']) => {
-    const impactScore = impact === 'severe' ? 4 : impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
-    const probScore = probability === 'certain' ? 4 : probability === 'high' ? 3 : probability === 'medium' ? 2 : 1;
+  const getRiskSeverity = (impact: Risk['impact'], probability: Risk['likelihood']) => {
+    const impactScore = impact === 'critical' ? 4 : impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
+    const probScore = probability === 'very-high' ? 4 : probability === 'high' ? 3 : probability === 'medium' ? 2 : 1;
     const score = impactScore * probScore;
     
     if (score >= 12) return 'Critical';
@@ -1777,7 +1815,7 @@ const Unit = () => {
       items = items.filter(risk => risk.impact === riskFilters.impact);
     }
     if (riskFilters.probability !== 'all') {
-      items = items.filter(risk => risk.probability === riskFilters.probability);
+      items = items.filter(risk => risk.likelihood === riskFilters.probability);
     }
     if (riskFilters.owner !== 'all') {
       items = items.filter(risk => risk.owner === riskFilters.owner);
@@ -2241,6 +2279,820 @@ const Unit = () => {
     );
   };
 
+  // Edit Task Dialog Component
+  const EditTaskDialog = () => {
+    const [editedTask, setEditedTask] = useState<Task | null>(editingTask);
+
+    useEffect(() => {
+      setEditedTask(editingTask); // Sync with external state
+    }, [editingTask]);
+
+    if (!editedTask) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editedTask.title) {
+        toast.error('Please enter a Task Title.');
+        return;
+      }
+      handleUpdateTask(editedTask); // Call the existing update handler
+    };
+
+    return (
+      <Dialog open={isEditTaskDialogOpen} onOpenChange={setIsEditTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>
+              Update the details for this task.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              {/* Task Title */}
+              <div className="grid gap-2">
+                <Label htmlFor="editTaskTitle">Task Title</Label>
+                <Input
+                  id="editTaskTitle"
+                  value={editedTask.title}
+                  onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
+                  placeholder="Enter task title"
+                />
+              </div>
+              {/* Description */}
+              <div className="grid gap-2">
+                <Label htmlFor="editTaskDescription">Description</Label>
+                <Textarea
+                  id="editTaskDescription"
+                  value={editedTask.description}
+                  onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
+                  placeholder="Enter task description"
+                />
+              </div>
+              {/* Status & Priority */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editTaskStatus">Status</Label>
+                  <Select
+                    value={editedTask.status}
+                    onValueChange={(value: Task['status']) => setEditedTask({ ...editedTask, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editTaskPriority">Priority</Label>
+                  <Select
+                    value={editedTask.priority}
+                    onValueChange={(value: Task['priority']) => setEditedTask({ ...editedTask, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {/* Assignee & Due Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editTaskAssignee">Assignee</Label>
+                  <Input
+                    id="editTaskAssignee"
+                    value={editedTask.assignee}
+                    onChange={(e) => setEditedTask({ ...editedTask, assignee: e.target.value })}
+                    placeholder="Enter assignee name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editTaskDueDate">Due Date</Label>
+                  <Input
+                    id="editTaskDueDate"
+                    type="date"
+                    value={editedTask.dueDate}
+                    onChange={(e) => setEditedTask({ ...editedTask, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              {/* Related KRA (Optional - might need adjustment based on data) */}
+              <div className="grid gap-2">
+                <Label htmlFor="editTaskKra">Related KRA (Optional)</Label>
+                <Select
+                  value={editedTask.kraId || ''}
+                  onValueChange={(value) => {
+                     const selectedKra = kras.find(k => k.id === value);
+                     setEditedTask({ ...editedTask, kraId: value, kraName: selectedKra?.name || '' });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select related KRA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="">None</SelectItem>
+                    {kras.map((kra) => (
+                      <SelectItem key={kra.id} value={kra.id}>
+                        {kra.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setIsEditTaskDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Add function to render the tasks table
+  const renderTasksTable = (tasksToRender: Task[]) => {
+    const filteredTasks = getFilteredTasks(); // Use existing filter logic
+    // Add sorting logic similar to KRAs if needed later
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          {/* Filters for tasks can go here */}
+          <Button 
+            className="bg-[#781623] hover:bg-[#5d101b] text-white"
+            onClick={() => setIsAddTaskDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
+        </div>
+        
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Assignee</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Related KRA</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => (
+                <TableRow key={task.id}>
+                  <TableCell className="font-medium">{task.title}</TableCell>
+                  <TableCell>
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as Task['status'])}
+                      className={`rounded px-2 py-1 text-xs font-medium border ${getTaskStatusColor(task.status)}`}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTaskPriorityColor(task.priority)}`}>
+                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                    </span>
+                  </TableCell>
+                  <TableCell>{task.assignee}</TableCell>
+                  <TableCell>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{task.kraName || '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleEditTask(task)} // Hook up the edit button
+                        title="Edit Task"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {/* Add Delete button later if needed */}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-4 text-gray-500">
+                  No tasks found matching the criteria
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
+  // Handler to open edit project dialog
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setIsEditProjectDialogOpen(true);
+  };
+
+  // Handler to save updated project
+  const handleUpdateProject = (updatedProject: Project) => {
+    setProjects(projects.map(project => (project.id === updatedProject.id ? updatedProject : project)));
+    setIsEditProjectDialogOpen(false);
+    setEditingProject(null);
+    toast.success('Project updated successfully');
+  };
+
+  // Handler to open edit risk dialog
+  const handleEditRisk = (risk: Risk) => {
+    setEditingRisk(risk);
+    setIsEditRiskDialogOpen(true);
+  };
+
+  // Handler to save updated risk
+  const handleUpdateRisk = (updatedRisk: Risk) => {
+    setRisks(risks.map(risk => (risk.id === updatedRisk.id ? updatedRisk : risk)));
+    setIsEditRiskDialogOpen(false);
+    setEditingRisk(null);
+    toast.success('Risk updated successfully');
+  };
+
+  // Edit Project Dialog Component
+  const EditProjectDialog = () => {
+    const [editedProject, setEditedProject] = useState<Project | null>(editingProject);
+
+    useEffect(() => {
+      setEditedProject(editingProject); // Sync with external state
+    }, [editingProject]);
+
+    if (!editedProject) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editedProject.name || !editedProject.manager || !editedProject.department) {
+        toast.error('Please fill in all required fields.');
+        return;
+      }
+      handleUpdateProject({
+        ...editedProject,
+        // Ensure proper format for budget with '$' prefix
+        budget: editedProject.budget.startsWith('$') ? editedProject.budget : `$${editedProject.budget}`,
+      });
+    };
+
+    return (
+      <Dialog open={isEditProjectDialogOpen} onOpenChange={setIsEditProjectDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update the details for this project.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Project Name & Department */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editProjectName">Project Name</Label>
+                  <Input
+                    id="editProjectName"
+                    value={editedProject.name}
+                    onChange={(e) => setEditedProject({ ...editedProject, name: e.target.value })}
+                    placeholder="Enter project name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editDepartment">Department</Label>
+                  <Input
+                    id="editDepartment"
+                    value={editedProject.department}
+                    onChange={(e) => setEditedProject({ ...editedProject, department: e.target.value })}
+                    placeholder="Enter department"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="grid gap-2">
+                <Label htmlFor="editDescription">Description</Label>
+                <Textarea
+                  id="editDescription"
+                  value={editedProject.description}
+                  onChange={(e) => setEditedProject({ ...editedProject, description: e.target.value })}
+                  placeholder="Enter project description"
+                />
+              </div>
+
+              {/* Project Manager & Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editManager">Project Manager</Label>
+                  <Input
+                    id="editManager"
+                    value={editedProject.manager}
+                    onChange={(e) => setEditedProject({ ...editedProject, manager: e.target.value })}
+                    placeholder="Enter project manager"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editStatus">Status</Label>
+                  <Select
+                    value={editedProject.status}
+                    onValueChange={(value: Project['status']) => setEditedProject({ ...editedProject, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="planning">Planning</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="on-hold">On Hold</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Start & End Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editStartDate">Start Date</Label>
+                  <Input
+                    id="editStartDate"
+                    type="date"
+                    value={editedProject.startDate}
+                    onChange={(e) => setEditedProject({ ...editedProject, startDate: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editEndDate">End Date</Label>
+                  <Input
+                    id="editEndDate"
+                    type="date"
+                    value={editedProject.endDate}
+                    onChange={(e) => setEditedProject({ ...editedProject, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Budget & Progress */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editBudget">Budget ($)</Label>
+                  <Input
+                    id="editBudget"
+                    value={editedProject.budget.replace(/^\$/, '')} // Remove $ for editing
+                    onChange={(e) => setEditedProject({ ...editedProject, budget: e.target.value })}
+                    placeholder="Enter budget amount"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editProgress">Progress (%)</Label>
+                  <Input
+                    id="editProgress"
+                    type="number"
+                    min="0" max="100"
+                    value={editedProject.progress}
+                    onChange={(e) => setEditedProject({ ...editedProject, progress: parseInt(e.target.value) || 0 })}
+                    placeholder="Enter progress percentage"
+                  />
+                </div>
+              </div>
+
+              {/* Related KRAs */}
+              <div className="grid gap-2">
+                <Label htmlFor="editRelatedKRAs">Related KRAs (Optional)</Label>
+                <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
+                  {kras.map(kra => (
+                    <div key={kra.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-kra-${kra.id}`}
+                        checked={editedProject.kraIds?.includes(kra.id)}
+                        onCheckedChange={(checked) => {
+                          const currentIds = editedProject.kraIds || [];
+                          const updatedIds = checked
+                            ? [...currentIds, kra.id]
+                            : currentIds.filter(id => id !== kra.id);
+                          
+                          // Update KRA names based on selected IDs
+                          const updatedNames = kras
+                            .filter(k => updatedIds.includes(k.id))
+                            .map(k => k.name);
+                          
+                          setEditedProject({ 
+                            ...editedProject, 
+                            kraIds: updatedIds,
+                            kraNames: updatedNames
+                          });
+                        }}
+                      />
+                      <Label htmlFor={`edit-kra-${kra.id}`} className="text-sm font-normal">{kra.name}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="mt-4 pt-4 border-t">
+              <Button variant="outline" type="button" onClick={() => setIsEditProjectDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Edit Risk Dialog Component
+  const EditRiskDialog = () => {
+    const [editedRisk, setEditedRisk] = useState<Risk | null>(editingRisk);
+
+    useEffect(() => {
+      setEditedRisk(editingRisk); // Sync with external state
+    }, [editingRisk]);
+
+    if (!editedRisk) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editedRisk.title || !editedRisk.category) {
+        toast.error('Please fill in all required fields.');
+        return;
+      }
+      handleUpdateRisk({
+        ...editedRisk
+      });
+    };
+
+    return (
+      <Dialog open={isEditRiskDialogOpen} onOpenChange={setIsEditRiskDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Edit Risk</DialogTitle>
+            <DialogDescription>
+              Update the details for this risk.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Risk Title & Category */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editRiskTitle">Risk Title</Label>
+                  <Input
+                    id="editRiskTitle"
+                    value={editedRisk.title}
+                    onChange={(e) => setEditedRisk({ ...editedRisk, title: e.target.value })}
+                    placeholder="Enter risk title"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editCategory">Category</Label>
+                  <Select
+                    value={editedRisk.category}
+                    onValueChange={(value: string) => setEditedRisk({ ...editedRisk, category: value })}
+                  >
+                    <SelectTrigger id="editCategory">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Financial">Financial</SelectItem>
+                      <SelectItem value="Operational">Operational</SelectItem>
+                      <SelectItem value="Strategic">Strategic</SelectItem>
+                      <SelectItem value="Compliance">Compliance</SelectItem>
+                      <SelectItem value="Technical">Technical</SelectItem>
+                      <SelectItem value="Environmental">Environmental</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="grid gap-2">
+                <Label htmlFor="editRiskDescription">Description</Label>
+                <Textarea
+                  id="editRiskDescription"
+                  value={editedRisk.description}
+                  onChange={(e) => setEditedRisk({ ...editedRisk, description: e.target.value })}
+                  placeholder="Enter risk description"
+                />
+              </div>
+
+              {/* Impact & Likelihood */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editImpact">Impact</Label>
+                  <Select
+                    value={editedRisk.impact}
+                    onValueChange={(value: Risk['impact']) => setEditedRisk({ ...editedRisk, impact: value })}
+                  >
+                    <SelectTrigger id="editImpact">
+                      <SelectValue placeholder="Select impact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editLikelihood">Likelihood</Label>
+                  <Select
+                    value={editedRisk.likelihood}
+                    onValueChange={(value: Risk['likelihood']) => setEditedRisk({ ...editedRisk, likelihood: value })}
+                  >
+                    <SelectTrigger id="editLikelihood">
+                      <SelectValue placeholder="Select likelihood" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="very-high">Very High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Mitigation Plan */}
+              <div className="grid gap-2">
+                <Label htmlFor="editMitigation">Mitigation Plan</Label>
+                <Textarea
+                  id="editMitigation"
+                  value={editedRisk.mitigation}
+                  onChange={(e) => setEditedRisk({ ...editedRisk, mitigation: e.target.value })}
+                  placeholder="Enter mitigation plan"
+                />
+              </div>
+
+              {/* Status & Owner */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editRiskStatus">Status</Label>
+                  <Select
+                    value={editedRisk.status}
+                    onValueChange={(value: Risk['status']) => setEditedRisk({ ...editedRisk, status: value })}
+                  >
+                    <SelectTrigger id="editRiskStatus">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="identified">Identified</SelectItem>
+                      <SelectItem value="analyzing">Analyzing</SelectItem>
+                      <SelectItem value="mitigating">Mitigating</SelectItem>
+                      <SelectItem value="monitoring">Monitoring</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editOwner">Owner</Label>
+                  <Input
+                    id="editOwner"
+                    value={editedRisk.owner}
+                    onChange={(e) => setEditedRisk({ ...editedRisk, owner: e.target.value })}
+                    placeholder="Enter risk owner"
+                  />
+                </div>
+              </div>
+
+              {/* Related Project */}
+              <div className="grid gap-2">
+                <Label htmlFor="editRelatedProject">Related Project (Optional)</Label>
+                <Select
+                  value={editedRisk.projectId || ""}
+                  onValueChange={(value: string) => {
+                    const project = projects.find(p => p.id === value);
+                    setEditedRisk({ 
+                      ...editedRisk, 
+                      projectId: value || undefined,
+                      projectName: project ? project.name : undefined 
+                    });
+                  }}
+                >
+                  <SelectTrigger id="editRelatedProject">
+                    <SelectValue placeholder="Select related project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter className="mt-4 pt-4 border-t">
+              <Button variant="outline" type="button" onClick={() => setIsEditRiskDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-[#781623] hover:bg-[#5d101b]">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Add function to render the projects table
+  const renderProjectsTable = () => {
+    const filteredProjects = getFilteredProjects(); // Use existing filter logic
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          {/* Filters for projects can go here */}
+          <Button 
+            className="bg-[#781623] hover:bg-[#5d101b] text-white"
+            onClick={() => setIsAddProjectDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Project
+          </Button>
+        </div>
+        
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Manager</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Progress</TableHead>
+              <TableHead>Budget</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredProjects.length > 0 ? (
+              filteredProjects.map((project) => (
+                <TableRow key={project.id}>
+                  <TableCell className="font-medium">
+                    <div>
+                      <div>{project.name}</div>
+                      <div className="text-sm text-gray-500 mt-1">{project.description.substring(0, 50)}...</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getProjectStatusColor(project.status)}`}>
+                      {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                    </span>
+                  </TableCell>
+                  <TableCell>{project.manager}</TableCell>
+                  <TableCell>{project.department}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Progress value={project.progress} className="w-[80px]" />
+                      <span className="text-sm">{project.progress}%</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{project.budget}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleEditProject(project)}
+                        title="Edit Project"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {/* Add Delete button later if needed */}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-4 text-gray-500">
+                  No projects found matching the criteria
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
+  // Add function to render the risks table
+  const renderRisksTable = () => {
+    const filteredRisks = getFilteredRisks(); // Use existing filter logic
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          {/* Filters for risks can go here */}
+          <Button 
+            className="bg-[#781623] hover:bg-[#5d101b] text-white"
+            onClick={() => setIsAddRiskDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Risk
+          </Button>
+        </div>
+        
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Impact</TableHead>
+              <TableHead>Likelihood</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Severity</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredRisks.length > 0 ? (
+              filteredRisks.map((risk) => (
+                <TableRow key={risk.id}>
+                  <TableCell className="font-medium">
+                    <div>
+                      <div>{risk.title}</div>
+                      <div className="text-sm text-gray-500 mt-1">{risk.description.substring(0, 50)}...</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{risk.category}</TableCell>
+                  <TableCell>
+                    <select
+                      value={risk.status}
+                      onChange={(e) => handleUpdateRiskStatus(risk.id, e.target.value as Risk['status'])}
+                      className={`rounded px-2 py-1 text-xs font-medium border ${getRiskStatusColor(risk.status)}`}
+                    >
+                      <option value="identified">Identified</option>
+                      <option value="analyzing">Analyzing</option>
+                      <option value="mitigating">Mitigating</option>
+                      <option value="monitoring">Monitoring</option>
+                      <option value="resolved">Resolved</option>
+                    </select>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskImpactColor(risk.impact)}`}>
+                      {risk.impact.charAt(0).toUpperCase() + risk.impact.slice(1)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskProbabilityColor(risk.likelihood)}`}>
+                      {risk.likelihood.charAt(0).toUpperCase() + risk.likelihood.slice(1).replace('-', ' ')}
+                    </span>
+                  </TableCell>
+                  <TableCell>{risk.owner}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      getRiskSeverity(risk.impact, risk.likelihood) === 'Critical' ? 'bg-red-200 text-red-800' :
+                      getRiskSeverity(risk.impact, risk.likelihood) === 'High' ? 'bg-orange-200 text-orange-800' :
+                      getRiskSeverity(risk.impact, risk.likelihood) === 'Medium' ? 'bg-yellow-200 text-yellow-800' :
+                      'bg-green-200 text-green-800'
+                    }`}>
+                      {getRiskSeverity(risk.impact, risk.likelihood)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleEditRisk(risk)}
+                        title="Edit Risk"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {/* Add Delete button later if needed */}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-4 text-gray-500">
+                  No risks found matching the criteria
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   return (
     <PageLayout>
       <div className="flex justify-between items-center mb-6">
@@ -2268,12 +3120,34 @@ const Unit = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab content would be here - KRAs/KPIs, Tasks, Projects, Risks, etc. */}
+        <TabsContent value="kras">
+          {renderKRATable(kras)} 
+          <h2 className="text-xl font-semibold mt-6 mb-3">Closed KRAs</h2>
+          {renderKRATable(closedKras, true)}
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          {renderTasksTable(tasks)} {/* Render the tasks table */}
+        </TabsContent>
+
+        <TabsContent value="projects">
+          {renderProjectsTable()} {/* Render the projects table */}
+        </TabsContent>
+
+        <TabsContent value="risks">
+          {renderRisksTable()} {/* Render the risks table */}
+        </TabsContent>
+
+        {/* Reports tab can be added later */}
+        
       </Tabs>
 
       {/* Add dialogs referenced elsewhere */}
       {isAddTaskDialogOpen && <AddTaskDialog />}
       {isEditKRADialogOpen && <EditKRADialog />}
+      {isEditTaskDialogOpen && <EditTaskDialog />}
+      {isEditProjectDialogOpen && <EditProjectDialog />}
+      {isEditRiskDialogOpen && <EditRiskDialog />}
     </PageLayout>
   );
 };
