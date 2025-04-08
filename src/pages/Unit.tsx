@@ -56,6 +56,7 @@ interface KRA {
   endDate: Date | string;
   progress: number;
   status: 'open' | 'in-progress' | 'closed';
+  description?: string; // <-- Add optional description
   kpis: KPI[];
   createdAt?: string;
   updatedAt?: string;
@@ -164,7 +165,12 @@ const Unit = () => {
   const [selectedKRADrawer, setSelectedKRADrawer] = useState<KRA | null>(null);
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false); // <-- Add this state
+  const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false);
+  
+  // Filter states
+  const [kraFilters, setKraFilters] = useState({ status: 'all', department: 'all', responsible: 'all' });
+  const [projectFilters, setProjectFilters] = useState({ status: 'all', department: 'all', manager: 'all' });
+  const [riskFilters, setRiskFilters] = useState({ status: 'all', impact: 'all', probability: 'all', owner: 'all' });
   
   // Form state
   const [kraForm, setKraForm] = useState<Partial<KRA>>({
@@ -1230,14 +1236,16 @@ const Unit = () => {
                     )}
                   </TableCell>
                   <TableCell>
+                    {/* KRA Status Dropdown - Consistent with Tasks */}
                     <select
                       value={kra.status}
-                      onChange={(e) => handleInlineEdit(kra.id, 'status', e.target.value)}
-                      className={`rounded px-2 py-1 text-xs ${
-                        kra.status === 'open' ? 'bg-blue-200 text-blue-800' :
-                        kra.status === 'in-progress' ? 'bg-yellow-200 text-yellow-800' :
-                        kra.status === 'closed' ? 'bg-green-200 text-green-800' :
-                        'bg-gray-200 text-gray-800'
+                      // Add onChange handler to update KRA status
+                      // onChange={(e) => handleUpdateKRAStatus(kra.id, e.target.value as KRA['status'])}
+                      className={`rounded px-2 py-1 text-xs font-medium border ${ 
+                        kra.status === 'open' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                        kra.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                        kra.status === 'closed' ? 'bg-green-100 text-green-800 border-green-300' :
+                        'bg-gray-100 text-gray-800 border-gray-300'
                       }`}
                     >
                       <option value="open">Open</option>
@@ -1404,13 +1412,26 @@ const Unit = () => {
                     </>
                   )}
                   <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleEditKRA(kra)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    {/* Consistent Actions - Edit/Delete */}
+                    <div className="flex space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        // onClick={() => handleEditKRA(kra)} // Keep existing edit logic link
+                        title="Edit KRA"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDeleteKRA(kra.id)} // Keep existing delete logic link
+                        className="text-red-600 hover:text-red-700"
+                        title="Delete KRA"
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -1724,8 +1745,20 @@ const Unit = () => {
   };
 
   const getFilteredRisks = () => {
-    if (riskFilter === 'all') return risks;
-    return risks.filter(risk => risk.status === riskFilter);
+    let items = [...risks];
+    if (riskFilters.status !== 'all') {
+      items = items.filter(risk => risk.status === riskFilters.status);
+    }
+    if (riskFilters.impact !== 'all') {
+      items = items.filter(risk => risk.impact === riskFilters.impact);
+    }
+    if (riskFilters.probability !== 'all') {
+      items = items.filter(risk => risk.probability === riskFilters.probability);
+    }
+    if (riskFilters.owner !== 'all') {
+      items = items.filter(risk => risk.owner === riskFilters.owner);
+    }
+    return items;
   };
   
   // Add projects state
@@ -1816,8 +1849,17 @@ const Unit = () => {
   };
 
   const getFilteredProjects = () => {
-    if (projectFilter === 'all') return projects;
-    return projects.filter(project => project.status === projectFilter);
+    let items = [...projects];
+    if (projectFilters.status !== 'all') {
+      items = items.filter(project => project.status === projectFilters.status);
+    }
+    if (projectFilters.department !== 'all') {
+      items = items.filter(project => project.department === projectFilters.department);
+    }
+    if (projectFilters.manager !== 'all') {
+      items = items.filter(project => project.manager === projectFilters.manager);
+    }
+    return items;
   };
 
   // Add KRA filter state
@@ -1825,8 +1867,18 @@ const Unit = () => {
 
   // KRA filter handler
   const getFilteredKRAs = () => {
-    if (kraFilter === 'all') return filteredKras;
-    return filteredKras.filter(kra => kra.status === kraFilter);
+    let items = [...kras]; // Use active KRAs
+    if (kraFilters.status !== 'all') {
+      items = items.filter(kra => kra.status === kraFilters.status);
+    }
+    if (kraFilters.department !== 'all') {
+      items = items.filter(kra => kra.department === kraFilters.department);
+    }
+    if (kraFilters.responsible !== 'all') {
+      items = items.filter(kra => kra.responsible === kraFilters.responsible);
+    }
+    // Keep existing sort logic if needed, apply it to 'items'
+    return items; 
   };
   
   // Add handleSetIsAddingKRA function
@@ -2314,6 +2366,16 @@ const Unit = () => {
                    </SelectContent>
                  </Select>
               </div>
+              {/* Add Description Field to Add KRA Dialog */}
+              <div className="grid gap-2">
+                <Label htmlFor="kraDescription">Description (Optional)</Label>
+                <Textarea
+                  id="kraDescription"
+                  value={newKra.description} // Assuming you add description to KRA interface/state
+                  onChange={(e) => setNewKra({ ...newKra, description: e.target.value })}
+                  placeholder="Enter a brief description for the KRA"
+                />
+              </div>
             </div>
             <DialogFooter>
                <Button variant="outline" onClick={() => setIsAddKRADialogOpen(false)}>Cancel</Button>
@@ -2705,8 +2767,35 @@ const Unit = () => {
                     </TabsList>
                     
                     <TabsContent value="active-kras">
-                      {filteredKras.length > 0 ? (
-                        renderKRATable(filteredKras)
+                      {/* Add KRA Filters */} 
+                      <div className="flex space-x-2 mb-4">
+                        <Select value={kraFilters.status} onValueChange={(value) => setKraFilters({...kraFilters, status: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={kraFilters.department} onValueChange={(value) => setKraFilters({...kraFilters, department: value})}>
+                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Department" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {[...new Set(kras.map(k => k.department))].map(dept => dept && <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                         <Select value={kraFilters.responsible} onValueChange={(value) => setKraFilters({...kraFilters, responsible: value})}>
+                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Responsible" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Responsible</SelectItem>
+                            {[...new Set(kras.map(k => k.responsible))].map(resp => resp && <SelectItem key={resp} value={resp}>{resp}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {getFilteredKRAs().length > 0 ? (
+                        renderKRATable(getFilteredKRAs())
                       ) : (
                         <div className="text-center py-6 text-gray-500">
                           No active KRAs found. Click "Add KRA" to create one.
@@ -2803,43 +2892,33 @@ const Unit = () => {
 
                 <TabsContent value="projects">
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4"> {/* Add mb-4 */} 
+                      {/* Add Project Filters */}
                       <div className="flex space-x-2">
-                        <Button 
-                          variant={projectFilter === 'all' ? 'default' : 'outline'} 
-                          onClick={() => setProjectFilter('all')}
-                          size="sm"
-                        >
-                          All
-                        </Button>
-                        <Button 
-                          variant={projectFilter === 'planning' ? 'default' : 'outline'} 
-                          onClick={() => setProjectFilter('planning')}
-                          size="sm"
-                        >
-                          Planning
-                        </Button>
-                        <Button 
-                          variant={projectFilter === 'in-progress' ? 'default' : 'outline'} 
-                          onClick={() => setProjectFilter('in-progress')}
-                          size="sm"
-                        >
-                          In Progress
-                        </Button>
-                        <Button 
-                          variant={projectFilter === 'on-hold' ? 'default' : 'outline'} 
-                          onClick={() => setProjectFilter('on-hold')}
-                          size="sm"
-                        >
-                          On Hold
-                        </Button>
-                        <Button 
-                          variant={projectFilter === 'completed' ? 'default' : 'outline'} 
-                          onClick={() => setProjectFilter('completed')}
-                          size="sm"
-                        >
-                          Completed
-                        </Button>
+                        <Select value={projectFilters.status} onValueChange={(value) => setProjectFilters({...projectFilters, status: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="planning">Planning</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="on-hold">On Hold</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={projectFilters.department} onValueChange={(value) => setProjectFilters({...projectFilters, department: value})}>
+                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Department" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {[...new Set(projects.map(p => p.department))].map(dept => dept && <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Select value={projectFilters.manager} onValueChange={(value) => setProjectFilters({...projectFilters, manager: value})}>
+                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Manager" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Managers</SelectItem>
+                            {[...new Set(projects.map(p => p.manager))].map(mgr => mgr && <SelectItem key={mgr} value={mgr}>{mgr}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <Button onClick={() => setIsAddProjectDialogOpen(true)} className="bg-[#781623] hover:bg-[#5d101b] text-white">
                         <Plus className="h-4 w-4 mr-2" />
@@ -2889,9 +2968,12 @@ const Unit = () => {
                                   <div className="text-xs text-center mt-1">{project.progress}%</div>
                                 </TableCell>
                                 <TableCell>
+                                  {/* Project Status Dropdown - Consistent with Tasks */}
                                   <select
                                     value={project.status}
-                                    className={`rounded px-2 py-1 text-xs ${getProjectStatusColor(project.status)}`}
+                                    // Add onChange handler to update Project status
+                                    // onChange={(e) => handleUpdateProjectStatus(project.id, e.target.value as Project['status'])}
+                                    className={`rounded px-2 py-1 text-xs font-medium border ${getProjectStatusColor(project.status).replace('bg-', 'border-').replace('text-', 'bg-') /* Crude color conversion */}`}
                                   >
                                     <option value="planning">Planning</option>
                                     <option value="in-progress">In Progress</option>
@@ -2910,12 +2992,13 @@ const Unit = () => {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex space-x-2">
-                                    <Button variant="ghost" size="sm" title="View Details">
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" title="Edit">
+                                  {/* Consistent Actions - Edit/Delete */}
+                                  <div className="flex space-x-1">
+                                    <Button variant="ghost" size="sm" title="Edit Project">
                                       <Pencil className="h-4 w-4" />
+                                    </Button>
+                                     <Button variant="ghost" size="sm" title="Delete Project" className="text-red-600 hover:text-red-700">
+                                      <Trash className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -2930,43 +3013,46 @@ const Unit = () => {
 
                 <TabsContent value="risks">
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant={riskFilter === 'all' ? 'default' : 'outline'} 
-                          onClick={() => setRiskFilter('all')}
-                          size="sm"
-                        >
-                          All
-                        </Button>
-                        <Button 
-                          variant={riskFilter === 'open' ? 'default' : 'outline'} 
-                          onClick={() => setRiskFilter('open')}
-                          size="sm"
-                        >
-                          Open
-                        </Button>
-                        <Button 
-                          variant={riskFilter === 'mitigating' ? 'default' : 'outline'} 
-                          onClick={() => setRiskFilter('mitigating')}
-                          size="sm"
-                        >
-                          Mitigating
-                        </Button>
-                        <Button 
-                          variant={riskFilter === 'closed' ? 'default' : 'outline'} 
-                          onClick={() => setRiskFilter('closed')}
-                          size="sm"
-                        >
-                          Closed
-                        </Button>
-                        <Button 
-                          variant={riskFilter === 'accepted' ? 'default' : 'outline'} 
-                          onClick={() => setRiskFilter('accepted')}
-                          size="sm"
-                        >
-                          Accepted
-                        </Button>
+                    <div className="flex justify-between items-center mb-4"> {/* Add mb-4 */} 
+                       {/* Add Risk Filters */} 
+                      <div className="flex space-x-2 flex-wrap gap-y-2"> {/* Added flex-wrap and gap-y */} 
+                        <Select value={riskFilters.status} onValueChange={(value) => setRiskFilters({...riskFilters, status: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="mitigating">Mitigating</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                            <SelectItem value="accepted">Accepted</SelectItem>
+                          </SelectContent>
+                        </Select>
+                         <Select value={riskFilters.impact} onValueChange={(value) => setRiskFilters({...riskFilters, impact: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Impact" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Impacts</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="severe">Severe</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={riskFilters.probability} onValueChange={(value) => setRiskFilters({...riskFilters, probability: value})}>
+                          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter by Probability" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Probabilities</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="certain">Certain</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={riskFilters.owner} onValueChange={(value) => setRiskFilters({...riskFilters, owner: value})}>
+                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Owner" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Owners</SelectItem>
+                            {[...new Set(risks.map(r => r.owner))].map(owner => owner && <SelectItem key={owner} value={owner}>{owner}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <Button onClick={() => setIsAddRiskDialogOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -3019,10 +3105,12 @@ const Unit = () => {
                                   </span>
                                 </TableCell>
                                 <TableCell>
+                                  {/* Risk Status Dropdown - Consistent with Tasks */}
                                   <select
                                     value={risk.status}
-                                    onChange={(e) => handleUpdateRiskStatus(risk.id, e.target.value as Risk['status'])}
-                                    className={`rounded px-2 py-1 text-xs ${getRiskStatusColor(risk.status)}`}
+                                    // Add onChange handler to update Risk status
+                                    // onChange={(e) => handleUpdateRiskStatus(risk.id, e.target.value as Risk['status'])}
+                                    className={`rounded px-2 py-1 text-xs font-medium border ${getRiskStatusColor(risk.status).replace('bg-', 'border-').replace('text-', 'bg-') /* Crude color conversion */}`}
                                   >
                                     <option value="open">Open</option>
                                     <option value="mitigating">Mitigating</option>
@@ -3039,12 +3127,13 @@ const Unit = () => {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex space-x-2">
-                                    <Button variant="ghost" size="sm" title="View Details">
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" title="Edit">
+                                  {/* Consistent Actions - Edit/Delete */}
+                                  <div className="flex space-x-1">
+                                    <Button variant="ghost" size="sm" title="Edit Risk">
                                       <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" title="Delete Risk" className="text-red-600 hover:text-red-700">
+                                      <Trash className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -3608,6 +3697,7 @@ const Unit = () => {
       {/* Render the Add KRA Dialog */}
       <AddKRADialog />
       <AddProjectDialog /> {/* <-- Render the Add Project Dialog */}
+      <AddRiskDialog /> {/* <-- Render the Add Risk Dialog */}
     </PageLayout>
   );
 };
