@@ -33,9 +33,21 @@ interface KRA {
 interface KPI {
   id: number;
   name: string;
+  description: string;
+  department: string;
+  strategicObjective: string;
+  kra: string;
   target: string;
+  measurementUnit: string;
+  baselineValue: string;
+  frequency: string;
+  dataSource: string;
+  responsibleOfficer: string;
   current: string;
   status: 'on-track' | 'needs-attention' | 'at-risk';
+  startDate: string;
+  endDate: string;
+  comments: string;
   progress: number;
 }
 
@@ -124,8 +136,46 @@ const Unit = () => {
       objectiveId: 1,
       objectiveName: "Expand Market Presence",
       kpis: [
-        { id: 1, name: "New Market Entry", target: "3", current: "2", status: "on-track", progress: 66 },
-        { id: 2, name: "Market Share Growth", target: "15%", current: "10%", status: "on-track", progress: 67 },
+        { 
+          id: 1, 
+          name: "New Market Entry", 
+          description: "Number of new markets successfully entered",
+          department: "Sales",
+          strategicObjective: "Expand geographic presence",
+          kra: "Market Expansion",
+          target: "3", 
+          measurementUnit: "Markets",
+          baselineValue: "0",
+          frequency: "Quarterly",
+          dataSource: "Sales Reports",
+          responsibleOfficer: "Sales Director",
+          current: "2", 
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "On track to meet target by Q4",
+          progress: 66 
+        },
+        { 
+          id: 2, 
+          name: "Market Share Growth", 
+          description: "Percentage increase in market share",
+          department: "Marketing",
+          strategicObjective: "Increase brand presence",
+          kra: "Market Expansion",
+          target: "15%", 
+          measurementUnit: "Percentage",
+          baselineValue: "10%",
+          frequency: "Monthly",
+          dataSource: "Market Analysis Reports",
+          responsibleOfficer: "Marketing Manager",
+          current: "10%", 
+          status: "on-track", 
+          startDate: "2023-01-01",
+          endDate: "2023-12-31",
+          comments: "Steady growth observed",
+          progress: 67 
+        },
       ],
       status: "in-progress",
       createdAt: "2023-01-15",
@@ -1019,9 +1069,21 @@ const Unit = () => {
                         const newKPI: KPI = {
                           id: Math.max(...selectedKRADrawer.kpis.map(k => k.id), 0) + 1,
                           name: "New KPI",
+                          description: "",
+                          department: "",
+                          strategicObjective: "",
+                          kra: selectedKRADrawer.name,
                           target: "0",
+                          measurementUnit: "",
+                          baselineValue: "",
+                          frequency: "Monthly",
+                          dataSource: "",
+                          responsibleOfficer: "",
                           current: "0",
                           status: "on-track",
+                          startDate: new Date().toISOString().split('T')[0],
+                          endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+                          comments: "",
                           progress: 0
                         };
                         setSelectedKRADrawer({
@@ -1038,7 +1100,7 @@ const Unit = () => {
                     {selectedKRADrawer.kpis.map((kpi) => (
                       <div key={kpi.id} className="space-y-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
                         <div className="flex justify-between items-center">
-                          <Label htmlFor={`kpi-name-${kpi.id}`} className="text-base">KPI Name</Label>
+                          <Label htmlFor={`kpi-name-${kpi.id}`} className="text-base">KPI Details</Label>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -1053,20 +1115,90 @@ const Unit = () => {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                        <Input 
-                          id={`kpi-name-${kpi.id}`}
-                          value={kpi.name} 
-                          onChange={(e) => {
-                            const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                              k.id === kpi.id ? {...k, name: e.target.value} : k
-                            );
-                            setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
-                          }}
-                        />
                         
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`kpi-target-${kpi.id}`}>Target</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-name-${kpi.id}`}>KPI Title</Label>
+                            <Input 
+                              id={`kpi-name-${kpi.id}`}
+                              value={kpi.name} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, name: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., System Uptime Percentage"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-department-${kpi.id}`}>Department / Unit</Label>
+                            <Input 
+                              id={`kpi-department-${kpi.id}`}
+                              value={kpi.department} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, department: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., Dept. of Finance – IT Services Unit"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`kpi-description-${kpi.id}`}>Description</Label>
+                          <Textarea 
+                            id={`kpi-description-${kpi.id}`}
+                            value={kpi.description} 
+                            onChange={(e) => {
+                              const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                k.id === kpi.id ? {...k, description: e.target.value} : k
+                              );
+                              setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                            }}
+                            placeholder="Brief explanation of what this KPI measures"
+                            className="h-20"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-strategic-objective-${kpi.id}`}>Strategic Objective</Label>
+                            <Input 
+                              id={`kpi-strategic-objective-${kpi.id}`}
+                              value={kpi.strategicObjective} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, strategicObjective: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., Ensure uninterrupted digital services"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-kra-${kpi.id}`}>KRA (Key Result Area)</Label>
+                            <Input 
+                              id={`kpi-kra-${kpi.id}`}
+                              value={kpi.kra} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, kra: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., Infrastructure Reliability"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-target-${kpi.id}`}>Target Value / Goal</Label>
                             <Input 
                               id={`kpi-target-${kpi.id}`}
                               value={kpi.target} 
@@ -1076,10 +1208,100 @@ const Unit = () => {
                                 );
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
+                              placeholder="e.g., 99.5% uptime"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor={`kpi-current-${kpi.id}`}>Current</Label>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-measurement-unit-${kpi.id}`}>Measurement Unit</Label>
+                            <Input 
+                              id={`kpi-measurement-unit-${kpi.id}`}
+                              value={kpi.measurementUnit} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, measurementUnit: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., Percentage, Hours"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-baseline-value-${kpi.id}`}>Baseline Value (Optional)</Label>
+                            <Input 
+                              id={`kpi-baseline-value-${kpi.id}`}
+                              value={kpi.baselineValue} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, baselineValue: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., Last quarter: 98.2%"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-frequency-${kpi.id}`}>Frequency of Measurement</Label>
+                            <Select 
+                              value={kpi.frequency} 
+                              onValueChange={(value) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, frequency: value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select frequency" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Daily">Daily</SelectItem>
+                                <SelectItem value="Weekly">Weekly</SelectItem>
+                                <SelectItem value="Monthly">Monthly</SelectItem>
+                                <SelectItem value="Quarterly">Quarterly</SelectItem>
+                                <SelectItem value="Annually">Annually</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-data-source-${kpi.id}`}>Data Source / Method</Label>
+                            <Input 
+                              id={`kpi-data-source-${kpi.id}`}
+                              value={kpi.dataSource} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, dataSource: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., Network Monitoring Tool Reports"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-responsible-officer-${kpi.id}`}>Responsible Officer</Label>
+                            <Input 
+                              id={`kpi-responsible-officer-${kpi.id}`}
+                              value={kpi.responsibleOfficer} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, responsibleOfficer: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                              placeholder="e.g., ICT Manager"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-current-${kpi.id}`}>Current Value</Label>
                             <Input 
                               id={`kpi-current-${kpi.id}`}
                               value={kpi.current} 
@@ -1089,30 +1311,87 @@ const Unit = () => {
                                 );
                                 setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                               }}
+                              placeholder="e.g., 98.5%"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-status-${kpi.id}`}>Current Status</Label>
+                            <Select 
+                              value={kpi.status} 
+                              onValueChange={(value) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, status: value as 'on-track' | 'needs-attention' | 'at-risk'} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="on-track">On Track</SelectItem>
+                                <SelectItem value="needs-attention">Needs Attention</SelectItem>
+                                <SelectItem value="at-risk">At Risk</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-progress-${kpi.id}`}>Progress</Label>
+                            <div className="flex items-center gap-2">
+                              <Progress value={kpi.progress} className="flex-1" />
+                              <span className="text-sm font-medium">{kpi.progress}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-start-date-${kpi.id}`}>Start Date</Label>
+                            <Input 
+                              id={`kpi-start-date-${kpi.id}`}
+                              type="date"
+                              value={kpi.startDate} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, startDate: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`kpi-end-date-${kpi.id}`}>End Date</Label>
+                            <Input 
+                              id={`kpi-end-date-${kpi.id}`}
+                              type="date"
+                              value={kpi.endDate} 
+                              onChange={(e) => {
+                                const updatedKPIs = selectedKRADrawer.kpis.map(k => 
+                                  k.id === kpi.id ? {...k, endDate: e.target.value} : k
+                                );
+                                setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
+                              }}
                             />
                           </div>
                         </div>
                         
-                        <div>
-                          <Label htmlFor={`kpi-status-${kpi.id}`}>Status</Label>
-                          <Select 
-                            value={kpi.status} 
-                            onValueChange={(value) => {
+                        <div className="space-y-2">
+                          <Label htmlFor={`kpi-comments-${kpi.id}`}>Comments / Notes</Label>
+                          <Textarea 
+                            id={`kpi-comments-${kpi.id}`}
+                            value={kpi.comments} 
+                            onChange={(e) => {
                               const updatedKPIs = selectedKRADrawer.kpis.map(k => 
-                                k.id === kpi.id ? {...k, status: value as 'on-track' | 'needs-attention' | 'at-risk'} : k
+                                k.id === kpi.id ? {...k, comments: e.target.value} : k
                               );
                               setSelectedKRADrawer({...selectedKRADrawer, kpis: updatedKPIs});
                             }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="on-track">On Track</SelectItem>
-                              <SelectItem value="needs-attention">Needs Attention</SelectItem>
-                              <SelectItem value="at-risk">At Risk</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            placeholder="Optional field for extra detail"
+                            className="h-20"
+                          />
                         </div>
                       </div>
                     ))}
