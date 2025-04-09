@@ -495,10 +495,7 @@ const Unit = () => {
     assetState
   });
 
-  // Log setupState during render
-  console.log('Rendering Unit component, setupState:', setupState);
-
-  // Initialize data from mock data
+  // Initialize data from mock data and setup wizard
   useEffect(() => {
     if (initializedRef.current) return;
     
@@ -508,6 +505,16 @@ const Unit = () => {
       mockProjects.forEach(project => projectState.addProject(project));
       mockRisks.forEach(risk => riskState.addRisk(risk));
       mockAssets.forEach(asset => assetState.addAsset(asset));
+      
+      // Check if setup is needed
+      const needsSetup = !setupState.setupMethod || 
+                        (setupState.setupMethod === 'excel' && !setupState.excelConfig) ||
+                        (setupState.setupMethod === 'onedrive' && !setupState.oneDriveConfig);
+      
+      if (needsSetup) {
+        setShowSetupWizard(true);
+      }
+      
       setIsLoading(false);
       initializedRef.current = true;
     } catch (err) {
@@ -515,6 +522,13 @@ const Unit = () => {
       setError("Failed to initialize dashboard data");
       setIsLoading(false);
     }
+  }, [setupState.setupMethod, setupState.excelConfig, setupState.oneDriveConfig]);
+
+  // Handle setup wizard completion
+  const handleSetupComplete = useCallback(() => {
+    setShowSetupWizard(false);
+    // Refresh data after setup is complete
+    window.location.reload();
   }, []);
 
   // If loading or error, show appropriate message
@@ -553,14 +567,24 @@ const Unit = () => {
         <div className={`flex-1 transition-all duration-300 ${showAiChat ? 'mr-4' : ''}`}>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">Unit Dashboard</h1>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowAiChat(!showAiChat)}
-              className="flex items-center gap-2"
-            >
-              {showAiChat ? 'Hide AI Assistant' : 'Show AI Assistant'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowSetupWizard(true)}
+                className="flex items-center gap-2"
+              >
+                Setup
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowAiChat(!showAiChat)}
+                className="flex items-center gap-2"
+              >
+                {showAiChat ? 'Hide AI Assistant' : 'Show AI Assistant'}
+              </Button>
+            </div>
           </div>
           
           <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -641,12 +665,7 @@ const Unit = () => {
         <SetupWizard
           isOpen={showSetupWizard}
           onClose={() => setShowSetupWizard(false)}
-          onComplete={() => {
-            setShowSetupWizard(false);
-            // Refresh data after setup is complete
-            // TODO: Implement data refresh
-          }}
-          // Pass individual props instead of spreading the entire setupState object
+          onComplete={handleSetupComplete}
           setSetupMethod={setupState.setSetupMethod}
           setOneDriveConfig={setupState.setOneDriveConfig}
           setObjectives={setupState.setObjectives}
