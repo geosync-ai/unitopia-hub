@@ -206,29 +206,45 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         updatedConfig.sheets = {};
       }
       
+      // Helper function to generate unique IDs
+      const generateId = () => `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
       // Prepare Objectives sheet
       if (tempObjectives && tempObjectives.length > 0) {
+        console.log('Preparing Objectives data:', tempObjectives);
+        
+        // Make sure all objectives have IDs
+        const objectivesWithIds = tempObjectives.map(obj => ({
+          ...obj,
+          id: obj.id || generateId()
+        }));
+        
         const objectivesHeaders = ['ID', 'Name', 'Description', 'Start Date', 'End Date'];
-        const objectivesData = tempObjectives.map(obj => [
-          obj.id || '',
-          obj.name || '',
-          obj.description || '',
-          obj.startDate || '',
-          obj.endDate || ''
-        ]);
+        const objectivesData = objectivesWithIds.map(obj => {
+          const row: Record<string, string> = {};
+          objectivesHeaders.forEach(header => {
+            const key = header.toLowerCase().replace(/\s+/g, '');
+            const mappings: Record<string, string> = {
+              'id': 'id',
+              'name': 'name',
+              'description': 'description',
+              'startdate': 'startDate',
+              'enddate': 'endDate'
+            };
+            const objKey = mappings[key] || key;
+            row[header] = obj[objKey] || '';
+          });
+          return row;
+        });
         
         // Update or create the Objectives sheet
         updatedConfig.sheets['objectives'] = {
           name: 'Objectives',
           headers: objectivesHeaders,
-          data: objectivesData.map(row => {
-            const obj: any = {};
-            objectivesHeaders.forEach((header, index) => {
-              obj[header] = row[index] || '';
-            });
-            return obj;
-          })
+          data: objectivesData
         };
+        
+        console.log('Prepared Objectives sheet:', updatedConfig.sheets['objectives']);
       }
       
       // Prepare KRAs sheet
@@ -238,7 +254,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           if (obj.kras && obj.kras.length > 0) {
             obj.kras.forEach((kra: any) => {
               krasData.push({
-                'ID': kra.id || '',
+                'ID': kra.id || generateId(),
                 'Name': kra.name || '',
                 'Description': kra.description || '',
                 'Department': kra.department || '',
@@ -254,42 +270,57 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
       
       if (krasData.length > 0) {
+        console.log('Preparing KRAs data:', krasData);
         const krasHeaders = ['ID', 'Name', 'Description', 'Department', 'Responsible', 'Start Date', 'End Date', 'Objective ID', 'Objective Name'];
         updatedConfig.sheets['kras'] = {
           name: 'KRAs',
           headers: krasHeaders,
           data: krasData
         };
+        console.log('Prepared KRAs sheet:', updatedConfig.sheets['kras']);
       }
       
       // Prepare KPIs sheet
       if (tempKPIs && tempKPIs.length > 0) {
+        console.log('Preparing KPIs data:', tempKPIs);
+        
+        // Make sure all KPIs have IDs
+        const kpisWithIds = tempKPIs.map(kpi => ({
+          ...kpi,
+          id: kpi.id || generateId()
+        }));
+        
         const kpisHeaders = ['ID', 'Name', 'Target', 'Actual', 'Status', 'Description', 'Notes', 'Department', 'Responsible', 'Start Date', 'End Date'];
-        const kpisData = tempKPIs.map(kpi => [
-          kpi.id || '',
-          kpi.name || '',
-          kpi.target || '',
-          kpi.actual || '',
-          kpi.status || '',
-          kpi.description || '',
-          kpi.notes || '',
-          kpi.department || '',
-          kpi.responsible || '',
-          kpi.startDate || '',
-          kpi.endDate || ''
-        ]);
+        const kpisData = kpisWithIds.map(kpi => {
+          const row: Record<string, string> = {};
+          kpisHeaders.forEach(header => {
+            const key = header.toLowerCase().replace(/\s+/g, '');
+            const mappings: Record<string, string> = {
+              'id': 'id',
+              'name': 'name',
+              'target': 'target',
+              'actual': 'actual',
+              'status': 'status',
+              'description': 'description',
+              'notes': 'notes',
+              'department': 'department',
+              'responsible': 'responsible',
+              'startdate': 'startDate',
+              'enddate': 'endDate'
+            };
+            const objKey = mappings[key] || key;
+            row[header] = kpi[objKey] || '';
+          });
+          return row;
+        });
         
         updatedConfig.sheets['kpis'] = {
           name: 'KPIs',
           headers: kpisHeaders,
-          data: kpisData.map(row => {
-            const obj: any = {};
-            kpisHeaders.forEach((header, index) => {
-              obj[header] = row[index] || '';
-            });
-            return obj;
-          })
+          data: kpisData
         };
+        
+        console.log('Prepared KPIs sheet:', updatedConfig.sheets['kpis']);
       }
       
       // Update the Excel config with the new sheets
@@ -358,6 +389,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setProgress(70);
       await loadDataFromExcel();
       
+      // Store objectives and KPIs in parent state
+      setProgress(80);
+      if (setObjectives && tempObjectives) {
+        setObjectives(tempObjectives);
+      }
+      if (setKPIs && tempKPIs) {
+        setKPIs(tempKPIs);
+      }
+      
       // Complete the setup
       setProgress(90);
       if (handleSetupCompleteFromHook) {
@@ -383,7 +423,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData, updateExcelConfig, createExcelFile]);
+  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData, updateExcelConfig, createExcelFile, setObjectives, setKPIs]);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {

@@ -151,26 +151,50 @@ export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExc
       
       // Save data to each sheet
       for (const [key, sheet] of Object.entries(config.sheets)) {
-        console.log(`Processing sheet: ${sheet.name} with ${sheet.data.length} rows`);
+        console.log(`Processing sheet: ${sheet.name} with ${sheet.data?.length || 0} rows and ${sheet.headers?.length || 0} columns`);
         
-        // Convert data to 2D array for Excel
-        const excelData = [
-          sheet.headers,
-          ...sheet.data.map(item => 
-            sheet.headers.map(header => item[header] || '')
-          )
-        ];
+        // Skip sheets with no data or headers
+        if (!sheet.headers || sheet.headers.length === 0) {
+          console.warn(`Skipping sheet ${sheet.name}: No headers defined`);
+          continue;
+        }
+        
+        // Ensure the data is an array
+        const dataArray = Array.isArray(sheet.data) ? sheet.data : [];
+        
+        // Convert data to 2D array for Excel with proper validation
+        const headerRow = [...sheet.headers]; // Create a copy of headers
+        
+        // Map each data item to a row, ensuring all header cells have a corresponding value
+        const dataRows = dataArray.map(item => {
+          // For each header, extract the corresponding value from the data item
+          return headerRow.map(header => {
+            // Get the value for this header, or empty string if not found
+            const value = item[header];
+            
+            // Convert null or undefined to empty string to avoid Excel errors
+            return value === null || value === undefined ? '' : String(value);
+          });
+        });
+        
+        // Combine headers and data
+        const excelData = [headerRow, ...dataRows];
         
         console.log(`Updating Excel file with ${excelData.length} rows for sheet ${sheet.name}`);
         
-        // Update Excel file
-        const success = await updateExcelFile(config.fileId!, sheet.name, 'A1', excelData);
-        
-        if (!success) {
-          throw new Error(`Failed to update sheet ${sheet.name}`);
+        try {
+          // Update Excel file
+          const success = await updateExcelFile(config.fileId, sheet.name, 'A1', excelData);
+          
+          if (!success) {
+            throw new Error(`Failed to update sheet ${sheet.name}`);
+          }
+          
+          console.log(`Successfully updated sheet ${sheet.name}`);
+        } catch (sheetError) {
+          console.error(`Error updating sheet ${sheet.name}:`, sheetError);
+          // Continue with other sheets rather than failing completely
         }
-        
-        console.log(`Successfully updated sheet ${sheet.name}`);
       }
 
       toast.success('Data saved to Excel successfully');

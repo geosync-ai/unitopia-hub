@@ -548,13 +548,51 @@ export const useMicrosoftGraph = () => {
 
     try {
       console.log(`Updating Excel file ${fileId}, sheet ${sheetName}, range ${range}`);
-      console.log(`Data to update:`, values);
+      console.log(`Data dimensions: ${values.length} rows x ${values[0]?.length || 0} columns`);
       
       const response = await window.msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='${range}')`;
+      // First clear the sheet to avoid dimension mismatch issues
+      try {
+        const clearEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='A1:Z1000')`;
+        
+        const clearResult = await fetch(clearEndpoint, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${response.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            values: Array(1000).fill(Array(26).fill(""))
+          })
+        });
+        
+        if (!clearResult.ok) {
+          console.warn('Could not clear sheet, but continuing with update');
+        } else {
+          console.log('Successfully cleared sheet before update');
+        }
+      } catch (clearError) {
+        console.warn('Error clearing sheet, but continuing with update:', clearError);
+      }
+      
+      // Dynamically calculate the range based on the actual data dimensions
+      const rowCount = values.length;
+      const colCount = values[0]?.length || 0;
+      
+      if (rowCount === 0 || colCount === 0) {
+        console.warn('No data to update');
+        return true; // Nothing to do
+      }
+      
+      const endColumn = String.fromCharCode('A'.charCodeAt(0) + colCount - 1);
+      const dynamicRange = `A1:${endColumn}${rowCount}`;
+      
+      console.log(`Using dynamic range: ${dynamicRange} for data of size ${rowCount}x${colCount}`);
+      
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='${dynamicRange}')`;
       console.log(`Using endpoint: ${endpoint}`);
       
       const result = await fetch(endpoint, {
