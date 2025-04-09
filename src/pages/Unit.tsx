@@ -633,16 +633,21 @@ const Unit = () => {
       </div>
       
       {/* Setup Wizard */}
-      <SetupWizard
-        isOpen={showSetupWizard}
-        onClose={() => setShowSetupWizard(false)}
-        onComplete={() => {
-          setShowSetupWizard(false);
-          // Refresh data after setup is complete
-          // TODO: Implement data refresh
-        }}
-        setupState={setupState}
-      />
+      {showSetupWizard && (
+        <SetupWizard
+          isOpen={showSetupWizard}
+          onClose={() => setShowSetupWizard(false)}
+          onComplete={() => {
+            setShowSetupWizard(false);
+            // Refresh data after setup is complete
+            // TODO: Implement data refresh
+          }}
+          // Spread the setupState object into individual props
+          {...setupState}
+          // Rename handleSetupComplete from hook to avoid name collision
+          handleSetupCompleteFromHook={setupState.handleSetupComplete}
+        />
+      )}
     </PageLayout>
   );
 };

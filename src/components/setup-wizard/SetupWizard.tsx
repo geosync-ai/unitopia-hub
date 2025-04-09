@@ -16,51 +16,61 @@ import { useToast } from '@/components/ui/use-toast';
 import { useExcelSync } from '@/hooks/useExcelSync';
 import { Loader2, Cloud, FileSpreadsheet, Database } from 'lucide-react';
 
-interface SetupWizardState {
+// Define individual props needed from the setup state
+interface SetupWizardSpecificProps {
   setSetupMethod: (method: string) => void;
-  setOneDriveConfig: (config: { folderId: string; folderName: string }) => void;
+  setOneDriveConfig: (config: { folderId: string; folderName: string } | null) => void;
   setObjectives: (objectives: any[]) => void;
-  handleSetupComplete: () => void;
+  handleSetupCompleteFromHook: () => void; // Renamed to avoid conflict
   updateExcelConfig: () => void;
-  excelConfig: any;
-  oneDriveConfig: any;
-  setupMethod: string;
-  objectives: any[];
+  excelConfig: any; // Consider stronger typing if possible
+  oneDriveConfig: any; // Consider stronger typing if possible
+  setupMethodProp?: string; // Pass if needed directly, or rely on internal state?
+  objectivesProp?: any[]; // Pass if needed directly
 }
 
-interface SetupWizardProps {
+interface SetupWizardProps extends SetupWizardSpecificProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete: () => void;
-  setupState: SetupWizardState;
+  onComplete: () => void; // Prop from parent for completion feedback
 }
 
 export const SetupWizard: React.FC<SetupWizardProps> = ({
   isOpen,
   onClose,
   onComplete,
-  setupState
+  // Destructure individual props
+  setSetupMethod,
+  setOneDriveConfig,
+  setObjectives,
+  handleSetupCompleteFromHook,
+  updateExcelConfig,
+  excelConfig,
+  oneDriveConfig,
+  setupMethodProp, // Receive props
+  objectivesProp,
 }) => {
-  console.log('SetupWizard start - setupState:', setupState); // Log 1: Start of function body
+  // Remove previous logs
+  // console.log('SetupWizard start - setupState:', setupState);
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState(0); // Start at 0 for initial selection
+  const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
 
-  const totalSteps = 4; // Now 4 steps: initial selection + 3 setup steps
+  const totalSteps = 4;
 
-  // Use the Excel sync hook
-  console.log('SetupWizard before useExcelSync - setupState:', setupState); // Log 2: Before hook initialization
+  // Use the Excel sync hook with props
+  // console.log('SetupWizard before useExcelSync - setupState:', setupState);
   const { 
     isLoading: isExcelLoading, 
     error: excelError, 
     loadDataFromExcel, 
     saveDataToExcel 
   } = useExcelSync({
-    config: setupState?.excelConfig || null,
-    onConfigChange: setupState?.updateExcelConfig || (() => {})
+    config: excelConfig || null, // Use prop
+    onConfigChange: updateExcelConfig || (() => {}) // Use prop
   });
 
   // Initialize component
@@ -81,16 +91,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [isOpen]);
 
-  // Update Excel config when setup method or objectives change
+  // Update Excel config based on props
   useEffect(() => {
-    if (setupState?.oneDriveConfig && setupState?.setupMethod) {
-      setupState.updateExcelConfig();
+    // Assuming setupMethodProp exists if needed here
+    if (oneDriveConfig && setupMethodProp) { 
+      updateExcelConfig();
     }
-  }, [setupState?.oneDriveConfig, setupState?.setupMethod, setupState?.objectives]);
+    // Dependency array uses props now
+  }, [oneDriveConfig, setupMethodProp, updateExcelConfig]); 
 
-  // Define handleComplete first because handleNext uses it
+  // Define handleComplete first
   const handleComplete = useCallback(async () => {
-    if (!setupState?.excelConfig) {
+    if (!excelConfig) { // Use prop
       toast({
         title: "Setup Error",
         description: "Excel configuration is not properly initialized. Please try again.",
@@ -98,45 +110,28 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       });
       return;
     }
-
     setIsProcessing(true);
     setProgress(10);
-
     try {
-      // Step 1: Save data to Excel
       setProgress(30);
       await saveDataToExcel();
       setProgress(60);
-
-      // Step 2: Load data from Excel to populate the application
-      setProgress(80);
       await loadDataFromExcel();
       setProgress(90);
-
-      // Step 3: Complete setup
-      if (setupState?.handleSetupComplete) {
-        setupState.handleSetupComplete();
+      if (handleSetupCompleteFromHook) { // Use prop
+        handleSetupCompleteFromHook();
       }
       setProgress(100);
-
-      toast({
-        title: "Setup Complete",
-        description: "Your unit has been successfully configured.",
-      });
-      
-      onComplete();
-      onClose();
+      toast({ title: "Setup Complete", description: "Your unit has been successfully configured." });
+      onComplete(); // Call parent's onComplete
+      onClose();    // Call parent's onClose
     } catch (error) {
       console.error('Error completing setup:', error);
-      toast({
-        title: "Setup Error",
-        description: "There was an error completing the setup process. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Setup Error", description: "There was an error completing the setup process. Please try again.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
     }
-  }, [setupState, toast, onComplete, onClose, saveDataToExcel, loadDataFromExcel]);
+  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast]); // Update dependencies
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
@@ -152,37 +147,31 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [currentStep]);
 
-  // Wrap handleSetupTypeSelect with useCallback
+  // Use props in handleSetupTypeSelect
   const handleSetupTypeSelect = useCallback((type: string) => {
     console.log('Setup type selected:', type);
     setSelectedSetupType(type);
+    console.log('Inspecting setSetupMethod prop:', setSetupMethod);
 
-    console.log('Inspecting setupState in handleSetupTypeSelect (callback):', setupState);
-
-    if (!setupState?.setSetupMethod) {
-      toast({
-        title: "Setup Error",
-        description: "Setup state is not properly initialized. Please try again.",
-        variant: "destructive",
-      });
+    if (!setSetupMethod) { // Check prop
+      toast({ title: "Setup Error", description: "Setup state (setSetupMethod) is not properly initialized. Please try again.", variant: "destructive" });
       return;
     }
     
-    // Set the appropriate setup method based on selection
     if (type === 'onedrive') {
-      setupState.setSetupMethod('standard');
+      setSetupMethod('standard'); // Use prop
       setCurrentStep(1);
     } else if (type === 'excel') {
-      setupState.setSetupMethod('import');
+      setSetupMethod('import'); // Use prop
       setCurrentStep(1);
     } else if (type === 'demo') {
-      setupState.setSetupMethod('demo');
+      setSetupMethod('demo'); // Use prop
       setCurrentStep(1);
     }
-  }, [setupState, toast]);
+  }, [setSetupMethod, toast]); // Update dependencies
 
   const renderInitialSelection = () => {
-    console.log('SetupWizard rendering renderInitialSelection - setupState:', setupState); // Log 3: Inside render function
+    // console.log('SetupWizard rendering renderInitialSelection - setupState:', setupState);
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
@@ -248,6 +237,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
+  // Update renderStep to use props
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -258,21 +248,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             <OneDriveSetup
               onComplete={(config) => {
                 console.log('OneDrive setup completed:', config);
-                if (setupState?.setOneDriveConfig) {
-                  setupState.setOneDriveConfig({
-                    folderId: config.folderId,
-                    folderName: config.path
-                  });
-                  // Show success notification
-                  toast({
-                    title: "OneDrive folder selected successfully!",
-                    description: `Using folder: "${config.path}"`,
-                    duration: 2000,
-                  });
-                  // Wait a moment to show the notification
-                  setTimeout(() => {
-                    handleNext();
-                  }, 1000);
+                if (setOneDriveConfig) { // Use prop
+                  setOneDriveConfig({ folderId: config.folderId, folderName: config.path });
+                  toast({ title: "OneDrive folder selected successfully!", description: `Using folder: "${config.path}"`, duration: 2000 });
+                  setTimeout(() => { handleNext(); }, 1000);
                 }
               }}
             />
@@ -336,8 +315,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         return (
           <SetupMethod
             onSelect={(method) => {
-              if (setupState?.setSetupMethod) {
-                setupState.setSetupMethod(method);
+              if (setSetupMethod) { // Use prop
+                setSetupMethod(method);
                 handleNext();
               }
             }}
@@ -347,8 +326,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         return (
           <ObjectivesSetup
             onComplete={(objectives) => {
-              if (setupState?.setObjectives) {
-                setupState.setObjectives(objectives);
+              if (setObjectives) { // Use prop
+                setObjectives(objectives);
                 handleComplete();
               }
             }}
@@ -359,6 +338,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   };
 
+  // Rest of the component (Dialog structure) remains largely the same
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl">
