@@ -494,6 +494,9 @@ const Unit = () => {
     assetState
   });
 
+  // Log setupState during render
+  console.log('Rendering Unit component, setupState:', setupState);
+
   // Initialize data from mock data
   useEffect(() => {
     try {
