@@ -22,7 +22,8 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
+import { SetupWizard, SetupWizardProps } from '@/components/setup-wizard/SetupWizard';
+import { SetupWizardState as FullSetupWizardState } from '@/hooks/useSetupWizard';
 
 interface Risk {
   id: string;
@@ -50,7 +51,7 @@ interface KRA {
   status: string;
 }
 
-interface SetupWizardState {
+interface OverviewTabSetupProps {
   showSetupWizard: boolean;
   setShowSetupWizard: (show: boolean) => void;
 }
@@ -60,7 +61,7 @@ interface OverviewTabProps {
   tasks: Task[];
   risks: Risk[];
   kras: KRA[];
-  setupState: SetupWizardState;
+  setupState: FullSetupWizardState;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ 
@@ -130,6 +131,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           setupState.setShowSetupWizard(false);
           // Here you would typically refresh the data or update the UI
         }}
+        setSetupMethod={setupState.setSetupMethod}
+        setOneDriveConfig={setupState.setOneDriveConfig}
+        setObjectives={setupState.setObjectives}
+        handleSetupCompleteFromHook={setupState.handleSetupComplete}
+        updateExcelConfig={setupState.updateExcelConfig}
+        excelConfig={setupState.excelConfig}
+        oneDriveConfig={setupState.oneDriveConfig}
+        setupMethodProp={setupState.setupMethod}
+        objectivesProp={setupState.objectives}
       />
 
       {/* Stats cards */}
