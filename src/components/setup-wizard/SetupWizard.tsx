@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -86,52 +86,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [setupState?.oneDriveConfig, setupState?.setupMethod, setupState?.objectives]);
 
-  const handleNext = () => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleSetupTypeSelect = (type: string) => {
-    console.log('Setup type selected:', type);
-    setSelectedSetupType(type);
-
-    console.log('Inspecting setupState in handleSetupTypeSelect:', setupState);
-
-    if (!setupState?.setSetupMethod) {
-      toast({
-        title: "Setup Error",
-        description: "Setup state is not properly initialized. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Set the appropriate setup method based on selection
-    if (type === 'onedrive') {
-      setupState.setSetupMethod('standard');
-      // Show OneDrive setup immediately
-      setCurrentStep(1);
-    } else if (type === 'excel') {
-      setupState.setSetupMethod('import');
-      // Show Excel upload UI
-      setCurrentStep(1);
-    } else if (type === 'demo') {
-      setupState.setSetupMethod('demo');
-      // Show demo data confirmation
-      setCurrentStep(1);
-    }
-  };
-
-  const handleComplete = async () => {
+  // Define handleComplete first because handleNext uses it
+  const handleComplete = useCallback(async () => {
     if (!setupState?.excelConfig) {
       toast({
         title: "Setup Error",
@@ -178,7 +134,50 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [setupState, toast, onComplete, onClose, saveDataToExcel, loadDataFromExcel]);
+
+  const handleNext = useCallback(() => {
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleComplete();
+    }
+  }, [currentStep, totalSteps, handleComplete]);
+
+  const handleBack = useCallback(() => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  }, [currentStep]);
+
+  // Wrap handleSetupTypeSelect with useCallback
+  const handleSetupTypeSelect = useCallback((type: string) => {
+    console.log('Setup type selected:', type);
+    setSelectedSetupType(type);
+
+    console.log('Inspecting setupState in handleSetupTypeSelect (callback):', setupState);
+
+    if (!setupState?.setSetupMethod) {
+      toast({
+        title: "Setup Error",
+        description: "Setup state is not properly initialized. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Set the appropriate setup method based on selection
+    if (type === 'onedrive') {
+      setupState.setSetupMethod('standard');
+      setCurrentStep(1);
+    } else if (type === 'excel') {
+      setupState.setSetupMethod('import');
+      setCurrentStep(1);
+    } else if (type === 'demo') {
+      setupState.setSetupMethod('demo');
+      setCurrentStep(1);
+    }
+  }, [setupState, toast]);
 
   const renderInitialSelection = () => {
     return (
