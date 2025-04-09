@@ -425,7 +425,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
             Continue
           </Button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }; 
