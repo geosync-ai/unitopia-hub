@@ -16,11 +16,23 @@ import { useToast } from '@/components/ui/use-toast';
 import { useExcelSync } from '@/hooks/useExcelSync';
 import { Loader2, Cloud, FileSpreadsheet, Database } from 'lucide-react';
 
+interface SetupWizardState {
+  setSetupMethod: (method: string) => void;
+  setOneDriveConfig: (config: { folderId: string; folderName: string }) => void;
+  setObjectives: (objectives: any[]) => void;
+  handleSetupComplete: () => void;
+  updateExcelConfig: () => void;
+  excelConfig: any;
+  oneDriveConfig: any;
+  setupMethod: string;
+  objectives: any[];
+}
+
 interface SetupWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
-  setupState: any;
+  setupState: SetupWizardState;
 }
 
 export const SetupWizard: React.FC<SetupWizardProps> = ({
@@ -46,7 +58,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     saveDataToExcel 
   } = useExcelSync({
     config: setupState?.excelConfig || null,
-    onConfigChange: setupState?.setExcelConfig || (() => {})
+    onConfigChange: setupState?.updateExcelConfig || (() => {})
   });
 
   // Initialize component
@@ -92,6 +104,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     console.log('Setup type selected:', type);
     setSelectedSetupType(type);
     
+    if (!setupState?.setSetupMethod) {
+      toast({
+        title: "Setup Error",
+        description: "Setup state is not properly initialized. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Set the appropriate setup method based on selection
     if (type === 'onedrive') {
       setupState.setSetupMethod('standard');
@@ -133,7 +154,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setProgress(90);
 
       // Step 3: Complete setup
-      setupState.handleSetupComplete();
+      if (setupState?.handleSetupComplete) {
+        setupState.handleSetupComplete();
+      }
       setProgress(100);
 
       toast({

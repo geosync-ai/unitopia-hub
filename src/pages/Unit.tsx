@@ -484,6 +484,8 @@ const Unit = () => {
   const riskState = useRiskState(mockRisks);
   const kraState = useKraState();
   const assetState = useAssetState(mockAssets);
+  
+  // Initialize setup wizard state with all required state objects
   const setupState = useSetupWizard({
     projectState,
     taskState,
@@ -495,6 +497,11 @@ const Unit = () => {
   // Initialize data from mock data
   useEffect(() => {
     try {
+      // Initialize state with mock data
+      mockTasks.forEach(task => taskState.addTask(task));
+      mockProjects.forEach(project => projectState.addProject(project));
+      mockRisks.forEach(risk => riskState.addRisk(risk));
+      mockAssets.forEach(asset => assetState.addAsset(asset));
       setIsLoading(false);
     } catch (err) {
       console.error("Error initializing data:", err);
