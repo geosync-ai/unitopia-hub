@@ -155,10 +155,28 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
   try {
     console.log('Starting Microsoft login with redirect...');
     console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
+    console.log('Current window origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
+    
+    // Log warning if there might be a mismatch
+    if (typeof window !== 'undefined' && window.location.origin !== 'https://unitopia-hub.vercel.app') {
+      console.warn('Warning: Current origin does not match the configured redirect URI. This may cause authentication issues.');
+      console.warn('Current origin:', window.location.origin);
+      console.warn('Configured redirect URI:', microsoftAuthConfig.redirectUri);
+    }
+    
     await instance.loginRedirect(loginRequest);
     console.log('Login redirect initiated');
   } catch (error) {
     console.error('Error during Microsoft login:', error);
+    
+    // Add more detailed error logging for redirect URI issues
+    if (error.errorCode === 'redirect_uri_mismatch' || 
+        (error.message && error.message.includes('redirect'))) {
+      console.error('This appears to be a redirect URI mismatch issue.');
+      console.error('Configured redirect URI:', microsoftAuthConfig.redirectUri);
+      console.error('Make sure this exact URI is configured in the Azure portal for app ID:', microsoftAuthConfig.clientId);
+    }
+    
     throw error;
   }
 };

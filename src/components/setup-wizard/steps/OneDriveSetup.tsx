@@ -292,6 +292,14 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
 
   // Add a diagnostics section
   const renderDiagnostics = () => {
+    // Check for potential redirect URI issues
+    const redirectUriWarning = msGraphConfig?.redirectUri !== "https://unitopia-hub.vercel.app/" 
+      ? "Warning: Redirect URI doesn't match the one configured in Azure portal (should be https://unitopia-hub.vercel.app/)"
+      : null;
+
+    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+    const isOriginMismatch = currentOrigin !== "https://unitopia-hub.vercel.app";
+    
     return (
       <Collapsible 
         className="mt-4 border border-gray-200 rounded-md p-2"
@@ -322,12 +330,28 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               <span className="font-semibold">Active Account:</span>
               <span>{authStatus?.activeAccount ? authStatus.activeAccount.username : 'None'}</span>
               
-              <span className="font-semibold">Redirect URI:</span>
+              <span className="font-semibold">Configured Redirect URI:</span>
               <span>{msGraphConfig?.redirectUri || 'Not set'}</span>
+              
+              <span className="font-semibold">Current Origin:</span>
+              <span className={isOriginMismatch ? "text-amber-600 font-bold" : ""}>{currentOrigin}</span>
               
               <span className="font-semibold">Last Error:</span>
               <span className="text-red-500">{lastError || 'None'}</span>
             </div>
+            
+            {(redirectUriWarning || isOriginMismatch) && (
+              <div className="bg-amber-50 border border-amber-200 p-2 rounded text-amber-800">
+                {redirectUriWarning && <p>⚠️ {redirectUriWarning}</p>}
+                {isOriginMismatch && (
+                  <p>⚠️ Current origin ({currentOrigin}) doesn't match the configured redirect URI. 
+                  This might cause authentication issues.</p>
+                )}
+                <p className="mt-1">
+                  The redirect URI in Azure portal must match exactly: https://unitopia-hub.vercel.app/
+                </p>
+              </div>
+            )}
             
             <div>
               <span className="font-semibold">Full Auth Status:</span>
