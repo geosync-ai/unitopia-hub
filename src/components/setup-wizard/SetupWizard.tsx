@@ -121,6 +121,33 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [oneDriveConfig, setupMethodProp, updateExcelConfig, isProcessing]);
 
+  // Function to update Excel configuration with new data
+  const updateExcelConfigWithData = useCallback((newConfig?: any) => {
+    // We need to update the excelConfig state in the parent component
+    // Since updateExcelConfig doesn't accept parameters, we need to find another way
+    // to update the config with our new data
+    
+    // For now, we'll use a workaround by directly modifying the excelConfig object
+    // This is not ideal, but it works for our current implementation
+    if (newConfig && excelConfig) {
+      // Update the sheets in the current config
+      Object.keys(newConfig.sheets).forEach(sheetKey => {
+        if (!excelConfig.sheets[sheetKey]) {
+          excelConfig.sheets[sheetKey] = newConfig.sheets[sheetKey];
+        } else {
+          // Update existing sheet
+          excelConfig.sheets[sheetKey] = {
+            ...excelConfig.sheets[sheetKey],
+            ...newConfig.sheets[sheetKey]
+          };
+        }
+      });
+      
+      // Call the updateExcelConfig function to trigger a re-render
+      updateExcelConfig();
+    }
+  }, [excelConfig, updateExcelConfig]);
+
   // Define handleComplete first
   const handleComplete = useCallback(async () => {
     if (!excelConfig) { // Use prop
@@ -134,26 +161,141 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     setIsProcessing(true);
     setProgress(10);
     try {
+      // Prepare data for Excel sheets
+      setProgress(20);
+      
+      // Create a copy of the current config to update
+      const updatedConfig = { ...excelConfig };
+      
+      // Ensure the sheets object exists
+      if (!updatedConfig.sheets) {
+        updatedConfig.sheets = {};
+      }
+      
+      // Prepare Objectives sheet
+      if (tempObjectives && tempObjectives.length > 0) {
+        const objectivesHeaders = ['ID', 'Name', 'Description', 'Start Date', 'End Date'];
+        const objectivesData = tempObjectives.map(obj => [
+          obj.id || '',
+          obj.name || '',
+          obj.description || '',
+          obj.startDate || '',
+          obj.endDate || ''
+        ]);
+        
+        // Update or create the Objectives sheet
+        updatedConfig.sheets['objectives'] = {
+          name: 'Objectives',
+          headers: objectivesHeaders,
+          data: objectivesData.map(row => {
+            const obj: any = {};
+            objectivesHeaders.forEach((header, index) => {
+              obj[header] = row[index] || '';
+            });
+            return obj;
+          })
+        };
+      }
+      
+      // Prepare KRAs sheet
+      const krasData: any[] = [];
+      if (tempObjectives && tempObjectives.length > 0) {
+        tempObjectives.forEach(obj => {
+          if (obj.kras && obj.kras.length > 0) {
+            obj.kras.forEach((kra: any) => {
+              krasData.push({
+                'ID': kra.id || '',
+                'Name': kra.name || '',
+                'Description': kra.description || '',
+                'Department': kra.department || '',
+                'Responsible': kra.responsible || '',
+                'Start Date': kra.startDate || '',
+                'End Date': kra.endDate || '',
+                'Objective ID': obj.id || '',
+                'Objective Name': obj.name || ''
+              });
+            });
+          }
+        });
+      }
+      
+      if (krasData.length > 0) {
+        const krasHeaders = ['ID', 'Name', 'Description', 'Department', 'Responsible', 'Start Date', 'End Date', 'Objective ID', 'Objective Name'];
+        updatedConfig.sheets['kras'] = {
+          name: 'KRAs',
+          headers: krasHeaders,
+          data: krasData
+        };
+      }
+      
+      // Prepare KPIs sheet
+      if (tempKPIs && tempKPIs.length > 0) {
+        const kpisHeaders = ['ID', 'Name', 'Target', 'Actual', 'Status', 'Description', 'Notes', 'Department', 'Responsible', 'Start Date', 'End Date'];
+        const kpisData = tempKPIs.map(kpi => [
+          kpi.id || '',
+          kpi.name || '',
+          kpi.target || '',
+          kpi.actual || '',
+          kpi.status || '',
+          kpi.description || '',
+          kpi.notes || '',
+          kpi.department || '',
+          kpi.responsible || '',
+          kpi.startDate || '',
+          kpi.endDate || ''
+        ]);
+        
+        updatedConfig.sheets['kpis'] = {
+          name: 'KPIs',
+          headers: kpisHeaders,
+          data: kpisData.map(row => {
+            const obj: any = {};
+            kpisHeaders.forEach((header, index) => {
+              obj[header] = row[index] || '';
+            });
+            return obj;
+          })
+        };
+      }
+      
+      // Update the Excel config with the new sheets
       setProgress(30);
+      updateExcelConfigWithData(updatedConfig);
+      
+      // Save data to Excel
+      setProgress(50);
       await saveDataToExcel();
-      setProgress(60);
+      
+      // Load data from Excel to verify
+      setProgress(70);
       await loadDataFromExcel();
+      
+      // Complete the setup
       setProgress(90);
-      if (handleSetupCompleteFromHook) { // Use prop
+      if (handleSetupCompleteFromHook) {
         handleSetupCompleteFromHook();
       }
+      
       setProgress(100);
-      toast({ title: "Setup Complete", description: "Your unit has been successfully configured." });
+      toast({ 
+        title: "Setup Complete", 
+        description: "Your unit has been successfully configured and all data has been saved to Excel." 
+      });
+      
       onComplete(); // Call parent's onComplete
       onClose();    // Call parent's onClose
     } catch (error) {
       console.error('Error completing setup:', error);
       setSetupError(`Setup error: ${error.message || 'Unknown error'}`);
-      toast({ title: "Setup Error", description: "There was an error completing the setup process. Please try again.", variant: "destructive" });
+      toast({ 
+        title: "Setup Error", 
+        description: "There was an error completing the setup process. Please try again.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsProcessing(false);
     }
-  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast]); // Update dependencies
+  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData]);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
