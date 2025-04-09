@@ -3,7 +3,15 @@ export const microsoftAuthConfig = {
   confirmed: true,
   apiEndpoint: "https://graph.microsoft.com/v1.0/me",
   last_tested: "2025-04-07T08:19:35.145Z",
-  permissions: ["User.Read", "People.Read", "Directory.Read.All"],
+  permissions: [
+    "User.Read",
+    "People.Read",
+    "Directory.Read.All",
+    "Files.Read.All",
+    "Files.ReadWrite.All",
+    "Sites.Read.All",
+    "Sites.ReadWrite.All"
+  ],
   redirectUri: "https://unitopia-hub.vercel.app/",
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,
