@@ -22,6 +22,13 @@ export interface ExcelFile {
   sheets: string[];
 }
 
+export interface CsvFile {
+  id: string;
+  name: string;
+  url: string;
+  content?: string;
+}
+
 export const useMicrosoftGraph = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -653,6 +660,146 @@ export const useMicrosoftGraph = () => {
     }
   };
 
+  // Create a new CSV file in OneDrive
+  const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string): Promise<CsvFile | null> => {
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
+    }
+
+    try {
+      console.log('Creating CSV file:', fileName, 'in folder:', parentFolderId);
+      
+      const response = await window.msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All']
+      });
+
+      const baseEndpoint = 'https://graph.microsoft.com/v1.0/me/drive';
+      const endpoint = parentFolderId 
+        ? `${baseEndpoint}/items/${parentFolderId}/children`
+        : `${baseEndpoint}/root/children`;
+
+      console.log('Using endpoint:', endpoint);
+
+      // Create an empty CSV file with proper content type
+      const result = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: fileName,
+          '@microsoft.graph.conflictBehavior': 'replace',
+          file: {
+            mimeType: 'text/csv'
+          }
+        })
+      });
+
+      if (!result.ok) {
+        const errorText = await result.text();
+        console.error('Failed to create CSV file:', result.status, result.statusText, errorText);
+        throw new Error(`Failed to create CSV file: ${result.statusText} - ${errorText}`);
+      }
+
+      const data = await result.json();
+      console.log('CSV file created with ID:', data.id);
+      
+      // If initial content is provided, update the file with it
+      if (initialContent) {
+        await updateCsvFile(data.id, initialContent);
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        url: data.webUrl || '',
+        content: initialContent
+      };
+    } catch (error) {
+      console.error('Error creating CSV file:', error);
+      toast.error('Failed to create CSV file');
+      throw error;
+    }
+  };
+
+  // Read content from a CSV file
+  const readCsvFile = async (fileId: string): Promise<string> => {
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
+    }
+
+    try {
+      console.log('Reading CSV file with ID:', fileId);
+      
+      const response = await window.msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All']
+      });
+
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`;
+      console.log('Using endpoint:', endpoint);
+      
+      const result = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`
+        }
+      });
+
+      if (!result.ok) {
+        const errorText = await result.text();
+        console.error('Failed to read CSV file:', result.status, result.statusText, errorText);
+        throw new Error(`Failed to read CSV file: ${result.statusText}`);
+      }
+
+      const content = await result.text();
+      return content;
+    } catch (error) {
+      console.error('Error reading CSV file:', error);
+      toast.error('Failed to read CSV file');
+      throw error;
+    }
+  };
+
+  // Update a CSV file with new content
+  const updateCsvFile = async (fileId: string, content: string): Promise<boolean> => {
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
+    }
+
+    try {
+      console.log('Updating CSV file with ID:', fileId);
+      
+      const response = await window.msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All']
+      });
+
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`;
+      console.log('Using endpoint:', endpoint);
+      
+      const result = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'text/csv; charset=utf-8'
+        },
+        body: content
+      });
+
+      if (!result.ok) {
+        const errorText = await result.text();
+        console.error('Failed to update CSV file:', result.status, result.statusText, errorText);
+        throw new Error(`Failed to update CSV file: ${result.statusText}`);
+      }
+
+      console.log('CSV file updated successfully');
+      return true;
+    } catch (error) {
+      console.error('Error updating CSV file:', error);
+      toast.error('Failed to update CSV file');
+      throw error;
+    }
+  };
+
   // Return memoized functions
   return {
     getSharePointDocuments, // Consider memoizing if needed
@@ -664,6 +811,9 @@ export const useMicrosoftGraph = () => {
     readExcelFile, // Consider memoizing if needed
     updateExcelFile, // Consider memoizing if needed
     getExcelSheets, // Consider memoizing if needed
+    createCsvFile, // New CSV functions
+    readCsvFile,
+    updateCsvFile,
     isLoading,
     lastError, // Expose the error state for UI feedback
     getAuthStatus

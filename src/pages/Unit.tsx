@@ -737,9 +737,10 @@ const Unit = () => {
           setSetupMethod={setupWizard.setSetupMethod}
           setOneDriveConfig={setupWizard.setOneDriveConfig}
           setObjectives={setupWizard.setObjectives}
+          setKPIs={setupWizard.setKPIs}
           handleSetupCompleteFromHook={setupWizard.handleSetupComplete}
-          updateExcelConfig={setupWizard.updateExcelConfig}
-          excelConfig={setupWizard.excelConfig}
+          updateCsvConfig={setupWizard.updateCsvConfig}
+          csvConfig={setupWizard.csvConfig}
           oneDriveConfig={setupWizard.oneDriveConfig}
           setupMethodProp={setupWizard.setupMethod}
           objectivesProp={setupWizard.objectives}

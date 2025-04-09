@@ -15,8 +15,8 @@ import { ObjectivesSetup } from '@/components/setup-wizard/steps/ObjectivesSetup
 import { KPISetup } from '@/components/setup-wizard/steps/KPISetup';
 import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
-import { useExcelSync } from '@/hooks/useExcelSync';
-import { Loader2, Cloud, FileSpreadsheet, Database } from 'lucide-react';
+import { useCsvSync } from '@/hooks/useCsvSync';
+import { Loader2, Cloud, FileText, Database } from 'lucide-react';
 import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
 
 // Define individual props needed from the setup state
@@ -26,8 +26,8 @@ interface SetupWizardSpecificProps {
   setObjectives: (objectives: any[]) => void;
   setKPIs: (kpis: any[]) => void;
   handleSetupCompleteFromHook: () => void; // Renamed to avoid conflict
-  updateExcelConfig: () => void;
-  excelConfig: any; // Consider stronger typing if possible
+  updateCsvConfig: () => void;
+  csvConfig: any; // Consider stronger typing if possible
   oneDriveConfig: any; // Consider stronger typing if possible
   setupMethodProp?: string; // Pass if needed directly, or rely on internal state?
   objectivesProp?: any[]; // Pass if needed directly
@@ -51,16 +51,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   setObjectives,
   setKPIs,
   handleSetupCompleteFromHook,
-  updateExcelConfig,
-  excelConfig,
+  updateCsvConfig,
+  csvConfig,
   oneDriveConfig,
   setupMethodProp, // Receive props
   objectivesProp,
   kpisProp,
   isSetupComplete,
 }) => {
-  // Remove previous logs
-  // console.log('SetupWizard start - setupState:', setupState);
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -72,21 +70,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [setupError, setSetupError] = useState<string | null>(null);
   
   // Add the useMicrosoftGraph hook at the component level
-  const { createExcelFile } = useMicrosoftGraph();
+  const { createCsvFile } = useMicrosoftGraph();
 
   // Updated total steps to include KPI setup
   const totalSteps = 7;
 
-  // Use the Excel sync hook with props
-  // console.log('SetupWizard before useExcelSync - setupState:', setupState);
+  // Use the CSV sync hook with props
   const { 
-    isLoading: isExcelLoading, 
-    error: excelError, 
-    loadDataFromExcel, 
-    saveDataToExcel 
-  } = useExcelSync({
-    config: excelConfig || null, // Use prop
-    onConfigChange: updateExcelConfig || (() => {}), // Use prop
+    isLoading: isCsvLoading, 
+    error: csvError, 
+    loadDataFromCsv, 
+    saveDataToCsv 
+  } = useCsvSync({
+    config: csvConfig || null, // Use prop
+    onConfigChange: updateCsvConfig || (() => {}), // Use prop
     isSetupComplete: isSetupComplete // Pass the prop here
   });
 
@@ -111,83 +108,80 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [isOpen]);
 
-  // Update Excel config based on props
+  // Update CSV config based on props
   useEffect(() => {
-    // Only update Excel config if we have both oneDriveConfig and setupMethodProp
+    // Only update CSV config if we have both oneDriveConfig and setupMethodProp
     // and we're not already processing
     if (oneDriveConfig && setupMethodProp && !isProcessing) {
       // Add a debounce to prevent multiple rapid updates
       const timeoutId = setTimeout(() => {
-        updateExcelConfig();
+        updateCsvConfig();
       }, 500);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [oneDriveConfig, setupMethodProp, updateExcelConfig, isProcessing]);
+  }, [oneDriveConfig, setupMethodProp, updateCsvConfig, isProcessing]);
 
-  // Function to update Excel configuration with new data
-  const updateExcelConfigWithData = useCallback((newConfig?: any) => {
-    // We need to update the excelConfig state in the parent component
-    // Since updateExcelConfig doesn't accept parameters, we need to find another way
-    // to update the config with our new data
-    
+  // Function to update CSV configuration with new data
+  const updateCsvConfigWithData = useCallback((newConfig?: any) => {
+    // We need to update the csvConfig state in the parent component
     if (newConfig) {
-      console.log('Updating Excel config with new data:', newConfig);
+      console.log('Updating CSV config with new data:', newConfig);
       
       // Create a deep copy of the current config
-      const updatedConfig = JSON.parse(JSON.stringify(excelConfig || {}));
+      const updatedConfig = JSON.parse(JSON.stringify(csvConfig || {}));
       
-      // Update the fileId if provided
-      if (newConfig.fileId) {
-        updatedConfig.fileId = newConfig.fileId;
+      // Update the fileIds if provided
+      if (newConfig.fileIds) {
+        updatedConfig.fileIds = {...(updatedConfig.fileIds || {}), ...newConfig.fileIds};
       }
       
-      // Ensure sheets object exists
-      if (!updatedConfig.sheets) {
-        updatedConfig.sheets = {};
+      // Ensure data object exists
+      if (!updatedConfig.data) {
+        updatedConfig.data = {};
       }
       
-      // Update each sheet in the config
-      Object.keys(newConfig.sheets).forEach(sheetKey => {
-        const newSheet = newConfig.sheets[sheetKey];
-        
-        if (!updatedConfig.sheets[sheetKey]) {
-          // Create new sheet
-          updatedConfig.sheets[sheetKey] = {
-            name: newSheet.name,
-            headers: [...newSheet.headers],
-            data: JSON.parse(JSON.stringify(newSheet.data))
-          };
-        } else {
-          // Update existing sheet
-          updatedConfig.sheets[sheetKey] = {
-            name: newSheet.name || updatedConfig.sheets[sheetKey].name,
-            headers: newSheet.headers || updatedConfig.sheets[sheetKey].headers,
-            data: JSON.parse(JSON.stringify(newSheet.data || updatedConfig.sheets[sheetKey].data))
-          };
-        }
-      });
+      // Update each entity's data in the config
+      if (newConfig.data) {
+        Object.keys(newConfig.data).forEach(entityType => {
+          const newEntityData = newConfig.data[entityType];
+          
+          if (!updatedConfig.data[entityType]) {
+            // Create new entity data
+            updatedConfig.data[entityType] = {
+              headers: [...newEntityData.headers],
+              rows: JSON.parse(JSON.stringify(newEntityData.rows))
+            };
+          } else {
+            // Update existing entity data
+            updatedConfig.data[entityType] = {
+              headers: newEntityData.headers || updatedConfig.data[entityType].headers,
+              rows: JSON.parse(JSON.stringify(newEntityData.rows || updatedConfig.data[entityType].rows))
+            };
+          }
+        });
+      }
       
-      console.log('Updated Excel config:', updatedConfig);
+      console.log('Updated CSV config:', updatedConfig);
       
-      // Update the Excel config in the parent component
-      if (updateExcelConfig) {
+      // Update the CSV config in the parent component
+      if (updateCsvConfig) {
         // We need to find a way to update the config in the parent
-        // For now, we'll use a workaround by directly modifying the excelConfig object
-        Object.assign(excelConfig || {}, updatedConfig);
+        // For now, we'll use a workaround by directly modifying the csvConfig object
+        Object.assign(csvConfig || {}, updatedConfig);
         
-        // Call the updateExcelConfig function to trigger a re-render
-        updateExcelConfig();
+        // Call the updateCsvConfig function to trigger a re-render
+        updateCsvConfig();
       }
     }
-  }, [excelConfig, updateExcelConfig]);
+  }, [csvConfig, updateCsvConfig]);
 
   // Define handleComplete first
   const handleComplete = useCallback(async () => {
-    if (!excelConfig) { // Use prop
+    if (!csvConfig) { // Use prop
       toast({
         title: "Setup Error",
-        description: "Excel configuration is not properly initialized. Please try again.",
+        description: "CSV configuration is not properly initialized. Please try again.",
         variant: "destructive",
       });
       return;
@@ -195,21 +189,25 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     setIsProcessing(true);
     setProgress(10);
     try {
-      // Prepare data for Excel sheets
+      // Prepare data for CSV files
       setProgress(20);
       
       // Create a copy of the current config to update
-      const updatedConfig = { ...excelConfig };
+      const updatedConfig = { ...csvConfig };
       
-      // Ensure the sheets object exists
-      if (!updatedConfig.sheets) {
-        updatedConfig.sheets = {};
+      // Ensure the data object and fileIds exist
+      if (!updatedConfig.data) {
+        updatedConfig.data = {};
+      }
+      
+      if (!updatedConfig.fileIds) {
+        updatedConfig.fileIds = {};
       }
       
       // Helper function to generate unique IDs
       const generateId = () => `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      // Prepare Objectives sheet
+      // Prepare objectives data
       if (tempObjectives && tempObjectives.length > 0) {
         console.log('Preparing Objectives data:', tempObjectives);
         
@@ -219,68 +217,29 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           id: obj.id || generateId()
         }));
         
-        const objectivesHeaders = ['ID', 'Name', 'Description', 'Start Date', 'End Date'];
-        const objectivesData = objectivesWithIds.map(obj => {
+        const objectivesHeaders = ['id', 'name', 'description', 'startDate', 'endDate'];
+        
+        // Ensure we have an objectives entity in the data
+        if (!updatedConfig.data.objectives) {
+          updatedConfig.data.objectives = {
+            headers: objectivesHeaders,
+            rows: []
+          };
+        }
+        
+        // Update objectives data
+        updatedConfig.data.objectives.rows = objectivesWithIds.map(obj => {
           const row: Record<string, string> = {};
           objectivesHeaders.forEach(header => {
-            const key = header.toLowerCase().replace(/\s+/g, '');
-            const mappings: Record<string, string> = {
-              'id': 'id',
-              'name': 'name',
-              'description': 'description',
-              'startdate': 'startDate',
-              'enddate': 'endDate'
-            };
-            const objKey = mappings[key] || key;
-            row[header] = obj[objKey] || '';
+            row[header] = obj[header] || '';
           });
           return row;
         });
         
-        // Update or create the Objectives sheet
-        updatedConfig.sheets['objectives'] = {
-          name: 'Objectives',
-          headers: objectivesHeaders,
-          data: objectivesData
-        };
-        
-        console.log('Prepared Objectives sheet:', updatedConfig.sheets['objectives']);
+        console.log('Prepared objectives data:', updatedConfig.data.objectives);
       }
       
-      // Prepare KRAs sheet
-      const krasData: any[] = [];
-      if (tempObjectives && tempObjectives.length > 0) {
-        tempObjectives.forEach(obj => {
-          if (obj.kras && obj.kras.length > 0) {
-            obj.kras.forEach((kra: any) => {
-              krasData.push({
-                'ID': kra.id || generateId(),
-                'Name': kra.name || '',
-                'Description': kra.description || '',
-                'Department': kra.department || '',
-                'Responsible': kra.responsible || '',
-                'Start Date': kra.startDate || '',
-                'End Date': kra.endDate || '',
-                'Objective ID': obj.id || '',
-                'Objective Name': obj.name || ''
-              });
-            });
-          }
-        });
-      }
-      
-      if (krasData.length > 0) {
-        console.log('Preparing KRAs data:', krasData);
-        const krasHeaders = ['ID', 'Name', 'Description', 'Department', 'Responsible', 'Start Date', 'End Date', 'Objective ID', 'Objective Name'];
-        updatedConfig.sheets['kras'] = {
-          name: 'KRAs',
-          headers: krasHeaders,
-          data: krasData
-        };
-        console.log('Prepared KRAs sheet:', updatedConfig.sheets['kras']);
-      }
-      
-      // Prepare KPIs sheet
+      // Prepare KPIs data
       if (tempKPIs && tempKPIs.length > 0) {
         console.log('Preparing KPIs data:', tempKPIs);
         
@@ -290,107 +249,99 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           id: kpi.id || generateId()
         }));
         
-        const kpisHeaders = ['ID', 'Name', 'Target', 'Actual', 'Status', 'Description', 'Notes', 'Department', 'Responsible', 'Start Date', 'End Date'];
-        const kpisData = kpisWithIds.map(kpi => {
+        const kpiHeaders = ['id', 'name', 'target', 'actual', 'status', 'description', 'notes', 'kraId', 'kraName', 'startDate', 'endDate'];
+        
+        // Ensure we have a KPIs entity in the data
+        if (!updatedConfig.data.kpis) {
+          updatedConfig.data.kpis = {
+            headers: kpiHeaders,
+            rows: []
+          };
+        }
+        
+        // Update KPIs data
+        updatedConfig.data.kpis.rows = kpisWithIds.map(kpi => {
           const row: Record<string, string> = {};
-          kpisHeaders.forEach(header => {
-            const key = header.toLowerCase().replace(/\s+/g, '');
-            const mappings: Record<string, string> = {
-              'id': 'id',
-              'name': 'name',
-              'target': 'target',
-              'actual': 'actual',
-              'status': 'status',
-              'description': 'description',
-              'notes': 'notes',
-              'department': 'department',
-              'responsible': 'responsible',
-              'startdate': 'startDate',
-              'enddate': 'endDate'
-            };
-            const objKey = mappings[key] || key;
-            row[header] = kpi[objKey] || '';
+          kpiHeaders.forEach(header => {
+            row[header] = kpi[header] || '';
           });
           return row;
         });
         
-        updatedConfig.sheets['kpis'] = {
-          name: 'KPIs',
-          headers: kpisHeaders,
-          data: kpisData
-        };
-        
-        console.log('Prepared KPIs sheet:', updatedConfig.sheets['kpis']);
+        console.log('Prepared KPIs data:', updatedConfig.data.kpis);
       }
       
-      // Update the Excel config with the new sheets
+      // Update the CSV config with the new data
       setProgress(30);
-      updateExcelConfigWithData(updatedConfig);
+      updateCsvConfigWithData(updatedConfig);
       
-      // Force Excel file creation if it doesn't exist
+      // Create CSV files if they don't exist
       setProgress(40);
-      if (!excelConfig.fileId) {
-        console.log('Excel file ID not found, forcing initialization');
+      if (Object.keys(updatedConfig.fileIds || {}).length === 0) {
+        console.log('No CSV file IDs found, creating CSV files');
+        
         // Clear any previous session storage to force file creation
-        const sessionKey = `excel_init_attempt_${excelConfig.folderId}_${excelConfig.fileName}`;
+        const sessionKey = `csv_init_attempt_${updatedConfig.folderId}`;
         sessionStorage.removeItem(sessionKey);
         
         try {
-          // Use the createExcelFile function from the hook at component level
-          const excelFile = await createExcelFile(excelConfig.fileName, excelConfig.folderId);
+          const fileIds: Record<string, string> = {};
           
-          if (!excelFile) {
-            throw new Error('Failed to create Excel file');
-          }
+          // Create CSV files in parallel
+          const createFilePromises = Object.entries(updatedConfig.fileNames || {}).map(async ([entityType, fileName]) => {
+            console.log(`Creating CSV file for ${entityType}: ${fileName}`);
+            
+            // Prepare initial content with headers
+            const headers = updatedConfig.data[entityType]?.headers || [];
+            const initialContent = headers.join(',');
+            
+            try {
+              // Create the CSV file
+              const csvFile = await createCsvFile(fileName, initialContent, updatedConfig.folderId);
+              
+              if (csvFile) {
+                console.log(`CSV file created for ${entityType} with ID:`, csvFile.id);
+                fileIds[entityType] = csvFile.id;
+              } else {
+                throw new Error(`Failed to create CSV file for ${entityType}`);
+              }
+            } catch (fileError) {
+              console.error(`Error creating CSV file for ${entityType}:`, fileError);
+              throw fileError;
+            }
+          });
           
-          console.log('Excel file created successfully with ID:', excelFile.id);
+          // Wait for all files to be created
+          await Promise.all(createFilePromises);
           
-          // Update the config with the file ID
-          const updatedConfigWithFileId = {
-            ...updatedConfig,
-            fileId: excelFile.id
-          };
+          // Update the config with the file IDs
+          updatedConfig.fileIds = fileIds;
+          updateCsvConfigWithData(updatedConfig);
           
-          // Update the Excel config with the file ID
-          updateExcelConfigWithData(updatedConfigWithFileId);
-          
-          // Wait a moment for the initialization to complete
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait for the config update to complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
-          console.error('Error creating Excel file:', error);
+          console.error('Error creating CSV files:', error);
           toast({
-            title: "Excel File Creation Error",
-            description: `Failed to create Excel file: ${error.message || 'Unknown error'}`,
+            title: "CSV File Creation Error",
+            description: `Failed to create CSV files: ${error.message || 'Unknown error'}`,
             variant: "destructive",
           });
           throw error;
         }
       }
       
-      // Save data to Excel
-      setProgress(50);
-      console.log('Saving data to Excel with config:', updatedConfig);
+      // Save data to CSV files
+      setProgress(60);
+      console.log('Saving data to CSV files');
+      await saveDataToCsv();
       
-      // Ensure we have the latest fileId
-      if (!updatedConfig.fileId && excelConfig.fileId) {
-        updatedConfig.fileId = excelConfig.fileId;
-      }
-      
-      // Update the config one more time to ensure we have the latest data
-      updateExcelConfigWithData(updatedConfig);
-      
-      // Wait a moment to ensure the config is updated
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Now save the data
-      await saveDataToExcel();
-      
-      // Load data from Excel to verify
-      setProgress(70);
-      await loadDataFromExcel();
+      // Load data from CSV to verify
+      setProgress(80);
+      await loadDataFromCsv();
       
       // Store objectives and KPIs in parent state
-      setProgress(80);
+      setProgress(90);
       if (setObjectives && tempObjectives) {
         setObjectives(tempObjectives);
       }
@@ -399,7 +350,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
       
       // Complete the setup
-      setProgress(90);
+      setProgress(95);
       if (handleSetupCompleteFromHook) {
         handleSetupCompleteFromHook();
       }
@@ -407,7 +358,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setProgress(100);
       toast({ 
         title: "Setup Complete", 
-        description: "Your unit has been successfully configured and all data has been saved to Excel." 
+        description: "Your unit has been successfully configured and all data has been saved to CSV files." 
       });
       
       onComplete(); // Call parent's onComplete
@@ -423,7 +374,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData, updateExcelConfig, createExcelFile, setObjectives, setKPIs]);
+  }, [
+    csvConfig, 
+    handleSetupCompleteFromHook, 
+    onComplete, 
+    onClose, 
+    saveDataToCsv, 
+    loadDataFromCsv, 
+    toast, 
+    tempObjectives, 
+    tempKPIs, 
+    updateCsvConfigWithData, 
+    updateCsvConfig, 
+    createCsvFile, 
+    setObjectives, 
+    setKPIs
+  ]);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
@@ -442,7 +408,6 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     console.log('Setup type selected:', type);
     setSelectedSetupType(type);
     setSetupError(null);
-    console.log('Inspecting setSetupMethod prop:', setSetupMethod);
 
     if (!setSetupMethod) { // Check prop
       toast({ title: "Setup Error", description: "Setup state (setSetupMethod) is not properly initialized. Please try again.", variant: "destructive" });
@@ -452,7 +417,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     if (type === 'onedrive') {
       setSetupMethod('standard'); // Use prop
       setCurrentStep(1);
-    } else if (type === 'excel') {
+    } else if (type === 'csv') {
       setSetupMethod('import'); // Use prop
       setCurrentStep(1);
     } else if (type === 'demo') {
@@ -482,7 +447,6 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   }, [tempObjectives, tempKPIs, setObjectives, setKPIs, handleComplete]);
 
   const renderInitialSelection = () => {
-    // console.log('SetupWizard rendering renderInitialSelection - setupState:', setupState);
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
@@ -512,16 +476,16 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
           <Card
             className="p-4 cursor-pointer hover:border-primary transition-colors"
-            onClick={() => handleSetupTypeSelect('excel')}
+            onClick={() => handleSetupTypeSelect('csv')}
           >
             <div className="flex items-start space-x-4">
               <div className="p-2 rounded-lg bg-green-100 text-green-600">
-                <FileSpreadsheet className="h-6 w-6" />
+                <FileText className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <h4 className="font-semibold">Upload Excel File</h4>
+                <h4 className="font-semibold">Upload CSV Files</h4>
                 <p className="text-sm text-muted-foreground">
-                  Upload an existing Excel file with your unit data
+                  Upload existing CSV files with your unit data
                 </p>
               </div>
             </div>
@@ -578,23 +542,23 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               }}
             />
           );
-        } else if (selectedSetupType === 'excel') {
+        } else if (selectedSetupType === 'csv') {
           return (
             <div className="space-y-6">
               <div className="text-center space-y-2">
-                <h3 className="text-lg font-semibold">Upload Excel File</h3>
+                <h3 className="text-lg font-semibold">Upload CSV Files</h3>
                 <p className="text-sm text-muted-foreground">
-                  Upload an Excel file containing your unit data
+                  Upload CSV files containing your unit data
                 </p>
               </div>
               <Card className="p-6">
                 <div className="flex flex-col items-center space-y-4">
-                  <FileSpreadsheet className="h-12 w-12 text-green-500" />
+                  <FileText className="h-12 w-12 text-green-500" />
                   <Button>
-                    Select Excel File
+                    Select CSV Files
                   </Button>
                   <p className="text-sm text-muted-foreground">
-                    Supported formats: .xlsx, .xls
+                    Supported format: .csv
                   </p>
                 </div>
               </Card>

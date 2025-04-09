@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { ExcelSyncConfig } from './useExcelSync';
+import { CsvSyncConfig } from './useCsvSync';
 
 export interface SetupWizardState {
   showSetupWizard: boolean;
@@ -13,11 +13,13 @@ export interface SetupWizardState {
   setSetupMethod: (method: string) => void;
   objectives: any[];
   setObjectives: (objectives: any[]) => void;
-  excelConfig: ExcelSyncConfig | null;
-  setExcelConfig: (config: ExcelSyncConfig | null) => void;
+  kpis: any[];
+  setKPIs: (kpis: any[]) => void;
+  csvConfig: CsvSyncConfig | null;
+  setCsvConfig: (config: CsvSyncConfig | null) => void;
   isSetupComplete: boolean;
   resetSetup: () => void;
-  updateExcelConfig: () => void;
+  updateCsvConfig: () => void;
   handleSetupComplete: () => void;
 }
 
@@ -40,7 +42,8 @@ export const useSetupWizard = ({
   const [oneDriveConfig, setOneDriveConfig] = useState<{ folderId: string; folderName: string } | null>(null);
   const [setupMethod, setSetupMethod] = useState<string>('');
   const [objectives, setObjectives] = useState<any[]>([]);
-  const [excelConfig, setExcelConfig] = useState<ExcelSyncConfig | null>(null);
+  const [kpis, setKPIs] = useState<any[]>([]);
+  const [csvConfig, setCsvConfig] = useState<CsvSyncConfig | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -55,7 +58,8 @@ export const useSetupWizard = ({
           setOneDriveConfig(parsed.oneDriveConfig || null);
           setSetupMethod(parsed.setupMethod || '');
           setObjectives(parsed.objectives || []);
-          setExcelConfig(parsed.excelConfig || null);
+          setKPIs(parsed.kpis || []);
+          setCsvConfig(parsed.csvConfig || null);
           setIsSetupComplete(parsed.isSetupComplete || false);
           
           // If setup is complete, ensure we don't show the wizard
@@ -80,97 +84,116 @@ export const useSetupWizard = ({
         oneDriveConfig,
         setupMethod,
         objectives,
-        excelConfig,
+        kpis,
+        csvConfig,
         isSetupComplete
       };
       localStorage.setItem('setupWizardState', JSON.stringify(stateToSave));
     }
-  }, [isInitialized, oneDriveConfig, setupMethod, objectives, excelConfig, isSetupComplete]);
+  }, [isInitialized, oneDriveConfig, setupMethod, objectives, kpis, csvConfig, isSetupComplete]);
 
   // Reset setup state
   const resetSetup = useCallback(() => {
     setOneDriveConfig(null);
     setSetupMethod('');
     setObjectives([]);
-    setExcelConfig(null);
+    setKPIs([]);
+    setCsvConfig(null);
     setIsSetupComplete(false);
     localStorage.removeItem('setupWizardState');
   }, []);
 
-  // Create Excel configuration based on setup method and objectives
-  const createExcelConfig = useCallback(() => {
+  // Create CSV configuration based on setup method and data
+  const createCsvConfig = useCallback(() => {
     if (!oneDriveConfig) return null;
 
-    // Define sheet configurations based on setup method
-    const sheets: { [key: string]: { name: string; headers: string[]; data: any[] } } = {};
-
-    // Tasks sheet
-    sheets.tasks = {
-      name: 'Tasks',
-      headers: ['id', 'title', 'status', 'priority', 'assignee', 'dueDate', 'projectName'],
-      data: taskState?.tasks || []
+    // Define file names for each entity type
+    const fileNames = {
+      objectives: 'objectives.csv',
+      kras: 'kras.csv',
+      kpis: 'kpis.csv',
+      tasks: 'tasks.csv',
+      projects: 'projects.csv',
+      risks: 'risks.csv',
+      assets: 'assets.csv'
     };
 
-    // Projects sheet
-    sheets.projects = {
-      name: 'Projects',
-      headers: ['id', 'name', 'status', 'manager', 'startDate', 'endDate', 'budget', 'progress'],
-      data: projectState?.projects || []
+    // Define headers for each entity type
+    const headers = {
+      objectives: ['id', 'name', 'description', 'startDate', 'endDate'],
+      kras: ['id', 'name', 'objectiveId', 'objectiveName', 'department', 'responsible', 'startDate', 'endDate', 'progress', 'status'],
+      kpis: ['id', 'name', 'kraId', 'kraName', 'target', 'actual', 'status', 'description', 'notes', 'startDate', 'endDate'],
+      tasks: ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName'],
+      projects: ['id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'budget', 'budgetSpent', 'progress'],
+      risks: ['id', 'title', 'description', 'impact', 'likelihood', 'status', 'category', 'projectId', 'projectName', 'owner', 'createdAt', 'updatedAt'],
+      assets: ['id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes']
     };
 
-    // Risks sheet
-    sheets.risks = {
-      name: 'Risks',
-      headers: ['id', 'title', 'projectName', 'impact', 'likelihood', 'status', 'owner', 'updatedAt'],
-      data: riskState?.risks || []
-    };
+    // Prepare the data structure
+    const data: {
+      [key: string]: {
+        headers: string[];
+        rows: any[];
+      };
+    } = {};
 
-    // Assets sheet
-    sheets.assets = {
-      name: 'Assets',
-      headers: ['id', 'name', 'type', 'assignedTo', 'department', 'serialNumber', 'purchaseDate', 'warrantyExpiry', 'status'],
-      data: assetState?.assets || []
-    };
+    // Initialize data structure with headers and empty rows
+    Object.keys(headers).forEach(key => {
+      data[key] = {
+        headers: headers[key as keyof typeof headers],
+        rows: []
+      };
+    });
 
-    // KRAs sheet
-    sheets.kras = {
-      name: 'KRAs',
-      headers: ['id', 'name', 'objectiveId', 'objectiveName', 'department', 'responsible', 'startDate', 'endDate', 'progress', 'status', 'createdAt', 'updatedAt'],
-      data: objectives.map((kraInput: any) => ({
-        id: kraInput.id, 
-        name: kraInput.name,
-        objectiveId: '',
-        objectiveName: '',
-        department: kraInput.department,
-        responsible: kraInput.responsible,
-        startDate: kraInput.startDate,
-        endDate: kraInput.endDate,
-        progress: 0,
-        status: 'open',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }))
-    };
+    // Add objectives
+    if (objectives && objectives.length > 0) {
+      data.objectives.rows = objectives.map(obj => ({
+        id: obj.id || `obj-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: obj.name || '',
+        description: obj.description || '',
+        startDate: obj.startDate || '',
+        endDate: obj.endDate || ''
+      }));
+    }
 
-    // KPIs sheet
-    sheets.kpis = {
-      name: 'KPIs',
-      headers: ['id', 'name', 'startDate', 'date', 'target', 'actual', 'status', 'kraId'],
-      data: []
-    };
+    // Add KPIs
+    if (kpis && kpis.length > 0) {
+      data.kpis.rows = kpis;
+    }
+
+    // Add tasks if available
+    if (taskState?.tasks && taskState.tasks.length > 0) {
+      data.tasks.rows = taskState.tasks;
+    }
+
+    // Add projects if available
+    if (projectState?.projects && projectState.projects.length > 0) {
+      data.projects.rows = projectState.projects;
+    }
+
+    // Add risks if available
+    if (riskState?.risks && riskState.risks.length > 0) {
+      data.risks.rows = riskState.risks;
+    }
+
+    // Add assets if available
+    if (assetState?.assets && assetState.assets.length > 0) {
+      data.assets.rows = assetState.assets;
+    }
 
     return {
       folderId: oneDriveConfig.folderId,
-      fileName: 'UnitopiaHub_Data.xlsx',
-      sheets
+      fileNames,
+      fileIds: {},
+      data
     };
-  }, [oneDriveConfig, objectives, taskState?.tasks, projectState?.projects, riskState?.risks, assetState?.assets]);
+  }, [oneDriveConfig, objectives, kpis, taskState?.tasks, projectState?.projects, riskState?.risks, assetState?.assets]);
 
-  // Update Excel config when setup method or objectives change
-  const updateExcelConfig = useCallback(() => {
-    const newConfig = createExcelConfig();
-    setExcelConfig(newConfig);
-  }, [createExcelConfig]);
+  // Update CSV config when setup method or data changes
+  const updateCsvConfig = useCallback(() => {
+    const newConfig = createCsvConfig();
+    setCsvConfig(newConfig);
+  }, [createCsvConfig]);
 
   // Handle setup completion
   const handleSetupComplete = useCallback(() => {
@@ -182,11 +205,12 @@ export const useSetupWizard = ({
       oneDriveConfig,
       setupMethod,
       objectives,
-      excelConfig,
+      kpis,
+      csvConfig,
       isSetupComplete: true
     };
     localStorage.setItem('setupWizardState', JSON.stringify(currentState));
-  }, [oneDriveConfig, setupMethod, objectives, excelConfig]);
+  }, [oneDriveConfig, setupMethod, objectives, kpis, csvConfig]);
 
   // Memoize the returned object to prevent unnecessary re-renders
   return useMemo(() => ({
@@ -198,21 +222,24 @@ export const useSetupWizard = ({
     setSetupMethod,
     objectives,
     setObjectives,
-    excelConfig,
-    setExcelConfig,
+    kpis,
+    setKPIs,
+    csvConfig,
+    setCsvConfig,
     isSetupComplete,
     resetSetup,
-    updateExcelConfig,
+    updateCsvConfig,
     handleSetupComplete
   }), [
     showSetupWizard,
     oneDriveConfig,
     setupMethod,
     objectives,
-    excelConfig,
+    kpis,
+    csvConfig,
     isSetupComplete,
     resetSetup,
-    updateExcelConfig,
+    updateCsvConfig,
     handleSetupComplete
   ]);
 }; 
