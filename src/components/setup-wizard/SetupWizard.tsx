@@ -16,8 +16,9 @@ import { KPISetup } from '@/components/setup-wizard/steps/KPISetup';
 import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useCsvSync } from '@/hooks/useCsvSync';
-import { Loader2, Cloud, FileText, Database } from 'lucide-react';
+import { Loader2, Cloud, FileText, Database, Check } from 'lucide-react';
 import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
+import { cn } from '@/lib/utils';
 
 // Define individual props needed from the setup state
 interface SetupWizardSpecificProps {
@@ -72,8 +73,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   // Add the useMicrosoftGraph hook at the component level
   const { createCsvFile } = useMicrosoftGraph();
 
-  // Updated total steps to include KPI setup
-  const totalSteps = 7;
+  // Define steps for the wizard
+  const steps = [
+    { id: 0, name: "Setup Method" },
+    { id: 1, name: "Storage Location" },
+    { id: 2, name: "Objectives" },
+    { id: 3, name: "KPIs" },
+    { id: 4, name: "Review" },
+    { id: 5, name: "Summary" }
+  ];
+
+  // Updated total steps count
+  const totalSteps = steps.length;
 
   // Use the CSV sync hook with props
   const { 
@@ -655,51 +666,77 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             onBack={handleBack}
           />
         );
-      case 6:
-        return (
-          <SetupSummary
-            oneDriveConfig={oneDriveConfig}
-            objectives={tempObjectives}
-            kpis={tempKPIs}
-            onComplete={handleSummaryComplete}
-            onBack={handleBack}
-          />
-        );
       default:
         return null;
     }
   };
 
-  // Rest of the component (Dialog structure) remains largely the same
+  // Render Progress Steps
+  const renderProgressSteps = () => {
+    return (
+      <div className="flex mb-8 relative">
+        <div className="absolute h-0.5 bg-gray-200 top-4 left-0 right-0 z-0"></div>
+        {steps.map((step) => (
+          <div key={step.id} className="flex-1 text-center relative z-10">
+            <div 
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 transition-colors",
+                currentStep === step.id ? "bg-primary text-white" : 
+                currentStep > step.id ? "bg-green-500 text-white" : 
+                "bg-gray-200 text-gray-400"
+              )}
+            >
+              {currentStep > step.id ? <Check className="h-4 w-4" /> : step.id + 1}
+            </div>
+            <div className={cn(
+              "text-xs font-medium",
+              currentStep === step.id ? "text-primary" : 
+              currentStep > step.id ? "text-green-500" : 
+              "text-gray-400"
+            )}>
+              {step.name}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Rest of the component (Dialog structure) with updated UI
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Unit Setup Wizard</DialogTitle>
+      <DialogContent className="max-w-4xl p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-2">
+          <DialogTitle className="text-2xl">Unit Setup Wizard</DialogTitle>
           <DialogDescription>
             Configure your unit's backend storage and structure
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Progress indicator */}
-          <div className="space-y-2">
-            <Progress value={isProcessing ? progress : (currentStep / totalSteps) * 100} />
-            <p className="text-sm text-muted-foreground text-center">
-              {isProcessing ? 'Processing...' : `Step ${currentStep + 1} of ${totalSteps}`}
-            </p>
-          </div>
+        <div className="px-6 pb-6 space-y-6">
+          {/* Circular Progress Steps */}
+          {renderProgressSteps()}
 
           {/* Error display */}
           {setupError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
               <strong className="font-bold">Error: </strong>
               <span className="block sm:inline">{setupError}</span>
             </div>
           )}
 
+          {/* Processing indicator */}
+          {isProcessing && (
+            <div className="space-y-4">
+              <Progress value={progress} className="h-2" />
+              <p className="text-sm text-center text-muted-foreground">
+                {progress < 100 ? 'Processing...' : 'Complete!'} ({Math.round(progress)}%)
+              </p>
+            </div>
+          )}
+
           {/* Step content */}
-          <Card className="p-6">
+          <div className="rounded-lg border min-h-[400px] p-6">
             {isProcessing ? (
               <div className="flex flex-col items-center justify-center py-8 space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -711,24 +748,43 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             ) : (
               renderStep()
             )}
-          </Card>
+          </div>
 
           {/* Navigation buttons */}
-          {!isProcessing && currentStep > 0 && (
+          {!isProcessing && (
             <div className="flex justify-between">
               <Button
                 variant="outline"
                 onClick={handleBack}
                 disabled={currentStep === 0}
+                className={currentStep === 0 ? "invisible" : ""}
               >
                 Back
               </Button>
-              <Button
-                variant="outline"
-                onClick={onClose}
-              >
-                Cancel
-              </Button>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                >
+                  Cancel
+                </Button>
+                
+                {currentStep === 5 ? (
+                  <Button 
+                    onClick={handleSummaryComplete}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Complete Setup
+                  </Button>
+                ) : currentStep > 0 && currentStep < 5 ? (
+                  <Button
+                    onClick={handleNext}
+                  >
+                    Next
+                  </Button>
+                ) : null}
+              </div>
             </div>
           )}
         </div>

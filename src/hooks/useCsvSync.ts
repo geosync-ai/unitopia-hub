@@ -24,8 +24,18 @@ export interface UseCsvSyncProps {
   isSetupComplete: boolean;
 }
 
+interface ExcelFileConfig {
+  folderId: string;
+  fileName: string;
+  sheets: {
+    name: string;
+    headers: string[];
+    rows: any[][];
+  }[];
+}
+
 export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSyncProps) => {
-  const { createCsvFile, readCsvFile, updateCsvFile } = useMicrosoftGraph();
+  const { createCsvFile, readCsvFile, updateCsvFile, createExcelFile, readExcelFile, updateExcelFile } = useMicrosoftGraph();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasAttemptedInit, setHasAttemptedInit] = useState(false);
@@ -317,11 +327,98 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     }
   }, [config, initializeCsvFiles, hasAttemptedInit, isSetupComplete]);
 
+  const saveDataToExcel = useCallback(async (config: ExcelFileConfig) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const timestamp = new Date().toISOString();
+      console.log(`Saving data to Excel file at ${timestamp}`);
+
+      // Add metadata to each sheet
+      const sheetsWithMetadata = config.sheets.map(sheet => ({
+        ...sheet,
+        rows: [
+          [`# Last updated: ${timestamp}`],
+          sheet.headers,
+          ...sheet.rows
+        ]
+      }));
+
+      await createExcelFile({
+        ...config,
+        sheets: sheetsWithMetadata
+      });
+
+      console.log(`Successfully saved data to Excel file: ${config.fileName}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Error saving data to Excel:', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [createExcelFile]);
+
+  const readDataFromExcel = useCallback(async (fileId: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await readExcelFile(fileId);
+      console.log('Successfully read data from Excel file');
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Error reading data from Excel:', errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [readExcelFile]);
+
+  const updateExcelData = useCallback(async (fileId: string, config: ExcelFileConfig) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const timestamp = new Date().toISOString();
+      console.log(`Updating Excel file at ${timestamp}`);
+
+      // Add metadata to each sheet
+      const sheetsWithMetadata = config.sheets.map(sheet => ({
+        ...sheet,
+        rows: [
+          [`# Last updated: ${timestamp}`],
+          sheet.headers,
+          ...sheet.rows
+        ]
+      }));
+
+      await updateExcelFile(fileId, {
+        ...config,
+        sheets: sheetsWithMetadata
+      });
+
+      console.log(`Successfully updated Excel file: ${config.fileName}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Error updating Excel file:', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [updateExcelFile]);
+
   return {
     isLoading,
     error,
     loadDataFromCsv,
     saveDataToCsv,
-    updateEntityData
+    updateEntityData,
+    saveDataToExcel,
+    readDataFromExcel,
+    updateExcelData
   };
 }; 

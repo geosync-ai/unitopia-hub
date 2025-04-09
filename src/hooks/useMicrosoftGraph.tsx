@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { useMsal } from '@azure/msal-react';
+import { Client } from '@microsoft/microsoft-graph-client';
 
 export interface Document {
   id: string;
@@ -29,37 +31,49 @@ export interface CsvFile {
   content?: string;
 }
 
+export interface ExcelFileConfig {
+  folderId: string;
+  fileName: string;
+  sheets: {
+    [key: string]: {
+      headers: string[];
+      rows: any[];
+    };
+  };
+}
+
 export const useMicrosoftGraph = () => {
   const { user } = useAuth();
+  const { instance: msalInstance } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
   // Helper function to check if MSAL is properly initialized and has an active account
   const checkMsalAuth = useCallback(() => {
-    if (!window.msalInstance) {
+    if (!msalInstance) {
       console.error('MSAL instance not found');
       setLastError('MSAL instance not found - authentication service not initialized');
       return false;
     }
     
-    const accounts = window.msalInstance.getAllAccounts();
+    const accounts = msalInstance.getAllAccounts();
     if (accounts.length === 0) {
       console.error('No accounts found');
       return false;
     }
     
-    if (!window.msalInstance.getActiveAccount() && accounts.length > 0) {
+    if (!msalInstance.getActiveAccount() && accounts.length > 0) {
       console.log('Setting active account to:', accounts[0].username);
-      window.msalInstance.setActiveAccount(accounts[0]);
+      msalInstance.setActiveAccount(accounts[0]);
     }
     
     return true;
-  }, []);
+  }, [msalInstance]);
 
   // Debug function to get authentication status
   const getAuthStatus = useCallback(() => {
     try {
-      if (!window.msalInstance) {
+      if (!msalInstance) {
         return {
           isInitialized: false,
           hasAccounts: false,
@@ -68,8 +82,8 @@ export const useMicrosoftGraph = () => {
         };
       }
       
-      const accounts = window.msalInstance.getAllAccounts();
-      const activeAccount = window.msalInstance.getActiveAccount();
+      const accounts = msalInstance.getAllAccounts();
+      const activeAccount = msalInstance.getActiveAccount();
       
       return {
         isInitialized: true,
@@ -90,7 +104,33 @@ export const useMicrosoftGraph = () => {
         error: error.message || 'Unknown error checking auth status'
       };
     }
-  }, []);
+  }, [msalInstance]);
+
+  const getAccessToken = useCallback(async () => {
+    try {
+      const account = msalInstance.getAllAccounts()[0];
+      if (!account) {
+        throw new Error('No account found');
+      }
+      const response = await msalInstance.acquireTokenSilent({
+        scopes: ['https://graph.microsoft.com/.default'],
+        account
+      });
+      return response.accessToken;
+    } catch (err) {
+      console.error('Error getting access token:', err);
+      throw err;
+    }
+  }, [msalInstance]);
+
+  const getClient = useCallback(async () => {
+    const accessToken = await getAccessToken();
+    return Client.init({
+      authProvider: (done) => {
+        done(null, accessToken);
+      },
+    });
+  }, [getAccessToken]);
 
   const getSharePointDocuments = async (): Promise<Document[] | null> => {
     if (!checkMsalAuth()) {
@@ -99,7 +139,7 @@ export const useMicrosoftGraph = () => {
 
     try {
       console.log('Acquiring token for SharePoint documents...');
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.Read.All', 'Sites.Read.All']
       });
       console.log('Token acquired successfully');
@@ -153,7 +193,7 @@ export const useMicrosoftGraph = () => {
 
     try {
       console.log('Acquiring token for OneDrive documents...');
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['User.Read', 'Files.Read.All']
       });
       console.log('Token acquired successfully for OneDrive');
@@ -193,7 +233,7 @@ export const useMicrosoftGraph = () => {
       setIsLoading(false);
       return null;
     }
-  }, [checkMsalAuth, getAuthStatus]);
+  }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
   const getFolderContents = useCallback(async (folderId: string, source: 'SharePoint' | 'OneDrive'): Promise<Document[] | null> => {
     if (!checkMsalAuth()) {
@@ -211,7 +251,7 @@ export const useMicrosoftGraph = () => {
           ? ['Files.Read.All', 'Sites.Read.All'] 
           : ['User.Read', 'Files.Read.All'];
       console.log(`Acquiring token for ${source} folder contents (ID: ${folderId})...`);
-      const response = await window.msalInstance.acquireTokenSilent({ scopes });
+      const response = await msalInstance.acquireTokenSilent({ scopes });
       console.log(`Token acquired for ${source} folder contents`);
 
       const baseEndpoint = source === 'SharePoint' 
@@ -254,7 +294,7 @@ export const useMicrosoftGraph = () => {
       setIsLoading(false);
       return null;
     }
-  }, [checkMsalAuth, getAuthStatus]);
+  }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
   // Create a new folder in OneDrive
   const createFolder = useCallback(async (folderName: string, parentFolderId?: string): Promise<Document | null> => {
@@ -270,7 +310,7 @@ export const useMicrosoftGraph = () => {
     setLastError(null);
     try {
       console.log(`Acquiring token to create folder '${folderName}'...`);
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
       console.log('Token acquired for create folder');
@@ -321,7 +361,7 @@ export const useMicrosoftGraph = () => {
       setIsLoading(false);
       return null;
     }
-  }, [checkMsalAuth, getAuthStatus]);
+  }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
   // Rename a folder in OneDrive
   const renameFolder = useCallback(async (folderId: string, newName: string): Promise<Document | null> => {
@@ -337,7 +377,7 @@ export const useMicrosoftGraph = () => {
     setLastError(null);
     try {
       console.log(`Acquiring token to rename folder ID '${folderId}' to '${newName}'...`);
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
        console.log('Token acquired for rename folder');
@@ -383,250 +423,80 @@ export const useMicrosoftGraph = () => {
       setIsLoading(false);
       return null;
     }
-  }, [checkMsalAuth, getAuthStatus]);
+  }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
   // Create a new Excel file in OneDrive
-  const createExcelFile = async (fileName: string, parentFolderId?: string): Promise<ExcelFile | null> => {
-    if (!checkMsalAuth()) {
-      throw new Error('No accounts found');
-    }
+  const createExcelFile = useCallback(async (config: ExcelFileConfig) => {
+    setIsLoading(true);
+    setLastError(null);
 
     try {
-      console.log('Creating Excel file:', fileName, 'in folder:', parentFolderId);
-      
-      const response = await window.msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
-
-      const baseEndpoint = 'https://graph.microsoft.com/v1.0/me/drive';
-      const endpoint = parentFolderId 
-        ? `${baseEndpoint}/items/${parentFolderId}/children`
-        : `${baseEndpoint}/root/children`;
-
-      console.log('Using endpoint:', endpoint);
-
-      // Create an empty Excel file with proper content type
-      const result = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: fileName,
-          '@microsoft.graph.conflictBehavior': 'replace',
-          file: {
-            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          }
-        })
-      });
-
-      if (!result.ok) {
-        const errorText = await result.text();
-        console.error('Failed to create Excel file:', result.status, result.statusText, errorText);
-        throw new Error(`Failed to create Excel file: ${result.statusText} - ${errorText}`);
-      }
-
-      const data = await result.json();
-      console.log('Excel file created with ID:', data.id);
-      
-      // Wait a moment for the file to be fully created
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Get the sheets in the Excel file
-      const sheetsEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/workbook/worksheets`;
-      console.log('Fetching sheets from:', sheetsEndpoint);
-      
-      const sheetsResult = await fetch(sheetsEndpoint, {
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`
-        }
-      });
-
-      if (!sheetsResult.ok) {
-        const errorText = await sheetsResult.text();
-        console.error('Failed to get Excel sheets:', sheetsResult.status, sheetsResult.statusText, errorText);
-        throw new Error(`Failed to get Excel sheets: ${sheetsResult.statusText} - ${errorText}`);
-      }
-
-      const sheetsData = await sheetsResult.json();
-      const sheets = sheetsData.value.map((sheet: any) => sheet.name);
-      console.log('Excel sheets:', sheets);
-      
-      // Create default sheets if needed
-      const defaultSheets = ['Objectives', 'KRAs', 'KPIs', 'Tasks', 'Projects', 'Risks', 'Assets'];
-      const missingSheets = defaultSheets.filter(sheet => !sheets.includes(sheet));
-      
-      if (missingSheets.length > 0) {
-        console.log('Creating missing sheets:', missingSheets);
-        
-        for (const sheetName of missingSheets) {
-          const addSheetEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/workbook/worksheets/add`;
-          console.log(`Adding sheet ${sheetName} using endpoint:`, addSheetEndpoint);
-          
-          const addSheetResult = await fetch(addSheetEndpoint, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${response.accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              name: sheetName
-            })
-          });
-          
-          if (!addSheetResult.ok) {
-            const errorText = await addSheetResult.text();
-            console.error(`Failed to add sheet ${sheetName}:`, addSheetResult.status, addSheetResult.statusText, errorText);
-            // Continue with other sheets even if one fails
-          } else {
-            console.log(`Successfully added sheet ${sheetName}`);
-          }
-        }
-        
-        // Wait a moment for the sheets to be created
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Get the updated list of sheets
-        const updatedSheetsResult = await fetch(sheetsEndpoint, {
-          headers: {
-            'Authorization': `Bearer ${response.accessToken}`
-          }
+      const client = await getClient();
+      const response = await client
+        .api(`/me/drive/items/${config.folderId}:/${config.fileName}:/workbook`)
+        .post({
+          sheets: Object.entries(config.sheets).map(([name, data]) => ({
+            name,
+            values: [data.headers, ...data.rows]
+          }))
         });
-        
-        if (updatedSheetsResult.ok) {
-          const updatedSheetsData = await updatedSheetsResult.json();
-          sheets.length = 0; // Clear the array
-          sheets.push(...updatedSheetsData.value.map((sheet: any) => sheet.name));
-          console.log('Updated Excel sheets:', sheets);
-        }
-      }
 
-      return {
-        id: data.id,
-        name: data.name,
-        url: data.webUrl || '',
-        sheets
-      };
-    } catch (error) {
-      console.error('Error creating Excel file:', error);
-      toast.error('Failed to create Excel file');
-      throw error;
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setLastError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [getClient]);
 
   // Read data from an Excel file
-  const readExcelFile = async (fileId: string, sheetName: string, range: string): Promise<any[][] | null> => {
-    if (!checkMsalAuth()) {
-      throw new Error('No accounts found');
-    }
+  const readExcelFile = useCallback(async (fileId: string) => {
+    setIsLoading(true);
+    setLastError(null);
 
     try {
-      const response = await window.msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
+      const client = await getClient();
+      const response = await client
+        .api(`/me/drive/items/${fileId}/workbook`)
+        .get();
 
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='${range}')`;
-      
-      const result = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`
-        }
-      });
-
-      if (!result.ok) {
-        throw new Error(`Failed to read Excel file: ${result.statusText}`);
-      }
-
-      const data = await result.json();
-      return data.values;
-    } catch (error) {
-      console.error('Error reading Excel file:', error);
-      toast.error('Failed to read Excel file');
-      throw error;
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setLastError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [getClient]);
 
   // Update data in an Excel file
-  const updateExcelFile = async (fileId: string, sheetName: string, range: string, values: any[][]): Promise<boolean> => {
-    if (!checkMsalAuth()) {
-      throw new Error('No accounts found');
-    }
+  const updateExcelFile = useCallback(async (fileId: string, config: ExcelFileConfig) => {
+    setIsLoading(true);
+    setLastError(null);
 
     try {
-      console.log(`Updating Excel file ${fileId}, sheet ${sheetName}, range ${range}`);
-      console.log(`Data dimensions: ${values.length} rows x ${values[0]?.length || 0} columns`);
-      
-      const response = await window.msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
-
-      // First clear the sheet to avoid dimension mismatch issues
-      try {
-        const clearEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='A1:Z1000')`;
-        
-        const clearResult = await fetch(clearEndpoint, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${response.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            values: Array(1000).fill(Array(26).fill(""))
-          })
+      const client = await getClient();
+      const response = await client
+        .api(`/me/drive/items/${fileId}/workbook`)
+        .patch({
+          sheets: Object.entries(config.sheets).map(([name, data]) => ({
+            name,
+            values: [data.headers, ...data.rows]
+          }))
         });
-        
-        if (!clearResult.ok) {
-          console.warn('Could not clear sheet, but continuing with update');
-        } else {
-          console.log('Successfully cleared sheet before update');
-        }
-      } catch (clearError) {
-        console.warn('Error clearing sheet, but continuing with update:', clearError);
-      }
-      
-      // Dynamically calculate the range based on the actual data dimensions
-      const rowCount = values.length;
-      const colCount = values[0]?.length || 0;
-      
-      if (rowCount === 0 || colCount === 0) {
-        console.warn('No data to update');
-        return true; // Nothing to do
-      }
-      
-      const endColumn = String.fromCharCode('A'.charCodeAt(0) + colCount - 1);
-      const dynamicRange = `A1:${endColumn}${rowCount}`;
-      
-      console.log(`Using dynamic range: ${dynamicRange} for data of size ${rowCount}x${colCount}`);
-      
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='${dynamicRange}')`;
-      console.log(`Using endpoint: ${endpoint}`);
-      
-      const result = await fetch(endpoint, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          values
-        })
-      });
 
-      if (!result.ok) {
-        const errorText = await result.text();
-        console.error(`Failed to update Excel file: ${result.status} ${result.statusText}`, errorText);
-        throw new Error(`Failed to update Excel file: ${result.statusText} - ${errorText}`);
-      }
-
-      console.log(`Successfully updated Excel file ${fileId}, sheet ${sheetName}`);
-      return true;
-    } catch (error) {
-      console.error('Error updating Excel file:', error);
-      toast.error('Failed to update Excel file');
-      throw error;
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setLastError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [getClient]);
 
   // Get all sheets in an Excel file
   const getExcelSheets = async (fileId: string): Promise<string[] | null> => {
@@ -635,7 +505,7 @@ export const useMicrosoftGraph = () => {
     }
 
     try {
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
@@ -672,7 +542,7 @@ export const useMicrosoftGraph = () => {
       
       console.log('Creating CSV file:', fileName, 'in folder:', folderId);
       
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
@@ -735,7 +605,7 @@ export const useMicrosoftGraph = () => {
     try {
       console.log('Reading CSV file with ID:', fileId);
       
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
@@ -772,7 +642,7 @@ export const useMicrosoftGraph = () => {
     try {
       console.log('Updating CSV file with ID:', fileId);
       
-      const response = await window.msalInstance.acquireTokenSilent({
+      const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
