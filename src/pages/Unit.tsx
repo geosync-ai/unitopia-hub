@@ -515,8 +515,8 @@ const Unit = () => {
 
         // In a real application, you would fetch this data from your API
         // using the user's authentication token
-        const userTasks = mockTasks.filter(task => task.assignedTo === user.email);
-        const userProjects = mockProjects.filter(project => project.responsible === user.email);
+        const userTasks = mockTasks.filter(task => task.assignee === user.email);
+        const userProjects = mockProjects.filter(project => project.manager === user.email);
         const userRisks = mockRisks.filter(risk => risk.owner === user.email);
         const userAssets = mockAssets.filter(asset => asset.assignedTo === user.email);
 
@@ -743,6 +743,7 @@ const Unit = () => {
           oneDriveConfig={setupWizard.oneDriveConfig}
           setupMethodProp={setupWizard.setupMethod}
           objectivesProp={setupWizard.objectives}
+          isSetupComplete={setupWizard.isSetupComplete}
         />
       )}
     </PageLayout>

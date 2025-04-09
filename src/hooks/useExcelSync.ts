@@ -18,9 +18,10 @@ export interface ExcelSyncConfig {
 export interface UseExcelSyncProps {
   config: ExcelSyncConfig | null;
   onConfigChange: (config: ExcelSyncConfig) => void;
+  isSetupComplete: boolean;
 }
 
-export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
+export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExcelSyncProps) => {
   const { createExcelFile, readExcelFile, updateExcelFile, getExcelSheets } = useMicrosoftGraph();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,10 +179,10 @@ export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
 
   // Initialize Excel file on mount if needed
   useEffect(() => {
-    if (config && !config.fileId && !hasAttemptedInit) {
+    if (!isSetupComplete && config && !config.fileId && !hasAttemptedInit) {
       initializeExcelFile();
     }
-  }, [config, initializeExcelFile, hasAttemptedInit]);
+  }, [config, initializeExcelFile, hasAttemptedInit, isSetupComplete]);
 
   return {
     isLoading,

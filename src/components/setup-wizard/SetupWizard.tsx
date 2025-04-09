@@ -28,6 +28,7 @@ interface SetupWizardSpecificProps {
   oneDriveConfig: any; // Consider stronger typing if possible
   setupMethodProp?: string; // Pass if needed directly, or rely on internal state?
   objectivesProp?: any[]; // Pass if needed directly
+  isSetupComplete: boolean;
 }
 
 interface SetupWizardProps extends SetupWizardSpecificProps {
@@ -50,6 +51,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   oneDriveConfig,
   setupMethodProp, // Receive props
   objectivesProp,
+  isSetupComplete,
 }) => {
   // Remove previous logs
   // console.log('SetupWizard start - setupState:', setupState);
@@ -62,7 +64,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [tempObjectives, setTempObjectives] = useState<any[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
 
-  const totalSteps = 5;
+  // Updated total steps to include Objectives setup
+  const totalSteps = 6;
 
   // Use the Excel sync hook with props
   // console.log('SetupWizard before useExcelSync - setupState:', setupState);
@@ -73,7 +76,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     saveDataToExcel 
   } = useExcelSync({
     config: excelConfig || null, // Use prop
-    onConfigChange: updateExcelConfig || (() => {}) // Use prop
+    onConfigChange: updateExcelConfig || (() => {}), // Use prop
+    isSetupComplete: isSetupComplete // Pass the prop here
   });
 
   // Initialize component
@@ -182,7 +186,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   const handleObjectivesComplete = useCallback((objectives: any[]) => {
     setTempObjectives(objectives);
-    setCurrentStep(4); // Move to summary step
+    setCurrentStep(5); // Move to summary step (updated from 4 to 5)
   }, []);
 
   const handleSummaryComplete = useCallback(() => {
@@ -259,7 +263,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
-  // Update renderStep to use props
+  // Update renderStep to use props and include Objectives setup
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -346,6 +350,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         break;
       case 2:
         return (
+          <ObjectivesSetup
+            onComplete={handleObjectivesComplete}
+          />
+        );
+      case 3:
+        return (
           <SetupMethod
             onSelect={(method) => {
               if (setSetupMethod) { // Use prop
@@ -355,13 +365,16 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             }}
           />
         );
-      case 3:
+      case 4:
         return (
-          <ObjectivesSetup
-            onComplete={handleObjectivesComplete}
+          <SetupSummary
+            oneDriveConfig={oneDriveConfig}
+            objectives={tempObjectives}
+            onComplete={handleSummaryComplete}
+            onBack={handleBack}
           />
         );
-      case 4:
+      case 5:
         return (
           <SetupSummary
             oneDriveConfig={oneDriveConfig}
