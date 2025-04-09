@@ -17,29 +17,11 @@ export interface Document {
   source: 'SharePoint' | 'OneDrive';
 }
 
-export interface ExcelFile {
-  id: string;
-  name: string;
-  url: string;
-  sheets: string[];
-}
-
 export interface CsvFile {
   id: string;
   name: string;
   url: string;
   content?: string;
-}
-
-export interface ExcelFileConfig {
-  folderId: string;
-  fileName: string;
-  sheets: {
-    [key: string]: {
-      headers: string[];
-      rows: any[];
-    };
-  };
 }
 
 export const useMicrosoftGraph = () => {
@@ -425,111 +407,6 @@ export const useMicrosoftGraph = () => {
     }
   }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
-  // Create a new Excel file in OneDrive
-  const createExcelFile = useCallback(async (config: ExcelFileConfig) => {
-    setIsLoading(true);
-    setLastError(null);
-
-    try {
-      const client = await getClient();
-      const response = await client
-        .api(`/me/drive/items/${config.folderId}:/${config.fileName}:/workbook`)
-        .post({
-          sheets: Object.entries(config.sheets).map(([name, data]) => ({
-            name,
-            values: [data.headers, ...data.rows]
-          }))
-        });
-
-      return response;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setLastError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getClient]);
-
-  // Read data from an Excel file
-  const readExcelFile = useCallback(async (fileId: string) => {
-    setIsLoading(true);
-    setLastError(null);
-
-    try {
-      const client = await getClient();
-      const response = await client
-        .api(`/me/drive/items/${fileId}/workbook`)
-        .get();
-
-      return response;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setLastError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getClient]);
-
-  // Update data in an Excel file
-  const updateExcelFile = useCallback(async (fileId: string, config: ExcelFileConfig) => {
-    setIsLoading(true);
-    setLastError(null);
-
-    try {
-      const client = await getClient();
-      const response = await client
-        .api(`/me/drive/items/${fileId}/workbook`)
-        .patch({
-          sheets: Object.entries(config.sheets).map(([name, data]) => ({
-            name,
-            values: [data.headers, ...data.rows]
-          }))
-        });
-
-      return response;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setLastError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getClient]);
-
-  // Get all sheets in an Excel file
-  const getExcelSheets = async (fileId: string): Promise<string[] | null> => {
-    if (!checkMsalAuth()) {
-      throw new Error('No accounts found');
-    }
-
-    try {
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
-
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`;
-      
-      const result = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`
-        }
-      });
-
-      if (!result.ok) {
-        throw new Error(`Failed to get Excel sheets: ${result.statusText}`);
-      }
-
-      const data = await result.json();
-      return data.value.map((sheet: any) => sheet.name);
-    } catch (error) {
-      console.error('Error getting Excel sheets:', error);
-      toast.error('Failed to get Excel sheets');
-      throw error;
-    }
-  };
-
   // Create a new CSV file in OneDrive
   const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string | unknown): Promise<CsvFile | null> => {
     if (!checkMsalAuth()) {
@@ -675,20 +552,16 @@ export const useMicrosoftGraph = () => {
 
   // Return memoized functions
   return {
-    getSharePointDocuments, // Consider memoizing if needed
+    getSharePointDocuments,
     getOneDriveDocuments,
     getFolderContents,
     createFolder,
     renameFolder,
-    createExcelFile, // Consider memoizing if needed
-    readExcelFile, // Consider memoizing if needed
-    updateExcelFile, // Consider memoizing if needed
-    getExcelSheets, // Consider memoizing if needed
-    createCsvFile, // New CSV functions
+    createCsvFile,
     readCsvFile,
     updateCsvFile,
     isLoading,
-    lastError, // Expose the error state for UI feedback
+    lastError,
     getAuthStatus
   };
 };
@@ -700,4 +573,4 @@ declare global {
   }
 }
 
-export default useMicrosoftGraph; 
+export default useMicrosoftGraph;
