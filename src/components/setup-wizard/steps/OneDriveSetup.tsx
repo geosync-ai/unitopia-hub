@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2 } from 'lucide-react';
+import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
@@ -267,7 +267,19 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         </p>
       </div>
 
-      {!isAuthenticated ? (
+      {isLoading && (
+        <Card className="p-6">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <p className="text-center font-medium">Loading files from OneDrive...</p>
+            <p className="text-sm text-muted-foreground text-center">
+              Please wait while we retrieve your OneDrive folders
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {!isAuthenticated && !isLoading ? (
         <Card className="p-6">
           <div className="flex flex-col items-center space-y-4">
             <Cloud className="h-12 w-12 text-blue-500" />
@@ -276,7 +288,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
             </Button>
           </div>
         </Card>
-      ) : (
+      ) : isAuthenticated && !isLoading ? (
         <div className="space-y-4">
           <div className="flex space-x-4">
             <Button
