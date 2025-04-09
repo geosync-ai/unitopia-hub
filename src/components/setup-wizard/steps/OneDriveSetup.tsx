@@ -182,7 +182,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   };
 
-  const handlePathSelect = () => {
+  const handlePathSelect = async () => {
     if (selectedFolder) {
       onComplete({
         path: selectedFolder.name,
@@ -190,11 +190,24 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         isNewFolder: false,
       });
     } else if (isCreatingFolder && newFolderName) {
-      onComplete({
-        path: newFolderName,
-        isNewFolder: true,
-        folderName: newFolderName,
-      });
+      try {
+        setIsLoading(true);
+        const parentId = selectedFolder?.id;
+        const newFolder = await createFolder(newFolderName, parentId);
+        if (newFolder) {
+          onComplete({
+            path: newFolderName,
+            folderId: newFolder.id,
+            isNewFolder: true,
+            folderName: newFolderName,
+          });
+        }
+      } catch (error) {
+        console.error('Error creating folder:', error);
+        toast.error('Failed to create folder');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
