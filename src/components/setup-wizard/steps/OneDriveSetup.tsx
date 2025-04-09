@@ -44,32 +44,45 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   }, [getAuthStatus]);
 
   const fetchDocuments = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      console.log('fetchDocuments: Not authenticated, returning.');
+      return;
+    }
     
-    setIsLoading(true);
-    updateAuthStatus();
+    console.log('fetchDocuments: Fetching...');
+    setIsLoading(true); 
+    setAuthError(null);
+    
     try {
-      console.log('Fetching OneDrive documents...');
       const oneDriveDocs = await getOneDriveDocuments();
-      console.log('Fetched OneDrive documents:', oneDriveDocs);
       if (oneDriveDocs) {
+        console.log('fetchDocuments: Successfully fetched documents.');
         setDocuments(oneDriveDocs);
+      } else {
+        console.log('fetchDocuments: getOneDriveDocuments returned null (likely an error occurred).');
       }
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error('fetchDocuments: Error caught:', error);
       setAuthError(`Failed to fetch documents: ${error.message}`);
-      toast.error('Failed to fetch documents');
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, getOneDriveDocuments, updateAuthStatus]);
+  }, [isAuthenticated, getOneDriveDocuments]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchDocuments();
-    }
     updateAuthStatus();
-  }, [isAuthenticated, fetchDocuments, updateAuthStatus]);
+    if (isAuthenticated && documents.length === 0) {
+      console.log('useEffect: Authenticated and no documents, fetching...');
+      fetchDocuments();
+    } else if (isAuthenticated) {
+      console.log('useEffect: Authenticated but documents already loaded or loading, skipping fetch.');
+    } else {
+      console.log('useEffect: Not authenticated, clearing documents.');
+      setDocuments([]);
+      setSelectedFolder(null);
+      setCurrentPath([]);
+    }
+  }, [isAuthenticated, documents.length, fetchDocuments, updateAuthStatus]);
 
   const handleAuthenticate = useCallback(async () => {
     setIsAuthenticating(true);
@@ -77,14 +90,14 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     try {
       console.log('Starting Microsoft authentication...');
       await loginWithMicrosoft();
-      console.log('Authentication initiated successfully');
-      toast.success('Successfully connected to OneDrive');
+      console.log('Authentication initiated successfully via redirect');
     } catch (error) {
-      console.error('Authentication error:', error);
-      setAuthError(`Authentication failed: ${error.message}`);
+      console.error('Authentication initiation error:', error);
+      const errorMsg = error.message || 'Unknown auth error';
+      setAuthError(`Authentication failed: ${errorMsg}`);
       toast.error('Failed to connect to OneDrive. Please try again.');
     } finally {
-      setIsAuthenticating(false);
+      setIsAuthenticating(false); 
     }
   }, [loginWithMicrosoft]);
 
@@ -164,7 +177,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         toast.success('Folder created successfully');
         setNewFolderName('');
         setIsCreatingFolder(false);
-        // Refresh the current folder contents
         if (selectedFolder) {
           const contents = await getFolderContents(selectedFolder.id, 'OneDrive');
           if (contents) {
@@ -196,7 +208,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         setNewFolderName('');
         setIsRenamingFolder(false);
         setFolderToRename(null);
-        // Refresh the current folder contents
         if (selectedFolder) {
           const contents = await getFolderContents(selectedFolder.id, 'OneDrive');
           if (contents) {
@@ -223,7 +234,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       currentPath
     });
 
-    // If we're in create folder mode, prioritize creating a new folder
     if (isCreatingFolder && newFolderName) {
       console.log('Creating new folder:', newFolderName);
       try {
@@ -236,13 +246,11 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         
         if (newFolder) {
           console.log('Calling onComplete with new folder');
-          // Show success notification
           toast.success('Folder created successfully!', {
             description: `Created "${newFolderName}" in OneDrive`,
             duration: 2000,
           });
           
-          // Wait a moment to show the notification
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           onComplete({
@@ -290,9 +298,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   };
 
-  // Add a diagnostics section
   const renderDiagnostics = () => {
-    // Check for potential redirect URI issues
     const redirectUriWarning = msGraphConfig?.redirectUri !== "https://unitopia-hub.vercel.app/" 
       ? "Warning: Redirect URI doesn't match the one configured in Azure portal (should be https://unitopia-hub.vercel.app/)"
       : null;
@@ -414,7 +420,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         </>
       ) : (
         <div className="space-y-4">
-          {/* Breadcrumb navigation */}
           <div className="flex items-center space-x-2 text-sm">
             <Button
               variant="ghost"
@@ -467,7 +472,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
             </div>
           </div>
 
-          {/* Folder list */}
           <Card className="p-4 min-h-[300px]">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center h-[300px]">
@@ -516,7 +520,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
 
           {renderDiagnostics()}
 
-          {/* Actions */}
           <div className="space-y-4">
             {isCreatingFolder ? (
               <div className="flex space-x-2">
