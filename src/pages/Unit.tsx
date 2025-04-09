@@ -68,6 +68,7 @@ import { OverviewTab } from '@/components/unit-tabs/OverviewTab';
 import { useSetupWizard } from '@/hooks/useSetupWizard';
 import { mockTasks, mockProjects, mockRisks, mockAssets } from '@/mockData/mockData';
 import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
+import { useAuth } from "@/hooks/useAuth";
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -470,51 +471,83 @@ const StatusDropdown: React.FC<{
 
 // Define the main Unit component
 const Unit = () => {
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const { isAuthenticated, user, login } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
   const [showTeamViewSwitcher, setShowTeamViewSwitcher] = useState(false);
-  const [showAiChat, setShowAiChat] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const initializedRef = useRef(false);
-  
-  // Use custom state hooks
-  const taskState = useTaskState(mockTasks);
-  const projectState = useProjectState(mockProjects);
-  const riskState = useRiskState(mockRisks);
+  const { toast } = useToast();
+
+  // Initialize state hooks
+  const taskState = useTaskState([]);
+  const projectState = useProjectState([]);
+  const riskState = useRiskState([]);
+  const assetState = useAssetState([]);
   const kraState = useKraState();
-  const assetState = useAssetState(mockAssets);
-  
-  // Initialize setup wizard state with all required state objects
-  const setupState = useSetupWizard({
+
+  // Initialize setup wizard with required state
+  const setupWizard = useSetupWizard({
     projectState,
     taskState,
     riskState,
-    kraState,
-    assetState
+    assetState,
+    kraState
   });
 
   // Memoize the setup check to prevent unnecessary re-renders
   const checkSetupNeeded = useCallback(() => {
-    return !setupState.setupMethod || 
-           (setupState.setupMethod === 'excel' && !setupState.excelConfig) ||
-           (setupState.setupMethod === 'onedrive' && !setupState.oneDriveConfig);
-  }, [setupState.setupMethod, setupState.excelConfig, setupState.oneDriveConfig]);
+    return !setupWizard.isSetupComplete || 
+           (setupWizard.setupMethod === 'excel' && !setupWizard.excelConfig) ||
+           (setupWizard.setupMethod === 'onedrive' && !setupWizard.oneDriveConfig);
+  }, [setupWizard]);
+
+  // Fetch data when authenticated
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isAuthenticated || !user) return;
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // In a real application, you would fetch this data from your API
+        // using the user's authentication token
+        const userTasks = mockTasks.filter(task => task.assignedTo === user.email);
+        const userProjects = mockProjects.filter(project => project.responsible === user.email);
+        const userRisks = mockRisks.filter(risk => risk.owner === user.email);
+        const userAssets = mockAssets.filter(asset => asset.assignedTo === user.email);
+
+        // Update state using the state setters from our hooks
+        userTasks.forEach(task => taskState.addTask(task));
+        userProjects.forEach(project => projectState.addProject(project));
+        userRisks.forEach(risk => riskState.addRisk(risk));
+        userAssets.forEach(asset => assetState.addAsset(asset));
+
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        toast({
+          title: "Error",
+          description: "Failed to load your data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, user, toast, taskState.addTask, projectState.addProject, riskState.addRisk, assetState.addAsset]);
 
   // Initialize data from mock data and setup wizard
   useEffect(() => {
     if (initializedRef.current) return;
     
     try {
-      // Initialize state with mock data
-      mockTasks.forEach(task => taskState.addTask(task));
-      mockProjects.forEach(project => projectState.addProject(project));
-      mockRisks.forEach(risk => riskState.addRisk(risk));
-      mockAssets.forEach(asset => assetState.addAsset(asset));
-      
       // Check if setup is needed - only show wizard if setup is not complete
-      const needsSetup = !setupState.isSetupComplete && checkSetupNeeded();
+      const needsSetup = !setupWizard.isSetupComplete && checkSetupNeeded();
       
       if (needsSetup) {
         setShowSetupWizard(true);
@@ -527,14 +560,37 @@ const Unit = () => {
       setError("Failed to initialize dashboard data");
       setIsLoading(false);
     }
-  }, [checkSetupNeeded, taskState, projectState, riskState, assetState, setupState.isSetupComplete]);
+  }, [checkSetupNeeded, setupWizard.isSetupComplete]);
 
   // Handle setup wizard completion
   const handleSetupComplete = useCallback(() => {
     setShowSetupWizard(false);
-    // Refresh data after setup is complete
-    window.location.reload();
-  }, []);
+    toast({
+      title: "Setup Complete",
+      description: "Your dashboard has been successfully configured.",
+    });
+  }, [toast]);
+
+  // Add authentication check
+  useEffect(() => {
+    if (!isAuthenticated) {
+      login('admin@app.com', 'admin');
+    }
+  }, [isAuthenticated, login]);
+
+  // If not authenticated, show loading state
+  if (!isAuthenticated) {
+    return (
+      <PageLayout>
+        <div className="p-6 flex justify-center items-center h-[70vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold mb-2">Authenticating...</h2>
+            <p className="text-muted-foreground">Please wait while we verify your credentials</p>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   // If loading or error, show appropriate message
   if (isLoading) {
@@ -609,7 +665,7 @@ const Unit = () => {
                 tasks={taskState.tasks}
                 risks={riskState.risks}
                 kras={kraState.kras}
-                setupState={setupState}
+                setupState={setupWizard}
               />
             </TabsContent>
             
@@ -671,15 +727,15 @@ const Unit = () => {
           isOpen={showSetupWizard}
           onClose={() => setShowSetupWizard(false)}
           onComplete={handleSetupComplete}
-          setSetupMethod={setupState.setSetupMethod}
-          setOneDriveConfig={setupState.setOneDriveConfig}
-          setObjectives={setupState.setObjectives}
-          handleSetupCompleteFromHook={setupState.handleSetupComplete}
-          updateExcelConfig={setupState.updateExcelConfig}
-          excelConfig={setupState.excelConfig}
-          oneDriveConfig={setupState.oneDriveConfig}
-          setupMethodProp={setupState.setupMethod}
-          objectivesProp={setupState.objectives}
+          setSetupMethod={setupWizard.setSetupMethod}
+          setOneDriveConfig={setupWizard.setOneDriveConfig}
+          setObjectives={setupWizard.setObjectives}
+          handleSetupCompleteFromHook={setupWizard.handleSetupComplete}
+          updateExcelConfig={setupWizard.updateExcelConfig}
+          excelConfig={setupWizard.excelConfig}
+          oneDriveConfig={setupWizard.oneDriveConfig}
+          setupMethodProp={setupWizard.setupMethod}
+          objectivesProp={setupWizard.objectives}
         />
       )}
     </PageLayout>
