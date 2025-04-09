@@ -45,12 +45,16 @@ export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExc
         return;
       }
       
+      console.log('Creating Excel file in folder:', config.folderId, 'with name:', config.fileName);
+      
       // Create a new Excel file
       const excelFile = await createExcelFile(config.fileName, config.folderId);
       
       if (!excelFile) {
         throw new Error('Failed to create Excel file');
       }
+
+      console.log('Excel file created successfully with ID:', excelFile.id);
 
       // Update the config with the file ID
       onConfigChange({

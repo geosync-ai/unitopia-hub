@@ -385,6 +385,8 @@ export const useMicrosoftGraph = () => {
     }
 
     try {
+      console.log('Creating Excel file:', fileName, 'in folder:', parentFolderId);
+      
       const response = await window.msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
@@ -393,6 +395,8 @@ export const useMicrosoftGraph = () => {
       const endpoint = parentFolderId 
         ? `${baseEndpoint}/items/${parentFolderId}/children`
         : `${baseEndpoint}/root/children`;
+
+      console.log('Using endpoint:', endpoint);
 
       // Create an empty Excel file
       const result = await fetch(endpoint, {
@@ -409,10 +413,13 @@ export const useMicrosoftGraph = () => {
       });
 
       if (!result.ok) {
-        throw new Error(`Failed to create Excel file: ${result.statusText}`);
+        const errorText = await result.text();
+        console.error('Failed to create Excel file:', result.status, result.statusText, errorText);
+        throw new Error(`Failed to create Excel file: ${result.statusText} - ${errorText}`);
       }
 
       const data = await result.json();
+      console.log('Excel file created with ID:', data.id);
       
       // Get the sheets in the Excel file
       const sheetsEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/workbook/worksheets`;
@@ -423,11 +430,13 @@ export const useMicrosoftGraph = () => {
       });
 
       if (!sheetsResult.ok) {
+        console.error('Failed to get Excel sheets:', sheetsResult.status, sheetsResult.statusText);
         throw new Error(`Failed to get Excel sheets: ${sheetsResult.statusText}`);
       }
 
       const sheetsData = await sheetsResult.json();
       const sheets = sheetsData.value.map((sheet: any) => sheet.name);
+      console.log('Excel sheets:', sheets);
 
       return {
         id: data.id,

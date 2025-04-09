@@ -262,6 +262,21 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setProgress(30);
       updateExcelConfigWithData(updatedConfig);
       
+      // Force Excel file creation if it doesn't exist
+      setProgress(40);
+      if (!excelConfig.fileId) {
+        console.log('Excel file ID not found, forcing initialization');
+        // Clear any previous session storage to force file creation
+        const sessionKey = `excel_init_attempt_${excelConfig.folderId}_${excelConfig.fileName}`;
+        sessionStorage.removeItem(sessionKey);
+        
+        // Force a re-render to trigger the initialization
+        updateExcelConfig();
+        
+        // Wait a moment for the initialization to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       // Save data to Excel
       setProgress(50);
       await saveDataToExcel();
@@ -295,7 +310,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData]);
+  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData, updateExcelConfig]);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
