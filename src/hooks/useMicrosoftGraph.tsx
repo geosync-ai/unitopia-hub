@@ -164,11 +164,110 @@ export const useMicrosoftGraph = () => {
     }
   };
 
+  // Create a new folder in OneDrive
+  const createFolder = async (folderName: string, parentFolderId?: string): Promise<Document | null> => {
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
+    }
+
+    try {
+      const response = await window.msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All']
+      });
+
+      const baseEndpoint = 'https://graph.microsoft.com/v1.0/me/drive';
+      const endpoint = parentFolderId 
+        ? `${baseEndpoint}/items/${parentFolderId}/children`
+        : `${baseEndpoint}/root/children`;
+
+      const result = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: folderName,
+          folder: {},
+          '@microsoft.graph.conflictBehavior': 'replace'
+        })
+      });
+
+      if (!result.ok) {
+        throw new Error(`Failed to create folder: ${result.statusText}`);
+      }
+
+      const data = await result.json();
+      return {
+        id: data.id,
+        name: data.name,
+        url: data.webUrl || '',
+        lastModified: data.lastModifiedDateTime,
+        size: 0,
+        isFolder: true,
+        parentReference: data.parentReference,
+        source: 'OneDrive' as const
+      };
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      toast.error('Failed to create folder');
+      throw error;
+    }
+  };
+
+  // Rename a folder in OneDrive
+  const renameFolder = async (folderId: string, newName: string): Promise<Document | null> => {
+    if (!checkMsalAuth()) {
+      throw new Error('No accounts found');
+    }
+
+    try {
+      const response = await window.msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All']
+      });
+
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}`;
+
+      const result = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: newName
+        })
+      });
+
+      if (!result.ok) {
+        throw new Error(`Failed to rename folder: ${result.statusText}`);
+      }
+
+      const data = await result.json();
+      return {
+        id: data.id,
+        name: data.name,
+        url: data.webUrl || '',
+        lastModified: data.lastModifiedDateTime,
+        size: data.size || 0,
+        isFolder: data.folder !== undefined,
+        parentReference: data.parentReference,
+        source: 'OneDrive' as const
+      };
+    } catch (error) {
+      console.error('Error renaming folder:', error);
+      toast.error('Failed to rename folder');
+      throw error;
+    }
+  };
+
   return {
     isLoading,
     getSharePointDocuments,
     getOneDriveDocuments,
-    getFolderContents
+    getFolderContents,
+    createFolder,
+    renameFolder
   };
 };
 

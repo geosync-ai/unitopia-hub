@@ -3,25 +3,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface OneDriveSetupProps {
   onComplete: (config: any) => void;
 }
 
 export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
-  const { toast } = useToast();
+  const { toast: useToastToast } = useToast();
   const { isAuthenticated, loginWithMicrosoft } = useAuth();
-  const { getOneDriveDocuments, getFolderContents } = useMicrosoftGraph();
+  const { getOneDriveDocuments, getFolderContents, createFolder, renameFolder } = useMicrosoftGraph();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [currentPath, setCurrentPath] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<Document | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [isRenamingFolder, setIsRenamingFolder] = useState(false);
+  const [folderToRename, setFolderToRename] = useState<Document | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -40,11 +43,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch OneDrive documents",
-        variant: "destructive",
-      });
+      toast.error('Failed to fetch documents');
     } finally {
       setIsLoading(false);
     }
@@ -53,20 +52,13 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const handleAuthenticate = async () => {
     try {
       await loginWithMicrosoft();
-      toast({
-        title: "Authentication Successful",
-        description: "Successfully connected to OneDrive",
-      });
+      toast.success('Successfully connected to OneDrive');
     } catch (error) {
-      toast({
-        title: "Authentication Failed",
-        description: "Failed to connect to OneDrive. Please try again.",
-        variant: "destructive",
-      });
+      toast.error('Failed to connect to OneDrive. Please try again.');
     }
   };
 
-  const navigateToFolder = async (folder: Document) => {
+  const handleFolderClick = async (folder: Document) => {
     if (!folder.isFolder) return;
     
     setIsLoading(true);
@@ -79,17 +71,13 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       }
     } catch (error) {
       console.error('Error navigating to folder:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load folder contents",
-        variant: "destructive",
-      });
+      toast.error('Failed to navigate to folder');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const navigateUp = async () => {
+  const handleNavigateUp = async () => {
     if (currentPath.length === 0) {
       await fetchDocuments();
       setCurrentPath([]);
@@ -123,14 +111,74 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         }
       } catch (error) {
         console.error('Error navigating up:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load parent folder",
-          variant: "destructive",
-        });
+        toast.error('Failed to navigate up');
       } finally {
         setIsLoading(false);
       }
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      toast.error('Please enter a folder name');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const parentId = selectedFolder?.id;
+      const newFolder = await createFolder(newFolderName, parentId);
+      if (newFolder) {
+        toast.success('Folder created successfully');
+        setNewFolderName('');
+        setIsCreatingFolder(false);
+        // Refresh the current folder contents
+        if (selectedFolder) {
+          const contents = await getFolderContents(selectedFolder.id, 'OneDrive');
+          if (contents) {
+            setDocuments(contents);
+          }
+        } else {
+          await fetchDocuments();
+        }
+      }
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      toast.error('Failed to create folder');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRenameFolder = async () => {
+    if (!newFolderName.trim() || !folderToRename) {
+      toast.error('Please enter a folder name');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const renamedFolder = await renameFolder(folderToRename.id, newFolderName);
+      if (renamedFolder) {
+        toast.success('Folder renamed successfully');
+        setNewFolderName('');
+        setIsRenamingFolder(false);
+        setFolderToRename(null);
+        // Refresh the current folder contents
+        if (selectedFolder) {
+          const contents = await getFolderContents(selectedFolder.id, 'OneDrive');
+          if (contents) {
+            setDocuments(contents);
+          }
+        } else {
+          await fetchDocuments();
+        }
+      }
+    } catch (error) {
+      console.error('Error renaming folder:', error);
+      toast.error('Failed to rename folder');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -141,7 +189,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         folderId: selectedFolder.id,
         isNewFolder: false,
       });
-    } else if (isCreatingNew && newFolderName) {
+    } else if (isCreatingFolder && newFolderName) {
       onComplete({
         path: newFolderName,
         isNewFolder: true,
@@ -172,16 +220,16 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         <div className="space-y-4">
           <div className="flex space-x-4">
             <Button
-              variant={!isCreatingNew ? "default" : "outline"}
-              onClick={() => setIsCreatingNew(false)}
+              variant={!isCreatingFolder ? "default" : "outline"}
+              onClick={() => setIsCreatingFolder(false)}
               className="flex-1"
             >
               <FolderOpen className="mr-2 h-4 w-4" />
               Select Existing Folder
             </Button>
             <Button
-              variant={isCreatingNew ? "default" : "outline"}
-              onClick={() => setIsCreatingNew(true)}
+              variant={isCreatingFolder ? "default" : "outline"}
+              onClick={() => setIsCreatingFolder(true)}
               className="flex-1"
             >
               <FolderPlus className="mr-2 h-4 w-4" />
@@ -189,7 +237,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
             </Button>
           </div>
 
-          {isCreatingNew ? (
+          {isCreatingFolder ? (
             <div className="space-y-2">
               <Label htmlFor="folderName">New Folder Name</Label>
               <Input
@@ -206,7 +254,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={navigateUp}
+                  onClick={handleNavigateUp}
                   disabled={currentPath.length === 0}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -220,7 +268,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                       onClick={() => {
                         const newPath = currentPath.slice(0, index + 1);
                         setCurrentPath(newPath);
-                        navigateToFolder({ id: folder.id, name: folder.name } as Document);
+                        handleFolderClick({ id: folder.id, name: folder.name } as Document);
                       }}
                     >
                       {folder.name}
@@ -231,28 +279,62 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               </div>
 
               {/* Folder list */}
-              <div className="border rounded-lg divide-y">
+              <div className="grid grid-cols-1 gap-2">
                 {documents
                   .filter(doc => doc.isFolder)
                   .map(folder => (
-                    <Button
+                    <Card
                       key={folder.id}
-                      variant="ghost"
-                      className="w-full justify-start px-4 py-2"
-                      onClick={() => navigateToFolder(folder)}
+                      className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleFolderClick(folder)}
                     >
-                      <FolderOpen className="mr-2 h-4 w-4" />
-                      {folder.name}
-                      <ChevronRight className="ml-auto h-4 w-4" />
-                    </Button>
+                      <div className="flex items-center space-x-2">
+                        <Folder className="h-5 w-5 text-blue-500" />
+                        <span>{folder.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFolderToRename(folder);
+                          setIsRenamingFolder(true);
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </Card>
                   ))}
               </div>
             </div>
           )}
 
+          {isRenamingFolder && (
+            <div className="flex items-center space-x-2">
+              <Input
+                placeholder="Enter new folder name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleRenameFolder()}
+              />
+              <Button onClick={handleRenameFolder} disabled={isLoading}>
+                Rename
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsRenamingFolder(false);
+                  setFolderToRename(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
           <Button
             onClick={handlePathSelect}
-            disabled={isCreatingNew ? !newFolderName : !selectedFolder}
+            disabled={isCreatingFolder ? !newFolderName : !selectedFolder}
             className="w-full"
           >
             Continue
