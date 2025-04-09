@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -477,6 +477,7 @@ const Unit = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const initializedRef = useRef(false);
   
   // Use custom state hooks
   const taskState = useTaskState(mockTasks);
@@ -499,6 +500,8 @@ const Unit = () => {
 
   // Initialize data from mock data
   useEffect(() => {
+    if (initializedRef.current) return;
+    
     try {
       // Initialize state with mock data
       mockTasks.forEach(task => taskState.addTask(task));
@@ -506,6 +509,7 @@ const Unit = () => {
       mockRisks.forEach(risk => riskState.addRisk(risk));
       mockAssets.forEach(asset => assetState.addAsset(asset));
       setIsLoading(false);
+      initializedRef.current = true;
     } catch (err) {
       console.error("Error initializing data:", err);
       setError("Failed to initialize dashboard data");
