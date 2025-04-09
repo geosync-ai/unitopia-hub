@@ -398,7 +398,7 @@ export const useMicrosoftGraph = () => {
 
       console.log('Using endpoint:', endpoint);
 
-      // Create an empty Excel file
+      // Create an empty Excel file with proper content type
       const result = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -408,7 +408,9 @@ export const useMicrosoftGraph = () => {
         body: JSON.stringify({
           name: fileName,
           '@microsoft.graph.conflictBehavior': 'replace',
-          file: {}
+          file: {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          }
         })
       });
 
@@ -421,8 +423,13 @@ export const useMicrosoftGraph = () => {
       const data = await result.json();
       console.log('Excel file created with ID:', data.id);
       
+      // Wait a moment for the file to be fully created
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Get the sheets in the Excel file
       const sheetsEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/workbook/worksheets`;
+      console.log('Fetching sheets from:', sheetsEndpoint);
+      
       const sheetsResult = await fetch(sheetsEndpoint, {
         headers: {
           'Authorization': `Bearer ${response.accessToken}`
@@ -430,8 +437,9 @@ export const useMicrosoftGraph = () => {
       });
 
       if (!sheetsResult.ok) {
-        console.error('Failed to get Excel sheets:', sheetsResult.status, sheetsResult.statusText);
-        throw new Error(`Failed to get Excel sheets: ${sheetsResult.statusText}`);
+        const errorText = await sheetsResult.text();
+        console.error('Failed to get Excel sheets:', sheetsResult.status, sheetsResult.statusText, errorText);
+        throw new Error(`Failed to get Excel sheets: ${sheetsResult.statusText} - ${errorText}`);
       }
 
       const sheetsData = await sheetsResult.json();

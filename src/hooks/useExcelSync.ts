@@ -66,10 +66,14 @@ export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExc
       sessionStorage.setItem(sessionKey, 'true');
 
       toast.success('Excel file created successfully');
+      
+      // Return the file ID for immediate use
+      return excelFile.id;
     } catch (err) {
       console.error('Error initializing Excel file:', err);
       setError('Failed to initialize Excel file');
       toast.error('Failed to initialize Excel file');
+      throw err; // Re-throw to allow caller to handle
     } finally {
       setIsLoading(false);
       setHasAttemptedInit(true);

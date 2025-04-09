@@ -17,6 +17,7 @@ import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useExcelSync } from '@/hooks/useExcelSync';
 import { Loader2, Cloud, FileSpreadsheet, Database } from 'lucide-react';
+import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
 
 // Define individual props needed from the setup state
 interface SetupWizardSpecificProps {
@@ -270,11 +271,37 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         const sessionKey = `excel_init_attempt_${excelConfig.folderId}_${excelConfig.fileName}`;
         sessionStorage.removeItem(sessionKey);
         
-        // Force a re-render to trigger the initialization
-        updateExcelConfig();
-        
-        // Wait a moment for the initialization to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+          // Directly call the createExcelFile function from useMicrosoftGraph
+          const { createExcelFile } = useMicrosoftGraph();
+          const excelFile = await createExcelFile(excelConfig.fileName, excelConfig.folderId);
+          
+          if (!excelFile) {
+            throw new Error('Failed to create Excel file');
+          }
+          
+          console.log('Excel file created successfully with ID:', excelFile.id);
+          
+          // Update the config with the file ID
+          const updatedConfigWithFileId = {
+            ...updatedConfig,
+            fileId: excelFile.id
+          };
+          
+          // Update the Excel config with the file ID
+          updateExcelConfigWithData(updatedConfigWithFileId);
+          
+          // Wait a moment for the initialization to complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error('Error creating Excel file:', error);
+          toast({
+            title: "Excel File Creation Error",
+            description: `Failed to create Excel file: ${error.message || 'Unknown error'}`,
+            variant: "destructive",
+          });
+          throw error;
+        }
       }
       
       // Save data to Excel
