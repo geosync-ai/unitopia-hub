@@ -131,24 +131,54 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     // Since updateExcelConfig doesn't accept parameters, we need to find another way
     // to update the config with our new data
     
-    // For now, we'll use a workaround by directly modifying the excelConfig object
-    // This is not ideal, but it works for our current implementation
-    if (newConfig && excelConfig) {
-      // Update the sheets in the current config
+    if (newConfig) {
+      console.log('Updating Excel config with new data:', newConfig);
+      
+      // Create a deep copy of the current config
+      const updatedConfig = JSON.parse(JSON.stringify(excelConfig || {}));
+      
+      // Update the fileId if provided
+      if (newConfig.fileId) {
+        updatedConfig.fileId = newConfig.fileId;
+      }
+      
+      // Ensure sheets object exists
+      if (!updatedConfig.sheets) {
+        updatedConfig.sheets = {};
+      }
+      
+      // Update each sheet in the config
       Object.keys(newConfig.sheets).forEach(sheetKey => {
-        if (!excelConfig.sheets[sheetKey]) {
-          excelConfig.sheets[sheetKey] = newConfig.sheets[sheetKey];
+        const newSheet = newConfig.sheets[sheetKey];
+        
+        if (!updatedConfig.sheets[sheetKey]) {
+          // Create new sheet
+          updatedConfig.sheets[sheetKey] = {
+            name: newSheet.name,
+            headers: [...newSheet.headers],
+            data: JSON.parse(JSON.stringify(newSheet.data))
+          };
         } else {
           // Update existing sheet
-          excelConfig.sheets[sheetKey] = {
-            ...excelConfig.sheets[sheetKey],
-            ...newConfig.sheets[sheetKey]
+          updatedConfig.sheets[sheetKey] = {
+            name: newSheet.name || updatedConfig.sheets[sheetKey].name,
+            headers: newSheet.headers || updatedConfig.sheets[sheetKey].headers,
+            data: JSON.parse(JSON.stringify(newSheet.data || updatedConfig.sheets[sheetKey].data))
           };
         }
       });
       
-      // Call the updateExcelConfig function to trigger a re-render
-      updateExcelConfig();
+      console.log('Updated Excel config:', updatedConfig);
+      
+      // Update the Excel config in the parent component
+      if (updateExcelConfig) {
+        // We need to find a way to update the config in the parent
+        // For now, we'll use a workaround by directly modifying the excelConfig object
+        Object.assign(excelConfig || {}, updatedConfig);
+        
+        // Call the updateExcelConfig function to trigger a re-render
+        updateExcelConfig();
+      }
     }
   }, [excelConfig, updateExcelConfig]);
 
@@ -294,7 +324,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           updateExcelConfigWithData(updatedConfigWithFileId);
           
           // Wait a moment for the initialization to complete
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
           console.error('Error creating Excel file:', error);
           toast({
@@ -308,6 +338,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       
       // Save data to Excel
       setProgress(50);
+      console.log('Saving data to Excel with config:', updatedConfig);
+      
+      // Ensure we have the latest fileId
+      if (!updatedConfig.fileId && excelConfig.fileId) {
+        updatedConfig.fileId = excelConfig.fileId;
+      }
+      
+      // Update the config one more time to ensure we have the latest data
+      updateExcelConfigWithData(updatedConfig);
+      
+      // Wait a moment to ensure the config is updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Now save the data
       await saveDataToExcel();
       
       // Load data from Excel to verify

@@ -137,14 +137,22 @@ export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExc
 
   // Save data to Excel file
   const saveDataToExcel = useCallback(async () => {
-    if (!config || !config.fileId) return;
+    if (!config || !config.fileId) {
+      console.error('Cannot save data to Excel: Missing config or fileId', { config });
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
+      console.log('Saving data to Excel file with ID:', config.fileId);
+      console.log('Sheets to save:', Object.keys(config.sheets));
+      
       // Save data to each sheet
       for (const [key, sheet] of Object.entries(config.sheets)) {
+        console.log(`Processing sheet: ${sheet.name} with ${sheet.data.length} rows`);
+        
         // Convert data to 2D array for Excel
         const excelData = [
           sheet.headers,
@@ -152,9 +160,17 @@ export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExc
             sheet.headers.map(header => item[header] || '')
           )
         ];
-
+        
+        console.log(`Updating Excel file with ${excelData.length} rows for sheet ${sheet.name}`);
+        
         // Update Excel file
-        await updateExcelFile(config.fileId!, sheet.name, 'A1', excelData);
+        const success = await updateExcelFile(config.fileId!, sheet.name, 'A1', excelData);
+        
+        if (!success) {
+          throw new Error(`Failed to update sheet ${sheet.name}`);
+        }
+        
+        console.log(`Successfully updated sheet ${sheet.name}`);
       }
 
       toast.success('Data saved to Excel successfully');
@@ -162,6 +178,7 @@ export const useExcelSync = ({ config, onConfigChange, isSetupComplete }: UseExc
       console.error('Error saving data to Excel:', err);
       setError('Failed to save data to Excel');
       toast.error('Failed to save data to Excel');
+      throw err; // Re-throw to allow caller to handle
     } finally {
       setIsLoading(false);
     }

@@ -424,7 +424,7 @@ export const useMicrosoftGraph = () => {
       console.log('Excel file created with ID:', data.id);
       
       // Wait a moment for the file to be fully created
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Get the sheets in the Excel file
       const sheetsEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/workbook/worksheets`;
@@ -445,6 +445,55 @@ export const useMicrosoftGraph = () => {
       const sheetsData = await sheetsResult.json();
       const sheets = sheetsData.value.map((sheet: any) => sheet.name);
       console.log('Excel sheets:', sheets);
+      
+      // Create default sheets if needed
+      const defaultSheets = ['Objectives', 'KRAs', 'KPIs', 'Tasks', 'Projects', 'Risks', 'Assets'];
+      const missingSheets = defaultSheets.filter(sheet => !sheets.includes(sheet));
+      
+      if (missingSheets.length > 0) {
+        console.log('Creating missing sheets:', missingSheets);
+        
+        for (const sheetName of missingSheets) {
+          const addSheetEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/workbook/worksheets/add`;
+          console.log(`Adding sheet ${sheetName} using endpoint:`, addSheetEndpoint);
+          
+          const addSheetResult = await fetch(addSheetEndpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${response.accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: sheetName
+            })
+          });
+          
+          if (!addSheetResult.ok) {
+            const errorText = await addSheetResult.text();
+            console.error(`Failed to add sheet ${sheetName}:`, addSheetResult.status, addSheetResult.statusText, errorText);
+            // Continue with other sheets even if one fails
+          } else {
+            console.log(`Successfully added sheet ${sheetName}`);
+          }
+        }
+        
+        // Wait a moment for the sheets to be created
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Get the updated list of sheets
+        const updatedSheetsResult = await fetch(sheetsEndpoint, {
+          headers: {
+            'Authorization': `Bearer ${response.accessToken}`
+          }
+        });
+        
+        if (updatedSheetsResult.ok) {
+          const updatedSheetsData = await updatedSheetsResult.json();
+          sheets.length = 0; // Clear the array
+          sheets.push(...updatedSheetsData.value.map((sheet: any) => sheet.name));
+          console.log('Updated Excel sheets:', sheets);
+        }
+      }
 
       return {
         id: data.id,
@@ -498,11 +547,15 @@ export const useMicrosoftGraph = () => {
     }
 
     try {
+      console.log(`Updating Excel file ${fileId}, sheet ${sheetName}, range ${range}`);
+      console.log(`Data to update:`, values);
+      
       const response = await window.msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
       const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/range(address='${range}')`;
+      console.log(`Using endpoint: ${endpoint}`);
       
       const result = await fetch(endpoint, {
         method: 'PATCH',
@@ -516,9 +569,12 @@ export const useMicrosoftGraph = () => {
       });
 
       if (!result.ok) {
-        throw new Error(`Failed to update Excel file: ${result.statusText}`);
+        const errorText = await result.text();
+        console.error(`Failed to update Excel file: ${result.status} ${result.statusText}`, errorText);
+        throw new Error(`Failed to update Excel file: ${result.statusText} - ${errorText}`);
       }
 
+      console.log(`Successfully updated Excel file ${fileId}, sheet ${sheetName}`);
       return true;
     } catch (error) {
       console.error('Error updating Excel file:', error);
