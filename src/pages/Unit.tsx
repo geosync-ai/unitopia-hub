@@ -642,10 +642,16 @@ const Unit = () => {
             // Refresh data after setup is complete
             // TODO: Implement data refresh
           }}
-          // Spread the setupState object into individual props
-          {...setupState}
-          // Rename handleSetupComplete from hook to avoid name collision
+          // Pass individual props instead of spreading the entire setupState object
+          setSetupMethod={setupState.setSetupMethod}
+          setOneDriveConfig={setupState.setOneDriveConfig}
+          setObjectives={setupState.setObjectives}
           handleSetupCompleteFromHook={setupState.handleSetupComplete}
+          updateExcelConfig={setupState.updateExcelConfig}
+          excelConfig={setupState.excelConfig}
+          oneDriveConfig={setupState.oneDriveConfig}
+          setupMethodProp={setupState.setupMethod}
+          objectivesProp={setupState.objectives}
         />
       )}
     </PageLayout>
