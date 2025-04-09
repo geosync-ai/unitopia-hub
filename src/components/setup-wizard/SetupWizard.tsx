@@ -103,7 +103,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const handleSetupTypeSelect = (type: string) => {
     console.log('Setup type selected:', type);
     setSelectedSetupType(type);
-    
+
+    console.log('Inspecting setupState in handleSetupTypeSelect:', setupState);
+
     if (!setupState?.setSetupMethod) {
       toast({
         title: "Setup Error",
