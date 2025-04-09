@@ -25,18 +25,23 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
   const [folderToRename, setFolderToRename] = useState<Document | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) return;
     
     setIsLoading(true);
     try {
+      console.log('Fetching OneDrive documents...');
       const oneDriveDocs = await getOneDriveDocuments();
+      console.log('Fetched OneDrive documents:', oneDriveDocs);
       if (oneDriveDocs) {
         setDocuments(oneDriveDocs);
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
+      setAuthError(`Failed to fetch documents: ${error.message}`);
       toast.error('Failed to fetch documents');
     } finally {
       setIsLoading(false);
@@ -50,11 +55,19 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   }, [isAuthenticated, fetchDocuments]);
 
   const handleAuthenticate = useCallback(async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
     try {
+      console.log('Starting Microsoft authentication...');
       await loginWithMicrosoft();
+      console.log('Authentication initiated successfully');
       toast.success('Successfully connected to OneDrive');
     } catch (error) {
+      console.error('Authentication error:', error);
+      setAuthError(`Authentication failed: ${error.message}`);
       toast.error('Failed to connect to OneDrive. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
     }
   }, [loginWithMicrosoft]);
 
@@ -63,7 +76,9 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     
     setIsLoading(true);
     try {
+      console.log(`Navigating to folder: ${folder.name} (${folder.id})`);
       const folderContents = await getFolderContents(folder.id, 'OneDrive');
+      console.log('Folder contents:', folderContents);
       if (folderContents) {
         setDocuments(folderContents);
         setCurrentPath([...currentPath, { id: folder.id, name: folder.name }]);
@@ -267,165 +282,195 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         </p>
       </div>
 
-      {isLoading && (
-        <Card className="p-6">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-            <p className="text-center font-medium">Loading files from OneDrive...</p>
-            <p className="text-sm text-muted-foreground text-center">
-              Please wait while we retrieve your OneDrive folders
-            </p>
-          </div>
-        </Card>
+      {authError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{authError}</span>
+        </div>
       )}
 
-      {!isAuthenticated && !isLoading ? (
+      {!isAuthenticated ? (
         <Card className="p-6">
-          <div className="flex flex-col items-center space-y-4">
-            <Cloud className="h-12 w-12 text-blue-500" />
-            <Button onClick={handleAuthenticate}>
-              Connect to OneDrive
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <Cloud className="h-16 w-16 text-blue-500" />
+            <h3 className="text-lg font-semibold">Connect to Microsoft OneDrive</h3>
+            <p className="text-center text-sm text-muted-foreground max-w-md">
+              Connect to your Microsoft account to access OneDrive and select where to store your unit data.
+            </p>
+            <Button 
+              onClick={handleAuthenticate} 
+              className="mt-4"
+              disabled={isAuthenticating}
+            >
+              {isAuthenticating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>Connect to OneDrive</>
+              )}
             </Button>
           </div>
         </Card>
-      ) : isAuthenticated && !isLoading ? (
+      ) : (
         <div className="space-y-4">
-          <div className="flex space-x-4">
+          {/* Breadcrumb navigation */}
+          <div className="flex items-center space-x-2 text-sm">
             <Button
-              variant={!isCreatingFolder ? "default" : "outline"}
-              onClick={() => setIsCreatingFolder(false)}
-              className="flex-1"
+              variant="ghost"
+              size="sm"
+              onClick={handleNavigateUp}
+              disabled={isLoading}
             >
-              <FolderOpen className="mr-2 h-4 w-4" />
-              Select Existing Folder
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back
             </Button>
-            <Button
-              variant={isCreatingFolder ? "default" : "outline"}
-              onClick={() => setIsCreatingFolder(true)}
-              className="flex-1"
-            >
-              <FolderPlus className="mr-2 h-4 w-4" />
-              Create New Folder
-            </Button>
+            <div className="flex items-center space-x-2 overflow-x-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCurrentPath([]);
+                  fetchDocuments();
+                  setSelectedFolder(null);
+                }}
+                disabled={isLoading}
+              >
+                OneDrive Root
+              </Button>
+              {currentPath.map((item, index) => (
+                <div key={item.id} className="flex items-center">
+                  <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newPath = currentPath.slice(0, index + 1);
+                      setCurrentPath(newPath);
+                      const folder = {
+                        id: item.id,
+                        name: item.name,
+                        url: '',
+                        lastModified: new Date().toISOString(),
+                        size: 0,
+                        isFolder: true,
+                        source: 'OneDrive' as const
+                      };
+                      handleFolderClick(folder);
+                    }}
+                    disabled={isLoading || index === currentPath.length - 1}
+                  >
+                    {item.name}
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {isCreatingFolder ? (
-            <div className="space-y-2">
-              <Label htmlFor="folderName">New Folder Name</Label>
-              <Input
-                id="folderName"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Enter folder name"
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Breadcrumb navigation */}
-              <div className="flex items-center space-x-2 text-sm">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNavigateUp}
-                  disabled={currentPath.length === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-muted-foreground">/</span>
-                {currentPath.map((folder, index) => (
-                  <React.Fragment key={folder.id}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const newPath = currentPath.slice(0, index + 1);
-                        setCurrentPath(newPath);
-                        handleFolderClick({ id: folder.id, name: folder.name } as Document);
-                      }}
-                    >
-                      {folder.name}
-                    </Button>
-                    <span className="text-muted-foreground">/</span>
-                  </React.Fragment>
-                ))}
+          {/* Folder list */}
+          <Card className="p-4 min-h-[300px]">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-[300px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p>Loading files from OneDrive...</p>
+                <p className="text-sm text-muted-foreground mt-2">Please wait while we retrieve your OneDrive folders</p>
               </div>
-
-              {/* Folder list */}
-              <div className="grid grid-cols-1 gap-2">
+            ) : documents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[300px] text-center">
+                <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <h4 className="font-medium">No items found</h4>
+                <p className="text-sm text-muted-foreground mt-2">
+                  This folder is empty. Create a new folder or navigate to a different location.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {documents
                   .filter(doc => doc.isFolder)
                   .map(folder => (
-                    <Card
+                    <div
                       key={folder.id}
-                      className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
-                      onClick={() => handleFolderClick(folder)}
+                      className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
+                        selectedFolder?.id === folder.id
+                          ? 'bg-primary/10 border border-primary'
+                          : 'hover:bg-muted/50 border border-border'
+                      }`}
+                      onClick={() => {
+                        if (selectedFolder?.id === folder.id) {
+                          handleFolderClick(folder);
+                        } else {
+                          setSelectedFolder(folder);
+                        }
+                      }}
+                      onDoubleClick={() => handleFolderClick(folder)}
                     >
-                      <div className="flex items-center space-x-2">
-                        <Folder className="h-5 w-5 text-blue-500" />
-                        <span>{folder.name}</span>
+                      <Folder className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate font-medium">{folder.name}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFolderToRename(folder);
-                            setIsRenamingFolder(true);
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFolder(folder);
-                            setIsCreatingFolder(true);
-                          }}
-                        >
-                          <FolderPlus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Card>
+                    </div>
                   ))}
               </div>
-            </div>
-          )}
+            )}
+          </Card>
 
-          {isRenamingFolder && (
-            <div className="flex items-center space-x-2">
-              <Input
-                placeholder="Enter new folder name"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleRenameFolder()}
-              />
-              <Button onClick={handleRenameFolder} disabled={isLoading}>
-                Rename
-              </Button>
+          {/* Actions */}
+          <div className="space-y-4">
+            {isCreatingFolder ? (
+              <div className="flex space-x-2">
+                <div className="flex-1">
+                  <Input
+                    value={newFolderName}
+                    onChange={e => setNewFolderName(e.target.value)}
+                    placeholder="New folder name"
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button onClick={handleCreateFolder} disabled={isLoading || !newFolderName.trim()}>
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+                </Button>
+                <Button variant="outline" onClick={() => setIsCreatingFolder(false)} disabled={isLoading}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
               <Button
-                variant="ghost"
+                variant="outline"
                 onClick={() => {
-                  setIsRenamingFolder(false);
-                  setFolderToRename(null);
+                  setIsCreatingFolder(true);
+                  setNewFolderName('');
                 }}
+                disabled={isLoading}
+                className="w-full"
               >
-                Cancel
+                <FolderPlus className="h-4 w-4 mr-2" />
+                Create New Folder
               </Button>
-            </div>
-          )}
+            )}
 
-          <Button
-            onClick={handlePathSelect}
-            disabled={isCreatingFolder ? !newFolderName : !selectedFolder}
-            className="w-full"
-          >
-            Continue
-          </Button>
+            <Button
+              onClick={() => {
+                if (selectedFolder) {
+                  onComplete({
+                    path: selectedFolder.name,
+                    folderId: selectedFolder.id
+                  });
+                }
+              }}
+              disabled={!selectedFolder || isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <ChevronRight className="h-4 w-4 mr-2" />
+              )}
+              Continue with {selectedFolder ? `"${selectedFolder.name}"` : 'selected folder'}
+            </Button>
+          </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }; 
