@@ -46,19 +46,16 @@ export const KRAsTab: React.FC = () => {
     setKraFilters,
     filteredKraItems,
     resetKraFilters,
-    
     showAddKraModal,
     setShowAddKraModal,
     showEditKpiModal,
     setShowEditKpiModal,
     showDeleteKpiModal,
     setShowDeleteKpiModal,
-    
     editingKpi,
     setEditingKpi,
     deletingKpi,
     setDeletingKpi,
-    
     handleAddKra,
     handleEditKpi,
     handleDeleteKpi,
@@ -93,7 +90,6 @@ export const KRAsTab: React.FC = () => {
               <TabsTrigger value="insights">Insights</TabsTrigger>
             </TabsList>
             
-            {/* KRA Filters */}
             <div className="bg-muted/50 p-4 rounded-md mb-4">
               <div className="flex flex-col md:flex-row gap-4 mb-2">
                 <div className="flex flex-col gap-2 flex-1">
@@ -296,7 +292,6 @@ export const KRAsTab: React.FC = () => {
         </CardContent>
       </Card>
       
-      {/* Modals */}
       <AddKraModal 
         open={showAddKraModal}
         onOpenChange={setShowAddKraModal}

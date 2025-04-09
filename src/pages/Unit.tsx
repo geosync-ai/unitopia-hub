@@ -675,9 +675,15 @@ const Unit = () => {
               <TasksTab {...taskState} />
             </TabsContent>
             
-            {/* KRAs Tab */}
+            {/* KRAs Tab - Conditionally Rendered */}
             <TabsContent value="kras" className="space-y-6">
-              <KRAsTab />
+              {setupWizard.isSetupComplete ? (
+                <KRAsTab />
+              ) : (
+                <div className="text-center text-muted-foreground p-8">
+                  Please complete the setup wizard to view KRAs.
+                </div>
+              )}
             </TabsContent>
             
             {/* Projects Tab */}
