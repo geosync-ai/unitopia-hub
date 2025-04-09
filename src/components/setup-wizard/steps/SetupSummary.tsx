@@ -9,6 +9,7 @@ interface SetupSummaryProps {
     folderName: string;
   } | null;
   objectives: any[];
+  kpis: any[];
   onComplete: () => void;
   onBack: () => void;
 }
@@ -16,6 +17,7 @@ interface SetupSummaryProps {
 export const SetupSummary: React.FC<SetupSummaryProps> = ({
   oneDriveConfig,
   objectives,
+  kpis,
   onComplete,
   onBack,
 }) => {
@@ -49,29 +51,49 @@ export const SetupSummary: React.FC<SetupSummaryProps> = ({
           {/* Objectives */}
           <div className="space-y-2">
             <h4 className="font-medium">Objectives</h4>
-            {objectives.length > 0 ? (
+            {objectives && objectives.length > 0 ? (
               <div className="space-y-2">
-                {objectives.map((obj, index) => (
-                  <div key={obj.id} className="pl-4 border-l-2 border-gray-200">
-                    <p className="font-medium">Objective {index + 1}</p>
-                    <p className="text-sm text-gray-600">{obj.title}</p>
-                    {obj.kpis && obj.kpis.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium">KPIs:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600">
-                          {obj.kpis.map((kpi: string, i: number) => (
-                            <li key={i}>{kpi}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                <div className="flex items-center space-x-2 text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{objectives.length} objectives configured</span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {objectives.map((objective, index) => (
+                    <li key={index} className="text-sm">
+                      {objective.name || `Objective ${index + 1}`}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : (
               <div className="flex items-center space-x-2 text-yellow-600">
                 <AlertCircle className="h-4 w-4" />
-                <span>No objectives defined</span>
+                <span>No objectives configured</span>
+              </div>
+            )}
+          </div>
+
+          {/* KPIs */}
+          <div className="space-y-2">
+            <h4 className="font-medium">Key Performance Indicators (KPIs)</h4>
+            {kpis && kpis.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{kpis.length} KPIs configured</span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {kpis.map((kpi, index) => (
+                    <li key={index} className="text-sm">
+                      {kpi.name || `KPI ${index + 1}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 text-yellow-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>No KPIs configured</span>
               </div>
             )}
           </div>

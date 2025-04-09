@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { OneDriveSetup } from '@/components/setup-wizard/steps/OneDriveSetup';
 import { SetupMethod } from '@/components/setup-wizard/steps/SetupMethod';
 import { ObjectivesSetup } from '@/components/setup-wizard/steps/ObjectivesSetup';
+import { KPISetup } from '@/components/setup-wizard/steps/KPISetup';
 import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useExcelSync } from '@/hooks/useExcelSync';
@@ -22,12 +23,14 @@ interface SetupWizardSpecificProps {
   setSetupMethod: (method: string) => void;
   setOneDriveConfig: (config: { folderId: string; folderName: string } | null) => void;
   setObjectives: (objectives: any[]) => void;
+  setKPIs: (kpis: any[]) => void;
   handleSetupCompleteFromHook: () => void; // Renamed to avoid conflict
   updateExcelConfig: () => void;
   excelConfig: any; // Consider stronger typing if possible
   oneDriveConfig: any; // Consider stronger typing if possible
   setupMethodProp?: string; // Pass if needed directly, or rely on internal state?
   objectivesProp?: any[]; // Pass if needed directly
+  kpisProp?: any[]; // Add this new prop
   isSetupComplete: boolean;
 }
 
@@ -45,12 +48,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   setSetupMethod,
   setOneDriveConfig,
   setObjectives,
+  setKPIs,
   handleSetupCompleteFromHook,
   updateExcelConfig,
   excelConfig,
   oneDriveConfig,
   setupMethodProp, // Receive props
   objectivesProp,
+  kpisProp,
   isSetupComplete,
 }) => {
   // Remove previous logs
@@ -62,10 +67,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
   const [tempObjectives, setTempObjectives] = useState<any[]>([]);
+  const [tempKPIs, setTempKPIs] = useState<any[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
 
-  // Updated total steps to include Objectives setup
-  const totalSteps = 6;
+  // Updated total steps to include KPI setup
+  const totalSteps = 7;
 
   // Use the Excel sync hook with props
   // console.log('SetupWizard before useExcelSync - setupState:', setupState);
@@ -88,6 +94,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setIsProcessing(false);
       setSelectedSetupType(null);
       setTempObjectives([]);
+      setTempKPIs([]);
       setSetupError(null);
       setIsInitialized(true);
     }
@@ -186,15 +193,23 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   const handleObjectivesComplete = useCallback((objectives: any[]) => {
     setTempObjectives(objectives);
-    setCurrentStep(5); // Move to summary step (updated from 4 to 5)
+    setCurrentStep(3); // Move to KPI setup step
+  }, []);
+
+  const handleKPIComplete = useCallback((kpis: any[]) => {
+    setTempKPIs(kpis);
+    setCurrentStep(4); // Move to setup method step
   }, []);
 
   const handleSummaryComplete = useCallback(() => {
     if (setObjectives) {
       setObjectives(tempObjectives);
     }
+    if (setKPIs) {
+      setKPIs(tempKPIs);
+    }
     handleComplete();
-  }, [tempObjectives, setObjectives, handleComplete]);
+  }, [tempObjectives, tempKPIs, setObjectives, setKPIs, handleComplete]);
 
   const renderInitialSelection = () => {
     // console.log('SetupWizard rendering renderInitialSelection - setupState:', setupState);
@@ -263,7 +278,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
-  // Update renderStep to use props and include Objectives setup
+  // Update renderStep to use props and include KPI setup
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -356,6 +371,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         );
       case 3:
         return (
+          <KPISetup
+            onComplete={handleKPIComplete}
+          />
+        );
+      case 4:
+        return (
           <SetupMethod
             onSelect={(method) => {
               if (setSetupMethod) { // Use prop
@@ -365,20 +386,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             }}
           />
         );
-      case 4:
-        return (
-          <SetupSummary
-            oneDriveConfig={oneDriveConfig}
-            objectives={tempObjectives}
-            onComplete={handleSummaryComplete}
-            onBack={handleBack}
-          />
-        );
       case 5:
         return (
           <SetupSummary
             oneDriveConfig={oneDriveConfig}
             objectives={tempObjectives}
+            kpis={tempKPIs}
+            onComplete={handleSummaryComplete}
+            onBack={handleBack}
+          />
+        );
+      case 6:
+        return (
+          <SetupSummary
+            oneDriveConfig={oneDriveConfig}
+            objectives={tempObjectives}
+            kpis={tempKPIs}
             onComplete={handleSummaryComplete}
             onBack={handleBack}
           />
