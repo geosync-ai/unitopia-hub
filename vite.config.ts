@@ -31,9 +31,6 @@ export default defineConfig(({ mode }) => ({
             'react-dom', 
             'react-router-dom'
           ],
-          ui: [
-            '@/components/ui'
-          ],
           microsoft: [
             '@azure/msal-browser',
             '@azure/msal-react'
