@@ -66,6 +66,9 @@ export const useSetupWizard = ({
           console.error('Error loading saved setup state:', error);
         }
       }
+      
+      // Add a flag to prevent multiple initializations
+      localStorage.setItem('setupWizardInitialized', 'true');
       setIsInitialized(true);
     }
   }, [isInitialized]);

@@ -20,6 +20,13 @@ const defaultConfig = {
         if (containsPii) {
           return;
         }
+        
+        // Filter out repetitive token-related logs
+        if (message.includes('CacheManager:getIdToken') || 
+            message.includes('CacheManager:getAccessToken')) {
+          return;
+        }
+        
         switch (level) {
           case 0:
             console.error(message);

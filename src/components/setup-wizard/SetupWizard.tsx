@@ -96,12 +96,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   // Update Excel config based on props
   useEffect(() => {
-    // Assuming setupMethodProp exists if needed here
-    if (oneDriveConfig && setupMethodProp) { 
-      updateExcelConfig();
+    // Only update Excel config if we have both oneDriveConfig and setupMethodProp
+    // and we're not already processing
+    if (oneDriveConfig && setupMethodProp && !isProcessing) {
+      // Add a debounce to prevent multiple rapid updates
+      const timeoutId = setTimeout(() => {
+        updateExcelConfig();
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
     }
-    // Dependency array uses props now
-  }, [oneDriveConfig, setupMethodProp, updateExcelConfig]); 
+  }, [oneDriveConfig, setupMethodProp, updateExcelConfig, isProcessing]);
 
   // Define handleComplete first
   const handleComplete = useCallback(async () => {

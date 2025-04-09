@@ -34,6 +34,16 @@ export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
     setError(null);
 
     try {
+      // Check if we've already attempted to create a file in this session
+      const sessionKey = `excel_init_attempt_${config.folderId}_${config.fileName}`;
+      const hasAttemptedInSession = sessionStorage.getItem(sessionKey);
+      
+      if (hasAttemptedInSession) {
+        console.log('Excel file creation already attempted in this session, skipping');
+        setHasAttemptedInit(true);
+        return;
+      }
+      
       // Create a new Excel file
       const excelFile = await createExcelFile(config.fileName, config.folderId);
       
@@ -46,6 +56,9 @@ export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
         ...config,
         fileId: excelFile.id
       });
+
+      // Mark that we've attempted initialization in this session
+      sessionStorage.setItem(sessionKey, 'true');
 
       toast.success('Excel file created successfully');
     } catch (err) {

@@ -549,7 +549,8 @@ const Unit = () => {
       // Check if setup is needed - only show wizard if setup is not complete
       const needsSetup = !setupWizard.isSetupComplete && checkSetupNeeded();
       
-      if (needsSetup) {
+      // Only show the wizard if setup is needed and it's not already showing
+      if (needsSetup && !showSetupWizard) {
         setShowSetupWizard(true);
       }
       
@@ -560,7 +561,7 @@ const Unit = () => {
       setError("Failed to initialize dashboard data");
       setIsLoading(false);
     }
-  }, [checkSetupNeeded, setupWizard.isSetupComplete]);
+  }, [checkSetupNeeded, setupWizard.isSetupComplete, showSetupWizard]);
 
   // Handle setup wizard completion
   const handleSetupComplete = useCallback(() => {
