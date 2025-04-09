@@ -292,17 +292,30 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                         <Folder className="h-5 w-5 text-blue-500" />
                         <span>{folder.name}</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFolderToRename(folder);
-                          setIsRenamingFolder(true);
-                        }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFolderToRename(folder);
+                            setIsRenamingFolder(true);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFolder(folder);
+                            setIsCreatingFolder(true);
+                          }}
+                        >
+                          <FolderPlus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </Card>
                   ))}
               </div>
