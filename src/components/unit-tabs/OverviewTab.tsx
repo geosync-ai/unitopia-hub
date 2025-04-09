@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Calendar, BarChart2, Target, Clock, Flag, 
-  CheckCircle, AlertTriangle, Briefcase 
+  CheckCircle, AlertTriangle, Briefcase, Settings
 } from 'lucide-react';
 import {
   Bar,
@@ -22,6 +22,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
+import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
 
 interface Risk {
   id: string;
@@ -110,6 +111,27 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Setup File Button */}
+      <div className="flex justify-end">
+        <Button
+          onClick={() => setupState.setShowSetupWizard(true)}
+          className="flex items-center gap-2"
+        >
+          <Settings className="h-4 w-4" />
+          Setup File
+        </Button>
+      </div>
+
+      {/* Setup Wizard Modal */}
+      <SetupWizard
+        isOpen={setupState.showSetupWizard}
+        onClose={() => setupState.setShowSetupWizard(false)}
+        onComplete={() => {
+          setupState.setShowSetupWizard(false);
+          // Here you would typically refresh the data or update the UI
+        }}
+      />
+
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -260,7 +282,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   type="monotone" 
                   dataKey="added" 
                   stroke="#3b82f6" 
-                  name="New Tasks" 
+                  name="New Tasks"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -269,6 +291,4 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       </Card>
     </div>
   );
-};
-
-export default OverviewTab; 
+}; 
