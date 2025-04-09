@@ -500,7 +500,7 @@ const Unit = () => {
   // Memoize the setup check to prevent unnecessary re-renders
   const checkSetupNeeded = useCallback(() => {
     return !setupWizard.isSetupComplete || 
-           (setupWizard.setupMethod === 'excel' && !setupWizard.excelConfig) ||
+           (setupWizard.setupMethod === 'csv' && !setupWizard.csvConfig) ||
            (setupWizard.setupMethod === 'onedrive' && !setupWizard.oneDriveConfig);
   }, [setupWizard]);
 

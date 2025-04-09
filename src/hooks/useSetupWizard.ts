@@ -120,14 +120,17 @@ export const useSetupWizard = ({
 
     // Define headers for each entity type
     const headers = {
-      objectives: ['id', 'name', 'description', 'startDate', 'endDate'],
-      kras: ['id', 'name', 'objectiveId', 'objectiveName', 'department', 'responsible', 'startDate', 'endDate', 'progress', 'status'],
-      kpis: ['id', 'name', 'kraId', 'kraName', 'target', 'actual', 'status', 'description', 'notes', 'startDate', 'endDate'],
-      tasks: ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName'],
-      projects: ['id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'budget', 'budgetSpent', 'progress'],
+      objectives: ['id', 'name', 'description', 'startDate', 'endDate', 'createdAt', 'updatedAt'],
+      kras: ['id', 'name', 'objectiveId', 'objectiveName', 'department', 'responsible', 'startDate', 'endDate', 'progress', 'status', 'createdAt', 'updatedAt'],
+      kpis: ['id', 'name', 'kraId', 'kraName', 'target', 'actual', 'status', 'description', 'notes', 'startDate', 'endDate', 'createdAt', 'updatedAt'],
+      tasks: ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName', 'createdAt', 'updatedAt'],
+      projects: ['id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'budget', 'budgetSpent', 'progress', 'createdAt', 'updatedAt'],
       risks: ['id', 'title', 'description', 'impact', 'likelihood', 'status', 'category', 'projectId', 'projectName', 'owner', 'createdAt', 'updatedAt'],
-      assets: ['id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes']
+      assets: ['id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes', 'createdAt', 'updatedAt']
     };
+
+    // Get current timestamp
+    const currentTimestamp = new Date().toISOString();
 
     // Prepare the data structure
     const data: {
@@ -152,33 +155,55 @@ export const useSetupWizard = ({
         name: obj.name || '',
         description: obj.description || '',
         startDate: obj.startDate || '',
-        endDate: obj.endDate || ''
+        endDate: obj.endDate || '',
+        createdAt: obj.createdAt || currentTimestamp,
+        updatedAt: currentTimestamp
       }));
     }
 
     // Add KPIs
     if (kpis && kpis.length > 0) {
-      data.kpis.rows = kpis;
+      data.kpis.rows = kpis.map(kpi => ({
+        ...kpi,
+        createdAt: kpi.createdAt || currentTimestamp,
+        updatedAt: currentTimestamp
+      }));
     }
 
     // Add tasks if available
     if (taskState?.tasks && taskState.tasks.length > 0) {
-      data.tasks.rows = taskState.tasks;
+      data.tasks.rows = taskState.tasks.map(task => ({
+        ...task,
+        createdAt: task.createdAt || currentTimestamp,
+        updatedAt: currentTimestamp
+      }));
     }
 
     // Add projects if available
     if (projectState?.projects && projectState.projects.length > 0) {
-      data.projects.rows = projectState.projects;
+      data.projects.rows = projectState.projects.map(project => ({
+        ...project,
+        createdAt: project.createdAt || currentTimestamp,
+        updatedAt: currentTimestamp
+      }));
     }
 
     // Add risks if available
     if (riskState?.risks && riskState.risks.length > 0) {
-      data.risks.rows = riskState.risks;
+      data.risks.rows = riskState.risks.map(risk => ({
+        ...risk,
+        createdAt: risk.createdAt || currentTimestamp,
+        updatedAt: currentTimestamp
+      }));
     }
 
     // Add assets if available
     if (assetState?.assets && assetState.assets.length > 0) {
-      data.assets.rows = assetState.assets;
+      data.assets.rows = assetState.assets.map(asset => ({
+        ...asset,
+        createdAt: asset.createdAt || currentTimestamp,
+        updatedAt: currentTimestamp
+      }));
     }
 
     return {

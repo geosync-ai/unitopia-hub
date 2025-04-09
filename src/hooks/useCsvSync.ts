@@ -216,7 +216,9 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     setError(null);
 
     try {
-      console.log('Saving data to CSV files');
+      // Get the current timestamp for logging
+      const saveTimestamp = new Date().toISOString();
+      console.log(`Saving data to CSV files at ${saveTimestamp}`);
       
       // Save data to each CSV file
       for (const [key, fileId] of Object.entries(config.fileIds)) {
@@ -232,8 +234,9 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
           continue;
         }
         
-        // Convert data to CSV format
+        // Add metadata comment at the top of the file
         const csvLines = [
+          `# Last updated: ${saveTimestamp}`,
           headers.join(',')
         ];
         
@@ -256,12 +259,12 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         
         const csvContent = csvLines.join('\n');
         
-        console.log(`Updating CSV file: ${config.fileNames[key]}`);
+        console.log(`Updating CSV file: ${config.fileNames[key]} at ${saveTimestamp}`);
         
         try {
           // Update CSV file
           await updateCsvFile(fileId, csvContent);
-          console.log(`Successfully updated CSV file: ${config.fileNames[key]}`);
+          console.log(`Successfully updated CSV file: ${config.fileNames[key]} at ${saveTimestamp}`);
         } catch (fileError) {
           console.error(`Error updating CSV file ${config.fileNames[key]}:`, fileError);
           // Continue with other files rather than failing completely
@@ -283,17 +286,27 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
   const updateEntityData = useCallback((entityType: string, data: any[]) => {
     if (!config) return;
 
-    const updatedData = {
+    // Get current timestamp for updates
+    const currentTimestamp = new Date().toISOString();
+
+    // Add timestamps to the data
+    const updatedData = data.map(item => ({
+      ...item,
+      updatedAt: currentTimestamp,
+      createdAt: item.createdAt || currentTimestamp
+    }));
+
+    const newConfigData = {
       ...config.data,
       [entityType]: {
         headers: config.data[entityType]?.headers || [],
-        rows: data
+        rows: updatedData
       }
     };
 
     onConfigChange({
       ...config,
-      data: updatedData
+      data: newConfigData
     });
   }, [config, onConfigChange]);
 

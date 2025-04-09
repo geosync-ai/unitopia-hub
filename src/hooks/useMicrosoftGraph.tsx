@@ -661,21 +661,24 @@ export const useMicrosoftGraph = () => {
   };
 
   // Create a new CSV file in OneDrive
-  const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string): Promise<CsvFile | null> => {
+  const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string | unknown): Promise<CsvFile | null> => {
     if (!checkMsalAuth()) {
       throw new Error('No accounts found');
     }
 
     try {
-      console.log('Creating CSV file:', fileName, 'in folder:', parentFolderId);
+      // Make sure parentFolderId is a string if present
+      const folderId = parentFolderId ? String(parentFolderId) : undefined;
+      
+      console.log('Creating CSV file:', fileName, 'in folder:', folderId);
       
       const response = await window.msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
 
       const baseEndpoint = 'https://graph.microsoft.com/v1.0/me/drive';
-      const endpoint = parentFolderId 
-        ? `${baseEndpoint}/items/${parentFolderId}/children`
+      const endpoint = folderId 
+        ? `${baseEndpoint}/items/${folderId}/children`
         : `${baseEndpoint}/root/children`;
 
       console.log('Using endpoint:', endpoint);

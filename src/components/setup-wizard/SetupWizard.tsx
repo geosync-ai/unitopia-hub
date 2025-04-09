@@ -211,13 +211,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       if (tempObjectives && tempObjectives.length > 0) {
         console.log('Preparing Objectives data:', tempObjectives);
         
+        // Get current timestamp
+        const currentTimestamp = new Date().toISOString();
+        
         // Make sure all objectives have IDs
         const objectivesWithIds = tempObjectives.map(obj => ({
           ...obj,
-          id: obj.id || generateId()
+          id: obj.id || generateId(),
+          createdAt: obj.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
         }));
         
-        const objectivesHeaders = ['id', 'name', 'description', 'startDate', 'endDate'];
+        const objectivesHeaders = ['id', 'name', 'description', 'startDate', 'endDate', 'createdAt', 'updatedAt'];
         
         // Ensure we have an objectives entity in the data
         if (!updatedConfig.data.objectives) {
@@ -243,13 +248,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       if (tempKPIs && tempKPIs.length > 0) {
         console.log('Preparing KPIs data:', tempKPIs);
         
+        // Get current timestamp
+        const currentTimestamp = new Date().toISOString();
+        
         // Make sure all KPIs have IDs
         const kpisWithIds = tempKPIs.map(kpi => ({
           ...kpi,
-          id: kpi.id || generateId()
+          id: kpi.id || generateId(),
+          createdAt: kpi.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
         }));
         
-        const kpiHeaders = ['id', 'name', 'target', 'actual', 'status', 'description', 'notes', 'kraId', 'kraName', 'startDate', 'endDate'];
+        const kpiHeaders = ['id', 'name', 'target', 'actual', 'status', 'description', 'notes', 'kraId', 'kraName', 'startDate', 'endDate', 'createdAt', 'updatedAt'];
         
         // Ensure we have a KPIs entity in the data
         if (!updatedConfig.data.kpis) {
@@ -287,17 +297,32 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         try {
           const fileIds: Record<string, string> = {};
           
+          // Ensure updatedConfig has proper typing
+          const typedConfig = updatedConfig as {
+            folderId: string;
+            fileNames: Record<string, string>;
+            data: Record<string, { headers: string[] }>;
+          };
+          
+          // Update sessionKey to use typed config for consistency
+          const typedSessionKey = `csv_init_attempt_${typedConfig.folderId}`;
+          sessionStorage.removeItem(typedSessionKey);
+          
           // Create CSV files in parallel
-          const createFilePromises = Object.entries(updatedConfig.fileNames || {}).map(async ([entityType, fileName]) => {
+          const createFilePromises = Object.entries(typedConfig.fileNames || {}).map(async ([entityType, fileName]) => {
             console.log(`Creating CSV file for ${entityType}: ${fileName}`);
             
             // Prepare initial content with headers
-            const headers = updatedConfig.data[entityType]?.headers || [];
+            const headers = typedConfig.data[entityType]?.headers || [];
             const initialContent = headers.join(',');
             
             try {
-              // Create the CSV file
-              const csvFile = await createCsvFile(fileName, initialContent, updatedConfig.folderId);
+              // Create the CSV file with properly typed folderId
+              const csvFile = await createCsvFile(
+                fileName,
+                initialContent,
+                typedConfig.folderId
+              );
               
               if (csvFile) {
                 console.log(`CSV file created for ${entityType} with ID:`, csvFile.id);
