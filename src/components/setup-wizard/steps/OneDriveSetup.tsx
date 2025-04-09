@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,7 +32,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   }, [isAuthenticated]);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) return;
     
     setIsLoading(true);
@@ -47,16 +47,16 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, getOneDriveDocuments]);
 
-  const handleAuthenticate = async () => {
+  const handleAuthenticate = useCallback(async () => {
     try {
       await loginWithMicrosoft();
       toast.success('Successfully connected to OneDrive');
     } catch (error) {
       toast.error('Failed to connect to OneDrive. Please try again.');
     }
-  };
+  }, [loginWithMicrosoft]);
 
   const handleFolderClick = async (folder: Document) => {
     if (!folder.isFolder) return;

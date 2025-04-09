@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ExcelSyncConfig } from './useExcelSync';
 
 export interface SetupWizardState {
@@ -150,7 +150,7 @@ export const useSetupWizard = ({
       fileName: 'UnitopiaHub_Data.xlsx',
       sheets
     };
-  }, [oneDriveConfig, setupMethod, objectives, taskState, projectState, riskState, assetState, kraState]);
+  }, [oneDriveConfig, objectives, taskState?.tasks, projectState?.projects, riskState?.risks, assetState?.assets, kraState?.kras]);
 
   // Update Excel config when setup method or objectives change
   const updateExcelConfig = useCallback(() => {
@@ -164,7 +164,8 @@ export const useSetupWizard = ({
     setShowSetupWizard(false);
   }, []);
 
-  return {
+  // Memoize the returned object to prevent unnecessary re-renders
+  return useMemo(() => ({
     showSetupWizard,
     setShowSetupWizard,
     oneDriveConfig,
@@ -179,5 +180,15 @@ export const useSetupWizard = ({
     resetSetup,
     updateExcelConfig,
     handleSetupComplete
-  };
+  }), [
+    showSetupWizard,
+    oneDriveConfig,
+    setupMethod,
+    objectives,
+    excelConfig,
+    isSetupComplete,
+    resetSetup,
+    updateExcelConfig,
+    handleSetupComplete
+  ]);
 }; 

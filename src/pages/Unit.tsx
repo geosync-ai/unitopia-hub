@@ -495,6 +495,13 @@ const Unit = () => {
     assetState
   });
 
+  // Memoize the setup check to prevent unnecessary re-renders
+  const checkSetupNeeded = useCallback(() => {
+    return !setupState.setupMethod || 
+           (setupState.setupMethod === 'excel' && !setupState.excelConfig) ||
+           (setupState.setupMethod === 'onedrive' && !setupState.oneDriveConfig);
+  }, [setupState.setupMethod, setupState.excelConfig, setupState.oneDriveConfig]);
+
   // Initialize data from mock data and setup wizard
   useEffect(() => {
     if (initializedRef.current) return;
@@ -507,9 +514,7 @@ const Unit = () => {
       mockAssets.forEach(asset => assetState.addAsset(asset));
       
       // Check if setup is needed
-      const needsSetup = !setupState.setupMethod || 
-                        (setupState.setupMethod === 'excel' && !setupState.excelConfig) ||
-                        (setupState.setupMethod === 'onedrive' && !setupState.oneDriveConfig);
+      const needsSetup = checkSetupNeeded();
       
       if (needsSetup) {
         setShowSetupWizard(true);
@@ -522,7 +527,7 @@ const Unit = () => {
       setError("Failed to initialize dashboard data");
       setIsLoading(false);
     }
-  }, [setupState.setupMethod, setupState.excelConfig, setupState.oneDriveConfig]);
+  }, [checkSetupNeeded, taskState, projectState, riskState, assetState]);
 
   // Handle setup wizard completion
   const handleSetupComplete = useCallback(() => {
