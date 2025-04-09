@@ -191,20 +191,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       currentPath
     });
 
-    if (selectedFolder) {
-      console.log('Using existing folder:', selectedFolder);
-      try {
-        onComplete({
-          path: selectedFolder.name,
-          folderId: selectedFolder.id,
-          isNewFolder: false,
-        });
-        console.log('Successfully completed with existing folder');
-      } catch (error) {
-        console.error('Error in onComplete with existing folder:', error);
-        toast.error('Failed to proceed with selected folder');
-      }
-    } else if (isCreatingFolder && newFolderName) {
+    // If we're in create folder mode, prioritize creating a new folder
+    if (isCreatingFolder && newFolderName) {
       console.log('Creating new folder:', newFolderName);
       try {
         setIsLoading(true);
@@ -237,6 +225,19 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         toast.error('Failed to create folder');
       } finally {
         setIsLoading(false);
+      }
+    } else if (selectedFolder) {
+      console.log('Using existing folder:', selectedFolder);
+      try {
+        onComplete({
+          path: selectedFolder.name,
+          folderId: selectedFolder.id,
+          isNewFolder: false,
+        });
+        console.log('Successfully completed with existing folder');
+      } catch (error) {
+        console.error('Error in onComplete with existing folder:', error);
+        toast.error('Failed to proceed with selected folder');
       }
     } else {
       console.warn('Invalid state for folder selection:', {
