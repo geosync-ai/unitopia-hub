@@ -267,24 +267,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </CardContent>
       </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Unit Setup</CardTitle>
-            <CardDescription>Configure your unit settings and preferences</CardDescription>
-          </div>
-          <Button onClick={() => setupState.setShowSetupWizard(true)}>
-            Configure Unit
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Use the setup wizard to configure your unit dashboard, set goals, define team members,
-            and customize your view.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 };
