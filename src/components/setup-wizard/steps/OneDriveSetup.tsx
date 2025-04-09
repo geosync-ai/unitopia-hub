@@ -183,31 +183,68 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   };
 
   const handlePathSelect = async () => {
+    console.log('Continue button clicked');
+    console.log('Current state:', {
+      selectedFolder,
+      isCreatingFolder,
+      newFolderName,
+      currentPath
+    });
+
     if (selectedFolder) {
-      onComplete({
-        path: selectedFolder.name,
-        folderId: selectedFolder.id,
-        isNewFolder: false,
-      });
+      console.log('Using existing folder:', selectedFolder);
+      try {
+        onComplete({
+          path: selectedFolder.name,
+          folderId: selectedFolder.id,
+          isNewFolder: false,
+        });
+        console.log('Successfully completed with existing folder');
+      } catch (error) {
+        console.error('Error in onComplete with existing folder:', error);
+        toast.error('Failed to proceed with selected folder');
+      }
     } else if (isCreatingFolder && newFolderName) {
+      console.log('Creating new folder:', newFolderName);
       try {
         setIsLoading(true);
         const parentId = selectedFolder?.id;
+        console.log('Creating folder with parent ID:', parentId);
+        
         const newFolder = await createFolder(newFolderName, parentId);
+        console.log('New folder created:', newFolder);
+        
         if (newFolder) {
+          console.log('Calling onComplete with new folder');
           onComplete({
             path: newFolderName,
             folderId: newFolder.id,
             isNewFolder: true,
             folderName: newFolderName,
           });
+          console.log('Successfully completed with new folder');
+        } else {
+          console.error('createFolder returned null or undefined');
+          toast.error('Failed to create folder - no folder ID returned');
         }
       } catch (error) {
         console.error('Error creating folder:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
         toast.error('Failed to create folder');
       } finally {
         setIsLoading(false);
       }
+    } else {
+      console.warn('Invalid state for folder selection:', {
+        selectedFolder,
+        isCreatingFolder,
+        newFolderName
+      });
+      toast.error('Please select or create a folder before continuing');
     }
   };
 
