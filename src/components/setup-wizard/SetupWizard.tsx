@@ -33,6 +33,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const totalSteps = 3;
 
@@ -43,16 +44,33 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     loadDataFromExcel, 
     saveDataToExcel 
   } = useExcelSync({
-    config: setupState.excelConfig,
-    onConfigChange: setupState.setExcelConfig
+    config: setupState?.excelConfig || null,
+    onConfigChange: setupState?.setExcelConfig || (() => {})
   });
+
+  // Initialize component
+  useEffect(() => {
+    if (isOpen && !isInitialized) {
+      setCurrentStep(1);
+      setProgress(0);
+      setIsProcessing(false);
+      setIsInitialized(true);
+    }
+  }, [isOpen, isInitialized]);
+
+  // Reset initialization when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsInitialized(false);
+    }
+  }, [isOpen]);
 
   // Update Excel config when setup method or objectives change
   useEffect(() => {
-    if (setupState.oneDriveConfig && setupState.setupMethod) {
+    if (setupState?.oneDriveConfig && setupState?.setupMethod) {
       setupState.updateExcelConfig();
     }
-  }, [setupState.oneDriveConfig, setupState.setupMethod, setupState.objectives]);
+  }, [setupState?.oneDriveConfig, setupState?.setupMethod, setupState?.objectives]);
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
@@ -69,23 +87,28 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   };
 
   const handleComplete = async () => {
+    if (!setupState?.excelConfig) {
+      toast({
+        title: "Setup Error",
+        description: "Excel configuration is not properly initialized. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setProgress(10);
 
     try {
       // Step 1: Save data to Excel
-      if (setupState.excelConfig) {
-        setProgress(30);
-        await saveDataToExcel();
-        setProgress(60);
-      }
+      setProgress(30);
+      await saveDataToExcel();
+      setProgress(60);
 
       // Step 2: Load data from Excel to populate the application
-      if (setupState.excelConfig) {
-        setProgress(80);
-        await loadDataFromExcel();
-        setProgress(90);
-      }
+      setProgress(80);
+      await loadDataFromExcel();
+      setProgress(90);
 
       // Step 3: Complete setup
       setupState.handleSetupComplete();
@@ -116,11 +139,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         return (
           <OneDriveSetup
             onComplete={(config) => {
-              setupState.setOneDriveConfig({
-                folderId: config.folderId,
-                folderName: config.path
-              });
-              handleNext();
+              if (setupState?.setOneDriveConfig) {
+                setupState.setOneDriveConfig({
+                  folderId: config.folderId,
+                  folderName: config.path
+                });
+                handleNext();
+              }
             }}
           />
         );
@@ -128,8 +153,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         return (
           <SetupMethod
             onSelect={(method) => {
-              setupState.setSetupMethod(method);
-              handleNext();
+              if (setupState?.setSetupMethod) {
+                setupState.setSetupMethod(method);
+                handleNext();
+              }
             }}
           />
         );
@@ -137,8 +164,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         return (
           <ObjectivesSetup
             onComplete={(objectives) => {
-              setupState.setObjectives(objectives);
-              handleComplete();
+              if (setupState?.setObjectives) {
+                setupState.setObjectives(objectives);
+                handleComplete();
+              }
             }}
           />
         );

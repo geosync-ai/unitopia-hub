@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ExcelSyncConfig } from './useExcelSync';
 
 export interface SetupWizardState {
@@ -42,6 +42,42 @@ export const useSetupWizard = ({
   const [objectives, setObjectives] = useState<any[]>([]);
   const [excelConfig, setExcelConfig] = useState<ExcelSyncConfig | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize setup state
+  useEffect(() => {
+    if (!isInitialized) {
+      // Load saved state from localStorage if available
+      const savedState = localStorage.getItem('setupWizardState');
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          setOneDriveConfig(parsed.oneDriveConfig || null);
+          setSetupMethod(parsed.setupMethod || '');
+          setObjectives(parsed.objectives || []);
+          setExcelConfig(parsed.excelConfig || null);
+          setIsSetupComplete(parsed.isSetupComplete || false);
+        } catch (error) {
+          console.error('Error loading saved setup state:', error);
+        }
+      }
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    if (isInitialized) {
+      const stateToSave = {
+        oneDriveConfig,
+        setupMethod,
+        objectives,
+        excelConfig,
+        isSetupComplete
+      };
+      localStorage.setItem('setupWizardState', JSON.stringify(stateToSave));
+    }
+  }, [isInitialized, oneDriveConfig, setupMethod, objectives, excelConfig, isSetupComplete]);
 
   // Reset setup state
   const resetSetup = useCallback(() => {
@@ -50,6 +86,7 @@ export const useSetupWizard = ({
     setObjectives([]);
     setExcelConfig(null);
     setIsSetupComplete(false);
+    localStorage.removeItem('setupWizardState');
   }, []);
 
   // Create Excel configuration based on setup method and objectives
@@ -63,35 +100,35 @@ export const useSetupWizard = ({
     sheets.tasks = {
       name: 'Tasks',
       headers: ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName', 'completionPercentage'],
-      data: []
+      data: taskState?.tasks || []
     };
 
     // Projects sheet
     sheets.projects = {
       name: 'Projects',
       headers: ['id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'budget', 'budgetSpent', 'progress'],
-      data: []
+      data: projectState?.projects || []
     };
 
     // Risks sheet
     sheets.risks = {
       name: 'Risks',
       headers: ['id', 'title', 'description', 'impact', 'likelihood', 'status', 'category', 'projectId', 'projectName', 'owner', 'createdAt', 'updatedAt'],
-      data: []
+      data: riskState?.risks || []
     };
 
     // Assets sheet
     sheets.assets = {
       name: 'Assets',
       headers: ['id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes'],
-      data: []
+      data: assetState?.assets || []
     };
 
     // KRAs sheet
     sheets.kras = {
       name: 'KRAs',
       headers: ['id', 'name', 'objectiveId', 'objectiveName', 'department', 'responsible', 'startDate', 'endDate', 'progress', 'status', 'createdAt', 'updatedAt'],
-      data: []
+      data: kraState?.kras || []
     };
 
     // KPIs sheet
@@ -107,15 +144,6 @@ export const useSetupWizard = ({
       headers: ['id', 'title'],
       data: objectives.map(obj => ({ id: obj.id, title: obj.title }))
     };
-
-    // If using demo data, populate with mock data
-    if (setupMethod === 'demo') {
-      sheets.tasks.data = taskState.tasks || [];
-      sheets.projects.data = projectState.projects || [];
-      sheets.risks.data = riskState.risks || [];
-      sheets.assets.data = assetState.assets || [];
-      sheets.kras.data = kraState.kras || [];
-    }
 
     return {
       folderId: oneDriveConfig.folderId,
