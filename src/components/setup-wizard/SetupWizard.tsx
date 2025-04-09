@@ -41,6 +41,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   onComplete,
   setupState
 }) => {
+  console.log('SetupWizard start - setupState:', setupState); // Log 1: Start of function body
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0); // Start at 0 for initial selection
   const [isProcessing, setIsProcessing] = useState(false);
@@ -51,6 +52,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const totalSteps = 4; // Now 4 steps: initial selection + 3 setup steps
 
   // Use the Excel sync hook
+  console.log('SetupWizard before useExcelSync - setupState:', setupState); // Log 2: Before hook initialization
   const { 
     isLoading: isExcelLoading, 
     error: excelError, 
@@ -180,6 +182,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   }, [setupState, toast]);
 
   const renderInitialSelection = () => {
+    console.log('SetupWizard rendering renderInitialSelection - setupState:', setupState); // Log 3: Inside render function
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
