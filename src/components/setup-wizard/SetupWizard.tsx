@@ -89,19 +89,23 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   };
 
   const handleSetupTypeSelect = (type: string) => {
+    console.log('Setup type selected:', type);
     setSelectedSetupType(type);
     
     // Set the appropriate setup method based on selection
     if (type === 'onedrive') {
       setupState.setSetupMethod('standard');
+      // Show OneDrive setup immediately
+      setCurrentStep(1);
     } else if (type === 'excel') {
       setupState.setSetupMethod('import');
+      // Show Excel upload UI
+      setCurrentStep(1);
     } else if (type === 'demo') {
       setupState.setSetupMethod('demo');
+      // Show demo data confirmation
+      setCurrentStep(1);
     }
-    
-    // Move to the next step
-    setCurrentStep(1);
   };
 
   const handleComplete = async () => {
@@ -226,12 +230,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           return (
             <OneDriveSetup
               onComplete={(config) => {
+                console.log('OneDrive setup completed:', config);
                 if (setupState?.setOneDriveConfig) {
                   setupState.setOneDriveConfig({
                     folderId: config.folderId,
                     folderName: config.path
                   });
-                  handleNext();
+                  // Show success notification
+                  toast({
+                    title: "OneDrive folder selected successfully!",
+                    description: `Using folder: "${config.path}"`,
+                    duration: 2000,
+                  });
+                  // Wait a moment to show the notification
+                  setTimeout(() => {
+                    handleNext();
+                  }, 1000);
                 }
               }}
             />
