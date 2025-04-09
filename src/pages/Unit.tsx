@@ -67,6 +67,7 @@ import { AssetsTab } from '@/components/unit-tabs/AssetsTab';
 import { OverviewTab } from '@/components/unit-tabs/OverviewTab';
 import { useSetupWizard } from '@/hooks/useSetupWizard';
 import { mockTasks, mockProjects, mockRisks, mockAssets } from '@/mockData/mockData';
+import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -475,6 +476,7 @@ const Unit = () => {
   const [showAiChat, setShowAiChat] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
   
   // Use custom state hooks
   const taskState = useTaskState(mockTasks);
@@ -619,6 +621,18 @@ const Unit = () => {
           </div>
         )}
       </div>
+      
+      {/* Setup Wizard */}
+      <SetupWizard
+        isOpen={showSetupWizard}
+        onClose={() => setShowSetupWizard(false)}
+        onComplete={() => {
+          setShowSetupWizard(false);
+          // Refresh data after setup is complete
+          // TODO: Implement data refresh
+        }}
+        setupState={setupState}
+      />
     </PageLayout>
   );
 };
