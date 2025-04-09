@@ -204,6 +204,15 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         
         if (newFolder) {
           console.log('Calling onComplete with new folder');
+          // Show success notification
+          toast.success('Folder created successfully!', {
+            description: `Created "${newFolderName}" in OneDrive`,
+            duration: 2000,
+          });
+          
+          // Wait a moment to show the notification
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           onComplete({
             path: newFolderName,
             folderId: newFolder.id,
