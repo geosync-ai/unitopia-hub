@@ -57,6 +57,11 @@ export const useSetupWizard = ({
           setObjectives(parsed.objectives || []);
           setExcelConfig(parsed.excelConfig || null);
           setIsSetupComplete(parsed.isSetupComplete || false);
+          
+          // If setup is complete, ensure we don't show the wizard
+          if (parsed.isSetupComplete) {
+            setShowSetupWizard(false);
+          }
         } catch (error) {
           console.error('Error loading saved setup state:', error);
         }
@@ -162,7 +167,17 @@ export const useSetupWizard = ({
   const handleSetupComplete = useCallback(() => {
     setIsSetupComplete(true);
     setShowSetupWizard(false);
-  }, []);
+    
+    // Save the completion state immediately
+    const currentState = {
+      oneDriveConfig,
+      setupMethod,
+      objectives,
+      excelConfig,
+      isSetupComplete: true
+    };
+    localStorage.setItem('setupWizardState', JSON.stringify(currentState));
+  }, [oneDriveConfig, setupMethod, objectives, excelConfig]);
 
   // Memoize the returned object to prevent unnecessary re-renders
   return useMemo(() => ({

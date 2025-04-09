@@ -513,8 +513,8 @@ const Unit = () => {
       mockRisks.forEach(risk => riskState.addRisk(risk));
       mockAssets.forEach(asset => assetState.addAsset(asset));
       
-      // Check if setup is needed
-      const needsSetup = checkSetupNeeded();
+      // Check if setup is needed - only show wizard if setup is not complete
+      const needsSetup = !setupState.isSetupComplete && checkSetupNeeded();
       
       if (needsSetup) {
         setShowSetupWizard(true);
@@ -527,7 +527,7 @@ const Unit = () => {
       setError("Failed to initialize dashboard data");
       setIsLoading(false);
     }
-  }, [checkSetupNeeded, taskState, projectState, riskState, assetState]);
+  }, [checkSetupNeeded, taskState, projectState, riskState, assetState, setupState.isSetupComplete]);
 
   // Handle setup wizard completion
   const handleSetupComplete = useCallback(() => {

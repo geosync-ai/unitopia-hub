@@ -26,12 +26,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
   const [folderToRename, setFolderToRename] = useState<Document | null>(null);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchDocuments();
-    }
-  }, [isAuthenticated]);
-
   const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) return;
     
@@ -49,6 +43,12 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   }, [isAuthenticated, getOneDriveDocuments]);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDocuments();
+    }
+  }, [isAuthenticated, fetchDocuments]);
+
   const handleAuthenticate = useCallback(async () => {
     try {
       await loginWithMicrosoft();
@@ -58,7 +58,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   }, [loginWithMicrosoft]);
 
-  const handleFolderClick = async (folder: Document) => {
+  const handleFolderClick = useCallback(async (folder: Document) => {
     if (!folder.isFolder) return;
     
     setIsLoading(true);
@@ -75,7 +75,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPath, getFolderContents]);
 
   const handleNavigateUp = async () => {
     if (currentPath.length === 0) {
