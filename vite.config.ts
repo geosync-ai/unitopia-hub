@@ -19,4 +19,31 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Increase the warning limit to reduce noise in the console
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // Configure manual chunks to split the bundle logically
+        manualChunks: {
+          vendor: [
+            'react', 
+            'react-dom', 
+            'react-router-dom'
+          ],
+          ui: [
+            '@/components/ui'
+          ],
+          microsoft: [
+            '@azure/msal-browser',
+            '@azure/msal-react'
+          ]
+        }
+      }
+    },
+    // Enable source map generation for production builds
+    sourcemap: mode !== 'production',
+    // Minify the output for production
+    minify: mode === 'production'
+  }
 }));

@@ -25,26 +25,66 @@ export interface ExcelFile {
 export const useMicrosoftGraph = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Helper function to check if MSAL is properly initialized and has an active account
   const checkMsalAuth = () => {
     if (!window.msalInstance) {
       console.error('MSAL instance not found');
+      setLastError('MSAL instance not found - authentication service not initialized');
       return false;
     }
     
     const accounts = window.msalInstance.getAllAccounts();
     if (accounts.length === 0) {
       console.error('No accounts found');
+      setLastError('No Microsoft accounts found - user is not authenticated');
       return false;
     }
     
     // Set active account if not already set
     if (!window.msalInstance.getActiveAccount()) {
+      console.log('Setting active account to:', accounts[0].username);
       window.msalInstance.setActiveAccount(accounts[0]);
     }
     
     return true;
+  };
+
+  // Debug function to get authentication status
+  const getAuthStatus = () => {
+    try {
+      if (!window.msalInstance) {
+        return {
+          isInitialized: false,
+          hasAccounts: false,
+          activeAccount: null,
+          error: 'MSAL instance not found'
+        };
+      }
+      
+      const accounts = window.msalInstance.getAllAccounts();
+      const activeAccount = window.msalInstance.getActiveAccount();
+      
+      return {
+        isInitialized: true,
+        hasAccounts: accounts.length > 0,
+        accountCount: accounts.length,
+        activeAccount: activeAccount ? {
+          username: activeAccount.username,
+          name: activeAccount.name,
+          localAccountId: activeAccount.localAccountId
+        } : null,
+        error: null
+      };
+    } catch (error) {
+      return {
+        isInitialized: false,
+        hasAccounts: false,
+        activeAccount: null,
+        error: error.message || 'Unknown error checking auth status'
+      };
+    }
   };
 
   const getSharePointDocuments = async (): Promise<Document[] | null> => {
@@ -53,11 +93,14 @@ export const useMicrosoftGraph = () => {
     }
 
     try {
+      console.log('Acquiring token for SharePoint documents...');
       const response = await window.msalInstance.acquireTokenSilent({
         scopes: ['Files.Read.All', 'Sites.Read.All']
       });
+      console.log('Token acquired successfully');
 
       const graphEndpoint = 'https://graph.microsoft.com/v1.0/sites/root/drive/root/children';
+      console.log('Fetching from endpoint:', graphEndpoint);
       const result = await fetch(graphEndpoint, {
         headers: {
           Authorization: `Bearer ${response.accessToken}`
@@ -65,10 +108,13 @@ export const useMicrosoftGraph = () => {
       });
 
       if (!result.ok) {
+        const errorText = await result.text();
+        console.error('GraphAPI error response:', errorText);
         throw new Error(`Failed to fetch SharePoint documents: ${result.statusText}`);
       }
 
       const data = await result.json();
+      console.log(`Retrieved ${data.value.length} SharePoint items`);
       return data.value.map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -81,6 +127,7 @@ export const useMicrosoftGraph = () => {
       }));
     } catch (error) {
       console.error('Error fetching SharePoint documents:', error);
+      setLastError(`SharePoint documents error: ${error.message}`);
       toast.error('Failed to fetch SharePoint documents');
       throw error;
     }
@@ -92,11 +139,14 @@ export const useMicrosoftGraph = () => {
     }
 
     try {
+      console.log('Acquiring token for OneDrive documents...');
       const response = await window.msalInstance.acquireTokenSilent({
         scopes: ['User.Read', 'Files.Read.All']
       });
+      console.log('Token acquired successfully');
 
       const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+      console.log('Fetching from endpoint:', graphEndpoint);
       const result = await fetch(graphEndpoint, {
         headers: {
           Authorization: `Bearer ${response.accessToken}`
@@ -104,10 +154,13 @@ export const useMicrosoftGraph = () => {
       });
 
       if (!result.ok) {
+        const errorText = await result.text();
+        console.error('GraphAPI error response:', errorText);
         throw new Error(`Failed to fetch OneDrive documents: ${result.statusText}`);
       }
 
       const data = await result.json();
+      console.log(`Retrieved ${data.value.length} OneDrive items`);
       return data.value.map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -120,6 +173,7 @@ export const useMicrosoftGraph = () => {
       }));
     } catch (error) {
       console.error('Error fetching OneDrive documents:', error);
+      setLastError(`OneDrive documents error: ${error.message}`);
       toast.error('Failed to fetch OneDrive documents');
       throw error;
     }
@@ -433,7 +487,6 @@ export const useMicrosoftGraph = () => {
   };
 
   return {
-    isLoading,
     getSharePointDocuments,
     getOneDriveDocuments,
     getFolderContents,
@@ -442,8 +495,18 @@ export const useMicrosoftGraph = () => {
     createExcelFile,
     readExcelFile,
     updateExcelFile,
-    getExcelSheets
+    getExcelSheets,
+    isLoading,
+    lastError,
+    getAuthStatus
   };
 };
+
+// Add global type definition for the MSAL instance
+declare global {
+  interface Window {
+    msalInstance: any;
+  }
+}
 
 export default useMicrosoftGraph; 

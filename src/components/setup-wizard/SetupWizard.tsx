@@ -60,6 +60,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
   const [tempObjectives, setTempObjectives] = useState<any[]>([]);
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   const totalSteps = 5;
 
@@ -83,6 +84,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setIsProcessing(false);
       setSelectedSetupType(null);
       setTempObjectives([]);
+      setSetupError(null);
       setIsInitialized(true);
     }
   }, [isOpen, isInitialized]);
@@ -135,6 +137,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       onClose();    // Call parent's onClose
     } catch (error) {
       console.error('Error completing setup:', error);
+      setSetupError(`Setup error: ${error.message || 'Unknown error'}`);
       toast({ title: "Setup Error", description: "There was an error completing the setup process. Please try again.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
@@ -157,6 +160,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const handleSetupTypeSelect = useCallback((type: string) => {
     console.log('Setup type selected:', type);
     setSelectedSetupType(type);
+    setSetupError(null);
     console.log('Inspecting setSetupMethod prop:', setSetupMethod);
 
     if (!setSetupMethod) { // Check prop
@@ -269,7 +273,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 if (setOneDriveConfig) { // Use prop
                   setOneDriveConfig({ folderId: config.folderId, folderName: config.path });
                   toast({ title: "OneDrive folder selected successfully!", description: `Using folder: "${config.path}"`, duration: 2000 });
-                  setTimeout(() => { handleNext(); }, 1000);
+                  
+                  // Give time for the OneDrive setup to complete before moving to the next step
+                  setTimeout(() => { 
+                    handleNext(); 
+                  }, 1000);
+                } else {
+                  setSetupError("Failed to set OneDrive configuration. The configuration handler is not available.");
+                  toast({ 
+                    title: "OneDrive Setup Error", 
+                    description: "Failed to apply OneDrive configuration. Please try again.", 
+                    variant: "destructive" 
+                  });
                 }
               }}
             />
@@ -379,6 +394,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               {isProcessing ? 'Processing...' : `Step ${currentStep + 1} of ${totalSteps}`}
             </p>
           </div>
+
+          {/* Error display */}
+          {setupError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{setupError}</span>
+            </div>
+          )}
 
           {/* Step content */}
           <Card className="p-6">

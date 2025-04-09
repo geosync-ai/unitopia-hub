@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2 } from 'lucide-react';
+import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface OneDriveSetupProps {
   onComplete: (config: any) => void;
@@ -15,8 +16,16 @@ interface OneDriveSetupProps {
 
 export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const { toast: useToastToast } = useToast();
-  const { isAuthenticated, loginWithMicrosoft } = useAuth();
-  const { getOneDriveDocuments, getFolderContents, createFolder, renameFolder } = useMicrosoftGraph();
+  const { isAuthenticated, loginWithMicrosoft, msGraphConfig } = useAuth();
+  const { 
+    getOneDriveDocuments, 
+    getFolderContents, 
+    createFolder, 
+    renameFolder, 
+    lastError,
+    getAuthStatus
+  } = useMicrosoftGraph();
+  
   const [documents, setDocuments] = useState<Document[]>([]);
   const [currentPath, setCurrentPath] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,11 +36,18 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [folderToRename, setFolderToRename] = useState<Document | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [authStatus, setAuthStatus] = useState<any>(null);
+
+  const updateAuthStatus = useCallback(() => {
+    setAuthStatus(getAuthStatus());
+  }, [getAuthStatus]);
 
   const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) return;
     
     setIsLoading(true);
+    updateAuthStatus();
     try {
       console.log('Fetching OneDrive documents...');
       const oneDriveDocs = await getOneDriveDocuments();
@@ -46,13 +62,14 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, getOneDriveDocuments]);
+  }, [isAuthenticated, getOneDriveDocuments, updateAuthStatus]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchDocuments();
     }
-  }, [isAuthenticated, fetchDocuments]);
+    updateAuthStatus();
+  }, [isAuthenticated, fetchDocuments, updateAuthStatus]);
 
   const handleAuthenticate = useCallback(async () => {
     setIsAuthenticating(true);
@@ -273,6 +290,61 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   };
 
+  // Add a diagnostics section
+  const renderDiagnostics = () => {
+    return (
+      <Collapsible 
+        className="mt-4 border border-gray-200 rounded-md p-2"
+        open={showDiagnostics}
+        onOpenChange={setShowDiagnostics}
+      >
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="flex w-full justify-between">
+            <div className="flex items-center">
+              <AlertCircle className="h-4 w-4 mr-2 text-amber-500" />
+              Authentication Diagnostics
+            </div>
+            <span>{showDiagnostics ? '▲' : '▼'}</span>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2 text-xs font-mono bg-gray-50 p-2 rounded overflow-auto max-h-[200px]">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-1">
+              <span className="font-semibold">Is Authenticated:</span>
+              <span>{isAuthenticated ? 'Yes' : 'No'}</span>
+              
+              <span className="font-semibold">MSAL Initialized:</span>
+              <span>{authStatus?.isInitialized ? 'Yes' : 'No'}</span>
+              
+              <span className="font-semibold">Has Accounts:</span>
+              <span>{authStatus?.hasAccounts ? `Yes (${authStatus?.accountCount})` : 'No'}</span>
+              
+              <span className="font-semibold">Active Account:</span>
+              <span>{authStatus?.activeAccount ? authStatus.activeAccount.username : 'None'}</span>
+              
+              <span className="font-semibold">Redirect URI:</span>
+              <span>{msGraphConfig?.redirectUri || 'Not set'}</span>
+              
+              <span className="font-semibold">Last Error:</span>
+              <span className="text-red-500">{lastError || 'None'}</span>
+            </div>
+            
+            <div>
+              <span className="font-semibold">Full Auth Status:</span>
+              <pre className="mt-1 text-xs overflow-auto max-h-[100px] bg-gray-100 p-1 rounded">
+                {JSON.stringify(authStatus, null, 2)}
+              </pre>
+            </div>
+            
+            <Button size="sm" variant="outline" onClick={updateAuthStatus} className="w-full mt-2">
+              Refresh Status
+            </Button>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
@@ -290,29 +362,32 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       )}
 
       {!isAuthenticated ? (
-        <Card className="p-6">
-          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <Cloud className="h-16 w-16 text-blue-500" />
-            <h3 className="text-lg font-semibold">Connect to Microsoft OneDrive</h3>
-            <p className="text-center text-sm text-muted-foreground max-w-md">
-              Connect to your Microsoft account to access OneDrive and select where to store your unit data.
-            </p>
-            <Button 
-              onClick={handleAuthenticate} 
-              className="mt-4"
-              disabled={isAuthenticating}
-            >
-              {isAuthenticating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>Connect to OneDrive</>
-              )}
-            </Button>
-          </div>
-        </Card>
+        <>
+          <Card className="p-6">
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              <Cloud className="h-16 w-16 text-blue-500" />
+              <h3 className="text-lg font-semibold">Connect to Microsoft OneDrive</h3>
+              <p className="text-center text-sm text-muted-foreground max-w-md">
+                Connect to your Microsoft account to access OneDrive and select where to store your unit data.
+              </p>
+              <Button 
+                onClick={handleAuthenticate} 
+                className="mt-4"
+                disabled={isAuthenticating}
+              >
+                {isAuthenticating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>Connect to OneDrive</>
+                )}
+              </Button>
+            </div>
+          </Card>
+          {renderDiagnostics()}
+        </>
       ) : (
         <div className="space-y-4">
           {/* Breadcrumb navigation */}
@@ -414,6 +489,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               </div>
             )}
           </Card>
+
+          {renderDiagnostics()}
 
           {/* Actions */}
           <div className="space-y-4">

@@ -12,7 +12,11 @@ export const microsoftAuthConfig = {
     "Sites.Read.All",
     "Sites.ReadWrite.All"
   ],
-  redirectUri: "http://localhost:3000/",
+  redirectUri: typeof window !== 'undefined' 
+    ? window.location.origin.includes('localhost') 
+      ? "http://localhost:3000/" 
+      : "https://unitopia-hub.vercel.app/"
+    : "https://unitopia-hub.vercel.app/",
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,
   last_confirmed: "2025-04-07T08:19:35.145Z"
