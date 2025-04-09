@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
 
 interface Objective {
   id: string;
-  title: string;
-  kpis: string[];
-  tasks: string[];
+  name: string;
+  status: string;
+  assignee: string;
+  duration: string;
+  kpis: KPI[];
+}
+
+interface KPI {
+  id: string;
+  name: string;
+  status: string;
+  assignee: string;
+  duration: string;
 }
 
 interface ObjectivesSetupProps {
@@ -18,195 +28,225 @@ interface ObjectivesSetupProps {
 }
 
 export const ObjectivesSetup: React.FC<ObjectivesSetupProps> = ({ onComplete }) => {
-  const { toast } = useToast();
-  const [objectives, setObjectives] = useState<Objective[]>([
-    { id: '1', title: '', kpis: [''], tasks: [''] }
-  ]);
+  const [objectives, setObjectives] = useState<Objective[]>([]);
 
-  const handleAddObjective = () => {
-    setObjectives([
-      ...objectives,
-      {
-        id: Date.now().toString(),
-        title: '',
-        kpis: [''],
-        tasks: ['']
-      }
-    ]);
+  const addObjective = () => {
+    const newObjective: Objective = {
+      id: Date.now().toString(),
+      name: '',
+      status: 'Not Started',
+      assignee: '',
+      duration: '',
+      kpis: []
+    };
+    setObjectives([...objectives, newObjective]);
   };
 
-  const handleRemoveObjective = (id: string) => {
-    if (objectives.length > 1) {
-      setObjectives(objectives.filter(obj => obj.id !== id));
-    }
+  const removeObjective = (id: string) => {
+    setObjectives(objectives.filter(obj => obj.id !== id));
   };
 
-  const handleUpdateObjective = (id: string, field: keyof Objective, value: any) => {
-    setObjectives(objectives.map(obj => {
-      if (obj.id === id) {
-        return { ...obj, [field]: value };
-      }
-      return obj;
-    }));
+  const addKPI = (objectiveId: string) => {
+    const newKPI: KPI = {
+      id: Date.now().toString(),
+      name: '',
+      status: 'Not Started',
+      assignee: '',
+      duration: ''
+    };
+    setObjectives(objectives.map(obj => 
+      obj.id === objectiveId 
+        ? { ...obj, kpis: [...obj.kpis, newKPI] }
+        : obj
+    ));
   };
 
-  const handleAddKPI = (objectiveId: string) => {
-    setObjectives(objectives.map(obj => {
-      if (obj.id === objectiveId) {
-        return { ...obj, kpis: [...obj.kpis, ''] };
-      }
-      return obj;
-    }));
+  const removeKPI = (objectiveId: string, kpiId: string) => {
+    setObjectives(objectives.map(obj => 
+      obj.id === objectiveId 
+        ? { ...obj, kpis: obj.kpis.filter(kpi => kpi.id !== kpiId) }
+        : obj
+    ));
   };
 
-  const handleRemoveKPI = (objectiveId: string, index: number) => {
-    setObjectives(objectives.map(obj => {
-      if (obj.id === objectiveId) {
-        const newKpis = [...obj.kpis];
-        newKpis.splice(index, 1);
-        return { ...obj, kpis: newKpis };
-      }
-      return obj;
-    }));
+  const updateObjective = (id: string, field: keyof Objective, value: string) => {
+    setObjectives(objectives.map(obj => 
+      obj.id === id 
+        ? { ...obj, [field]: value }
+        : obj
+    ));
   };
 
-  const handleAddTask = (objectiveId: string) => {
-    setObjectives(objectives.map(obj => {
-      if (obj.id === objectiveId) {
-        return { ...obj, tasks: [...obj.tasks, ''] };
-      }
-      return obj;
-    }));
-  };
-
-  const handleRemoveTask = (objectiveId: string, index: number) => {
-    setObjectives(objectives.map(obj => {
-      if (obj.id === objectiveId) {
-        const newTasks = [...obj.tasks];
-        newTasks.splice(index, 1);
-        return { ...obj, tasks: newTasks };
-      }
-      return obj;
-    }));
+  const updateKPI = (objectiveId: string, kpiId: string, field: keyof KPI, value: string) => {
+    setObjectives(objectives.map(obj => 
+      obj.id === objectiveId 
+        ? {
+            ...obj,
+            kpis: obj.kpis.map(kpi =>
+              kpi.id === kpiId
+                ? { ...kpi, [field]: value }
+                : kpi
+            )
+          }
+        : obj
+    ));
   };
 
   const handleComplete = () => {
-    // Validate that all required fields are filled
-    const isValid = objectives.every(obj => 
-      obj.title.trim() !== '' && 
-      obj.kpis.some(kpi => kpi.trim() !== '') &&
-      obj.tasks.some(task => task.trim() !== '')
-    );
-
-    if (isValid) {
-      onComplete(objectives);
-    } else {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-    }
+    onComplete(objectives);
   };
 
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Configure Objectives</h3>
+        <h3 className="text-lg font-semibold">Configure Objectives and KRAs</h3>
         <p className="text-sm text-muted-foreground">
-          Define your unit's objectives, KPIs, and associated tasks
+          Add your objectives and their associated KRAs. All fields are optional.
         </p>
       </div>
 
       <div className="space-y-4">
-        {objectives.map((objective, index) => (
+        {objectives.map((objective) => (
           <Card key={objective.id} className="p-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Objective {index + 1}</Label>
-                {objectives.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveObjective(objective.id)}
+                <h4 className="font-medium">Objective</h4>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeObjective(objective.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor={`name-${objective.id}`}>Name</Label>
+                  <Input
+                    id={`name-${objective.id}`}
+                    value={objective.name}
+                    onChange={(e) => updateObjective(objective.id, 'name', e.target.value)}
+                    placeholder="Enter objective name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={`status-${objective.id}`}>Status</Label>
+                  <Select
+                    value={objective.status}
+                    onValueChange={(value) => updateObjective(objective.id, 'status', value)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Not Started">Not Started</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={`assignee-${objective.id}`}>Assignee</Label>
+                  <Input
+                    id={`assignee-${objective.id}`}
+                    value={objective.assignee}
+                    onChange={(e) => updateObjective(objective.id, 'assignee', e.target.value)}
+                    placeholder="Enter assignee"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={`duration-${objective.id}`}>Duration</Label>
+                  <Input
+                    id={`duration-${objective.id}`}
+                    value={objective.duration}
+                    onChange={(e) => updateObjective(objective.id, 'duration', e.target.value)}
+                    placeholder="Enter duration"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h5 className="font-medium">KRAs</h5>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addKPI(objective.id)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add KRA
                   </Button>
-                )}
-              </div>
+                </div>
 
-              <Input
-                placeholder="Enter objective title"
-                value={objective.title}
-                onChange={(e) => handleUpdateObjective(objective.id, 'title', e.target.value)}
-              />
+                {objective.kpis.map((kpi) => (
+                  <Card key={kpi.id} className="p-3">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h6 className="font-medium">KRA</h6>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeKPI(objective.id, kpi.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-              <div className="space-y-2">
-                <Label>KPIs</Label>
-                {objective.kpis.map((kpi, kpiIndex) => (
-                  <div key={kpiIndex} className="flex gap-2">
-                    <Input
-                      placeholder="Enter KPI"
-                      value={kpi}
-                      onChange={(e) => {
-                        const newKpis = [...objective.kpis];
-                        newKpis[kpiIndex] = e.target.value;
-                        handleUpdateObjective(objective.id, 'kpis', newKpis);
-                      }}
-                    />
-                    {objective.kpis.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveKPI(objective.id, kpiIndex)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`kpi-name-${kpi.id}`}>Name</Label>
+                          <Input
+                            id={`kpi-name-${kpi.id}`}
+                            value={kpi.name}
+                            onChange={(e) => updateKPI(objective.id, kpi.id, 'name', e.target.value)}
+                            placeholder="Enter KRA name"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`kpi-status-${kpi.id}`}>Status</Label>
+                          <Select
+                            value={kpi.status}
+                            onValueChange={(value) => updateKPI(objective.id, kpi.id, 'status', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Not Started">Not Started</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`kpi-assignee-${kpi.id}`}>Assignee</Label>
+                          <Input
+                            id={`kpi-assignee-${kpi.id}`}
+                            value={kpi.assignee}
+                            onChange={(e) => updateKPI(objective.id, kpi.id, 'assignee', e.target.value)}
+                            placeholder="Enter assignee"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`kpi-duration-${kpi.id}`}>Duration</Label>
+                          <Input
+                            id={`kpi-duration-${kpi.id}`}
+                            value={kpi.duration}
+                            onChange={(e) => updateKPI(objective.id, kpi.id, 'duration', e.target.value)}
+                            placeholder="Enter duration"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
                 ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAddKPI(objective.id)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add KPI
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tasks</Label>
-                {objective.tasks.map((task, taskIndex) => (
-                  <div key={taskIndex} className="flex gap-2">
-                    <Input
-                      placeholder="Enter task"
-                      value={task}
-                      onChange={(e) => {
-                        const newTasks = [...objective.tasks];
-                        newTasks[taskIndex] = e.target.value;
-                        handleUpdateObjective(objective.id, 'tasks', newTasks);
-                      }}
-                    />
-                    {objective.tasks.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveTask(objective.id, taskIndex)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAddTask(objective.id)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Task
-                </Button>
               </div>
             </div>
           </Card>
@@ -214,18 +254,25 @@ export const ObjectivesSetup: React.FC<ObjectivesSetupProps> = ({ onComplete }) 
 
         <Button
           variant="outline"
-          onClick={handleAddObjective}
           className="w-full"
+          onClick={addObjective}
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Another Objective
+          Add Objective
         </Button>
+      </div>
 
+      <div className="flex justify-between pt-4">
+        <Button
+          variant="outline"
+          onClick={() => onComplete([])}
+        >
+          Skip
+        </Button>
         <Button
           onClick={handleComplete}
-          className="w-full"
         >
-          Complete Setup
+          Continue
         </Button>
       </div>
     </div>

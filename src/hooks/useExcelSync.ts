@@ -24,10 +24,11 @@ export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
   const { createExcelFile, readExcelFile, updateExcelFile, getExcelSheets } = useMicrosoftGraph();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasAttemptedInit, setHasAttemptedInit] = useState(false);
 
   // Initialize Excel file if it doesn't exist
   const initializeExcelFile = useCallback(async () => {
-    if (!config || config.fileId) return;
+    if (!config || config.fileId || hasAttemptedInit) return;
 
     setIsLoading(true);
     setError(null);
@@ -53,8 +54,9 @@ export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
       toast.error('Failed to initialize Excel file');
     } finally {
       setIsLoading(false);
+      setHasAttemptedInit(true);
     }
-  }, [config, createExcelFile, onConfigChange]);
+  }, [config, createExcelFile, onConfigChange, hasAttemptedInit]);
 
   // Load data from Excel file
   const loadDataFromExcel = useCallback(async () => {
@@ -163,10 +165,10 @@ export const useExcelSync = ({ config, onConfigChange }: UseExcelSyncProps) => {
 
   // Initialize Excel file on mount if needed
   useEffect(() => {
-    if (config && !config.fileId) {
+    if (config && !config.fileId && !hasAttemptedInit) {
       initializeExcelFile();
     }
-  }, [config, initializeExcelFile]);
+  }, [config, initializeExcelFile, hasAttemptedInit]);
 
   return {
     isLoading,

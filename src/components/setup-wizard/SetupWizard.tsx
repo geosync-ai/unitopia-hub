@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { OneDriveSetup } from '@/components/setup-wizard/steps/OneDriveSetup';
 import { SetupMethod } from '@/components/setup-wizard/steps/SetupMethod';
 import { ObjectivesSetup } from '@/components/setup-wizard/steps/ObjectivesSetup';
+import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useExcelSync } from '@/hooks/useExcelSync';
 import { Loader2, Cloud, FileSpreadsheet, Database } from 'lucide-react';
@@ -58,8 +59,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [progress, setProgress] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
+  const [tempObjectives, setTempObjectives] = useState<any[]>([]);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   // Use the Excel sync hook with props
   // console.log('SetupWizard before useExcelSync - setupState:', setupState);
@@ -80,6 +82,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setProgress(0);
       setIsProcessing(false);
       setSelectedSetupType(null);
+      setTempObjectives([]);
       setIsInitialized(true);
     }
   }, [isOpen, isInitialized]);
@@ -136,10 +139,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
     }
-  }, [currentStep, totalSteps, handleComplete]);
+  }, [currentStep, totalSteps]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 0) {
@@ -169,6 +170,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setCurrentStep(1);
     }
   }, [setSetupMethod, toast]); // Update dependencies
+
+  const handleObjectivesComplete = useCallback((objectives: any[]) => {
+    setTempObjectives(objectives);
+    setCurrentStep(4); // Move to summary step
+  }, []);
+
+  const handleSummaryComplete = useCallback(() => {
+    if (setObjectives) {
+      setObjectives(tempObjectives);
+    }
+    handleComplete();
+  }, [tempObjectives, setObjectives, handleComplete]);
 
   const renderInitialSelection = () => {
     // console.log('SetupWizard rendering renderInitialSelection - setupState:', setupState);
@@ -325,12 +338,16 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       case 3:
         return (
           <ObjectivesSetup
-            onComplete={(objectives) => {
-              if (setObjectives) { // Use prop
-                setObjectives(objectives);
-                handleComplete();
-              }
-            }}
+            onComplete={handleObjectivesComplete}
+          />
+        );
+      case 4:
+        return (
+          <SetupSummary
+            oneDriveConfig={oneDriveConfig}
+            objectives={tempObjectives}
+            onComplete={handleSummaryComplete}
+            onBack={handleBack}
           />
         );
       default:
