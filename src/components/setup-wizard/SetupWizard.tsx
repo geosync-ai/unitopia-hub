@@ -70,6 +70,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [tempObjectives, setTempObjectives] = useState<any[]>([]);
   const [tempKPIs, setTempKPIs] = useState<any[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
+  
+  // Add the useMicrosoftGraph hook at the component level
+  const { createExcelFile } = useMicrosoftGraph();
 
   // Updated total steps to include KPI setup
   const totalSteps = 7;
@@ -272,8 +275,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         sessionStorage.removeItem(sessionKey);
         
         try {
-          // Directly call the createExcelFile function from useMicrosoftGraph
-          const { createExcelFile } = useMicrosoftGraph();
+          // Use the createExcelFile function from the hook at component level
           const excelFile = await createExcelFile(excelConfig.fileName, excelConfig.folderId);
           
           if (!excelFile) {
@@ -337,7 +339,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData, updateExcelConfig]);
+  }, [excelConfig, handleSetupCompleteFromHook, onComplete, onClose, saveDataToExcel, loadDataFromExcel, toast, tempObjectives, tempKPIs, updateExcelConfigWithData, updateExcelConfig, createExcelFile]);
 
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
