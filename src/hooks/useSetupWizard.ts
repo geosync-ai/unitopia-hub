@@ -107,28 +107,28 @@ export const useSetupWizard = ({
     // Tasks sheet
     sheets.tasks = {
       name: 'Tasks',
-      headers: ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName', 'completionPercentage'],
+      headers: ['id', 'title', 'status', 'priority', 'assignee', 'dueDate', 'projectName'],
       data: taskState?.tasks || []
     };
 
     // Projects sheet
     sheets.projects = {
       name: 'Projects',
-      headers: ['id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'budget', 'budgetSpent', 'progress'],
+      headers: ['id', 'name', 'status', 'manager', 'startDate', 'endDate', 'budget', 'progress'],
       data: projectState?.projects || []
     };
 
     // Risks sheet
     sheets.risks = {
       name: 'Risks',
-      headers: ['id', 'title', 'description', 'impact', 'likelihood', 'status', 'category', 'projectId', 'projectName', 'owner', 'createdAt', 'updatedAt'],
+      headers: ['id', 'title', 'projectName', 'impact', 'likelihood', 'status', 'owner', 'updatedAt'],
       data: riskState?.risks || []
     };
 
     // Assets sheet
     sheets.assets = {
       name: 'Assets',
-      headers: ['id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes'],
+      headers: ['id', 'name', 'type', 'assignedTo', 'department', 'serialNumber', 'purchaseDate', 'warrantyExpiry', 'status'],
       data: assetState?.assets || []
     };
 
@@ -136,21 +136,27 @@ export const useSetupWizard = ({
     sheets.kras = {
       name: 'KRAs',
       headers: ['id', 'name', 'objectiveId', 'objectiveName', 'department', 'responsible', 'startDate', 'endDate', 'progress', 'status', 'createdAt', 'updatedAt'],
-      data: kraState?.kras || []
+      data: objectives.map((kraInput: any) => ({
+        id: kraInput.id, 
+        name: kraInput.name,
+        objectiveId: '',
+        objectiveName: '',
+        department: kraInput.department,
+        responsible: kraInput.responsible,
+        startDate: kraInput.startDate,
+        endDate: kraInput.endDate,
+        progress: 0,
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
     };
 
     // KPIs sheet
     sheets.kpis = {
       name: 'KPIs',
-      headers: ['id', 'name', 'date', 'startDate', 'target', 'actual', 'status', 'description', 'notes', 'kraId'],
+      headers: ['id', 'name', 'startDate', 'date', 'target', 'actual', 'status', 'kraId'],
       data: []
-    };
-
-    // Objectives sheet
-    sheets.objectives = {
-      name: 'Objectives',
-      headers: ['id', 'title'],
-      data: objectives.map(obj => ({ id: obj.id, title: obj.title }))
     };
 
     return {
@@ -158,7 +164,7 @@ export const useSetupWizard = ({
       fileName: 'UnitopiaHub_Data.xlsx',
       sheets
     };
-  }, [oneDriveConfig, objectives, taskState?.tasks, projectState?.projects, riskState?.risks, assetState?.assets, kraState?.kras]);
+  }, [oneDriveConfig, objectives, taskState?.tasks, projectState?.projects, riskState?.risks, assetState?.assets]);
 
   // Update Excel config when setup method or objectives change
   const updateExcelConfig = useCallback(() => {
