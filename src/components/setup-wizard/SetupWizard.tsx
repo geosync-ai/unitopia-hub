@@ -21,7 +21,7 @@ import { useCsvSync } from '@/hooks/useCsvSync';
 import { 
   Loader2, Cloud, FileText, Database, Check, AlertTriangle, 
   RefreshCw, FolderPlus, Edit, Trash2, Folder, ArrowUp, Image, 
-  FileIcon, Home, ChevronLeft, FolderOpen
+  FileIcon, Home, ChevronLeft, FolderOpen, AlertCircle
 } from 'lucide-react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
@@ -765,6 +765,45 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
+  // Error boundary component to catch rendering errors
+  const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+    const [hasError, setHasError] = useState(false);
+    
+    useEffect(() => {
+      const handleError = (event: ErrorEvent) => {
+        console.error("Error caught by error handler:", event);
+        if (event.error && event.error.toString().includes("is not a function")) {
+          setHasError(true);
+          event.preventDefault(); // Prevent the error from bubbling up
+        }
+      };
+      
+      window.addEventListener('error', handleError);
+      return () => window.removeEventListener('error', handleError);
+    }, []);
+    
+    if (hasError) {
+      return (
+        <div className="border rounded-lg p-4 bg-red-50 text-red-800">
+          <h4 className="font-semibold mb-2">Error displaying content</h4>
+          <p>There was a problem rendering the content. Please try refreshing the page.</p>
+          <div className="mt-4 flex space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Page
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    return <>{children}</>;
+  };
+
   // Create a simplified OneDrive setup component
   const SimplifiedOneDriveSetup = ({ onComplete }) => {
     const { isAuthenticated, loginWithMicrosoft } = useAuth();
@@ -792,10 +831,46 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     
     // Fetch OneDrive documents when authenticated
     useEffect(() => {
+      // Define a safe function to fetch folders that handles errors properly
+      const safeFetchFolders = async () => {
+        if (!isAuthenticated) {
+          console.log("Not authenticated yet, skipping folder fetch");
+          return;
+        }
+        
+        // If we're already loading, don't start another fetch
+        if (isLoading) {
+          console.log("Already loading folders, skipping duplicate fetch");
+          return;
+        }
+        
+        try {
+          console.log("Attempting to fetch OneDrive folders (authenticated)");
+          await fetchOneDriveFolders();
+        } catch (error) {
+          console.error("Error in useEffect folder fetch:", error);
+          // Errors are already handled in fetchOneDriveFolders
+        }
+      };
+      
+      // Only fetch folders if authenticated and not loading
       if (isAuthenticated && !isLoading) {
-        fetchOneDriveFolders();
+        // Add a small delay to ensure authentication is complete
+        const timer = setTimeout(() => {
+          safeFetchFolders();
+        }, 1000); 
+        
+        return () => clearTimeout(timer);
       }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isLoading]); // Don't include fetchOneDriveFolders as it's defined in this component
+    
+    // Add useEffect to handle auth error recovery
+    useEffect(() => {
+      // If we have an auth error, log it for debugging
+      if (authError) {
+        console.error("Authentication error detected:", authError);
+      }
+    }, [authError]);
     
     // Handle Microsoft authentication
     const handleAuthenticate = async () => {
@@ -804,15 +879,48 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setAuthError(null);
         setFolderError(null);
         
+        console.log("Starting Microsoft authentication process");
         await loginWithMicrosoft();
+        
+        // Check if authentication was successful by polling for user status
+        let authCheckAttempts = 0;
+        const maxAuthCheckAttempts = 10;
+        
+        const checkAuthStatus = () => {
+          return new Promise<boolean>((resolve) => {
+            const checkInterval = setInterval(() => {
+              authCheckAttempts++;
+              console.log(`Checking auth status (attempt ${authCheckAttempts}/${maxAuthCheckAttempts})...`);
+              
+              if (isAuthenticated) {
+                console.log("Authentication successful!");
+                clearInterval(checkInterval);
+                resolve(true);
+              } else if (authCheckAttempts >= maxAuthCheckAttempts) {
+                console.log("Authentication check timed out");
+                clearInterval(checkInterval);
+                resolve(false);
+              }
+            }, 1000);
+          });
+        };
+        
         toast({ 
           title: "Microsoft Authentication",
           description: "Login initiated. You'll be redirected to Microsoft to sign in.",
           duration: 5000
         });
+        
+        // Wait for auth to complete
+        const authSuccessful = await checkAuthStatus();
+        
+        if (!authSuccessful) {
+          console.warn("Authentication process may not have completed properly");
+          // Don't throw an error here - we'll try to continue anyway as the auth might be in progress
+        }
       } catch (error) {
         console.error("Authentication error:", error);
-        setAuthError(error.message || "Failed to start authentication");
+        setAuthError(error?.message || "Failed to start authentication");
         toast({
           title: "Authentication Failed",
           description: "Unable to connect to Microsoft. Try again or use local storage.",
@@ -823,6 +931,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         // Give time for redirects
         setTimeout(() => {
           setIsAuthenticating(false);
+          // Try fetching folders again if authenticated
+          if (isAuthenticated) {
+            console.log("Authentication complete, fetching folders");
+            // We don't call fetchOneDriveFolders directly here as it might create a loop
+          }
         }, 2000);
       }
     };
@@ -833,51 +946,94 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setIsLoading(true);
         setFolderError(null);
         
-        let docs;
-        if (folderId) {
-          // Get contents of a specific folder
-          docs = await getFolderContents(folderId, 'OneDrive');
-          
-          // If this is a new folder navigation (not a refresh of current), update the path
-          if (folderId !== currentFolderId) {
-            // Find the current folder in the list to get its name
-            const folder = folders.find(f => f.id === folderId);
-            if (folder) {
-              // Add this folder to the path
-              setFolderPath(prev => [...prev, { id: folderId, name: folder.name }]);
-            }
-          }
-          
-          // Update current folder ID
-          setCurrentFolderId(folderId);
-        } else {
-          // Get root folders
-          docs = await getOneDriveDocuments();
-          
-          // Reset path when navigating to root
-          setFolderPath([]);
-          setCurrentFolderId(null);
+        // Check authentication status first
+        if (!isAuthenticated) {
+          console.log("User not authenticated, attempting authentication first");
+          await handleAuthenticate();
+          // After authentication completes, we'll continue with the fetch below
         }
         
-        if (docs) {
+        let docs;
+        try {
+          if (folderId) {
+            // Get contents of a specific folder
+            console.log(`Fetching contents of folder: ${folderId}`);
+            docs = await getFolderContents(folderId, 'OneDrive');
+            
+            // If this is a new folder navigation (not a refresh of current), update the path
+            if (folderId !== currentFolderId) {
+              // Find the current folder in the list to get its name
+              const folder = folders.find(f => f.id === folderId);
+              if (folder) {
+                // Add this folder to the path
+                setFolderPath(prev => [...prev, { id: folderId, name: folder.name }]);
+              }
+            }
+            
+            // Update current folder ID
+            setCurrentFolderId(folderId);
+          } else {
+            // Get root folders
+            console.log("Fetching root folders from OneDrive");
+            docs = await getOneDriveDocuments();
+            
+            // Reset path when navigating to root
+            setFolderPath([]);
+            setCurrentFolderId(null);
+          }
+        } catch (fetchError) {
+          console.error("Error during folder fetch operation:", fetchError);
+          throw fetchError; // Re-throw to be caught by the outer try-catch
+        }
+        
+        if (docs && Array.isArray(docs)) {
+          console.log(`Retrieved ${docs.length} documents, filtering folders only`);
           // Filter to only show folders
           const onlyFolders = docs.filter(doc => doc.isFolder);
+          console.log(`Found ${onlyFolders.length} folders`);
           setFolders(onlyFolders);
           
           // Clear any previous error once we successfully fetch folders
           setFolderError(null);
         } else {
+          console.error("No documents returned or invalid response format", docs);
           const errorMessage = lastError || "Could not retrieve OneDrive folders. Please try again.";
           setFolderError(errorMessage);
           
           // If still authenticated but no folders returned, log a more detailed error
           if (isAuthenticated) {
             console.error("Failed to fetch OneDrive folders despite being authenticated. Error:", lastError);
+            
+            // Try to recover by setting up an empty folder list instead of failing
+            setFolders([]);
+            toast({
+              title: "OneDrive Connection Issue",
+              description: "Could not retrieve folders. You can create a new folder or try again.",
+              duration: 5000
+            });
           }
         }
       } catch (error) {
         console.error("Error fetching OneDrive folders:", error);
-        setFolderError(`Error: ${error.message || 'Unknown error'}`);
+        setFolderError(`Error: ${error?.message || 'Unknown error'}`);
+        
+        // Try to get a more detailed diagnostic about the error
+        if (error instanceof Error) {
+          console.error("Error details:", {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+        } else {
+          console.error("Non-error object thrown:", error);
+        }
+        
+        toast({
+          title: "OneDrive Error",
+          description: "There was a problem connecting to OneDrive. You can try again or use local storage.",
+          variant: "destructive",
+          duration: 5000
+        });
       } finally {
         setIsLoading(false);
       }
@@ -1132,8 +1288,31 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       );
     };
 
-    // Render the folder list
+    // Render the folder list with error boundary
     const renderFolderList = () => {
+      // Ensure folders is an array before proceeding
+      if (!folders || !Array.isArray(folders)) {
+        console.error("Folders is not an array:", folders);
+        return (
+          <div className="text-center p-6 border rounded-lg bg-red-50">
+            <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-2" />
+            <p className="text-red-600 font-medium">Invalid folder data</p>
+            <p className="text-sm text-red-500 mt-1">There was a problem loading folder data</p>
+            <div className="mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRetryFolderFetch}
+                className="mx-auto flex items-center"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        );
+      }
+      
       if (folders.length === 0) {
         return (
           <div className="text-center p-6 border rounded-lg bg-gray-50">
@@ -1158,83 +1337,106 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         );
       }
       
-      return (
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
-            <div className="flex items-center">
-              {folderPath.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mr-2 p-1"
-                  onClick={navigateUp}
-                  title="Go up one level"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <h5 className="font-medium text-sm">
-                {folderPath.length > 0 
-                  ? `${folderPath[folderPath.length - 1].name}`
-                  : 'OneDrive Root'}
-              </h5>
-            </div>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              onClick={() => fetchOneDriveFolders(currentFolderId || undefined)}
-              disabled={isLoading}
-              title="Refresh"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-          
-          {folderPath.length > 0 && renderFolderPath()}
-          
-          <div className="max-h-[220px] overflow-y-auto">
-            {folders.map((folder) => (
-              <div
-                key={folder.id}
-                className={`flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer ${
-                  selectedFolder?.id === folder.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                }`}
-                onClick={() => handleSelectFolder(folder)}
-                onDoubleClick={() => navigateToFolder(folder)}
-              >
-                <div className="flex items-center">
-                  <Folder className="h-5 w-5 mr-2 text-blue-500" />
-                  <span>{folder.name}</span>
-                </div>
-                <div className="flex items-center">
+      // Ensure we can safely iterate over folders
+      try {
+        return (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
+              <div className="flex items-center">
+                {folderPath.length > 0 && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigateToFolder(folder);
-                    }}
-                    title="Open folder"
+                    className="mr-2 p-1"
+                    onClick={navigateUp}
+                    title="Go up one level"
                   >
-                    <FolderOpen className="h-4 w-4 text-blue-500" />
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFolder(folder);
-                    }}
-                    title="Delete folder"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
+                )}
+                <h5 className="font-medium text-sm">
+                  {folderPath.length > 0 
+                    ? `${folderPath[folderPath.length - 1].name}`
+                    : 'OneDrive Root'}
+                </h5>
               </div>
-            ))}
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => fetchOneDriveFolders(currentFolderId || undefined)}
+                disabled={isLoading}
+                title="Refresh"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+            
+            {folderPath.length > 0 && renderFolderPath()}
+            
+            <div className="max-h-[220px] overflow-y-auto">
+              {folders.map((folder) => folder && (
+                <div
+                  key={folder.id || `folder-${Math.random()}`}
+                  className={`flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer ${
+                    selectedFolder?.id === folder.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                  }`}
+                  onClick={() => handleSelectFolder(folder)}
+                  onDoubleClick={() => navigateToFolder(folder)}
+                >
+                  <div className="flex items-center">
+                    <Folder className="h-5 w-5 mr-2 text-blue-500" />
+                    <span>{folder.name || 'Unnamed Folder'}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigateToFolder(folder);
+                      }}
+                      title="Open folder"
+                    >
+                      <FolderOpen className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFolder(folder);
+                      }}
+                      title="Delete folder"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      );
+        );
+      } catch (error) {
+        console.error("Error rendering folder list:", error);
+        return (
+          <div className="text-center p-6 border rounded-lg bg-red-50">
+            <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-2" />
+            <p className="text-red-600 font-medium">Error rendering folders</p>
+            <p className="text-sm text-red-500 mt-1">{error?.message || 'Unknown rendering error'}</p>
+            <div className="mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRetryFolderFetch}
+                className="mx-auto flex items-center"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        );
+      }
     };
     
     // Render delete confirmation dialog
@@ -1396,7 +1598,25 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 </div>
               </Card>
             ) : (
-              renderFolderList()
+              <ErrorBoundary>
+                {typeof renderFolderList === 'function' ? renderFolderList() : (
+                  <div className="text-center p-6 border rounded-lg bg-gray-50">
+                    <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-2" />
+                    <p className="text-gray-500">Error rendering folder list</p>
+                    <div className="mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleRetryFolderFetch}
+                        className="mx-auto flex items-center"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </ErrorBoundary>
             )}
             
             {/* Create New Folder - only show when no error or we have folders */}
