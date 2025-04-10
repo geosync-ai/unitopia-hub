@@ -731,6 +731,13 @@ export const useMicrosoftGraph = () => {
       
       console.log('Creating CSV file:', fileName, 'in folder:', folderId);
       
+      // Validate the folder ID
+      if (!folderId) {
+        console.warn('No folder ID provided, file will be created in the root folder');
+      } else {
+        console.log('Parent folder ID validated:', folderId);
+      }
+      
       const response = await msalInstance.acquireTokenSilent({
         scopes: ['Files.ReadWrite.All']
       });
@@ -740,7 +747,7 @@ export const useMicrosoftGraph = () => {
         ? `${baseEndpoint}/items/${folderId}/children`
         : `${baseEndpoint}/root/children`;
 
-      console.log('Using endpoint:', endpoint);
+      console.log('Using Graph API endpoint:', endpoint);
 
       // Create an empty CSV file with proper content type
       const result = await fetch(endpoint, {
@@ -761,14 +768,21 @@ export const useMicrosoftGraph = () => {
       if (!result.ok) {
         const errorText = await result.text();
         console.error('Failed to create CSV file:', result.status, result.statusText, errorText);
+        
+        // Check specifically for folder not found errors
+        if (result.status === 404) {
+          throw new Error(`Folder not found (${folderId}). Please select a valid folder.`);
+        }
+        
         throw new Error(`Failed to create CSV file: ${result.statusText} - ${errorText}`);
       }
 
       const data = await result.json();
-      console.log('CSV file created with ID:', data.id);
+      console.log('CSV file created successfully with ID:', data.id, 'Name:', data.name, 'in folder:', folderId);
       
       // If initial content is provided, update the file with it
       if (initialContent) {
+        console.log('Updating CSV file with initial content, length:', initialContent.length);
         await updateCsvFile(data.id, initialContent);
       }
 
@@ -780,7 +794,7 @@ export const useMicrosoftGraph = () => {
       };
     } catch (error) {
       console.error('Error creating CSV file:', error);
-      toast.error('Failed to create CSV file');
+      toast.error(`Failed to create CSV file: ${error.message}`);
       throw error;
     }
   };

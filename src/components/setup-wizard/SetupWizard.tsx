@@ -443,6 +443,19 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         try {
           const fileIds: Record<string, string> = {};
           
+          // Ensure the folder ID is correctly set
+          console.log('OneDrive folder ID for CSV creation:', updatedConfig.folderId);
+          
+          // Double-check that we have a folder ID from oneDriveConfig
+          if (!updatedConfig.folderId && oneDriveConfig && oneDriveConfig.folderId) {
+            console.log('Using folder ID from oneDriveConfig:', oneDriveConfig.folderId);
+            updatedConfig.folderId = oneDriveConfig.folderId;
+          }
+          
+          if (!updatedConfig.folderId) {
+            throw new Error('No folder ID found for CSV file creation');
+          }
+          
           // Ensure updatedConfig has proper typing
           const typedConfig = updatedConfig as {
             folderId: string;
@@ -450,13 +463,27 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             data: Record<string, { headers: string[] }>;
           };
           
+          // Setup file names if not already defined
+          if (!typedConfig.fileNames || Object.keys(typedConfig.fileNames).length === 0) {
+            console.log('No file names defined, setting up default file names');
+            typedConfig.fileNames = {
+              objectives: 'objectives.csv',
+              kras: 'kras.csv',
+              kpis: 'kpis.csv',
+              tasks: 'tasks.csv',
+              projects: 'projects.csv',
+              risks: 'risks.csv',
+              assets: 'assets.csv'
+            };
+          }
+          
           // Update sessionKey to use typed config for consistency
           const typedSessionKey = `csv_init_attempt_${typedConfig.folderId}`;
           sessionStorage.removeItem(typedSessionKey);
           
           // Create CSV files in parallel
           const createFilePromises = Object.entries(typedConfig.fileNames || {}).map(async ([entityType, fileName]) => {
-            console.log(`Creating CSV file for ${entityType}: ${fileName}`);
+            console.log(`Creating CSV file for ${entityType}: ${fileName} in folder ${typedConfig.folderId}`);
             
             // Prepare initial content with headers
             const headers = typedConfig.data[entityType]?.headers || [];
@@ -466,6 +493,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               // Create the CSV file with properly typed folderId
               let csvFile;
               try {
+                // Log the exact call parameters for debugging
+                console.log('Creating CSV file with params:', {
+                  fileName,
+                  contentLength: initialContent.length,
+                  folderId: typedConfig.folderId
+                });
+                
                 csvFile = await safeCreateCsvFile(
                   fileName,
                   initialContent,
@@ -473,6 +507,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 );
                 
                 if (!csvFile) throw new Error('Failed to create CSV file: No response received');
+                
+                console.log(`Successfully created CSV file for ${entityType}:`, csvFile);
               } catch (fileError) {
                 console.error(`Error creating CSV file for ${entityType}:`, fileError);
                 // Create a mock file as fallback
@@ -522,7 +558,34 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       // Save data to CSV files
       setProgress(60);
       console.log('Saving data to CSV files');
-      await saveDataToCsv();
+      try {
+        // Double-check we have the correct folder ID before proceeding
+        if (!updatedConfig.folderId && oneDriveConfig && oneDriveConfig.folderId) {
+          console.log('Using folder ID from oneDriveConfig for saving data:', oneDriveConfig.folderId);
+          updatedConfig.folderId = oneDriveConfig.folderId;
+        }
+        
+        if (!updatedConfig.folderId) {
+          throw new Error('No folder ID found for saving CSV files');
+        }
+        
+        console.log('CSV configuration for saving:', {
+          folderId: updatedConfig.folderId,
+          folderName: updatedConfig.folderName || oneDriveConfig?.folderName,
+          fileIds: updatedConfig.fileIds ? Object.keys(updatedConfig.fileIds) : 'none'
+        });
+        
+        await saveDataToCsv();
+        console.log('CSV data saved successfully!');
+      } catch (error) {
+        console.error('Error saving data to CSV files:', error);
+        toast({
+          title: "CSV Save Error",
+          description: `Failed to save data: ${error.message}. Please try again.`,
+          variant: "destructive",
+        });
+        throw error;
+      }
       
       // Load data from CSV to verify
       setProgress(80);
@@ -585,7 +648,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     setObjectives,
     setKRAs,
     setKPIs,
-    isUsingLocalStorage
+    isUsingLocalStorage,
+    oneDriveConfig
   ]);
 
   const handleNext = useCallback(() => {
@@ -769,6 +833,28 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } else {
       // Normal OneDrive folder setup
       if (setOneDriveConfig) {
+        // Clear any existing local storage data to prevent old data being sent to OneDrive
+        localStorage.removeItem('unitopia_objectives');
+        localStorage.removeItem('unitopia_kras');
+        localStorage.removeItem('unitopia_kpis');
+        localStorage.removeItem('unitopia_storage_type');
+        
+        // Clear CSV-related storage
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('unitopia_csv_')) {
+            localStorage.removeItem(key);
+          }
+        }
+        
+        // Clear any sessionStorage that might affect CSV operations
+        for (const key of Object.keys(sessionStorage)) {
+          if (key.startsWith('csv_') || key.includes('unitopia')) {
+            sessionStorage.removeItem(key);
+          }
+        }
+        
+        console.log('Cleared all local storage data to prevent old data contamination');
+        
         // Ensure we're using the correct property names from the config
         setOneDriveConfig({ 
           folderId: config.folderId, 
