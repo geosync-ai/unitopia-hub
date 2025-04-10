@@ -597,6 +597,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         console.error('[DEBUG] Error in OneDrive setup initialization:', error);
         // Don't proceed to next step if there's an error
         setSetupError(`OneDrive initialization error: ${error.message || 'Unknown error'}`);
+        
+        // Revert to local storage if OneDrive fails
+        setIsUsingLocalStorage(true);
       }
     } else if (type === 'csv') {
       setSetupMethod('import'); // Import method for CSV
@@ -760,7 +763,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
-  // Add a simple OneDriveSetup component that's easier to implement
+  // Define a simple OneDriveSetup component that's easier to implement
   const SimplifiedOneDriveSetup = ({ onComplete }) => {
     const { isAuthenticated, loginWithMicrosoft } = useAuth();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -770,9 +773,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     const [newFolderName, setNewFolderName] = useState("");
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [selectedFolder, setSelectedFolder] = useState(null);
+    const foldersLoadedRef = useRef(false);
     
     // Handle authentication
     const handleAuthenticate = async () => {
+      if (isAuthenticating) return; // Prevent multiple clicks
+      
       try {
         setIsAuthenticating(true);
         setAuthError(null);
@@ -788,15 +794,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Load folders after authentication
+    // Load folders after authentication - only once
     useEffect(() => {
-      if (isAuthenticated) {
+      if (isAuthenticated && !foldersLoadedRef.current && !isLoadingFolders) {
+        foldersLoadedRef.current = true;
         loadFolders();
       }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isLoadingFolders]);
     
-    // Load folders from OneDrive
+    // Load folders from OneDrive with error handling
     const loadFolders = async () => {
+      if (isLoadingFolders) return; // Prevent multiple calls
+      
       try {
         setIsLoadingFolders(true);
         // Use Microsoft Graph API to get folders
@@ -804,15 +813,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         const documents = await getOneDriveDocuments();
         
         // Filter only folders
-        const folderList = documents.filter(doc => doc.isFolder);
+        const folderList = Array.isArray(documents) 
+          ? documents.filter(doc => doc && doc.isFolder) 
+          : [];
+          
         setFolders(folderList);
       } catch (error) {
         console.error("Error loading folders:", error);
-        toast({
-          title: "Error loading folders",
-          description: error.message || "Could not load folders from OneDrive",
-          variant: "destructive"
-        });
+        setAuthError("Could not load folders from OneDrive. You may need to use local storage instead.");
       } finally {
         setIsLoadingFolders(false);
       }
@@ -1259,7 +1267,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   // Rest of the component (Dialog structure) with updated UI
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose(); // Only call onClose when dialog is being closed
+    }}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-2xl">Unit Setup Wizard</DialogTitle>

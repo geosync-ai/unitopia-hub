@@ -543,25 +543,29 @@ const Unit = () => {
 
   // Initialize data from mock data and setup wizard
   useEffect(() => {
+    // Ensure we only run this once
     if (initializedRef.current) return;
+    initializedRef.current = true;
     
     try {
       // Check if setup is needed - only show wizard if setup is not complete
       const needsSetup = !setupWizard.isSetupComplete && checkSetupNeeded();
       
-      // Only show the wizard if setup is needed and it's not already showing
-      if (needsSetup && !showSetupWizard) {
-        setShowSetupWizard(true);
+      // Only show the wizard if setup is needed
+      if (needsSetup) {
+        // Use a timeout to ensure this runs after initial render
+        setTimeout(() => {
+          setShowSetupWizard(true);
+        }, 100);
       }
       
       setIsLoading(false);
-      initializedRef.current = true;
     } catch (err) {
       console.error("Error initializing data:", err);
       setError("Failed to initialize dashboard data");
       setIsLoading(false);
     }
-  }, [checkSetupNeeded, setupWizard.isSetupComplete, showSetupWizard]);
+  }, []); // Empty dependency array ensures this only runs once
 
   // Handle setup wizard completion
   const handleSetupComplete = useCallback(() => {
