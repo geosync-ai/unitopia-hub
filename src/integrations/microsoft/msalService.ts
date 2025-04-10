@@ -5,149 +5,165 @@ import {
   SilentRequest,
   AccountInfo,
   PublicClientApplication,
-  IPublicClientApplication
+  IPublicClientApplication,
+  InteractionRequiredAuthError
 } from '@azure/msal-browser';
 import { loginRequest } from './msalConfig';
 import microsoftAuthConfig from '@/config/microsoft-auth';
 
-// MSAL instance will be passed to these methods from the MsalProvider
-let msalInstance: IPublicClientApplication | null = null;
+// MSAL instance cache
+let msalInstanceRef: IPublicClientApplication | null = null;
 
-// Set the MSAL instance
+/**
+ * Set the MSAL instance reference
+ */
 export const setMsalInstance = (instance: IPublicClientApplication) => {
-  msalInstance = instance;
-  (window as any).msalInstance = instance;
+  msalInstanceRef = instance;
 };
 
-// Get the MSAL instance
-export const getMsalInstance = () => msalInstance;
-
-// Login with redirect
-export const loginWithRedirect = async (instance: IPublicClientApplication, request: RedirectRequest): Promise<void> => {
-  try {
-    await instance.loginRedirect(request);
-  } catch (error) {
-    console.error('Error logging in with redirect:', error);
-    throw error;
+/**
+ * Get the MSAL instance, either from the reference or the window object (legacy support)
+ */
+export const getMsalInstance = (): IPublicClientApplication | null => {
+  // First try to get the instance from our module-level reference
+  if (msalInstanceRef) {
+    return msalInstanceRef;
   }
-};
-
-// Login with popup
-export const loginWithPopup = async (instance: IPublicClientApplication, request: any): Promise<void> => {
-  try {
-    await instance.loginPopup(request);
-  } catch (error) {
-    console.error('Error logging in with popup:', error);
-    throw error;
+  
+  // Fallback to window for backward compatibility
+  if (typeof window !== 'undefined' && (window as any).msalInstance) {
+    return (window as any).msalInstance;
   }
+  
+  console.error('MSAL instance not found. Make sure MsalProvider is initialized.');
+  return null;
 };
 
-// Get user account
-export const getAccount = (instance: IPublicClientApplication): AccountInfo | null => {
+/**
+ * Get the current signed-in account
+ */
+export const getAccount = (msalInstance?: IPublicClientApplication): AccountInfo | null => {
+  const instance = msalInstance || getMsalInstance();
+  if (!instance) return null;
+  
+  // Get active account first
+  const activeAccount = instance.getActiveAccount();
+  if (activeAccount) return activeAccount;
+  
+  // Fallback to first account in cache
   const accounts = instance.getAllAccounts();
   return accounts.length > 0 ? accounts[0] : null;
 };
 
-// Get access token with improved error handling and fallback
-export const getAccessToken = async (instance: IPublicClientApplication): Promise<string | null> => {
+/**
+ * Acquire a token silently, with interaction fallback if needed
+ */
+export const getAccessToken = async (
+  scopes: string[] = microsoftAuthConfig.permissions || [],
+  msalInstance?: IPublicClientApplication
+): Promise<string | null> => {
   try {
-    console.log('Getting access token...');
-    
-    // Check if the instance is initialized
+    const instance = msalInstance || getMsalInstance();
     if (!instance) {
-      console.error('MSAL instance is not initialized');
-      throw new Error('Authentication service not initialized');
+      throw new Error('MSAL instance not available. Ensure you are within the MsalProvider context.');
     }
-    
-    // Get all accounts
-    const accounts = instance.getAllAccounts();
-    console.log(`Found ${accounts.length} accounts`);
-    
-    if (accounts.length === 0) {
-      console.error('No accounts found');
+
+    const account = getAccount(instance);
+    if (!account) {
+      console.log('No account found, redirecting to login...');
+      await loginRedirect();
       return null;
     }
-    
-    // Always set the active account to the first one for consistency
-    const activeAccount = accounts[0];
-    instance.setActiveAccount(activeAccount);
-    
-    const oneDriveScopes = ['Files.Read.All', 'Files.ReadWrite.All'];
-    
-    // Try multiple approaches to get a token
+
+    const request = {
+      scopes,
+      account,
+      forceRefresh: false
+    };
+
     try {
-      console.log('Trying silent token acquisition...');
+      console.log('Attempting silent token acquisition...');
+      const response = await instance.acquireTokenSilent(request);
+      console.log('Token acquired silently.');
+      return response.accessToken;
+    } catch (error) {
+      console.warn('Silent token acquisition failed:', error);
       
-      // Silent token acquisition is preferred - try first
-      try {
-        const silentRequest = {
-          scopes: oneDriveScopes,
-          account: activeAccount,
-          forceRefresh: false
-        };
-        
-        const silentResult = await instance.acquireTokenSilent(silentRequest);
-        console.log('Silent token acquisition succeeded');
-        return silentResult.accessToken;
-      } catch (silentError) {
-        console.warn('Silent token acquisition failed:', silentError);
-        
-        // Try with broader scope
+      if (error instanceof InteractionRequiredAuthError) {
+        console.log('Interaction required, attempting redirect flow...');
         try {
-          const silentRequest = {
-            scopes: ['https://graph.microsoft.com/.default'],
-            account: activeAccount,
-            forceRefresh: true
-          };
-          
-          const silentResult = await instance.acquireTokenSilent(silentRequest);
-          console.log('Silent token acquisition with default scope succeeded');
-          return silentResult.accessToken;
-        } catch (defaultScopeError) {
-          console.warn('Silent token acquisition with default scope failed:', defaultScopeError);
-          throw defaultScopeError; // Will be caught by the outer try-catch
+          await instance.acquireTokenRedirect(request);
+          // This will redirect, so we won't reach this point
+          return null;
+        } catch (redirectError) {
+          console.error('Redirect authentication failed:', redirectError);
+          throw redirectError;
         }
       }
-    } catch (error) {
-      console.log('All silent token attempts failed, trying interactive...');
       
-      // Fallback to popup if silent fails
-      try {
-        const popupRequest = {
-          scopes: oneDriveScopes,
-          account: activeAccount
-        };
-        
-        console.log('Starting popup token acquisition');
-        const popupResult = await instance.acquireTokenPopup(popupRequest);
-        console.log('Popup token acquisition succeeded');
-        return popupResult.accessToken;
-      } catch (popupError) {
-        console.error('Popup token acquisition failed:', popupError);
-        
-        // Last resort - try redirect
-        console.log('Falling back to redirect flow...');
-        
-        // If everything fails, redirect the user to login again
-        await instance.loginRedirect({
-          scopes: oneDriveScopes,
-          redirectStartPage: window.location.href
-        });
-        
-        // The function will never reach here as the page will redirect
-        return null;
-      }
+      throw error;
     }
   } catch (error) {
-    console.error('Error in getAccessToken:', error);
+    console.error('Token acquisition failed:', error);
     return null;
   }
 };
 
-// Get MS Graph API data
-export const callMsGraphApi = async (instance: IPublicClientApplication, endpoint: string) => {
+/**
+ * Initiate login via redirect flow
+ */
+export const loginRedirect = async (msalInstance?: IPublicClientApplication): Promise<void> => {
+  const instance = msalInstance || getMsalInstance();
+  if (!instance) {
+    throw new Error('MSAL instance not available.');
+  }
+  
   try {
-    const accessToken = await getAccessToken(instance);
+    await instance.loginRedirect({
+      scopes: microsoftAuthConfig.permissions || [],
+      redirectUri: typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri
+    });
+  } catch (error) {
+    console.error('Login redirect failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Log out the current user
+ */
+export const logout = async (msalInstance?: IPublicClientApplication): Promise<void> => {
+  const instance = msalInstance || getMsalInstance();
+  if (!instance) {
+    console.warn('MSAL instance not available. Unable to logout.');
+    return;
+  }
+  
+  try {
+    const account = getAccount(instance);
+    await instance.logoutRedirect({
+      account,
+      postLogoutRedirectUri: typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri
+    });
+  } catch (error) {
+    console.error('Logout failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Call Microsoft Graph API
+ */
+export const callMsGraphApi = async (
+  endpoint: string,
+  msalInstance?: IPublicClientApplication
+): Promise<any> => {
+  try {
+    const accessToken = await getAccessToken(microsoftAuthConfig.permissions || [], msalInstance);
+    if (!accessToken) {
+      throw new Error('Unable to acquire access token for Graph API call.');
+    }
+    
     const response = await fetch(endpoint, {
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -155,7 +171,8 @@ export const callMsGraphApi = async (instance: IPublicClientApplication, endpoin
     });
 
     if (!response.ok) {
-      throw new Error('Failed to call Microsoft Graph API');
+      const errorText = await response.text();
+      throw new Error(`Graph API returned ${response.status}: ${errorText}`);
     }
 
     return await response.json();
@@ -165,63 +182,51 @@ export const callMsGraphApi = async (instance: IPublicClientApplication, endpoin
   }
 };
 
-// Get user profile from MS Graph
-export const getUserProfile = async (instance: IPublicClientApplication, apiEndpoint: string) => {
+/**
+ * Get the user profile from Microsoft Graph API
+ */
+export const getUserProfile = async (
+  msalInstance?: IPublicClientApplication,
+  endpoint: string = microsoftAuthConfig.apiEndpoint
+): Promise<any> => {
   try {
-    const account = getAccount(instance);
-    if (!account) {
-      throw new Error('No account found');
+    const token = await getAccessToken(microsoftAuthConfig.permissions || [], msalInstance);
+    if (!token) {
+      throw new Error('Unable to acquire access token for user profile.');
     }
-
-    const tokenResponse = await instance.acquireTokenSilent({
-      ...loginRequest,
-      account
-    });
-
-    const response = await fetch(`${apiEndpoint}`, {
+    
+    const response = await fetch(`${endpoint}/me`, {
       headers: {
-        Authorization: `Bearer ${tokenResponse.accessToken}`
+        Authorization: `Bearer ${token}`
       }
     });
-
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch user profile');
+      const errorText = await response.text();
+      throw new Error(`Graph API returned ${response.status}: ${errorText}`);
     }
-
-    return await response.json();
+    
+    const profile = await response.json();
+    
+    // Try to get profile photo if available
+    try {
+      const photoResponse = await fetch(`${endpoint}/me/photo/$value`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (photoResponse.ok) {
+        const photoBlob = await photoResponse.blob();
+        profile.photo = URL.createObjectURL(photoBlob);
+      }
+    } catch (photoError) {
+      console.warn('Unable to retrieve profile photo:', photoError);
+    }
+    
+    return profile;
   } catch (error) {
     console.error('Error getting user profile:', error);
-    throw error;
-  }
-};
-
-// Get user photo from MS Graph
-export const getUserPhoto = async (instance: IPublicClientApplication, apiEndpoint: string) => {
-  try {
-    const account = getAccount(instance);
-    if (!account) {
-      throw new Error('No account found');
-    }
-
-    const tokenResponse = await instance.acquireTokenSilent({
-      ...loginRequest,
-      account
-    });
-
-    const response = await fetch(`${apiEndpoint}/photo/$value`, {
-      headers: {
-        Authorization: `Bearer ${tokenResponse.accessToken}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch user photo');
-    }
-
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
-  } catch (error) {
-    console.error('Error getting user photo:', error);
     throw error;
   }
 };
@@ -315,32 +320,13 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
   }
 };
 
-// Logout from Microsoft
-export const logoutFromMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
-  try {
-    await instance.logoutRedirect();
-  } catch (error) {
-    console.error('Error during Microsoft logout:', error);
-    throw error;
-  }
-};
-
-// Logout
-export const logout = async (instance: IPublicClientApplication): Promise<void> => {
-  try {
-    await instance.logoutRedirect();
-  } catch (error) {
-    console.error('Error logging out:', error);
-    throw error;
-  }
-};
-
-// Determine login method based on configuration
-export const login = async (instance: IPublicClientApplication, scopes: string[] = loginRequest.scopes): Promise<void> => {
-  const request = {
-    ...loginRequest,
-    scopes
-  };
-  
-  await loginWithRedirect(instance, request as RedirectRequest);
+export default {
+  getMsalInstance,
+  setMsalInstance,
+  getAccount,
+  getAccessToken,
+  loginRedirect,
+  logout,
+  callMsGraphApi,
+  getUserProfile
 }; 
