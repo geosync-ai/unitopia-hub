@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,9 @@ import SimplifiedOneDriveSetup from './components/SimplifiedOneDriveSetup';
 import { SetupWizardProps, WizardStep } from './types';
 import { addGlobalFolderHighlightStyle } from './utils';
 import { useSetupWizard } from './hooks/useSetupWizard';
+
+// Import ErrorBoundary
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Add global style for folder highlighting
 addGlobalFolderHighlightStyle();
@@ -85,14 +88,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   });
 
   // Define steps for the wizard
-  const steps: WizardStep[] = [
+  const steps = useMemo<WizardStep[]>(() => [
     { id: 0, name: "Setup Method" },
     { id: 1, name: "Storage Location" },
     { id: 2, name: "Objectives" },
     { id: 3, name: "KRAs" },
     { id: 4, name: "KPIs" },
     { id: 5, name: "Summary" }
-  ];
+  ], []);
 
   // Initialize component
   useEffect(() => {
@@ -200,15 +203,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
     
     // Start the setup completion process without prompting
-    handleComplete().then(success => {
-      if (success) {
-        // Close the dialog after successful completion
-        setTimeout(() => {
-          onComplete(); // Call parent's onComplete
-          onClose();    // Call parent's onClose
-        }, 500);
-      }
-    });
+    handleComplete()
+      .then((success) => {
+        if (success) {
+          // Close the dialog after successful completion
+          setTimeout(onComplete, 500); // Call parent's onComplete
+          setTimeout(onClose, 500);    // Call parent's onClose
+        }
+      })
+      .catch((error) => {
+        console.error("Error during setup completion:", error);
+        setSetupError(`Setup failed: ${error?.message || 'Unknown error'}`);
+      });
   }, [
     tempObjectives, 
     tempKRAs, 
@@ -218,7 +224,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     setKPIs, 
     handleComplete, 
     onComplete, 
-    onClose
+    onClose,
+    setSetupError
   ]);
 
   // Update handlePathSelect in step 1 to handle temp folders
@@ -398,13 +405,89 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     handleKRAComplete,
     handleKPIComplete,
     handleSummaryComplete,
-    handleNext,
     handleBack,
     tempObjectives,
     tempKRAs,
     tempKPIs,
     oneDriveConfig
   ]);
+
+  // Extract navigation button rendering to a separate memoized function
+  const renderNavigationButtons = useMemo(() => {
+    if (isProcessing) return null;
+    
+    return (
+      <div className="flex justify-between">
+        <Button
+          variant="outline"
+          onClick={handleBack}
+          disabled={currentStep === 0}
+          className={currentStep === 0 ? "invisible" : ""}
+        >
+          Back
+        </Button>
+        
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isProcessing}
+          >
+            Cancel
+          </Button>
+          
+          {currentStep === 5 ? (
+            <Button 
+              onClick={(e) => {
+                e.preventDefault();
+                console.log("Complete Setup button clicked, starting processing...");
+                handleSummaryComplete();
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Completing...
+                </>
+              ) : (
+                "Complete Setup"
+              )}
+            </Button>
+          ) : currentStep > 0 && currentStep < 5 ? (
+            <Button
+              onClick={handleNext}
+              disabled={isProcessing}
+            >
+              Next
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }, [currentStep, isProcessing, handleBack, onClose, handleNext, handleSummaryComplete]);
+
+  // Extract step content container for better performance
+  const renderStepContent = useMemo(() => {
+    return (
+      <div className="rounded-lg border min-h-[400px] p-6">
+        {isProcessing ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-center">Setting up your unit data...</p>
+            <p className="text-sm text-muted-foreground text-center">
+              This may take a moment as we configure your data.
+            </p>
+          </div>
+        ) : (
+          <>
+            {renderStep()}
+          </>
+        )}
+      </div>
+    );
+  }, [isProcessing, renderStep]);
 
   // Dialog structure with updated UI
   return (
@@ -418,107 +501,56 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }}
     >
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-2">
-          <DialogTitle className="text-2xl">Unit Setup Wizard</DialogTitle>
-          <DialogDescription>
-            Configure your unit's backend storage and structure
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="px-6 pb-6 space-y-6">
-          {/* Progress Steps */}
-          <ProgressSteps steps={steps} currentStep={currentStep} />
-
-          {/* Error display */}
-          {setupError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-              <strong className="font-bold">Error: </strong>
-              <span className="block sm:inline">{setupError}</span>
-            </div>
-          )}
-
-          {/* Local storage notification */}
-          {isUsingLocalStorage && currentStep > 1 && <LocalStorageFallbackNotice />}
-
-          {/* Processing indicator */}
-          {isProcessing && (
-            <div className="space-y-4">
-              <Progress value={progress} className="h-2" />
-              <p className="text-sm text-center text-muted-foreground">
-                {progress < 100 ? 'Processing...' : 'Complete!'} ({Math.round(progress)}%)
+        <ErrorBoundary
+          fallback={
+            <div className="p-6 text-center">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Setup Wizard Error</h3>
+              <p className="text-sm text-red-600 mb-4">
+                An error occurred while rendering the setup wizard. Try refreshing the page.
               </p>
+              <Button variant="outline" onClick={onClose}>Close</Button>
             </div>
-          )}
+          }
+        >
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="text-2xl">Unit Setup Wizard</DialogTitle>
+            <DialogDescription>
+              Configure your unit's backend storage and structure
+            </DialogDescription>
+          </DialogHeader>
 
-          {/* Step content */}
-          <div className="rounded-lg border min-h-[400px] p-6">
-            {isProcessing ? (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-center">Setting up your unit data...</p>
-                <p className="text-sm text-muted-foreground text-center">
-                  This may take a moment as we configure your data.
+          <div className="px-6 pb-6 space-y-6">
+            {/* Progress Steps */}
+            <ProgressSteps steps={steps} currentStep={currentStep} />
+
+            {/* Error display */}
+            {setupError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                <strong className="font-bold">Error: </strong>
+                <span className="block sm:inline">{setupError}</span>
+              </div>
+            )}
+
+            {/* Local storage notification */}
+            {isUsingLocalStorage && currentStep > 1 && <LocalStorageFallbackNotice />}
+
+            {/* Processing indicator */}
+            {isProcessing && (
+              <div className="space-y-4">
+                <Progress value={progress} className="h-2" />
+                <p className="text-sm text-center text-muted-foreground">
+                  {progress < 100 ? 'Processing...' : 'Complete!'} ({Math.round(progress)}%)
                 </p>
               </div>
-            ) : (
-              <>
-                {renderStep()}
-              </>
             )}
-          </div>
 
-          {/* Navigation buttons */}
-          {!isProcessing && (
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={currentStep === 0}
-                className={currentStep === 0 ? "invisible" : ""}
-              >
-                Back
-              </Button>
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={onClose}
-                  disabled={isProcessing}
-                >
-                  Cancel
-                </Button>
-                
-                {currentStep === 5 ? (
-                  <Button 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      console.log("Complete Setup button clicked, starting processing...");
-                      handleSummaryComplete();
-                    }}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Completing...
-                      </>
-                    ) : (
-                      "Complete Setup"
-                    )}
-                  </Button>
-                ) : currentStep > 0 && currentStep < 5 ? (
-                  <Button
-                    onClick={handleNext}
-                    disabled={isProcessing}
-                  >
-                    Next
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          )}
-        </div>
+            {/* Step content */}
+            {renderStepContent}
+
+            {/* Navigation buttons */}
+            {renderNavigationButtons}
+          </div>
+        </ErrorBoundary>
       </DialogContent>
     </Dialog>
   );
