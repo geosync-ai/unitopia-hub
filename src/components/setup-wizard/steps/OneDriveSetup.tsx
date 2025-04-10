@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle } from 'lucide-react';
+import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, Plus, Edit, Trash } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
 interface OneDriveSetupProps {
   onComplete: (config: any) => void;
@@ -22,6 +23,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     getFolderContents, 
     createFolder, 
     renameFolder, 
+    deleteFolder,
     lastError,
     getAuthStatus
   } = useMicrosoftGraph();
@@ -39,6 +41,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [authStatus, setAuthStatus] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [folderToDelete, setFolderToDelete] = useState<Document | null>(null);
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 
   const updateAuthStatus = useCallback(() => {
     const status = getAuthStatus();
@@ -261,6 +265,41 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } catch (error) {
       console.error('Error renaming folder:', error);
       toast.error('Failed to rename folder');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteFolder = async (folder: Document) => {
+    setFolderToDelete(folder);
+    setIsDeletingFolder(true);
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!folderToDelete) {
+      toast.error('No folder selected for deletion');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const success = await deleteFolder(folderToDelete.id);
+      if (success) {
+        toast.success('Folder deleted successfully');
+        setIsDeletingFolder(false);
+        setFolderToDelete(null);
+        if (selectedFolder) {
+          const contents = await getFolderContents(selectedFolder.id, 'OneDrive');
+          if (contents) {
+            setDocuments(contents);
+          }
+        } else {
+          await fetchDocuments();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      toast.error('Failed to delete folder');
     } finally {
       setIsLoading(false);
     }
@@ -575,32 +614,65 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {documents
-                  .filter(doc => doc.isFolder)
-                  .map(folder => (
-                    <div
-                      key={folder.id}
-                      className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
-                        selectedFolder?.id === folder.id
-                          ? 'bg-primary/10 border border-primary'
-                          : 'hover:bg-muted/50 border border-border'
-                      }`}
-                      onClick={() => {
-                        if (selectedFolder?.id === folder.id) {
-                          handleFolderClick(folder);
-                        } else {
-                          setSelectedFolder(folder);
-                        }
-                      }}
-                      onDoubleClick={() => handleFolderClick(folder)}
-                    >
-                      <Folder className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{folder.name}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className={cn(
+                      "p-4 rounded-lg border flex flex-col hover:border-primary/50 transition-colors",
+                      selectedFolder?.id === doc.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border"
+                    )}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div
+                        className="flex flex-1 items-center cursor-pointer"
+                        onClick={() => handleFolderClick(doc)}
+                      >
+                        <Folder className="h-5 w-5 mr-2 text-blue-400" />
+                        <div className="font-medium overflow-hidden text-ellipsis">{doc.name}</div>
                       </div>
+                      
+                      {doc.isFolder && (
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setNewFolderName(doc.name);
+                              setFolderToRename(doc);
+                              setIsRenamingFolder(true);
+                            }}
+                            className="h-6 w-6"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteFolder(doc)}
+                            className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    
+                    {doc.isFolder && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => handleFolderClick(doc)}
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Open
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </Card>
@@ -659,6 +731,41 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               )}
               Continue with {selectedFolder ? `"${selectedFolder.name}"` : 'selected folder'}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {isDeletingFolder && folderToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
+          <div className="bg-card p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h3 className="font-semibold text-lg mb-4">Delete Folder</h3>
+            <p className="mb-4">
+              Are you sure you want to delete the folder "{folderToDelete.name}"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeletingFolder(false);
+                  setFolderToDelete(null);
+                }}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteFolder}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Trash className="h-4 w-4 mr-2" />
+                )}
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
       )}

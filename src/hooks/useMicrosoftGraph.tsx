@@ -444,6 +444,56 @@ export const useMicrosoftGraph = () => {
     }
   }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
+  // Delete a folder in OneDrive
+  const deleteFolder = useCallback(async (folderId: string): Promise<boolean> => {
+    if (!checkMsalAuth()) {
+      const status = getAuthStatus();
+      const errorMsg = status.error || 'Authentication check failed.';
+      setLastError(`Delete folder error: ${errorMsg}`);
+      toast.error(`Failed to delete folder: ${errorMsg}`);
+      return false;
+    }
+    
+    setIsLoading(true);
+    setLastError(null);
+    
+    try {
+      console.log(`Acquiring token to delete folder ID '${folderId}'...`);
+      const response = await msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All']
+      });
+      console.log('Token acquired for delete folder');
+
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}`;
+      console.log(`Deleting folder at endpoint:`, endpoint);
+
+      const result = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!result.ok) {
+        const errorText = await result.text();
+        console.error('Delete folder GraphAPI error:', result.status, errorText);
+        throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
+      }
+
+      console.log(`Folder deleted successfully (ID: ${folderId})`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      const errorMsg = error.message || 'Unknown delete error';
+      setLastError(`Delete folder error: ${errorMsg}`);
+      toast.error('Failed to delete folder');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [checkMsalAuth, getAuthStatus, msalInstance]);
+
   // Create a new CSV file in OneDrive
   const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string | unknown): Promise<CsvFile | null> => {
     if (!checkMsalAuth()) {
@@ -594,6 +644,7 @@ export const useMicrosoftGraph = () => {
     getFolderContents,
     createFolder,
     renameFolder,
+    deleteFolder,
     createCsvFile,
     readCsvFile,
     updateCsvFile,
