@@ -827,6 +827,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     const [folderError, setFolderError] = useState<string | null>(null);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
     const [folderPath, setFolderPath] = useState<Array<{id: string, name: string}>>([]);
+    // Add ref to track if initial folders were loaded
+    const initialFoldersLoaded = useRef(false);
+    // Add ref to track the last clicked folder ID
+    const lastFolderRequest = useRef<string | null>(null);
     
     // Import OneDrive functions from useMicrosoftGraph hook for folder creation/deletion
     const { 
@@ -855,6 +859,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           return;
         }
         
+        // Skip if we've already loaded the initial folders
+        if (initialFoldersLoaded.current) {
+          console.log("Initial folders already loaded, skipping automatic fetch");
+          return;
+        }
+        
         // Check if we have a window-level flag for too many fetch attempts
         if (window.oneDriveFetchAttempts && window.oneDriveFetchAttempts > 5) {
           console.log("Too many OneDrive fetch attempts detected in useEffect, not retrying");
@@ -874,6 +884,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         try {
           console.log("Attempting to fetch OneDrive folders (authenticated)");
           await fetchOneDriveFolders();
+          // Mark that we've loaded initial folders
+          initialFoldersLoaded.current = true;
         } catch (error) {
           console.error("Error in useEffect folder fetch:", error);
           // Errors are already handled in fetchOneDriveFolders
@@ -881,7 +893,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       };
       
       // Only fetch folders if authenticated and not loading
-      if (isAuthenticated && !isLoading) {
+      if (isAuthenticated && !isLoading && !initialFoldersLoaded.current) {
         // Add a small delay to ensure authentication is complete
         const timer = setTimeout(() => {
           safeFetchFolders();
@@ -889,7 +901,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         
         return () => clearTimeout(timer);
       }
-    }, [isAuthenticated, isLoading]); // Don't include fetchOneDriveFolders as it's defined in this component
+    }, [isAuthenticated]); // Remove isLoading to avoid re-fetching on loading state changes
     
     // Add useEffect to handle auth error recovery
     useEffect(() => {
@@ -969,9 +981,29 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     
     // Fetch OneDrive folders directly using Microsoft Graph API
     const fetchOneDriveFolders = async (folderId?: string) => {
+      console.log("fetchOneDriveFolders called with folderId:", folderId);
+      
+      // If this is an automatic call (no folderId) and we have a lastFolderRequest, 
+      // use that to prevent unwanted resets to root
+      if (!folderId && lastFolderRequest.current && initialFoldersLoaded.current) {
+        console.log("Automatic call redirected to last requested folder:", lastFolderRequest.current);
+        folderId = lastFolderRequest.current;
+      }
+      
       // Add a static counter to prevent infinite retries across component re-renders
       if (!window.oneDriveFetchAttempts) {
         window.oneDriveFetchAttempts = 0;
+      }
+      
+      // Check if this is a new folder request or a refresh
+      const isNewFolderRequest = folderId !== currentFolderId;
+      
+      // If just refreshing the current folder view, don't increment the counter
+      if (isNewFolderRequest) {
+        window.oneDriveFetchAttempts++;
+        console.log(`OneDrive fetch attempt #${window.oneDriveFetchAttempts}`);
+      } else {
+        console.log("Refreshing current folder view, not counting as a new attempt");
       }
       
       // If we've already tried too many times, just show the local storage option
@@ -981,9 +1013,6 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setFolders([]);
         return;
       }
-      
-      window.oneDriveFetchAttempts++;
-      console.log(`OneDrive fetch attempt #${window.oneDriveFetchAttempts}`);
       
       try {
         setIsLoading(true);
@@ -1020,12 +1049,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             
             // If this is a new folder navigation (not a refresh of current), update the path
             if (folderId !== currentFolderId) {
-              // Find the current folder in the list to get its name
+              // Find the folder in the list to get its name
               const folder = folders.find(f => f.id === folderId);
               if (folder) {
+                console.log("Updating folder path with:", folder.name);
                 // Add this folder to the path
                 setFolderPath(prev => [...prev, { id: folderId, name: folder.name }]);
+              } else {
+                console.log("Folder not found in current list, might be navigating directly");
               }
+              
+              // Remember this as our current folder ID
+              lastFolderRequest.current = folderId;
             }
             
             // Update current folder ID
@@ -1038,6 +1073,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             // Reset path when navigating to root
             setFolderPath([]);
             setCurrentFolderId(null);
+            lastFolderRequest.current = null;
           }
           
           const response = await fetch(endpoint, {
@@ -1076,8 +1112,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             setFolders(onlyFolders);
             setFolderError(null);
             
+            // We successfully loaded folders, mark the initialFoldersLoaded flag
+            initialFoldersLoaded.current = true;
+            
             // Reset retry counter on success
-            window.oneDriveFetchAttempts = 0;
+            if (isNewFolderRequest) {
+              window.oneDriveFetchAttempts = 0;
+            }
           } else {
             console.error("Invalid response format from Graph API:", data);
             throw new Error("Invalid response format from OneDrive API");
@@ -1129,9 +1170,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 
                 setFolders(onlyFolders);
                 setFolderError(null);
+                initialFoldersLoaded.current = true;
                 
                 // Reset retry counter on success
-                window.oneDriveFetchAttempts = 0;
+                if (isNewFolderRequest) {
+                  window.oneDriveFetchAttempts = 0;
+                }
               } else {
                 throw new Error("Invalid response format from OneDrive API");
               }
@@ -1197,6 +1241,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     
     // Navigate to a folder
     const navigateToFolder = (folder: any) => {
+      console.log("Navigating to folder:", folder.name, folder.id);
+      // Store the folder ID we're requesting in the ref
+      lastFolderRequest.current = folder.id;
+      // This should be a manual fetch, not affected by the automatic fetch conditions
       fetchOneDriveFolders(folder.id);
     };
     
@@ -1204,8 +1252,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     const navigateUp = () => {
       if (folderPath.length === 0) {
         // Already at root, nothing to do
+        console.log("Already at root, can't navigate up");
         return;
       }
+      
+      console.log("Navigating up from current path:", folderPath);
       
       // Remove the last item from the path
       const newPath = [...folderPath];
@@ -1215,9 +1266,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       // Navigate to parent folder or root
       if (newPath.length > 0) {
         const parentFolder = newPath[newPath.length - 1];
+        console.log("Navigating to parent folder:", parentFolder.name, parentFolder.id);
+        lastFolderRequest.current = parentFolder.id;
         fetchOneDriveFolders(parentFolder.id);
       } else {
         // Back to root
+        console.log("Navigating to root folder");
+        lastFolderRequest.current = null;
         fetchOneDriveFolders();
       }
     };
@@ -1225,13 +1280,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     // Navigate to a specific point in the path
     const navigateToPathItem = (index: number) => {
       if (index < 0 || index >= folderPath.length) {
+        console.log("Invalid path index:", index);
         return;
       }
       
       // If clicking on the last item in path (current folder), do nothing
       if (index === folderPath.length - 1) {
+        console.log("Already at this folder, ignoring click");
         return;
       }
+      
+      console.log(`Navigating to path item at index ${index}:`, folderPath[index]);
       
       // Create a new path up to the clicked index
       const newPath = folderPath.slice(0, index + 1);
@@ -1239,6 +1298,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       
       // Navigate to the folder at that index
       const folderId = newPath[index].id;
+      lastFolderRequest.current = folderId;
       fetchOneDriveFolders(folderId);
     };
     
