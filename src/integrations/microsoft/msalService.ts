@@ -48,23 +48,99 @@ export const getAccount = (instance: IPublicClientApplication): AccountInfo | nu
   return accounts.length > 0 ? accounts[0] : null;
 };
 
-// Get access token
-export const getAccessToken = async (instance: IPublicClientApplication): Promise<string> => {
+// Get access token with improved error handling and fallback
+export const getAccessToken = async (instance: IPublicClientApplication): Promise<string | null> => {
   try {
-    const account = getAccount(instance);
-    if (!account) {
-      throw new Error('No account found');
+    console.log('Getting access token...');
+    
+    // Check if the instance is initialized
+    if (!instance) {
+      console.error('MSAL instance is not initialized');
+      throw new Error('Authentication service not initialized');
     }
-
-    const tokenResponse = await instance.acquireTokenSilent({
-      ...loginRequest,
-      account
-    });
-
-    return tokenResponse.accessToken;
+    
+    // Get all accounts
+    const accounts = instance.getAllAccounts();
+    console.log(`Found ${accounts.length} accounts`);
+    
+    if (accounts.length === 0) {
+      console.error('No accounts found');
+      return null;
+    }
+    
+    // Always set the active account to the first one for consistency
+    const activeAccount = accounts[0];
+    instance.setActiveAccount(activeAccount);
+    
+    const oneDriveScopes = ['Files.Read.All', 'Files.ReadWrite.All'];
+    
+    // Try multiple approaches to get a token
+    try {
+      console.log('Trying silent token acquisition...');
+      
+      // Silent token acquisition is preferred - try first
+      try {
+        const silentRequest = {
+          scopes: oneDriveScopes,
+          account: activeAccount,
+          forceRefresh: false
+        };
+        
+        const silentResult = await instance.acquireTokenSilent(silentRequest);
+        console.log('Silent token acquisition succeeded');
+        return silentResult.accessToken;
+      } catch (silentError) {
+        console.warn('Silent token acquisition failed:', silentError);
+        
+        // Try with broader scope
+        try {
+          const silentRequest = {
+            scopes: ['https://graph.microsoft.com/.default'],
+            account: activeAccount,
+            forceRefresh: true
+          };
+          
+          const silentResult = await instance.acquireTokenSilent(silentRequest);
+          console.log('Silent token acquisition with default scope succeeded');
+          return silentResult.accessToken;
+        } catch (defaultScopeError) {
+          console.warn('Silent token acquisition with default scope failed:', defaultScopeError);
+          throw defaultScopeError; // Will be caught by the outer try-catch
+        }
+      }
+    } catch (error) {
+      console.log('All silent token attempts failed, trying interactive...');
+      
+      // Fallback to popup if silent fails
+      try {
+        const popupRequest = {
+          scopes: oneDriveScopes,
+          account: activeAccount
+        };
+        
+        console.log('Starting popup token acquisition');
+        const popupResult = await instance.acquireTokenPopup(popupRequest);
+        console.log('Popup token acquisition succeeded');
+        return popupResult.accessToken;
+      } catch (popupError) {
+        console.error('Popup token acquisition failed:', popupError);
+        
+        // Last resort - try redirect
+        console.log('Falling back to redirect flow...');
+        
+        // If everything fails, redirect the user to login again
+        await instance.loginRedirect({
+          scopes: oneDriveScopes,
+          redirectStartPage: window.location.href
+        });
+        
+        // The function will never reach here as the page will redirect
+        return null;
+      }
+    }
   } catch (error) {
-    console.error('Error getting access token:', error);
-    throw error;
+    console.error('Error in getAccessToken:', error);
+    return null;
   }
 };
 

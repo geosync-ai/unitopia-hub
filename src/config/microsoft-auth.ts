@@ -13,8 +13,8 @@ const microsoftAuthConfig = {
     "Sites.Read.All",
     "Sites.ReadWrite.All"
   ],
-  // CRITICAL: This must EXACTLY match what's in Azure portal (no trailing slash)
-  redirectUri: "https://unitopia-hub.vercel.app",
+  // Default redirectUri that will be overridden based on environment
+  redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app",
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,
   last_confirmed: "2025-04-07T08:19:35.145Z"
@@ -26,13 +26,15 @@ if (typeof window !== 'undefined') {
   console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
   console.log('Current window origin:', window.location.origin);
   
+  // Automatically use the current window's origin to support both production and development
+  microsoftAuthConfig.redirectUri = window.location.origin;
+  
   // Show warning if running in development
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.warn('⚠️ Running in development mode with production redirect URI.');
-    console.warn('Authentication will fail unless your Azure app registration includes:');
-    console.warn(`- Exactly "${window.location.origin}" as a redirect URI`);
-    console.warn('- AND "https://unitopia-hub.vercel.app" as a redirect URI');
-    console.warn('Please update your app registration in Azure Portal');
+    console.warn('⚠️ Running in development mode:');
+    console.warn('- Using current origin as redirect URI:', window.location.origin);
+    console.warn('- Make sure this URI is registered in Azure Portal');
+    console.warn('- AND "https://unitopia-hub.vercel.app" is registered for production');
   }
 }
 
