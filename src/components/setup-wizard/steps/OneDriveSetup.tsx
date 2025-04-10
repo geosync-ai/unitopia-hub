@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, Plus, Edit, Trash, X } from 'lucide-react';
+import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, Plus, Edit, Trash, X, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
@@ -47,6 +47,9 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [skipOneDriveAuth, setSkipOneDriveAuth] = useState(false);
   const [debugMode, setDebugMode] = useState(true);
   const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [fetchCount, setFetchCount] = useState(0);
+  const [shouldStopFetching, setShouldStopFetching] = useState(false);
+  const fetchTimeoutRef = useRef<any>(null);
 
   const updateAuthStatus = useCallback(() => {
     const status = getAuthStatus();
@@ -148,6 +151,11 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       return;
     }
     
+    if (isLoading) {
+      console.log('fetchDocuments: Already loading, skip duplicate request');
+      return;
+    }
+    
     console.log('fetchDocuments: Fetching...');
     setIsLoading(true); 
     setAuthError(null);
@@ -158,6 +166,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         console.log('fetchDocuments: Successfully fetched documents.', oneDriveDocs);
         setDocuments(oneDriveDocs);
         setRetryCount(0);
+        setShouldStopFetching(true);
       } else {
         console.log('fetchDocuments: getOneDriveDocuments returned null (likely an error occurred).');
         setAuthError("Couldn't retrieve OneDrive files. Please try to authenticate again.");
@@ -166,23 +175,37 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
           console.log(`Retry attempt ${retryCount + 1}/2`);
           setRetryCount(prev => prev + 1);
           await handleAuthenticate();
+        } else {
+          console.log('Max retry count reached, stopping automatic fetch attempts');
+          setShouldStopFetching(true);
         }
       }
     } catch (error) {
       console.error('fetchDocuments: Error caught:', error);
       setAuthError(`Failed to fetch documents: ${error.message}`);
+      if (fetchCount > 5) {
+        setShouldStopFetching(true);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, getOneDriveDocuments, retryCount, handleAuthenticate]);
+  }, [isAuthenticated, getOneDriveDocuments, retryCount, handleAuthenticate, isLoading, fetchCount]);
 
   useEffect(() => {
     const status = updateAuthStatus();
     console.log('Auth status updated:', status);
     
-    if (isAuthenticated && documents.length === 0 && !isLoading) {
+    if (isAuthenticated && documents.length === 0 && !isLoading && !shouldStopFetching) {
       console.log('useEffect: Authenticated and no documents, fetching...');
-      fetchDocuments();
+      
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      
+      fetchTimeoutRef.current = setTimeout(() => {
+        setFetchCount(prev => prev + 1);
+        fetchDocuments();
+      }, 1500);
     } else if (isAuthenticated) {
       console.log('useEffect: Authenticated but documents already loaded or loading, skipping fetch.');
     } else {
@@ -191,7 +214,13 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       setSelectedFolder(null);
       setCurrentPath([]);
     }
-  }, [isAuthenticated, documents.length, fetchDocuments, updateAuthStatus, isLoading]);
+    
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, [isAuthenticated, documents.length, fetchDocuments, updateAuthStatus, isLoading, shouldStopFetching, fetchCount]);
 
   const handleFolderClick = useCallback(async (folder: Document) => {
     if (!folder.isFolder) return;
@@ -439,6 +468,12 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
 
   const bypassAuthForTesting = useCallback(() => {
     console.log('[DEBUG] Bypassing Microsoft authentication for testing');
+    
+    // Stop any more fetch attempts
+    setShouldStopFetching(true);
+    
+    // Clear any errors
+    setAuthError(null);
     setErrorDetails({
       type: 'auth_bypassed',
       timestamp: new Date().toISOString(),
@@ -467,17 +502,19 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       }
     ];
     
-    // Use the mock data
-    setDocuments(mockFolders);
+    // Set loading state briefly to simulate a fetch
+    setIsLoading(true);
+    setTimeout(() => {
+      // Use the mock data
+      setDocuments(mockFolders);
+      setIsLoading(false);
+      toast.success('Successfully connected with mock data');
+    }, 500);
     
-    // We can't set isAuthenticated directly (it's a prop, not state)
-    // Instead, we'll just clear the error and continue as if authenticated
-    setAuthError(null);
-    
-    // Mark this in the status
+    // Clear the auth status (this prevents further fetch attempts)
     const updatedStatus = getAuthStatus();
     console.log('[DEBUG] Bypassed auth, status:', updatedStatus);
-  }, [getAuthStatus]);
+  }, [getAuthStatus, toast]);
 
   const renderDiagnostics = () => {
     const redirectUriWarning = msGraphConfig?.redirectUri !== "https://unitopia-hub.vercel.app/" 
@@ -640,8 +677,67 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     );
   };
 
+  const MaxRetriesReached = () => {
+    return (
+      <div className="bg-amber-50 border border-amber-200 text-amber-700 px-6 py-4 rounded-lg mb-6">
+        <div className="flex items-start">
+          <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold mb-1">Maximum Retry Attempts Reached</h4>
+            <h4 className="font-semibold mb-1">OneDrive Connection Error</h4>
+            <p className="text-sm mb-3">{authError}</p>
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleAuthenticate}
+                disabled={isAuthenticating}
+                className="flex-1"
+              >
+                {isAuthenticating ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>Retry Connection</>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkipOneDriveAuth}
+                className="flex-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200"
+              >
+                Continue Without OneDrive
+              </Button>
+            </div>
+            
+            {!debugMode && (
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setDebugMode(true)}
+                className="mt-2"
+              >
+                Show Debug Info
+              </Button>
+            )}
+          </div>
+        </div>
+        
+        {debugMode && renderDebugInfo()}
+      </div>
+    );
+  };
+
   const renderAuthError = () => {
     if (!authError) return null;
+    
+    // If we've hit the maximum retry attempts, show the specialized error
+    if (shouldStopFetching && fetchCount > 5) {
+      return <MaxRetriesReached />;
+    }
     
     return (
       <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-6">

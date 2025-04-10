@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useCallback, useRef } from 'react';
+import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { Client } from '@microsoft/microsoft-graph-client';
@@ -29,6 +29,9 @@ export const useMicrosoftGraph = () => {
   const { instance: msalInstance } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [isRequestLocked, setIsRequestLocked] = useState(false);
+  const [hasFetchAttempted, setHasFetchAttempted] = useState(false);
+  const fetchTimeoutRef = useRef<any>(null);
 
   // Helper function to check if MSAL is properly initialized and has an active account
   const checkMsalAuth = useCallback(() => {
@@ -117,6 +120,12 @@ export const useMicrosoftGraph = () => {
   const getOneDriveDocuments = useCallback(async (): Promise<Document[] | null> => {
     console.log('Attempting to get OneDrive documents...');
     
+    // If a request is already in progress, avoid starting another
+    if (isRequestLocked) {
+      console.log('Request already in progress, skipping duplicate fetch request');
+      return null;
+    }
+    
     // Enhanced authentication check
     if (!msalInstance) {
       console.error('MSAL instance not found or not initialized');
@@ -139,8 +148,17 @@ export const useMicrosoftGraph = () => {
       msalInstance.setActiveAccount(accounts[0]);
     }
 
+    // Set the request lock to prevent duplicate requests
+    setIsRequestLocked(true);
+    setHasFetchAttempted(true);
     setIsLoading(true);
     setLastError(null);
+
+    // Clear any existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+      fetchTimeoutRef.current = null;
+    }
 
     try {
       console.log('Acquiring token for OneDrive documents...');
@@ -188,6 +206,8 @@ export const useMicrosoftGraph = () => {
       const data = await result.json();
       console.log(`Retrieved ${data.value.length} OneDrive items`);
       setIsLoading(false);
+      setIsRequestLocked(false);
+      
       return data.value.map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -202,11 +222,28 @@ export const useMicrosoftGraph = () => {
       console.error('Error fetching OneDrive documents:', error);
       const errorMsg = error.message || 'Unknown fetch error';
       setLastError(`OneDrive documents error: ${errorMsg}`);
-      toast.error(`Failed to fetch OneDrive documents: ${errorMsg}`);
-      setIsLoading(false);
+      
+      // Check if this is a repeated failure and notify user accordingly
+      if (fetchTimeoutRef.current) {
+        toast.error(`Failed to fetch OneDrive documents: ${errorMsg}. Maximum retry count reached.`, {
+          duration: 6000,
+          description: "Please check your connection or try again later."
+        });
+      } else {
+        toast.error(`Failed to fetch OneDrive documents: ${errorMsg}`);
+      }
+      
+      // Set a timeout before allowing another request
+      fetchTimeoutRef.current = setTimeout(() => {
+        console.log('Fetch request lock released after timeout');
+        setIsRequestLocked(false);
+      }, 5000); // 5 second cooldown before allowing next request
+      
       return null;
+    } finally {
+      setIsLoading(false);
     }
-  }, [msalInstance, toast]);
+  }, [msalInstance, toast, isRequestLocked]);
 
   const getFolderContents = useCallback(async (folderId: string): Promise<Document[] | null> => {
     if (!checkMsalAuth()) {
