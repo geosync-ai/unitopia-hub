@@ -779,70 +779,125 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     const [folderPath, setFolderPath] = useState<Array<{id: string, name: string}>>([]);
     const itemsLoadedRef = useRef(false);
     
-    // Handle authentication
-    const handleAuthenticate = async () => {
-      if (isAuthenticating) return; // Prevent multiple clicks
-      
-      try {
-        setIsAuthenticating(true);
-        setAuthError(null);
-        await loginWithMicrosoft();
-        // The page will redirect to Microsoft login
-      } catch (error) {
-        console.error('Error starting authentication:', error);
-        setAuthError(error.message || 'Failed to start authentication');
-      } finally {
-        setTimeout(() => {
-          setIsAuthenticating(false);
-        }, 1000);
-      }
-    };
-    
-    // Load files and folders after authentication - only once for root
-    useEffect(() => {
-      if (isAuthenticated && !itemsLoadedRef.current && !isLoading) {
-        itemsLoadedRef.current = true;
-        loadItems();
-      }
-    }, [isAuthenticated, isLoading]);
-    
-    // Load files and folders from OneDrive with error handling
+    // Load files and folders from OneDrive with enhanced error handling and debugging
     const loadItems = async (folderId?: string) => {
       if (isLoading) return; // Prevent multiple calls
       
       try {
         setIsLoading(true);
+        setAuthError(null);
+        
+        console.log("Starting OneDrive content load...", folderId ? `For folder: ${folderId}` : "For root folder");
         
         // Use Microsoft Graph API to get files and folders
-        const { getFolderContents, getOneDriveDocuments } = useMicrosoftGraph();
+        const { getFolderContents, getOneDriveDocuments, getAccessToken } = useMicrosoftGraph();
+        
+        // First check if we can get an access token - this verifies authentication
+        const token = await getAccessToken();
+        console.log("Microsoft access token obtained:", token ? "Success" : "Failed");
+        
+        if (!token) {
+          throw new Error("Failed to get Microsoft access token. Please try logging in again.");
+        }
+        
         let documents;
+        
+        // Add retry logic for API calls
+        const fetchWithRetry = async (fetchFn: Function, maxRetries = 3) => {
+          let retries = 0;
+          while (retries < maxRetries) {
+            try {
+              const result = await fetchFn();
+              console.log("OneDrive API call successful, data:", result ? "Data received" : "No data");
+              return result;
+            } catch (error) {
+              retries++;
+              console.error(`OneDrive API call failed (attempt ${retries}/${maxRetries}):`, error);
+              
+              if (retries >= maxRetries) throw error;
+              
+              // Wait before retrying - exponential backoff
+              await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+            }
+          }
+          return null;
+        };
         
         if (folderId) {
           // Get contents of a specific folder
-          documents = await getFolderContents(folderId);
+          documents = await fetchWithRetry(() => getFolderContents(folderId));
+          console.log(`Loaded folder contents for ID ${folderId}:`, documents ? `${documents.length} items` : "No items found");
         } else {
           // Get root items
-          documents = await getOneDriveDocuments();
+          documents = await fetchWithRetry(() => getOneDriveDocuments());
+          console.log("Loaded root OneDrive contents:", documents ? `${documents.length} items` : "No items found");
           // Reset folder path when loading root
           setFolderPath([]);
+        }
+        
+        if (!documents || !Array.isArray(documents)) {
+          console.warn("OneDrive API returned invalid data:", documents);
+          documents = []; // Set to empty array for consistent handling
+          
+          // Show a specific error message
+          setAuthError("Unable to retrieve your OneDrive files and folders. The API returned an invalid response.");
+        }
+        
+        // Log detailed info about documents
+        if (Array.isArray(documents) && documents.length > 0) {
+          console.log("Sample document item:", documents[0]);
+          console.log("Folders:", documents.filter(d => d && d.isFolder).length);
+          console.log("Files:", documents.filter(d => d && !d.isFolder).length);
         }
         
         // Sort items: folders first, then files alphabetically
         const sortedItems = Array.isArray(documents) 
           ? [...documents].sort((a, b) => {
+              // Protect against null items
+              if (!a || !b) return 0;
+              
               // Folders first
               if (a.isFolder && !b.isFolder) return -1;
               if (!a.isFolder && b.isFolder) return 1;
               // Alphabetical by name
-              return a.name.localeCompare(b.name);
-            })
+              return (a.name || '').localeCompare(b.name || '');
+            }).filter(item => item && (item.name || item.id)) // Filter out invalid items
           : [];
-          
+        
+        console.log("Processed items:", sortedItems.length);
         setItems(sortedItems);
         setCurrentFolderId(folderId || null);
+        
+        // If we've ended up with no items, offer a helpful message
+        if (sortedItems.length === 0) {
+          if (folderId) {
+            setAuthError("This folder is empty. You can create a new folder or navigate to a different location.");
+          } else {
+            setAuthError("No files or folders found in your OneDrive root. You can create a new folder to continue.");
+          }
+        }
       } catch (error) {
         console.error("Error loading OneDrive items:", error);
-        setAuthError("Could not load items from OneDrive. You may need to use local storage instead.");
+        
+        let errorMessage = "Could not load items from OneDrive.";
+        
+        if (error instanceof Error) {
+          errorMessage += ` Error: ${error.message}`;
+          console.error("Stack trace:", error.stack);
+        }
+        
+        // Check for common error types
+        if (error.toString().includes("unauthorized") || 
+            error.toString().includes("access token") || 
+            error.toString().includes("auth")) {
+          errorMessage = "Authentication error. Please try connecting to OneDrive again.";
+        } else if (error.toString().includes("network") || 
+                  error.toString().includes("timeout") ||
+                  error.toString().includes("connect")) {
+          errorMessage = "Network error when connecting to OneDrive. Please check your internet connection.";
+        }
+        
+        setAuthError(`${errorMessage} You can try refreshing, or use local storage instead.`);
       } finally {
         setIsLoading(false);
       }
@@ -905,6 +960,48 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         loadItems(folderPath[index].id);
       }
     };
+
+    // Add back the useEffect for loading initial items after authentication
+    // Load files and folders after authentication - only once for root
+    useEffect(() => {
+      if (isAuthenticated && !itemsLoadedRef.current && !isLoading) {
+        console.log("Authentication detected, loading OneDrive items...");
+        itemsLoadedRef.current = true;
+        
+        // Add a small delay to ensure auth is fully complete
+        setTimeout(() => {
+          loadItems();
+        }, 1000);
+      }
+    }, [isAuthenticated, isLoading]);
+    
+    // Add a manual load function for debugging
+    const handleForceReload = () => {
+      console.log("Manual reload requested");
+      itemsLoadedRef.current = false; // Reset the ref to allow reloading
+      loadItems(currentFolderId); // Load current folder or root
+    };
+    
+    // Modify the handleAuthenticate function
+    const handleAuthenticate = async () => {
+      if (isAuthenticating) return; // Prevent multiple clicks
+      
+      try {
+        setIsAuthenticating(true);
+        setAuthError(null);
+        console.log("Starting Microsoft authentication flow...");
+        
+        await loginWithMicrosoft();
+        console.log("Authentication initiated, redirecting to Microsoft login");
+      } catch (error) {
+        console.error('Error starting authentication:', error);
+        setAuthError(error.message || 'Failed to start authentication');
+      } finally {
+        setTimeout(() => {
+          setIsAuthenticating(false);
+        }, 1000);
+      }
+    };
     
     // Handle continue with local storage
     const continueWithLocalStorage = () => {
@@ -939,7 +1036,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       });
     };
     
-    // Handle folder creation
+    // Handle folder creation with improved error handling
     const handleCreateFolder = async () => {
       if (!newFolderName.trim()) {
         toast({
@@ -952,29 +1049,68 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       
       try {
         setIsCreatingFolder(true);
-        const { createFolder } = useMicrosoftGraph();
-        // Create in current folder if we have one, otherwise in root
-        const newFolder = await createFolder(newFolderName, currentFolderId || undefined);
+        setAuthError(null);
+        console.log(`Creating folder "${newFolderName}" ${currentFolderId ? `in parent folder: ${currentFolderId}` : "in root"}`);
+        
+        // Get token first to verify authentication
+        const { getAccessToken, createFolder } = useMicrosoftGraph();
+        const token = await getAccessToken();
+        
+        if (!token) {
+          throw new Error("Authentication token not available. Please try logging in again.");
+        }
+        
+        // Add retry logic
+        let newFolder = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (!newFolder && attempts < maxAttempts) {
+          attempts++;
+          try {
+            // Create in current folder if we have one, otherwise in root
+            newFolder = await createFolder(newFolderName, currentFolderId || undefined);
+            console.log(`Folder created on attempt ${attempts}:`, newFolder);
+          } catch (err) {
+            console.error(`Folder creation attempt ${attempts} failed:`, err);
+            if (attempts >= maxAttempts) throw err;
+            
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
         
         if (newFolder) {
           // Add new folder to list
           setItems(prevItems => [...prevItems, newFolder]);
           setNewFolderName("");
           
+          // Automatically select the newly created folder
+          setSelectedFolder(newFolder);
+          
           toast({
             title: "Folder created",
-            description: `Created folder: ${newFolderName}`
+            description: `Created folder: ${newFolderName}`,
+            duration: 3000,
           });
         } else {
-          throw new Error("Failed to create folder");
+          throw new Error("Failed to create folder after multiple attempts");
         }
       } catch (error) {
         console.error("Error creating folder:", error);
+        
+        let errorMessage = "Could not create folder.";
+        if (error instanceof Error) {
+          errorMessage += ` ${error.message}`;
+        }
+        
         toast({
           title: "Error creating folder",
-          description: error.message || "Could not create folder",
+          description: errorMessage,
           variant: "destructive"
         });
+        
+        setAuthError("Folder creation failed. This could be due to permission issues or network problems.");
       } finally {
         setIsCreatingFolder(false);
       }
@@ -1117,56 +1253,166 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         ) : (
           // Folder management - authenticated
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">OneDrive Folders</h3>
-              <div className="flex gap-2">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold mb-2">OneDrive Integration</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Connect to OneDrive to browse and select a folder for your unit data
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="mb-4"
+                  onClick={handleAuthenticate}
+                  disabled={isAuthenticating}
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="mr-2 h-4 w-4" />
+                      Connect to OneDrive
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {/* View Mode Toggle */}
+              <div className="flex justify-center mb-4">
+                <div className="bg-muted p-0.5 rounded-md flex">
+                  <Button
+                    size="sm"
+                    variant={viewMode === 'selection' ? "default" : "ghost"}
+                    className="rounded-sm h-8"
+                    onClick={() => setViewMode('selection')}
+                  >
+                    <Folder className="h-3.5 w-3.5 mr-2" />
+                    Folder Selection
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={viewMode === 'browser' ? "default" : "ghost"}
+                    className="rounded-sm h-8"
+                    onClick={() => setViewMode('browser')}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-2" />
+                    File Browser
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">{viewMode === 'selection' ? 'Select Folder' : 'Browse Files'}</h3>
+                
+                <div className="p-2 bg-muted rounded">
+                  <div className="font-semibold mb-1">API Connection</div>
+                  <div>{items.length > 0 ? "✅ Working" : "⚠️ Not Confirmed"}</div>
+                </div>
+              </div>
+
+              {/* Navigation Controls */}
+              <div className="flex justify-end gap-2 mb-3">
                 <Button 
                   size="sm" 
                   variant="outline" 
-                  onClick={() => loadItems()}
+                  onClick={handleForceReload}
                   disabled={isLoading}
+                  title="Force reload OneDrive contents"
                 >
                   {isLoading ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <RefreshCw className="h-3 w-3" />
+                    <RefreshCw className="h-3 w-3 mr-1" />
                   )}
                   Refresh
                 </Button>
-              </div>
-            </div>
-            
-            {/* File/Folder View Mode Toggle */}
-            <div className="flex justify-between items-center mb-2">
-              <div className="space-x-1">
-                <Button 
-                  size="sm"
-                  variant={viewMode === 'selection' ? "default" : "outline"}
-                  onClick={() => setViewMode('selection')}
-                >
-                  <Folder className="h-3.5 w-3.5 mr-1" />
-                  Folder Selection
-                </Button>
-                <Button 
-                  size="sm"
-                  variant={viewMode === 'browser' ? "default" : "outline"}
-                  onClick={() => setViewMode('browser')}
-                >
-                  <FileText className="h-3.5 w-3.5 mr-1" />
-                  File Browser
-                </Button>
+                
+                {viewMode === 'browser' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={navigateUp}
+                  >
+                    <ArrowUp className="h-3.5 w-3.5 mr-1" />
+                    Up
+                  </Button>
+                )}
               </div>
               
-              {viewMode === 'browser' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={navigateUp}
-                >
-                  <ArrowUp className="h-3.5 w-3.5 mr-1" />
-                  Up
-                </Button>
-              )}
+              {/* OneDrive Status */}
+              <div className="flex items-center justify-between bg-muted/30 px-3 py-2 rounded mb-3 text-xs">
+                <div className="flex items-center">
+                  <Cloud className="h-3.5 w-3.5 mr-1.5 text-blue-500" />
+                  <span>OneDrive Connection: </span>
+                  <span className={`ml-1 font-medium ${isAuthenticated ? 'text-green-600' : 'text-red-600'}`}>
+                    {isAuthenticated ? 'Connected' : 'Not Connected'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center">
+                  <span>Items: </span>
+                  <span className="ml-1 font-medium">
+                    {items.length} ({items.filter(i => i && i.isFolder).length} folders)
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-2 text-xs">
+                <details className="text-left">
+                  <summary className="cursor-pointer hover:text-foreground">Direct API Response</summary>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 h-7 text-xs py-0 w-full"
+                    onClick={async () => {
+                      try {
+                        // Get token
+                        const { getAccessToken } = useMicrosoftGraph();
+                        const token = await getAccessToken();
+                        
+                        if (!token) {
+                          throw new Error("No access token available");
+                        }
+                        
+                        // Get root content
+                        const response = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+                          headers: {
+                            'Authorization': `Bearer ${token}`
+                          }
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error(`API response: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        const data = await response.json();
+                        console.log("Direct API response:", data);
+                        
+                        // Show count and first item
+                        const itemCount = data.value?.length || 0;
+                        const firstItem = data.value && data.value.length > 0 ? data.value[0].name : 'None';
+                        
+                        toast({
+                          title: "Direct API Result",
+                          description: `Found ${itemCount} items. First item: ${firstItem}`,
+                        });
+                      } catch (error) {
+                        console.error("Direct API error:", error);
+                        toast({
+                          title: "Direct API Error",
+                          description: error.message || "Failed to call API directly",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    Test Direct API Call
+                  </Button>
+                </details>
+              </div>
             </div>
             
             {/* Breadcrumb Navigation */}
@@ -1222,7 +1468,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 Create Folder
               </Button>
             </div>
-            
+
             {/* Files and Folders List */}
             <div className="border rounded-md overflow-hidden">
               <div className="bg-muted p-2 font-medium text-sm">
@@ -1236,10 +1482,38 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : items.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground text-sm">
-                    {viewMode === 'selection'
-                      ? 'No folders found. Create a new folder to continue.'
-                      : 'This folder is empty.'}
+                  <div className="p-6 text-center">
+                    <div className="bg-muted inline-flex rounded-full p-3 mb-4">
+                      {currentFolderId ? 
+                        <Folder className="h-6 w-6 text-muted-foreground" /> :
+                        <Cloud className="h-6 w-6 text-blue-500" />
+                      }
+                    </div>
+                    <h3 className="text-sm font-medium mb-1">
+                      {viewMode === 'selection'
+                        ? 'No folders found'
+                        : currentFolderId 
+                          ? 'This folder is empty' 
+                          : 'Your OneDrive root is empty'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {viewMode === 'selection'
+                        ? 'Use the form above to create a new folder for your data'
+                        : 'You can create a new folder or upload files using OneDrive'}
+                    </p>
+                    <Button 
+                      size="sm"
+                      onClick={() => {
+                        // Focus the folder name input
+                        const input = document.querySelector('input[placeholder="New folder name"]') as HTMLInputElement;
+                        if (input) {
+                          input.focus();
+                        }
+                      }}
+                    >
+                      <FolderPlus className="h-3.5 w-3.5 mr-1.5" />
+                      Create New Folder
+                    </Button>
                   </div>
                 ) : (
                   items.map(item => (
