@@ -35,10 +35,11 @@ const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
     authorityUrl: 'https://login.microsoftonline.com/common',
     redirectUri: 'https://unitopia-hub.vercel.app/',
     permissions: ['User.Read'],
-    apiEndpoint: 'https://graph.microsoft.com/v1.0/me',
+    apiEndpoint: 'https://graph.microsoft.com/v1.0',
     last_tested: null,
     test_success: false,
-    confirmed: false
+    confirmed: false,
+    last_confirmed: null
   });
   
   const [msTestResult, setMsTestResult] = useState<TestResult>({
@@ -144,7 +145,7 @@ const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
     // Set the predefined configuration values
     setMsConfig({
       clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f',
-      apiEndpoint: 'https://graph.microsoft.com/v1.0/me',
+      apiEndpoint: 'https://graph.microsoft.com/v1.0',
       permissions: ['User.Read'],
       redirectUri: 'https://unitopia-hub.vercel.app/',
       authorityUrl: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab',

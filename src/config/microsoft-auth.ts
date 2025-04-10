@@ -2,7 +2,7 @@
 const microsoftAuthConfig = {
   clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
   confirmed: true,
-  apiEndpoint: "https://graph.microsoft.com/v1.0/me",
+  apiEndpoint: "https://graph.microsoft.com/v1.0",
   last_tested: "2025-04-07T08:19:35.145Z",
   permissions: [
     "User.Read",
