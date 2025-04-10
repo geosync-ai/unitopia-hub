@@ -1438,6 +1438,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           // Auto-select the new folder
           setSelectedFolder(formattedFolder);
           
+          // Automatically continue with the newly created folder
+          onComplete({
+            path: formattedFolder.name,
+            folderId: formattedFolder.id,
+            isNewFolder: true,
+            folderName: formattedFolder.name,
+            isTemporary: false
+          });
+          
           // Create a reference to scroll to the new folder into view
           setTimeout(() => {
             const folderElement = document.getElementById(`folder-${newFolder.id}`);
@@ -1542,8 +1551,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     // Select a folder and complete the setup
     const handleSelectFolder = (folder: any) => {
       setSelectedFolder(folder);
+      
+      // Automatically continue with the selected folder
+      onComplete({
+        path: folder.name,
+        folderId: folder.id,
+        isTemporary: false,
+        folderName: folder.name
+      });
     };
     
+    // This function is now only used internally when selecting a folder directly
     const handleUseSelectedFolder = () => {
       if (!selectedFolder) {
         toast({
@@ -1688,13 +1706,36 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                     selectedFolder?.id === folder.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                   }`}
                   onClick={() => handleSelectFolder(folder)}
-                  onDoubleClick={() => navigateToFolder(folder)}
+                  onDoubleClick={() => {
+                    // Double click to either navigate into the folder or select and continue
+                    if (folderPath.length < 3) {
+                      navigateToFolder(folder);
+                    } else {
+                      // If we're already deep in the folder structure, just select and use this folder
+                      handleSelectFolder(folder);
+                      handleUseSelectedFolder();
+                    }
+                  }}
                 >
                   <div className="flex items-center">
                     <Folder className="h-5 w-5 mr-2 text-blue-500" />
                     <span>{folder.name || 'Unnamed Folder'}</span>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Select the folder and immediately use it
+                        handleSelectFolder(folder);
+                        handleUseSelectedFolder();
+                      }}
+                      title="Select and continue with this folder"
+                      className="text-xs px-2 py-1 h-7"
+                    >
+                      Select
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1932,11 +1973,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                         className="w-full"
                         autoFocus
                       />
-                      {currentFolderId && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Creating in: {folderPath.length > 0 ? folderPath[folderPath.length - 1].name : 'Root'}
-                        </div>
-                      )}
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {currentFolderId
+                          ? `Creating in: ${folderPath.length > 0 ? folderPath[folderPath.length - 1].name : 'Root'}`
+                          : 'Creating folder will automatically select it and continue'}
+                      </div>
                     </div>
                     <Button
                       type="submit"
@@ -1944,52 +1985,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                       className="shrink-0"
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderPlus className="h-4 w-4 mr-2" />}
-                      Create
+                      Create & Continue
                     </Button>
                   </form>
                 </div>
               </Card>
             )}
             
-            {/* Selection Actions */}
-            {selectedFolder && (
-              <div className="border rounded-lg p-4 bg-blue-50">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3">
-                  <div>
-                    <h4 className="font-semibold">Selected Folder</h4>
-                    <p className="text-sm text-muted-foreground">{selectedFolder.name}</p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Ready to use
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="p-3 bg-white rounded border text-sm">
-                    <p className="font-medium">This folder will be used to:</p>
-                    <ul className="list-disc list-inside space-y-1 mt-2 text-muted-foreground">
-                      <li>Store CSV files for your unit data</li>
-                      <li>Manage objectives, KRAs, and KPIs</li>
-                      <li>Synchronize with OneDrive for collaboration</li>
-                    </ul>
-                  </div>
-                
-                  <Button 
-                    onClick={handleUseSelectedFolder}
-                    className="w-full bg-primary hover:bg-primary/90 text-white"
-                  >
-                    Use This Folder and Continue
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-            {!selectedFolder && folders.length > 0 && (
+            {/* This message is no longer needed since selection is now automatic */}
+            {false && !selectedFolder && folders.length > 0 && (
               <div className="border rounded-lg p-4 bg-gray-50 mt-4">
                 <p className="text-sm text-center text-muted-foreground">
-                  Select a folder above or create a new one to continue
+                  Click "Select" on any folder or create a new folder to continue
                 </p>
               </div>
             )}
