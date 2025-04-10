@@ -18,11 +18,14 @@ export interface CsvFile {
   content?: string;
 }
 
+/**
+ * IMPORTANT: This is a placeholder implementation.
+ * The real implementation is in useMicrosoftGraph.tsx
+ * This file exists to address import errors in other components.
+ * 
+ * All functions here will be overridden by the actual implementation.
+ */
 export const useMicrosoftGraph = () => {
-  // This is a placeholder implementation
-  // The real implementation is in useMicrosoftGraph.tsx
-  // This file exists to address import errors in other components
-  
   return {
     isLoading: false,
     lastError: null,
@@ -34,6 +37,7 @@ export const useMicrosoftGraph = () => {
       error: null
     }),
     getAccessToken: async () => '',
+    getClient: async () => null,
     getOneDriveDocuments: async () => null,
     getFolderContents: async (folderId?: string, source?: string) => null,
     createFolder: async (folderName?: string, parentFolderId?: string) => null,
@@ -41,6 +45,9 @@ export const useMicrosoftGraph = () => {
     deleteFolder: async (folderId?: string) => false,
     createCsvFile: async (fileName?: string, initialContent?: string, parentFolderId?: string) => null,
     readCsvFile: async (fileId?: string) => '',
-    updateCsvFile: async (fileId?: string, content?: string) => false
+    updateCsvFile: async (fileId?: string, content?: string) => false,
+    handleLogin: async () => null
   };
-}; 
+};
+
+export default useMicrosoftGraph; 

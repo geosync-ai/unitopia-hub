@@ -23,7 +23,7 @@ import {
   RefreshCw, FolderPlus, Edit, Trash2, Folder, ArrowUp, Image, 
   FileIcon, Home, ChevronLeft, FolderOpen, AlertCircle
 } from 'lucide-react';
-import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
+import { useMicrosoftGraph, Document, CsvFile } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useMsal } from '@azure/msal-react';
@@ -108,14 +108,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [setupError, setSetupError] = useState<string | null>(null);
   const [isUsingLocalStorage, setIsUsingLocalStorage] = useState(false);
   
-  // Add the useMicrosoftGraph hook at the component level
+  // Add the useMicrosoftGraph hook within the component function
   const { createCsvFile, isLoading: graphLoading } = useMicrosoftGraph();
 
-  // Add type for createCsvFile to help with linter issues
-  type CreateCsvFileType = (fileName: string, content: string, folderId: string) => Promise<any>;
+  // Define type for createCsvFile
+  type CreateCsvFileType = (fileName: string, content: string, folderId: string) => Promise<CsvFile | null>;
 
-  // Use the type to avoid linter errors
-  const safeCreateCsvFile = createCsvFile as unknown as CreateCsvFileType;
+  // Use the function directly instead of type casting
+  // No need for this line anymore: const safeCreateCsvFile = createCsvFile as unknown as CreateCsvFileType;
 
   // Define steps for the wizard with the new KRA step
   const steps = [
@@ -243,6 +243,19 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           variant: "destructive",
         });
         return;
+      }
+      
+      // Check if createCsvFile function is available (when not using local storage)
+      if (!isUsingLocalStorage && (!createCsvFile || typeof createCsvFile !== 'function')) {
+        console.error('Error: createCsvFile function is not available');
+        setSetupError('The Microsoft Graph API integration is not available. Try using local storage instead.');
+        toast({
+          title: "API Error",
+          description: "Microsoft Graph API integration is not available. Try using local storage.",
+          variant: "destructive",
+        });
+        setIsUsingLocalStorage(true);
+        // Continue with local storage flow instead of returning
       }
       
       setIsProcessing(true);
@@ -500,7 +513,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   folderId: typedConfig.folderId
                 });
                 
-                csvFile = await safeCreateCsvFile(
+                csvFile = await createCsvFile(
                   fileName,
                   initialContent,
                   typedConfig.folderId
@@ -644,7 +657,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     tempKPIs, 
     updateCsvConfigWithData, 
     updateCsvConfig, 
-    safeCreateCsvFile, 
+    createCsvFile, 
     setObjectives,
     setKRAs,
     setKPIs,

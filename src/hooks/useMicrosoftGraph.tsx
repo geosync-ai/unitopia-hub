@@ -1060,8 +1060,13 @@ export const useMicrosoftGraph = () => {
     }
   }, [msalInstance]);
 
-  // Return memoized functions
+  // End of the useMicrosoftGraph hook
   return {
+    isLoading,
+    lastError,
+    getAuthStatus,
+    getAccessToken,
+    getClient,
     getOneDriveDocuments,
     getFolderContents,
     createFolder,
@@ -1070,9 +1075,6 @@ export const useMicrosoftGraph = () => {
     createCsvFile,
     readCsvFile,
     updateCsvFile,
-    isLoading,
-    lastError,
-    getAuthStatus,
     handleLogin
   };
 };

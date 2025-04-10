@@ -30,6 +30,20 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
   const [error, setError] = useState<string | null>(null);
   const [hasAttemptedInit, setHasAttemptedInit] = useState(false);
 
+  // Validate that required functions from useMicrosoftGraph are available
+  useEffect(() => {
+    if (!createCsvFile || typeof createCsvFile !== 'function') {
+      console.error('[CSV SYNC] createCsvFile function is not available or is not a function');
+      setError('Microsoft Graph API integration is not available. Please refresh the page and try again.');
+    }
+    if (!readCsvFile || typeof readCsvFile !== 'function') {
+      console.error('[CSV SYNC] readCsvFile function is not available or is not a function');
+    }
+    if (!updateCsvFile || typeof updateCsvFile !== 'function') {
+      console.error('[CSV SYNC] updateCsvFile function is not available or is not a function');
+    }
+  }, [createCsvFile, readCsvFile, updateCsvFile]);
+
   // Initialize CSV files if they don't exist
   const initializeCsvFiles = useCallback(async () => {
     if (!config) {
@@ -39,6 +53,13 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
 
     if (!config.folderId) {
       console.error('[CSV INIT] Cannot initialize CSV files: No folder ID specified');
+      return;
+    }
+    
+    // Check if createCsvFile is available
+    if (!createCsvFile || typeof createCsvFile !== 'function') {
+      console.error('[CSV INIT] Cannot initialize CSV files: createCsvFile function is not available');
+      setError('Microsoft Graph API integration is not available. Please refresh the page and try again.');
       return;
     }
 
