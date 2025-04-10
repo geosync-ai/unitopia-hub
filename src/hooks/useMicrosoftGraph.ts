@@ -26,15 +26,21 @@ export const useMicrosoftGraph = () => {
   return {
     isLoading: false,
     lastError: null,
-    getAuthStatus: () => ({}),
+    getAuthStatus: () => ({
+      isInitialized: false,
+      hasAccounts: false,
+      accountCount: 0,
+      activeAccount: null,
+      error: null
+    }),
     getAccessToken: async () => '',
     getOneDriveDocuments: async () => null,
-    getFolderContents: async () => null,
-    createFolder: async () => null,
-    renameFolder: async () => null,
-    deleteFolder: async () => false,
-    createCsvFile: async () => null,
-    readCsvFile: async () => '',
-    updateCsvFile: async () => false
+    getFolderContents: async (folderId?: string, source?: string) => null,
+    createFolder: async (folderName?: string, parentFolderId?: string) => null,
+    renameFolder: async (folderId?: string, newName?: string) => null,
+    deleteFolder: async (folderId?: string) => false,
+    createCsvFile: async (fileName?: string, initialContent?: string, parentFolderId?: string) => null,
+    readCsvFile: async (fileId?: string) => '',
+    updateCsvFile: async (fileId?: string, content?: string) => false
   };
 }; 

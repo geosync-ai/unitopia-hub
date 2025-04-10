@@ -472,43 +472,43 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     );
   };
 
-  const renderConnectionIssue = () => {
+  const renderAuthError = () => {
+    if (!authError) return null;
+    
     return (
-      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4">
-        <h4 className="font-medium text-amber-700 mb-2">Connection Issues Detected</h4>
-        <p className="text-sm text-amber-600 mb-3">
-          We're having trouble connecting to OneDrive. This could be due to:
-        </p>
-        <ul className="list-disc list-inside text-sm text-amber-600 mb-3 pl-2">
-          <li>Network connectivity issues</li>
-          <li>Microsoft authentication service disruption</li>
-          <li>Browser security settings blocking the authentication</li>
-        </ul>
-        <div className="flex flex-col space-y-2 mt-4">
-          <Button 
-            variant="outline" 
-            onClick={handleAuthenticate} 
-            disabled={isAuthenticating}
-            className="w-full"
-          >
-            {isAuthenticating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Retrying...
-              </>
-            ) : (
-              <>Retry Connection</>
-            )}
-          </Button>
-          {connectionRetryCount >= 1 && (
-            <Button
-              variant="ghost"
-              onClick={handleSkipOneDriveAuth}
-              className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-            >
-              Continue Without OneDrive
-            </Button>
-          )}
+      <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-6">
+        <div className="flex items-start">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold mb-1">OneDrive Connection Error</h4>
+            <p className="text-sm mb-3">{authError}</p>
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleAuthenticate}
+                disabled={isAuthenticating}
+                className="flex-1"
+              >
+                {isAuthenticating ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>Retry Connection</>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkipOneDriveAuth}
+                className="flex-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200"
+              >
+                Continue Without OneDrive
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -523,12 +523,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         </p>
       </div>
 
-      {authError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{authError}</span>
-        </div>
-      )}
+      {renderAuthError()}
 
       {!isAuthenticated ? (
         <>
@@ -555,7 +550,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               </Button>
             </div>
           </Card>
-          {connectionRetryCount > 0 && renderConnectionIssue()}
           {renderDiagnostics()}
         </>
       ) : (
