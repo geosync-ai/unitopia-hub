@@ -86,8 +86,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     { id: 2, name: "Objectives" },
     { id: 3, name: "KRAs" },
     { id: 4, name: "KPIs" },
-    { id: 5, name: "Review" },
-    { id: 6, name: "Summary" }
+    { id: 5, name: "Summary" }
   ];
 
   // Updated total steps count
@@ -500,17 +499,19 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       return;
     }
     
+    // Set the appropriate setup method based on the selected type
+    // This ensures we're preserving the logic from the removed review step
     if (type === 'onedrive') {
-      setSetupMethod('standard'); // Use prop
+      setSetupMethod('standard'); // Standard setup for OneDrive
       setCurrentStep(1);
     } else if (type === 'csv') {
-      setSetupMethod('import'); // Use prop
+      setSetupMethod('import'); // Import method for CSV
       setCurrentStep(1);
     } else if (type === 'demo') {
-      setSetupMethod('demo'); // Use prop
+      setSetupMethod('demo'); // Demo data
       setCurrentStep(1);
     }
-  }, [setSetupMethod, toast]); // Update dependencies
+  }, [setSetupMethod, toast]);
 
   // Add handling for the new KRA step
   const handleObjectivesComplete = useCallback((objectives: any[]) => {
@@ -525,18 +526,21 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   const handleKPIComplete = useCallback((kpis: any[]) => {
     setTempKPIs(kpis);
-    setCurrentStep(5); // Move to review step
+    setCurrentStep(5); // Skip directly to the Summary step (was 5 for Review)
   }, []);
 
   const handleSummaryComplete = useCallback(() => {
     if (setObjectives) {
       setObjectives(tempObjectives);
     }
+    if (setKRAs) {
+      setKRAs(tempKRAs);
+    }
     if (setKPIs) {
       setKPIs(tempKPIs);
     }
     handleComplete();
-  }, [tempObjectives, tempKPIs, setObjectives, setKPIs, handleComplete]);
+  }, [tempObjectives, tempKRAs, tempKPIs, setObjectives, setKRAs, setKPIs, handleComplete]);
 
   const renderInitialSelection = () => {
     return (
@@ -710,17 +714,6 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         );
       case 5:
         return (
-          <SetupMethod
-            onSelect={(method) => {
-              if (setSetupMethod) { // Use prop
-                setSetupMethod(method);
-                handleNext();
-              }
-            }}
-          />
-        );
-      case 6:
-        return (
           <SetupSummary
             oneDriveConfig={oneDriveConfig}
             objectives={tempObjectives}
@@ -834,14 +827,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   Cancel
                 </Button>
                 
-                {currentStep === 6 ? (
+                {currentStep === 5 ? (
                   <Button 
                     onClick={handleSummaryComplete}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     Complete Setup
                   </Button>
-                ) : currentStep > 0 && currentStep < 6 ? (
+                ) : currentStep > 0 && currentStep < 5 ? (
                   <Button
                     onClick={handleNext}
                   >
