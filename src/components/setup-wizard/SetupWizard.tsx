@@ -1195,6 +1195,33 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
+    // Add a new handleAuthenticate function
+    const handleDirectAuthenticate = async () => {
+      try {
+        setIsAuthenticating(true);
+        setAuthError(null);
+        
+        // Use the handleLogin directly from useMicrosoftGraph
+        const { handleLogin } = useMicrosoftGraph();
+        const result = await handleLogin();
+        
+        if (result) {
+          console.log("Successfully authenticated with Microsoft Graph");
+          // Now try loading items
+          setTimeout(() => {
+            loadItems();
+          }, 1000);
+        } else {
+          throw new Error("Authentication failed - no result returned");
+        }
+      } catch (error) {
+        console.error("Authentication error:", error);
+        setAuthError(error.message || "Failed to authenticate with Microsoft Graph");
+      } finally {
+        setIsAuthenticating(false);
+      }
+    };
+    
     return (
       <div className="space-y-6">
         {!isAuthenticated ? (
@@ -1209,7 +1236,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                     Connect to your Microsoft OneDrive to store your data in the cloud.
                   </p>
                   <Button
-                    onClick={handleAuthenticate}
+                    onClick={handleDirectAuthenticate}
                     disabled={isAuthenticating}
                     className="mt-3 bg-blue-600 text-white hover:bg-blue-700"
                   >
@@ -1263,7 +1290,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   variant="default"
                   size="sm"
                   className="mb-4"
-                  onClick={handleAuthenticate}
+                  onClick={handleDirectAuthenticate}
                   disabled={isAuthenticating}
                 >
                   {isAuthenticating ? (
