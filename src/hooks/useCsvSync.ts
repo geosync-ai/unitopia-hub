@@ -278,18 +278,27 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       return;
     }
 
-    if (!config.folderId) {
-      console.error('Cannot save data to CSV: No folder ID specified', config);
-      toast.error('Failed to save data: No OneDrive folder selected');
-      return;
-    }
-
     if (!config.fileIds || Object.keys(config.fileIds).length === 0) {
       console.error('Cannot save data to CSV: No file IDs available', config);
       toast.error('Failed to save data: CSV files not properly initialized');
       
       // Try to reinitialize files if they're missing
       await initializeCsvFiles();
+      return;
+    }
+
+    // Check if we're using local storage mode (file IDs starting with "local-")
+    const isLocalStorage = Object.values(config.fileIds).some(id => id.startsWith('local-'));
+    
+    if (isLocalStorage) {
+      console.log('[CSV SAVE] Detected local storage mode, saving to localStorage instead of OneDrive');
+      return await saveDataToLocalStorage();
+    }
+    
+    // If we have a folder ID, we should be using OneDrive
+    if (!config.folderId) {
+      console.error('Cannot save data to CSV: No folder ID specified', config);
+      toast.error('Failed to save data: No OneDrive folder selected');
       return;
     }
 
@@ -313,6 +322,13 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       
       // Validate file IDs before proceeding
       const validFileIds = Object.entries(config.fileIds).filter(([key, id]) => {
+        // Skip local storage file IDs when trying to save to OneDrive
+        if (id.startsWith('local-')) {
+          console.warn(`[CSV SAVE] Skipping local file for ${key}: ${id}`);
+          failedFiles.push(key);
+          return false;
+        }
+        
         if (!id || id.trim() === '') {
           console.warn(`[CSV SAVE] Skipping CSV file for ${key}: Empty file ID`);
           failedFiles.push(key);
@@ -321,7 +337,7 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         return true;
       });
       
-      console.log(`[CSV SAVE] Found ${validFileIds.length} valid file IDs for saving`);
+      console.log(`[CSV SAVE] Found ${validFileIds.length} valid file IDs for saving to OneDrive`);
       
       // Save data to each CSV file
       for (const [key, fileId] of validFileIds) {
@@ -428,6 +444,103 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       setIsLoading(false);
     }
   }, [config, updateCsvFile, initializeCsvFiles, toast]);
+
+  // New function to save data to localStorage when using local mode
+  const saveDataToLocalStorage = useCallback(async () => {
+    if (!config) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('[CSV SAVE] Saving data to localStorage');
+      const timestamp = new Date().toISOString();
+      
+      // Keep track of successful files
+      const successfulFiles = [];
+      const failedFiles = [];
+      
+      // Process each entity type
+      for (const [key, fileName] of Object.entries(config.fileNames || {})) {
+        try {
+          const { headers, rows } = config.data[key] || { headers: [], rows: [] };
+          
+          console.log(`[CSV SAVE] Processing local file: ${fileName}`);
+          console.log(`[CSV SAVE] File has ${rows.length} rows and ${headers.length} headers`);
+          
+          // Skip files with no headers
+          if (!headers || headers.length === 0) {
+            console.warn(`[CSV SAVE] Skipping local file ${fileName}: No headers defined`);
+            failedFiles.push(key);
+            continue;
+          }
+          
+          // Format as CSV content
+          const csvLines = [
+            `# Last updated: ${timestamp}`,
+            headers.join(',')
+          ];
+          
+          // Add data rows
+          rows.forEach(row => {
+            const values = headers.map(header => {
+              const value = row[header];
+              
+              // Handle values that might need quotes
+              if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                return `"${value.replace(/"/g, '""')}"`;
+              }
+              
+              return value === null || value === undefined ? '' : String(value);
+            });
+            
+            csvLines.push(values.join(','));
+          });
+          
+          const csvContent = csvLines.join('\n');
+          
+          // Save CSV content to localStorage
+          const storageKey = `unitopia_csv_${key}`;
+          localStorage.setItem(storageKey, csvContent);
+          
+          // Also save the structured data for easy access
+          try {
+            localStorage.setItem(`unitopia_${key}`, JSON.stringify(rows));
+          } catch (e) {
+            console.warn(`[CSV SAVE] Could not save JSON data for ${key}:`, e);
+          }
+          
+          console.log(`[CSV SAVE] Successfully saved ${fileName} to localStorage`);
+          successfulFiles.push(key);
+        } catch (error) {
+          console.error(`[CSV SAVE] Failed to save ${fileName} to localStorage:`, error);
+          failedFiles.push(key);
+        }
+      }
+      
+      // Summary logging
+      console.log(`[CSV SAVE] Local storage save complete at ${new Date().toISOString()}`);
+      console.log(`[CSV SAVE] Results: ${successfulFiles.length} files saved, ${failedFiles.length} files failed`);
+      
+      if (failedFiles.length > 0) {
+        console.warn(`[CSV SAVE] Failed local files: ${failedFiles.map(key => config.fileNames[key]).join(', ')}`);
+        toast.warning(`${successfulFiles.length} files saved to local storage, but ${failedFiles.length} failed.`);
+      } else if (successfulFiles.length > 0) {
+        toast.success(`All data saved to local storage successfully (${successfulFiles.length} files)`);
+      } else {
+        toast.error('No files were successfully saved to local storage');
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('[CSV SAVE] Error saving to localStorage:', err);
+      setError('Failed to save data to localStorage');
+      toast.error('Failed to save data locally: ' + (err.message || 'Unknown error'));
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [config, toast]);
 
   // Update data for a specific entity type
   const updateEntityData = useCallback((entityType: string, data: any[]) => {

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { CsvSyncConfig } from './useCsvSync';
+import { toast } from 'sonner';
 
 export interface SetupWizardState {
   showSetupWizard: boolean;
@@ -24,6 +25,9 @@ export interface SetupWizardState {
   resetSetup: () => void;
   updateCsvConfig: () => void;
   handleSetupComplete: () => void;
+  setupLocation: string;
+  setSetupLocation: (location: string) => void;
+  switchToOneDrive: (folderConfig: { folderId: string; folderName: string }) => Promise<boolean>;
 }
 
 interface UseSetupWizardProps {
@@ -50,6 +54,7 @@ export const useSetupWizard = ({
   const [csvConfig, setCsvConfig] = useState<CsvSyncConfig | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [setupLocation, setSetupLocation] = useState<string>('');
 
   // Initialize setup state
   useEffect(() => {
@@ -241,6 +246,70 @@ export const useSetupWizard = ({
     localStorage.setItem('setupWizardState', JSON.stringify(currentState));
   }, [oneDriveConfig, setupMethod, objectives, kpis, csvConfig]);
 
+  // Add a function to switch from local storage to OneDrive
+  const switchToOneDrive = useCallback(async (folderConfig: { folderId: string; folderName: string }) => {
+    if (!folderConfig || !folderConfig.folderId) {
+      console.error('Missing folder configuration');
+      toast.error('Cannot switch to OneDrive: Missing folder information');
+      return false;
+    }
+
+    try {
+      console.log('Switching from local storage to OneDrive mode');
+      console.log('Target folder:', folderConfig);
+
+      // Check if we have local data
+      const isUsingLocalStorage = localStorage.getItem('unitopia_storage_type') === 'local';
+      const hasLocalFiles = Object.values(csvConfig?.fileIds || {}).some(id => 
+        typeof id === 'string' && id.startsWith('local-')
+      );
+
+      if (!isUsingLocalStorage && !hasLocalFiles) {
+        console.warn('Not using local storage, nothing to migrate');
+        toast.info('Already using OneDrive storage');
+        return false;
+      }
+
+      // Update storage type
+      localStorage.setItem('unitopia_storage_type', 'onedrive');
+
+      // Update OneDrive config
+      setOneDriveConfig(folderConfig);
+
+      // We need to create new file IDs for OneDrive
+      const newFileNames = {
+        objectives: 'objectives.csv',
+        kras: 'kras.csv',
+        kpis: 'kpis.csv',
+        tasks: 'tasks.csv',
+        projects: 'projects.csv',
+        risks: 'risks.csv',
+        assets: 'assets.csv'
+      };
+
+      // Set up for CSV creation
+      const newCsvConfig = {
+        ...csvConfig,
+        folderId: folderConfig.folderId,
+        folderName: folderConfig.folderName,
+        fileNames: newFileNames,
+        fileIds: {} // Clear existing file IDs to force recreation
+      };
+
+      // Update config
+      setCsvConfig(newCsvConfig);
+
+      toast.success('Switched to OneDrive mode successfully');
+      toast.info('Your data will be saved to OneDrive on next save');
+      
+      return true;
+    } catch (error) {
+      console.error('Error switching to OneDrive:', error);
+      toast.error('Failed to switch to OneDrive mode');
+      return false;
+    }
+  }, [csvConfig, setOneDriveConfig, setCsvConfig, toast]);
+
   // Memoize the returned object to prevent unnecessary re-renders
   return useMemo(() => ({
     showSetupWizard,
@@ -260,7 +329,10 @@ export const useSetupWizard = ({
     isSetupComplete,
     resetSetup,
     updateCsvConfig,
-    handleSetupComplete
+    handleSetupComplete,
+    setupLocation,
+    setSetupLocation,
+    switchToOneDrive
   }), [
     showSetupWizard,
     oneDriveConfig,
@@ -271,6 +343,8 @@ export const useSetupWizard = ({
     isSetupComplete,
     resetSetup,
     updateCsvConfig,
-    handleSetupComplete
+    handleSetupComplete,
+    setupLocation,
+    switchToOneDrive
   ]);
 }; 

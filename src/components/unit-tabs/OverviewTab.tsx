@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Calendar, BarChart2, Target, Clock, Flag, 
-  CheckCircle, AlertTriangle, Briefcase, Settings
+  CheckCircle, AlertTriangle, Briefcase, Settings, Cloud
 } from 'lucide-react';
 import {
   Bar,
@@ -22,8 +22,12 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { SetupWizard, SetupWizardProps } from '@/components/setup-wizard/SetupWizard';
+import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
 import { SetupWizardState as FullSetupWizardState } from '@/hooks/useSetupWizard';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface Risk {
   id: string;
@@ -64,6 +68,57 @@ interface OverviewTabProps {
   setupState: FullSetupWizardState;
 }
 
+// Add a new component for the OneDrive switch dialog
+const SwitchToOneDriveDialog = ({ isOpen, onClose, onSwitch }) => {
+  const [folderName, setFolderName] = useState('Unit Dashboard');
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSwitch(folderName);
+    onClose();
+  };
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Switch to OneDrive Storage</DialogTitle>
+          <DialogDescription>
+            Create a new OneDrive folder to store your data in. This will move your data from local storage to OneDrive.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="folder-name" className="col-span-4">
+                Folder Name
+              </Label>
+              <Input
+                id="folder-name"
+                value={folderName}
+                onChange={(e) => setFolderName(e.target.value)}
+                className="col-span-4"
+                required
+                minLength={3}
+                maxLength={64}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              <Cloud className="mr-2 h-4 w-4" />
+              Create Folder & Switch
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const OverviewTab: React.FC<OverviewTabProps> = ({ 
   projects, 
   tasks, 
@@ -71,6 +126,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   kras, 
   setupState 
 }) => {
+  const [selectedInsight, setSelectedInsight] = useState('overview');
+  const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+  
   const completedTasks = tasks.filter(task => task.status === 'done').length;
   const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
   const todoTasks = tasks.filter(task => task.status === 'todo').length;
@@ -109,6 +167,74 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     { name: 'May', completed: 12, added: 9 },
     { name: 'Jun', completed: 15, added: 10 }
   ];
+
+  // Check if we're using local storage mode
+  const isLocalStorage = localStorage.getItem('unitopia_storage_type') === 'local' || 
+    (setupState.csvConfig?.fileIds && Object.values(setupState.csvConfig?.fileIds).some(id => 
+      typeof id === 'string' && String(id).startsWith('local-')
+    ));
+  
+  // Handler for initiating the switch to OneDrive
+  const handleCreateOneDriveFolder = async (folderName) => {
+    try {
+      // Check if we have the Microsoft Graph hook available
+      if (!window.msalInstance) {
+        toast.error('Microsoft authentication is not available');
+        return;
+      }
+      
+      // Create a folder in OneDrive
+      toast.info('Creating OneDrive folder...');
+      
+      // Get a token
+      const accounts = window.msalInstance.getAllAccounts();
+      if (!accounts || accounts.length === 0) {
+        toast.error('No Microsoft account found. Please sign in first.');
+        return;
+      }
+      
+      const response = await window.msalInstance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All'],
+        account: accounts[0]
+      });
+      
+      // Create the folder directly using fetch
+      const result = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: folderName,
+          folder: {},
+          '@microsoft.graph.conflictBehavior': 'rename'
+        })
+      });
+      
+      if (!result.ok) {
+        const errorText = await result.text();
+        toast.error(`Failed to create folder: ${result.status} ${result.statusText}`);
+        console.error('Error creating folder:', errorText);
+        return;
+      }
+      
+      const folderData = await result.json();
+      
+      // Switch to OneDrive mode
+      const switchResult = await setupState.switchToOneDrive({
+        folderId: folderData.id,
+        folderName: folderData.name
+      });
+      
+      if (switchResult) {
+        toast.success(`Switched to OneDrive folder: ${folderData.name}`);
+      }
+    } catch (error) {
+      console.error('Error switching to OneDrive:', error);
+      toast.error(`Failed to switch to OneDrive: ${error.message}`);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -207,6 +333,54 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             />
           </CardContent>
         </Card>
+
+        {/* Add storage information card with storage type and switch button */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Storage Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Storage Type</p>
+                <p className="text-xl font-bold flex items-center">
+                  {isLocalStorage ? (
+                    <>
+                      <span className="text-amber-500">Local Storage</span>
+                      <AlertTriangle className="ml-2 h-4 w-4 text-amber-500" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-blue-500">OneDrive</span>
+                      <Cloud className="ml-2 h-4 w-4 text-blue-500" />
+                    </>
+                  )}
+                </p>
+              </div>
+              
+              {isLocalStorage && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowSwitchDialog(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Cloud className="h-4 w-4" />
+                  <span>Switch to OneDrive</span>
+                </Button>
+              )}
+            </div>
+            
+            <div className="mt-4">
+              <p className="text-xs text-muted-foreground">
+                {isLocalStorage 
+                  ? "Your data is currently stored in your browser's local storage. This data will be lost if you clear your browser data."
+                  : "Your data is stored in Microsoft OneDrive and will be preserved even if you clear your browser data."
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
       {/* Charts */}
@@ -299,6 +473,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Add the dialog component */}
+      <SwitchToOneDriveDialog 
+        isOpen={showSwitchDialog}
+        onClose={() => setShowSwitchDialog(false)}
+        onSwitch={handleCreateOneDriveFolder}
+      />
     </div>
   );
 }; 
