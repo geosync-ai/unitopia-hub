@@ -9,6 +9,7 @@ interface SetupSummaryProps {
     folderName: string;
   } | null;
   objectives: any[];
+  kras: any[];
   kpis: any[];
   onComplete: () => void;
   onBack: () => void;
@@ -17,6 +18,7 @@ interface SetupSummaryProps {
 export const SetupSummary: React.FC<SetupSummaryProps> = ({
   oneDriveConfig,
   objectives,
+  kras,
   kpis,
   onComplete,
   onBack,
@@ -69,6 +71,36 @@ export const SetupSummary: React.FC<SetupSummaryProps> = ({
               <div className="flex items-center space-x-2 text-yellow-600">
                 <AlertCircle className="h-4 w-4" />
                 <span>No objectives configured</span>
+              </div>
+            )}
+          </div>
+
+          {/* KRAs */}
+          <div className="space-y-2">
+            <h4 className="font-medium">Key Result Areas (KRAs)</h4>
+            {kras && kras.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{kras.length} KRAs configured</span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {kras.map((kra, index) => (
+                    <li key={index} className="text-sm">
+                      {kra.name || `KRA ${index + 1}`}
+                      {kra.objectiveName && (
+                        <span className="text-gray-500 text-xs ml-2">
+                          (Linked to: {kra.objectiveName})
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 text-yellow-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>No KRAs configured</span>
               </div>
             )}
           </div>

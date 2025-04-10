@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { OneDriveSetup } from '@/components/setup-wizard/steps/OneDriveSetup';
 import { SetupMethod } from '@/components/setup-wizard/steps/SetupMethod';
 import { ObjectivesSetup } from '@/components/setup-wizard/steps/ObjectivesSetup';
+import { KRASetup } from '@/components/setup-wizard/steps/KRASetup';
 import { KPISetup } from '@/components/setup-wizard/steps/KPISetup';
 import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
@@ -25,6 +26,7 @@ interface SetupWizardSpecificProps {
   setSetupMethod: (method: string) => void;
   setOneDriveConfig: (config: { folderId: string; folderName: string } | null) => void;
   setObjectives: (objectives: any[]) => void;
+  setKRAs: (kras: any[]) => void;
   setKPIs: (kpis: any[]) => void;
   handleSetupCompleteFromHook: () => void; // Renamed to avoid conflict
   updateCsvConfig: () => void;
@@ -32,6 +34,7 @@ interface SetupWizardSpecificProps {
   oneDriveConfig: any; // Consider stronger typing if possible
   setupMethodProp?: string; // Pass if needed directly, or rely on internal state?
   objectivesProp?: any[]; // Pass if needed directly
+  krasProp?: any[]; // Add KRAs prop
   kpisProp?: any[]; // Add this new prop
   isSetupComplete: boolean;
 }
@@ -50,6 +53,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   setSetupMethod,
   setOneDriveConfig,
   setObjectives,
+  setKRAs,
   setKPIs,
   handleSetupCompleteFromHook,
   updateCsvConfig,
@@ -57,6 +61,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   oneDriveConfig,
   setupMethodProp, // Receive props
   objectivesProp,
+  krasProp,
   kpisProp,
   isSetupComplete,
 }) => {
@@ -67,20 +72,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
   const [tempObjectives, setTempObjectives] = useState<any[]>([]);
+  const [tempKRAs, setTempKRAs] = useState<any[]>([]);
   const [tempKPIs, setTempKPIs] = useState<any[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
   
   // Add the useMicrosoftGraph hook at the component level
   const { createCsvFile } = useMicrosoftGraph();
 
-  // Define steps for the wizard
+  // Define steps for the wizard with the new KRA step
   const steps = [
     { id: 0, name: "Setup Method" },
     { id: 1, name: "Storage Location" },
     { id: 2, name: "Objectives" },
-    { id: 3, name: "KPIs" },
-    { id: 4, name: "Review" },
-    { id: 5, name: "Summary" }
+    { id: 3, name: "KRAs" },
+    { id: 4, name: "KPIs" },
+    { id: 5, name: "Review" },
+    { id: 6, name: "Summary" }
   ];
 
   // Updated total steps count
@@ -106,6 +113,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setIsProcessing(false);
       setSelectedSetupType(null);
       setTempObjectives([]);
+      setTempKRAs([]);
       setTempKPIs([]);
       setSetupError(null);
       setIsInitialized(true);
@@ -187,7 +195,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [csvConfig, updateCsvConfig]);
 
-  // Define handleComplete first
+  // Define handleComplete with KRAs support
   const handleComplete = useCallback(async () => {
     if (!csvConfig) { // Use prop
       toast({
@@ -253,6 +261,43 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         });
         
         console.log('Prepared objectives data:', updatedConfig.data.objectives);
+      }
+      
+      // Prepare KRAs data
+      if (tempKRAs && tempKRAs.length > 0) {
+        console.log('Preparing KRAs data:', tempKRAs);
+        
+        // Get current timestamp
+        const currentTimestamp = new Date().toISOString();
+        
+        // Make sure all KRAs have IDs
+        const krasWithIds = tempKRAs.map(kra => ({
+          ...kra,
+          id: kra.id || generateId(),
+          createdAt: kra.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+        
+        const kraHeaders = ['id', 'name', 'department', 'responsible', 'startDate', 'endDate', 'objectiveId', 'objectiveName', 'createdAt', 'updatedAt'];
+        
+        // Ensure we have a KRAs entity in the data
+        if (!updatedConfig.data.kras) {
+          updatedConfig.data.kras = {
+            headers: kraHeaders,
+            rows: []
+          };
+        }
+        
+        // Update KRAs data
+        updatedConfig.data.kras.rows = krasWithIds.map(kra => {
+          const row: Record<string, string> = {};
+          kraHeaders.forEach(header => {
+            row[header] = kra[header] || '';
+          });
+          return row;
+        });
+        
+        console.log('Prepared KRAs data:', updatedConfig.data.kras);
       }
       
       // Prepare KPIs data
@@ -376,10 +421,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setProgress(80);
       await loadDataFromCsv();
       
-      // Store objectives and KPIs in parent state
+      // Store objectives, KRAs, and KPIs in parent state
       setProgress(90);
       if (setObjectives && tempObjectives) {
         setObjectives(tempObjectives);
+      }
+      if (setKRAs && tempKRAs) {
+        setKRAs(tempKRAs);
       }
       if (setKPIs && tempKPIs) {
         setKPIs(tempKPIs);
@@ -418,12 +466,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     saveDataToCsv, 
     loadDataFromCsv, 
     toast, 
-    tempObjectives, 
+    tempObjectives,
+    tempKRAs,
     tempKPIs, 
     updateCsvConfigWithData, 
     updateCsvConfig, 
     createCsvFile, 
-    setObjectives, 
+    setObjectives,
+    setKRAs,
     setKPIs
   ]);
 
@@ -462,14 +512,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
   }, [setSetupMethod, toast]); // Update dependencies
 
+  // Add handling for the new KRA step
   const handleObjectivesComplete = useCallback((objectives: any[]) => {
     setTempObjectives(objectives);
-    setCurrentStep(3); // Move to KPI setup step
+    setCurrentStep(3); // Move to KRA setup step
+  }, []);
+
+  const handleKRAComplete = useCallback((kras: any[]) => {
+    setTempKRAs(kras);
+    setCurrentStep(4); // Move to KPI setup step
   }, []);
 
   const handleKPIComplete = useCallback((kpis: any[]) => {
     setTempKPIs(kpis);
-    setCurrentStep(4); // Move to setup method step
+    setCurrentStep(5); // Move to review step
   }, []);
 
   const handleSummaryComplete = useCallback(() => {
@@ -548,7 +604,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
-  // Update renderStep to use props and include KPI setup
+  // Update renderStep to include the KRA setup step
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -641,11 +697,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         );
       case 3:
         return (
+          <KRASetup
+            objectives={tempObjectives}
+            onComplete={handleKRAComplete}
+          />
+        );
+      case 4:
+        return (
           <KPISetup
             onComplete={handleKPIComplete}
           />
         );
-      case 4:
+      case 5:
         return (
           <SetupMethod
             onSelect={(method) => {
@@ -656,11 +719,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             }}
           />
         );
-      case 5:
+      case 6:
         return (
           <SetupSummary
             oneDriveConfig={oneDriveConfig}
             objectives={tempObjectives}
+            kras={tempKRAs}
             kpis={tempKPIs}
             onComplete={handleSummaryComplete}
             onBack={handleBack}
@@ -770,14 +834,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   Cancel
                 </Button>
                 
-                {currentStep === 5 ? (
+                {currentStep === 6 ? (
                   <Button 
                     onClick={handleSummaryComplete}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     Complete Setup
                   </Button>
-                ) : currentStep > 0 && currentStep < 5 ? (
+                ) : currentStep > 0 && currentStep < 6 ? (
                   <Button
                     onClick={handleNext}
                   >
