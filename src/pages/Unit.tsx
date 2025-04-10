@@ -575,8 +575,8 @@ const Unit = () => {
       description: "Your dashboard has been successfully configured.",
     });
 
-    // Force a refresh of the page to ensure all components re-render with the updated data
-    window.location.reload();
+    // Don't force a refresh of the page
+    // window.location.reload();
   }, [toast]);
 
   // Handle setup wizard close with confirmation if data has been entered
@@ -688,7 +688,7 @@ const Unit = () => {
     
     // Force a refresh with slight delay to ensure state is updated
     setTimeout(() => {
-      window.location.reload();
+      // window.location.reload();
     }, 500);
   }, [setupWizard, toast]);
 
@@ -865,6 +865,8 @@ const Unit = () => {
           oneDriveConfig={setupWizard.oneDriveConfig}
           setupMethodProp={setupWizard.setupMethod}
           objectivesProp={setupWizard.objectives}
+          krasProp={setupWizard.kras}
+          kpisProp={setupWizard.kpis}
           isSetupComplete={setupWizard.isSetupComplete}
         />
       )}

@@ -32,7 +32,26 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
 
   // Initialize CSV files if they don't exist
   const initializeCsvFiles = useCallback(async () => {
-    if (!config || Object.keys(config.fileIds || {}).length > 0 || hasAttemptedInit) return;
+    if (!config) {
+      console.error('[CSV INIT] Cannot initialize CSV files: Missing configuration');
+      return;
+    }
+
+    if (!config.folderId) {
+      console.error('[CSV INIT] Cannot initialize CSV files: No folder ID specified');
+      return;
+    }
+
+    // Skip if we already have file IDs or have already attempted initialization
+    if (config.fileIds && Object.keys(config.fileIds).length > 0) {
+      console.log('[CSV INIT] Files already initialized, skipping');
+      return;
+    }
+
+    if (hasAttemptedInit) {
+      console.log('[CSV INIT] Initialization already attempted, skipping');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -43,61 +62,107 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       const hasAttemptedInSession = sessionStorage.getItem(sessionKey);
       
       if (hasAttemptedInSession) {
-        console.log('CSV file creation already attempted in this session, skipping');
+        console.log('[CSV INIT] CSV file creation already attempted in this session, skipping');
         setHasAttemptedInit(true);
         return;
       }
       
-      console.log('Creating CSV files in folder:', config.folderId);
+      console.log('[CSV INIT] Starting CSV file creation in folder:', config.folderId);
+      
+      // Set up default file names if not already defined
+      if (!config.fileNames || Object.keys(config.fileNames).length === 0) {
+        console.log('[CSV INIT] No file names defined, setting defaults');
+        config.fileNames = {
+          objectives: 'objectives.csv',
+          kras: 'kras.csv',
+          kpis: 'kpis.csv'
+        };
+      }
+      
+      console.log('[CSV INIT] Files to create:', Object.entries(config.fileNames).map(([key, name]) => `${key}: ${name}`).join(', '));
       
       const fileIds: { [key: string]: string } = {};
+      let successCount = 0;
+      let failCount = 0;
       
-      // Create each CSV file in parallel
-      const createFilePromises = Object.entries(config.fileNames).map(async ([key, fileName]) => {
-        console.log(`Creating CSV file: ${fileName}`);
-        
-        // Prepare content - headers as first line
-        const headers = config.data[key]?.headers || [];
-        
-        // Create empty CSV file with headers
-        const csvFile = await createCsvFile(
-          fileName,
-          headers.join(','),
-          config.folderId
-        );
-        
-        if (csvFile) {
-          console.log(`CSV file created: ${fileName} with ID: ${csvFile.id}`);
-          fileIds[key] = csvFile.id;
-        } else {
-          console.error(`Failed to create CSV file: ${fileName}`);
+      // Create each CSV file one by one (not in parallel) to avoid rate limiting
+      for (const [key, fileName] of Object.entries(config.fileNames)) {
+        try {
+          console.log(`[CSV INIT] Creating CSV file: ${fileName} for ${key}`);
+          
+          // Prepare content - headers as first line
+          const headers = config.data[key]?.headers || [];
+          if (headers.length === 0) {
+            console.warn(`[CSV INIT] No headers defined for ${key}, using defaults`);
+            
+            // Set default headers based on entity type
+            if (key === 'objectives') {
+              headers.push('id', 'name', 'description', 'startDate', 'endDate', 'createdAt', 'updatedAt');
+            } else if (key === 'kras') {
+              headers.push('id', 'name', 'department', 'responsible', 'objectiveId', 'objectiveName', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt');
+            } else if (key === 'kpis') {
+              headers.push('id', 'name', 'kraId', 'kraName', 'target', 'actual', 'status', 'startDate', 'date', 'createdAt', 'updatedAt');
+            }
+          }
+          
+          const initialContent = headers.join(',');
+          console.log(`[CSV INIT] Prepared headers for ${fileName}: ${initialContent}`);
+          
+          // Create empty CSV file with headers
+          console.log(`[CSV INIT] Calling createCsvFile for ${fileName} with folder ID ${config.folderId}`);
+          const csvFile = await createCsvFile(
+            fileName,
+            initialContent,
+            config.folderId
+          );
+          
+          if (csvFile && csvFile.id) {
+            console.log(`[CSV INIT] CSV file created: ${fileName} with ID: ${csvFile.id}`);
+            fileIds[key] = csvFile.id;
+            successCount++;
+          } else {
+            console.error(`[CSV INIT] Failed to create CSV file: ${fileName} - No valid ID returned`);
+            failCount++;
+          }
+        } catch (fileError) {
+          console.error(`[CSV INIT] Error creating CSV file ${fileName}:`, fileError);
+          failCount++;
         }
-      });
+        
+        // Brief pause between file creations to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
       
-      await Promise.all(createFilePromises);
+      // Update the config with the file IDs if we have at least one successful file
+      if (Object.keys(fileIds).length > 0) {
+        console.log(`[CSV INIT] Updating config with ${Object.keys(fileIds).length} file IDs`);
+        const updatedConfig = {
+          ...config,
+          fileIds
+        };
+        
+        onConfigChange(updatedConfig);
+        
+        // Mark that we've attempted initialization in this session
+        sessionStorage.setItem(sessionKey, 'true');
+        
+        toast.success(`CSV files created successfully (${successCount} of ${Object.keys(config.fileNames).length})`);
+      } else {
+        console.error('[CSV INIT] Failed to create any CSV files');
+        toast.error('Failed to create CSV files in OneDrive');
+      }
       
-      // Update the config with the file IDs
-      const updatedConfig = {
-        ...config,
-        fileIds
-      };
-      
-      onConfigChange(updatedConfig);
-
-      // Mark that we've attempted initialization in this session
-      sessionStorage.setItem(sessionKey, 'true');
-
-      toast.success('CSV files created successfully');
+      console.log(`[CSV INIT] CSV initialization complete. Success: ${successCount}, Failed: ${failCount}`);
     } catch (err) {
-      console.error('Error initializing CSV files:', err);
+      console.error('[CSV INIT] Error initializing CSV files:', err);
       setError('Failed to initialize CSV files');
-      toast.error('Failed to initialize CSV files');
+      toast.error(`Failed to initialize CSV files: ${err.message || 'Unknown error'}`);
       throw err; // Re-throw to allow caller to handle
     } finally {
       setIsLoading(false);
       setHasAttemptedInit(true);
     }
-  }, [config, createCsvFile, onConfigChange, hasAttemptedInit]);
+  }, [config, createCsvFile, onConfigChange, hasAttemptedInit, toast]);
 
   // Load data from CSV files
   const loadDataFromCsv = useCallback(async () => {
@@ -207,8 +272,24 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
 
   // Save data to CSV files
   const saveDataToCsv = useCallback(async () => {
-    if (!config || Object.keys(config.fileIds || {}).length === 0) {
-      console.error('Cannot save data to CSV: Missing config or fileIds', { config });
+    if (!config) {
+      console.error('Cannot save data to CSV: Missing config');
+      toast.error('Failed to save data: CSV configuration is missing');
+      return;
+    }
+
+    if (!config.folderId) {
+      console.error('Cannot save data to CSV: No folder ID specified', config);
+      toast.error('Failed to save data: No OneDrive folder selected');
+      return;
+    }
+
+    if (!config.fileIds || Object.keys(config.fileIds).length === 0) {
+      console.error('Cannot save data to CSV: No file IDs available', config);
+      toast.error('Failed to save data: CSV files not properly initialized');
+      
+      // Try to reinitialize files if they're missing
+      await initializeCsvFiles();
       return;
     }
 
@@ -218,31 +299,40 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     try {
       // Get the current timestamp for logging
       const saveTimestamp = new Date().toISOString();
-      console.log(`Saving data to CSV files at ${saveTimestamp}`, {
+      console.log(`[CSV SAVE] Starting save operation at ${saveTimestamp}`, {
         folderId: config.folderId,
         fileIdsCount: Object.keys(config.fileIds).length,
-        fileNames: Object.keys(config.fileNames || {}).join(', ')
+        fileNames: Object.keys(config.fileNames || {}).join(', '),
+        fileIds: JSON.stringify(config.fileIds)
       });
       
       // Keep track of successful files
       const successfulFiles = [];
       const failedFiles = [];
+      const fileContents = {};
+      
+      // Validate file IDs before proceeding
+      const validFileIds = Object.entries(config.fileIds).filter(([key, id]) => {
+        if (!id || id.trim() === '') {
+          console.warn(`[CSV SAVE] Skipping CSV file for ${key}: Empty file ID`);
+          failedFiles.push(key);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log(`[CSV SAVE] Found ${validFileIds.length} valid file IDs for saving`);
       
       // Save data to each CSV file
-      for (const [key, fileId] of Object.entries(config.fileIds)) {
-        if (!fileId) {
-          console.warn(`Skipping CSV file for ${key}: No file ID defined`);
-          failedFiles.push(key);
-          continue;
-        }
-        
+      for (const [key, fileId] of validFileIds) {
         const { headers, rows } = config.data[key] || { headers: [], rows: [] };
         
-        console.log(`Processing CSV file: ${config.fileNames[key]} (${fileId}) with ${rows.length} rows and ${headers.length} headers`);
+        console.log(`[CSV SAVE] Processing file: ${config.fileNames[key]} (ID: ${fileId})`);
+        console.log(`[CSV SAVE] File has ${rows.length} rows and ${headers.length} headers`);
         
         // Skip files with no headers
         if (!headers || headers.length === 0) {
-          console.warn(`Skipping CSV file ${config.fileNames[key]}: No headers defined`);
+          console.warn(`[CSV SAVE] Skipping file ${config.fileNames[key]}: No headers defined`);
           failedFiles.push(key);
           continue;
         }
@@ -271,8 +361,10 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         });
         
         const csvContent = csvLines.join('\n');
+        fileContents[key] = csvContent; // Store content for logging
         
-        console.log(`Preparing to update CSV file: ${config.fileNames[key]} with ${csvLines.length} lines (${csvContent.length} bytes)`);
+        console.log(`[CSV SAVE] Prepared content for ${config.fileNames[key]}: ${csvLines.length} lines, ${csvContent.length} bytes`);
+        console.log(`[CSV SAVE] First 200 characters: ${csvContent.substring(0, 200)}...`);
         
         try {
           // Update CSV file with a retry mechanism
@@ -282,14 +374,20 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
           
           while (!success && attempt <= maxAttempts) {
             try {
-              console.log(`Attempt ${attempt}/${maxAttempts} to update CSV file: ${config.fileNames[key]}`);
+              console.log(`[CSV SAVE] Attempt ${attempt}/${maxAttempts} for ${config.fileNames[key]}`);
+              
               // Update CSV file
-              await updateCsvFile(fileId, csvContent);
-              success = true;
-              console.log(`Successfully updated CSV file: ${config.fileNames[key]} on attempt ${attempt}`);
-              successfulFiles.push(key);
+              const updateResult = await updateCsvFile(fileId, csvContent);
+              
+              if (updateResult) {
+                success = true;
+                console.log(`[CSV SAVE] Successfully saved ${config.fileNames[key]} on attempt ${attempt}`);
+                successfulFiles.push(key);
+              } else {
+                throw new Error('Update returned false');
+              }
             } catch (fileError) {
-              console.error(`Error updating CSV file ${config.fileNames[key]} on attempt ${attempt}:`, fileError);
+              console.error(`[CSV SAVE] Error saving ${config.fileNames[key]} (attempt ${attempt}/${maxAttempts}):`, fileError);
               
               if (attempt === maxAttempts) {
                 failedFiles.push(key);
@@ -302,33 +400,34 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
             }
           }
         } catch (fileError) {
-          const maxAttempts = 3; // Add the constant here too for the error message
-          console.error(`Error updating CSV file ${config.fileNames[key]} after ${maxAttempts} attempts:`, fileError);
+          const maxAttempts = 3;
+          console.error(`[CSV SAVE] Failed to save ${config.fileNames[key]} after ${maxAttempts} attempts:`, fileError);
           // Continue with other files rather than failing completely
         }
       }
       
       // Summary logging
-      console.log(`CSV sync complete. Success: ${successfulFiles.length}, Failed: ${failedFiles.length}`);
-      console.log(`Successful files: ${successfulFiles.join(', ')}`);
+      console.log(`[CSV SAVE] Save operation complete at ${new Date().toISOString()}`);
+      console.log(`[CSV SAVE] Results: ${successfulFiles.length} files saved, ${failedFiles.length} files failed`);
+      console.log(`[CSV SAVE] Successful files: ${successfulFiles.map(key => config.fileNames[key]).join(', ')}`);
       
       if (failedFiles.length > 0) {
-        console.warn(`Failed files: ${failedFiles.join(', ')}`);
+        console.warn(`[CSV SAVE] Failed files: ${failedFiles.map(key => config.fileNames[key]).join(', ')}`);
         toast.warning(`${successfulFiles.length} files saved successfully, but ${failedFiles.length} files failed.`);
       } else if (successfulFiles.length > 0) {
-        toast.success('All data saved to CSV successfully');
+        toast.success(`All data saved to OneDrive folder successfully (${successfulFiles.length} files)`);
       } else {
         toast.error('No CSV files were successfully saved');
       }
     } catch (err) {
-      console.error('Error saving data to CSV:', err);
+      console.error('[CSV SAVE] Fatal error saving data to CSV:', err);
       setError('Failed to save data to CSV');
-      toast.error('Failed to save data to CSV');
+      toast.error('Failed to save data to CSV: ' + (err.message || 'Unknown error'));
       throw err; // Re-throw to allow caller to handle
     } finally {
       setIsLoading(false);
     }
-  }, [config, updateCsvFile]);
+  }, [config, updateCsvFile, initializeCsvFiles, toast]);
 
   // Update data for a specific entity type
   const updateEntityData = useCallback((entityType: string, data: any[]) => {
