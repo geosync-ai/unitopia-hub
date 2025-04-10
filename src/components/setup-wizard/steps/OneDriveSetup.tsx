@@ -56,11 +56,27 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [shouldStopFetching, setShouldStopFetching] = useState(false);
   const fetchTimeoutRef = useRef<any>(null);
   const fetchAttemptsRef = useRef(0);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    setAuthError("Redirect URI mismatch detected. Using the 'Continue Without OneDrive' option is recommended.");
-    setShouldStopFetching(true);
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      updateAuthStatus();
+    }
   }, []);
+
+  useEffect(() => {
+    const status = updateAuthStatus();
+    if (!isAuthenticated && !isAuthenticating && hasInitializedRef.current) {
+      const timer = setTimeout(() => {
+        if (!isAuthenticated && !isAuthenticating) {
+          console.log('Auto-triggering authentication...');
+          handleAuthenticate();
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, isAuthenticating]);
 
   const updateAuthStatus = useCallback(() => {
     const status = getAuthStatus();
@@ -182,10 +198,10 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         console.log('fetchDocuments: getOneDriveDocuments returned null (likely an error occurred).');
         setAuthError("Couldn't retrieve OneDrive files. Please try to authenticate again.");
         
-        if (retryCount < 2) {
-          console.log(`Retry attempt ${retryCount + 1}/2`);
+        if (retryCount < 1) {
+          console.log(`Retry attempt ${retryCount + 1}/1`);
           setRetryCount(prev => prev + 1);
-          await handleAuthenticate();
+          // Don't auto-retry, let the user click the retry button
         } else {
           console.log('Max retry count reached, stopping automatic fetch attempts');
           setShouldStopFetching(true);
@@ -194,52 +210,26 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } catch (error) {
       console.error('fetchDocuments: Error caught:', error);
       setAuthError(`Failed to fetch documents: ${error.message}`);
-      if (fetchCount > 5) {
-        setShouldStopFetching(true);
-      }
+      setShouldStopFetching(true);
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, getOneDriveDocuments, retryCount, handleAuthenticate, isLoading, fetchCount]);
+  }, [isAuthenticated, getOneDriveDocuments, retryCount, isLoading]);
 
   useEffect(() => {
+    // Only check auth status, don't do auto-fetching to avoid loops
     const status = updateAuthStatus();
     console.log('Auth status updated:', status);
     
-    if (isAuthenticated && documents.length === 0 && !isLoading && !shouldStopFetching && fetchAttemptsRef.current < 1) {
-      console.log(`useEffect: Authenticated and no documents, fetching... (attempt ${fetchAttemptsRef.current + 1}/1)`);
-      
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-      }
-      
-      fetchAttemptsRef.current += 1;
-      
-      fetchTimeoutRef.current = setTimeout(() => {
-        setFetchCount(prev => prev + 1);
-        fetchDocuments();
-        
-        setShouldStopFetching(true);
-        setAuthError("OneDrive connection failed. Please use 'Continue Without OneDrive' option below.");
-      }, 1500);
-    } else if (fetchAttemptsRef.current >= 1 && !shouldStopFetching) {
-      setShouldStopFetching(true);
-      setAuthError("OneDrive connection failed. Please use 'Continue Without OneDrive' option below.");
-    } else if (isAuthenticated) {
-      console.log('useEffect: Authenticated but documents already loaded or loading, skipping fetch.');
-    } else {
-      console.log('useEffect: Not authenticated, clearing documents.');
-      setDocuments([]);
-      setSelectedFolder(null);
-      setCurrentPath([]);
-    }
+    // Do not auto-fetch to avoid potential infinite loops
+    // The user will need to click the Connect/Retry button
     
     return () => {
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, [isAuthenticated, documents.length, fetchDocuments, updateAuthStatus, isLoading, shouldStopFetching, fetchCount]);
+  }, [updateAuthStatus]);
 
   const handleFolderClick = useCallback(async (folder: Document) => {
     if (!folder.isFolder) return;
@@ -812,20 +802,37 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
             <div>
               <p className="font-medium">{authError}</p>
               <p className="text-sm mt-1">
-                There appears to be an issue with the Microsoft authentication. The OneDrive integration may not work properly.
+                There appears to be an issue with the Microsoft authentication. Please ensure your app registration in Azure has the correct redirect URI.
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 bg-white hover:bg-amber-50 border-amber-300 text-amber-800"
-                onClick={() => onComplete({
-                  path: "Local Storage",
-                  folderId: `local-${Date.now()}`,
-                  isTemporary: true
-                })}
-              >
-                Continue Without OneDrive
-              </Button>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white hover:bg-amber-50 border-amber-300 text-amber-800"
+                  onClick={handleAuthenticate}
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    'Retry Authentication'
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white hover:bg-amber-50 border-amber-300 text-amber-800"
+                  onClick={() => onComplete({
+                    path: "Local Storage",
+                    folderId: `local-${Date.now()}`,
+                    isTemporary: true
+                  })}
+                >
+                  Continue Without OneDrive
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -835,9 +842,13 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">Connect to OneDrive</h3>
           {isAuthenticated ? (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Authenticated</Badge>
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Authenticated
+            </div>
           ) : (
-            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Not Connected</Badge>
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              Not Connected
+            </div>
           )}
         </div>
 

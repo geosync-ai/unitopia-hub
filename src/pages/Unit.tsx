@@ -590,63 +590,96 @@ const Unit = () => {
     }
   }, [setupWizard.objectives, setupWizard.oneDriveConfig]);
   
-  // Add a direct method to bypass OneDrive setup
+  // Improved version of handleSkipOneDriveSetup that provides better user feedback
   const handleSkipOneDriveSetup = useCallback(() => {
+    // Check if we're already using OneDrive
+    const isUsingOneDrive = setupWizard.oneDriveConfig !== null && !setupWizard.oneDriveConfig.isTemporary;
+    
     // Set up with local storage instead
     localStorage.setItem('unitopia_storage_type', 'local');
     
-    // Create some default objectives and KRAs
-    const defaultObjectives = [
-      {
-        id: '1',
-        name: 'Default Objective',
-        description: 'This is a default objective created when skipping OneDrive setup',
-        startDate: new Date().toISOString(),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
+    // Create some default objectives and KRAs if there aren't any
+    const hasExistingObjectives = setupWizard.objectives?.length > 0;
+    const hasExistingKRAs = setupWizard.kras?.length > 0;
     
-    const defaultKras = [
-      {
-        id: '1',
-        name: 'Default KRA',
-        objectiveId: '1',
-        objectiveName: 'Default Objective',
-        department: 'IT',
-        responsible: 'Admin User',
-        startDate: new Date().toISOString(),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-        progress: 0,
-        status: 'open',
-        kpis: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
+    if (!hasExistingObjectives) {
+      const defaultObjectives = [
+        {
+          id: '1',
+          name: 'Default Objective',
+          description: 'This is a default objective created when skipping OneDrive setup',
+          startDate: new Date().toISOString(),
+          endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      
+      // Store in localStorage
+      localStorage.setItem('unitopia_objectives', JSON.stringify(defaultObjectives));
+      
+      // Update state
+      setupWizard.setObjectives(defaultObjectives);
+    }
     
-    // Store in localStorage
-    localStorage.setItem('unitopia_objectives', JSON.stringify(defaultObjectives));
-    localStorage.setItem('unitopia_kras', JSON.stringify(defaultKras));
-    localStorage.setItem('unitopia_kpis', JSON.stringify([]));
+    if (!hasExistingKRAs) {
+      const defaultKras = [
+        {
+          id: '1',
+          name: 'Default KRA',
+          objectiveId: '1',
+          objectiveName: 'Default Objective',
+          department: 'IT',
+          responsible: 'Admin User',
+          startDate: new Date().toISOString(),
+          endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+          progress: 0,
+          status: 'open',
+          kpis: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      
+      // Store in localStorage
+      localStorage.setItem('unitopia_kras', JSON.stringify(defaultKras));
+      
+      // Update state
+      setupWizard.setKRAs(defaultKras);
+    }
     
-    // Update state
-    setupWizard.setObjectives(defaultObjectives);
-    setupWizard.setKRAs(defaultKras);
-    setupWizard.setKPIs([]);
+    // Always ensure KPIs are initialized
+    if (!localStorage.getItem('unitopia_kpis')) {
+      localStorage.setItem('unitopia_kpis', JSON.stringify([]));
+    }
+    
+    if (!setupWizard.kpis) {
+      setupWizard.setKPIs([]);
+    }
+    
+    // Complete setup
     setupWizard.handleSetupComplete();
     
     // Hide setup wizard
     setShowSetupWizard(false);
     
-    toast({
-      title: "Setup Completed",
-      description: "Your unit has been set up with local storage.",
-    });
+    // Provide feedback based on previous state
+    if (isUsingOneDrive) {
+      toast({
+        title: "Switched to Local Storage",
+        description: "Your unit is now using local browser storage instead of OneDrive.",
+      });
+    } else {
+      toast({
+        title: "Setup Completed",
+        description: "Your unit has been set up with local storage.",
+      });
+    }
     
-    // Force a refresh
-    window.location.reload();
+    // Force a refresh with slight delay to ensure state is updated
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   }, [setupWizard, toast]);
 
   // Add authentication check

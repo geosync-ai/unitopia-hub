@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,10 @@ import { KPISetup } from '@/components/setup-wizard/steps/KPISetup';
 import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useCsvSync } from '@/hooks/useCsvSync';
-import { Loader2, Cloud, FileText, Database, Check } from 'lucide-react';
+import { Loader2, Cloud, FileText, Database, Check, AlertTriangle } from 'lucide-react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 // Define individual props needed from the setup state
 interface SetupWizardSpecificProps {
@@ -755,6 +756,110 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
+  // Add a simple OneDriveSetup component that's easier to implement
+  const SimplifiedOneDriveSetup = ({ onComplete }) => {
+    const { isAuthenticated, loginWithMicrosoft } = useAuth();
+    const [isAuthenticating, setIsAuthenticating] = useState(false);
+    const [authError, setAuthError] = useState(null);
+    
+    // Handle authentication
+    const handleAuthenticate = async () => {
+      try {
+        setIsAuthenticating(true);
+        setAuthError(null);
+        await loginWithMicrosoft();
+        // The page will redirect to Microsoft login
+      } catch (error) {
+        console.error('Error starting authentication:', error);
+        setAuthError(error.message || 'Failed to start authentication');
+      } finally {
+        setTimeout(() => {
+          setIsAuthenticating(false);
+        }, 1000);
+      }
+    };
+    
+    // Handler for using local storage instead
+    const continueWithLocalStorage = () => {
+      setIsUsingLocalStorage(true);
+      toast({ 
+        title: "Using Local Storage", 
+        description: "Your data will be stored locally for this session.",
+        duration: 3000
+      });
+      onComplete({
+        path: "Local Storage",
+        folderId: `local-${Date.now()}`,
+        isTemporary: true
+      });
+    };
+    
+    return (
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-md mb-6">
+          <div className="flex items-start">
+            <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
+            <div>
+              <p className="font-medium text-blue-800">OneDrive Integration</p>
+              <p className="text-sm text-blue-600 mt-1">
+                Connect to your Microsoft OneDrive to store your data in the cloud.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  onClick={handleAuthenticate}
+                  disabled={isAuthenticating}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    'Connect to OneDrive'
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={continueWithLocalStorage}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  Use Local Storage Instead
+                </Button>
+              </div>
+              
+              {authError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                  <p>Authentication error: {authError}</p>
+                  <p className="mt-1">Please try again or continue with local storage.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
+          <div className="flex items-start">
+            <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 text-amber-500" />
+            <div>
+              <p className="font-medium text-amber-800">Having trouble with OneDrive?</p>
+              <p className="text-sm text-amber-600 mt-1">
+                If you're experiencing issues with Microsoft authentication, use local storage instead.
+              </p>
+              <Button
+                variant="outline"
+                onClick={continueWithLocalStorage}
+                className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-50"
+              >
+                Continue Without OneDrive
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Update renderStep to include an easy bypass for OneDrive
   const renderStep = () => {
     switch (currentStep) {
@@ -797,34 +902,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 </div>
               </div>
               
-              <OneDriveSetup
+              <SimplifiedOneDriveSetup
                 onComplete={handlePathSelect}
               />
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Having trouble connecting to OneDrive? You can continue without it:
-                </p>
-                <Button
-                  variant="outline"
-                  className="w-full flex items-center gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
-                  onClick={() => {
-                    setIsUsingLocalStorage(true);
-                    toast({ 
-                      title: "Using Local Storage", 
-                      description: "Your data will be stored locally for this session.",
-                      duration: 3000
-                    });
-                    handlePathSelect({
-                      path: "Local Storage",
-                      folderId: `local-${Date.now()}`,
-                      isTemporary: true
-                    });
-                  }}
-                >
-                  <Database className="h-4 w-4" />
-                  Continue Without OneDrive
-                </Button>
-              </div>
             </div>
           );
         } else if (selectedSetupType === 'csv') {

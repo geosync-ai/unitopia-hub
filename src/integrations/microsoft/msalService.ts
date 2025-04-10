@@ -154,10 +154,17 @@ export const getUserPhoto = async (instance: IPublicClientApplication, apiEndpoi
 export const loginWithMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
   try {
     console.log('[DEBUG - MSAL] Starting Microsoft login process...');
+    
+    // Make sure we have a clean state for this attempt
+    localStorage.removeItem('msalLoginAttempts');
+    
+    // Ensure we're using the exact redirect URI from config
+    const exactRedirectUri = microsoftAuthConfig.redirectUri;
+    console.log('[DEBUG - MSAL] Using exact redirect URI:', exactRedirectUri);
+    
     console.log('[DEBUG - MSAL] Authentication parameters:', {
-      redirectUri: microsoftAuthConfig.redirectUri,
+      redirectUri: exactRedirectUri,
       currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
-      loginRequest: JSON.stringify(loginRequest),
       clientId: microsoftAuthConfig.clientId,
       authority: microsoftAuthConfig.authorityUrl,
       scopes: microsoftAuthConfig.permissions
@@ -179,12 +186,11 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
       return;
     }
     
-    // Log warning if there might be a mismatch
-    if (typeof window !== 'undefined' && window.location.origin !== 'https://unitopia-hub.vercel.app') {
-      console.warn('[DEBUG - MSAL] Warning: Current origin does not match the configured redirect URI. This may cause authentication issues.');
-      console.warn('[DEBUG - MSAL] Current origin:', window.location.origin);
-      console.warn('[DEBUG - MSAL] Configured redirect URI:', microsoftAuthConfig.redirectUri);
-    }
+    // Create a customized login request with the exact redirect URI
+    const customizedLoginRequest = {
+      ...loginRequest,
+      redirectUri: exactRedirectUri
+    };
     
     // Add an attempt counter to localStorage to track redirect loop issues
     const attemptKey = 'msalLoginAttempts';
@@ -199,8 +205,8 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
       throw new Error('Potential redirect loop detected');
     }
     
-    console.log('[DEBUG - MSAL] Attempting to initiate redirect login');
-    await instance.loginRedirect(loginRequest);
+    console.log('[DEBUG - MSAL] Attempting to initiate redirect login with customized request');
+    await instance.loginRedirect(customizedLoginRequest);
     console.log('[DEBUG - MSAL] Login redirect initiated successfully');
   } catch (error) {
     console.error('[DEBUG - MSAL] Error during Microsoft login:', error);
@@ -219,7 +225,11 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
         (error.message && error.message.includes('redirect'))) {
       console.error('[DEBUG - MSAL] This appears to be a redirect URI mismatch issue.');
       console.error('[DEBUG - MSAL] Configured redirect URI:', microsoftAuthConfig.redirectUri);
+      console.error('[DEBUG - MSAL] Current origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
       console.error('[DEBUG - MSAL] Make sure this exact URI is configured in the Azure portal for app ID:', microsoftAuthConfig.clientId);
+      console.error('[DEBUG - MSAL] Try adding both URIs to your app registration in Azure:');
+      console.error('[DEBUG - MSAL] 1. https://unitopia-hub.vercel.app');
+      console.error('[DEBUG - MSAL] 2. ' + (typeof window !== 'undefined' ? window.location.origin : 'unknown'));
     }
     
     // Reset attempt counter on error

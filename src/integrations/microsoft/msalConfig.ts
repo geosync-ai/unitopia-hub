@@ -66,18 +66,26 @@ export const updateMsalConfig = (config: any): Configuration => {
     updatedConfig.auth.authority = config.authorityUrl;
   }
   
-  // Update the redirect URI if provided
+  // Update the redirect URI if provided - ensure exact match with Azure configuration
   if (config.redirectUri) {
     console.log('Using redirectUri:', config.redirectUri);
     updatedConfig.auth.redirectUri = config.redirectUri;
     updatedConfig.auth.postLogoutRedirectUri = config.redirectUri;
   }
   
-  console.log('Updated MSAL config:', updatedConfig);
+  // Print the final configuration for debugging
+  console.log('Updated MSAL config:', {
+    clientId: updatedConfig.auth.clientId,
+    authority: updatedConfig.auth.authority,
+    redirectUri: updatedConfig.auth.redirectUri,
+    postLogoutRedirectUri: updatedConfig.auth.postLogoutRedirectUri,
+  });
+  
   return updatedConfig;
 };
 
-// Default login request configuration
+// Default login request configuration - IMPORTANT: DO NOT include redirectUri here
+// The redirect URI will be added at login time from the config to ensure consistency
 export const loginRequest = {
   scopes: microsoftAuthConfig.permissions
 };
