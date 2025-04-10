@@ -116,18 +116,90 @@ export const useMicrosoftGraph = () => {
 
   const getAccessToken = useCallback(async () => {
     try {
-      const account = msalInstance.getAllAccounts()[0];
-      if (!account) {
-        throw new Error('No account found');
+      console.log("getAccessToken: Starting token acquisition");
+      
+      // 1. First check if MSAL is properly initialized
+      if (!msalInstance) {
+        console.error("getAccessToken: MSAL instance is not available");
+        throw new Error('MSAL instance not available');
       }
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['https://graph.microsoft.com/.default'],
-        account
-      });
-      return response.accessToken;
+      
+      // 2. Get all accounts and log them for debugging
+      const accounts = msalInstance.getAllAccounts();
+      console.log(`getAccessToken: Found ${accounts.length} accounts:`, 
+        accounts.map(a => ({ username: a.username, homeAccountId: a.homeAccountId })));
+      
+      // 3. Get the active account or first account
+      const activeAccount = msalInstance.getActiveAccount() || accounts[0];
+      
+      if (!activeAccount) {
+        console.error("getAccessToken: No active account found");
+        throw new Error('No account found - please login first');
+      }
+      
+      console.log(`getAccessToken: Using account ${activeAccount.username}`);
+      
+      // 4. Try with specific OneDrive scopes (more limited, but explicitly for files)
+      const oneDriveScopes = [
+        'Files.Read',
+        'Files.Read.All',
+        'Files.ReadWrite',
+        'Files.ReadWrite.All'
+      ];
+      
+      console.log(`getAccessToken: Requesting token with OneDrive scopes: ${oneDriveScopes.join(', ')}`);
+      
+      try {
+        // Try with OneDrive specific scopes first
+        const response = await msalInstance.acquireTokenSilent({
+          scopes: oneDriveScopes,
+          account: activeAccount
+        });
+        
+        console.log("getAccessToken: Successfully acquired token with OneDrive scopes");
+        return response.accessToken;
+      } catch (specificScopeError) {
+        console.warn("getAccessToken: Failed with specific scopes, trying with default scope", specificScopeError);
+        
+        // Fall back to .default scope which gets all consented permissions
+        try {
+          const response = await msalInstance.acquireTokenSilent({
+            scopes: ['https://graph.microsoft.com/.default'],
+            account: activeAccount
+          });
+          
+          console.log("getAccessToken: Successfully acquired token with default scope");
+          return response.accessToken;
+        } catch (defaultScopeError) {
+          console.error("getAccessToken: Failed with default scope", defaultScopeError);
+          
+          // Final fallback: try interactive token acquisition
+          try {
+            console.log("getAccessToken: Attempting interactive token acquisition");
+            const response = await msalInstance.acquireTokenPopup({
+              scopes: oneDriveScopes
+            });
+            
+            console.log("getAccessToken: Successfully acquired token interactively");
+            return response.accessToken;
+          } catch (interactiveError) {
+            console.error("getAccessToken: Interactive token acquisition failed", interactiveError);
+            throw new Error(`Failed to acquire token interactively: ${interactiveError.message}`);
+          }
+        }
+      }
     } catch (err) {
-      console.error('Error getting access token:', err);
-      throw err;
+      console.error('getAccessToken: Fatal error:', err);
+      
+      // Create a more user-friendly error
+      const errorMessage = err.message || 'Unknown error';
+      const userFriendlyError = new Error(
+        `Failed to get Microsoft access token: ${errorMessage}. Try logging out and back in.`
+      );
+      
+      // Preserve the original stack trace for debugging
+      userFriendlyError.stack = err.stack;
+      throw userFriendlyError;
     }
   }, [msalInstance]);
 
@@ -720,6 +792,75 @@ export const useMicrosoftGraph = () => {
     }
   };
 
+  const handleLogin = useCallback(async () => {
+    try {
+      if (!msalInstance) {
+        console.error("handleLogin: MSAL instance is not available");
+        return null;
+      }
+      
+      console.log("handleLogin: Starting login process");
+      
+      // Use specific scopes for OneDrive
+      const scopes = [
+        'Files.Read',
+        'Files.Read.All',
+        'Files.ReadWrite',
+        'Files.ReadWrite.All',
+        'User.Read'
+      ];
+      
+      console.log(`handleLogin: Requesting scopes: ${scopes.join(', ')}`);
+      
+      const response = await msalInstance.loginPopup({
+        scopes: scopes
+      });
+      
+      console.log("handleLogin: Login successful", {
+        username: response.account.username,
+        homeAccountId: response.account.homeAccountId,
+        localAccountId: response.account.localAccountId,
+        environment: response.account.environment,
+        tenantId: response.account.tenantId
+      });
+      
+      // Set this account as the active account
+      msalInstance.setActiveAccount(response.account);
+      
+      console.log("handleLogin: Active account set");
+      
+      // Store account in local storage for debugging purposes
+      try {
+        localStorage.setItem('msalAccount', JSON.stringify({
+          username: response.account.username,
+          homeAccountId: response.account.homeAccountId,
+          timestamp: new Date().toISOString()
+        }));
+      } catch (storageErr) {
+        console.warn("handleLogin: Failed to store account info in localStorage", storageErr);
+      }
+      
+      return response;
+    } catch (err) {
+      console.error("handleLogin: Login failed", err);
+      
+      // Check for specific error types
+      let errorMessage = "Login failed";
+      
+      if (err.errorCode) {
+        errorMessage += `: ${err.errorCode}`;
+        if (err.errorCode === "user_cancelled") {
+          errorMessage = "Login was cancelled by the user";
+        }
+      }
+      
+      // Display more user-friendly error
+      toast.error(errorMessage);
+      
+      return null;
+    }
+  }, [msalInstance]);
+
   // Return memoized functions
   return {
     getOneDriveDocuments,
@@ -732,7 +873,8 @@ export const useMicrosoftGraph = () => {
     updateCsvFile,
     isLoading,
     lastError,
-    getAuthStatus
+    getAuthStatus,
+    handleLogin
   };
 };
 
