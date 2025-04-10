@@ -11,6 +11,10 @@ import CreateFolder from './CreateFolder';
 import DeleteFolderModal from './DeleteFolderModal';
 import ErrorBoundary from './ErrorBoundary';
 import OneDriveErrorCard from './OneDriveErrorCard';
+import { RefreshCw, FolderPlus } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { AlertTriangle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 // Add window interface extension for our global variables
 declare global {
@@ -97,14 +101,7 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
         console.warn("Authentication process may not have completed properly");
       }
     } catch (error) {
-      console.error("Authentication error:", error);
-      setAuthError(error?.message || "Failed to start authentication");
-      toast({
-        title: "Authentication Failed",
-        description: "Unable to connect to Microsoft. Try again or use local storage.",
-        variant: "destructive",
-        duration: 5000
-      });
+      handleAuthError(error);
     } finally {
       // Give time for redirects
       setTimeout(() => {
@@ -115,6 +112,45 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
           fetchOneDriveFolders();
         }
       }, 2000);
+    }
+  };
+  
+  // Add this below the existing handleAuthenticate function
+  const handleAuthError = (error: Error) => {
+    console.error("Authentication error:", error);
+    // Check for redirect URI mismatch errors
+    if (
+      error.message.includes('redirect URI') || 
+      error.message.includes('AADSTS50011') || 
+      error.message.toLowerCase().includes('redirecturi')
+    ) {
+      setAuthError('Redirect URI mismatch error. Your app\'s redirect URI is not properly configured in Azure.');
+      // Store detailed error information for display
+      const errorDetails = {
+        error: {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        },
+        timestamp: new Date().toISOString(),
+        currentUrl: window.location.href,
+        origin: window.location.origin
+      };
+      localStorage.setItem('lastAuthError', JSON.stringify(errorDetails));
+      toast({
+        title: "Authentication Configuration Error",
+        description: "The redirect URI for this application is not properly configured in Azure.",
+        variant: "destructive",
+        duration: 8000
+      });
+    } else {
+      setAuthError(error?.message || "Failed to start authentication");
+      toast({
+        title: "Authentication Failed",
+        description: "Unable to connect to Microsoft. Try again or use local storage.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
   };
   
@@ -658,32 +694,144 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
             <p className="mt-1">Select an existing folder or create a new one for your unit data.</p>
           </div>
           
-          {folderError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm mb-4 flex items-center justify-between">
-              <p>{folderError}</p>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleRetryFolderFetch}
-                className="ml-2 whitespace-nowrap"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
-            </div>
+          {authError && (
+            <OneDriveErrorCard 
+              error={authError}
+              retry={handleAuthenticate}
+              fallback={continueWithLocalStorage}
+              details={localStorage.getItem('lastAuthError') ? JSON.parse(localStorage.getItem('lastAuthError')!) : null}
+            />
+          )}
+          
+          {folderError && !authError && (
+            <Card className="p-6 mb-4">
+              <div className="text-center space-y-4">
+                <AlertTriangle className="h-12 w-12 mx-auto text-amber-500" />
+                <h4 className="font-semibold">Unable to retrieve your OneDrive folders</h4>
+                <p className="text-sm text-muted-foreground">
+                  We're having trouble connecting to your OneDrive. You can try these options:
+                </p>
+                <div className="space-y-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleRetryFolderFetch}
+                    className="flex items-center justify-center"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Connection
+                  </Button>
+                  
+                  <div className="border-t pt-4">
+                    <h5 className="font-medium mb-2">Create a new folder anyway</h5>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter folder name"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                      />
+                      <Button
+                        onClick={handleCreateFolder}
+                        disabled={!newFolderName.trim() || isLoading}
+                      >
+                        {isLoading ? (
+                          <span className="flex items-center">
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Creating...
+                          </span>
+                        ) : (
+                          <>
+                            <FolderPlus className="h-4 w-4 mr-2" />
+                            Create
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Alternatively, you can use local storage instead
+                    </p>
+                    <Button
+                      onClick={continueWithLocalStorage}
+                      variant="secondary"
+                      className="flex items-center justify-center"
+                    >
+                      Continue with Local Storage
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
           )}
           
           {/* Folder List */}
           {folderError ? (
-            <OneDriveErrorCard
-              folderError={folderError}
-              onRetry={handleRetryFolderFetch}
-              onCreateFolder={handleCreateFolder}
-              onLocalStorage={continueWithLocalStorage}
-              newFolderName={newFolderName}
-              setNewFolderName={setNewFolderName}
-              isLoading={isLoading}
-            />
+            <Card className="p-6 mb-4">
+              <div className="text-center space-y-4">
+                <AlertTriangle className="h-12 w-12 mx-auto text-amber-500" />
+                <h4 className="font-semibold">Unable to retrieve your OneDrive folders</h4>
+                <p className="text-sm text-muted-foreground">
+                  We're having trouble connecting to your OneDrive. You can try these options:
+                </p>
+                <div className="space-y-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleRetryFolderFetch}
+                    className="flex items-center justify-center"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Connection
+                  </Button>
+                  
+                  <div className="border-t pt-4">
+                    <h5 className="font-medium mb-2">Create a new folder anyway</h5>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter folder name"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                      />
+                      <Button
+                        onClick={handleCreateFolder}
+                        disabled={!newFolderName.trim() || isLoading}
+                      >
+                        {isLoading ? (
+                          <span className="flex items-center">
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Creating...
+                          </span>
+                        ) : (
+                          <>
+                            <FolderPlus className="h-4 w-4 mr-2" />
+                            Create
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Alternatively, you can use local storage instead
+                    </p>
+                    <Button
+                      onClick={continueWithLocalStorage}
+                      variant="secondary"
+                      className="flex items-center justify-center"
+                    >
+                      Continue with Local Storage
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
           ) : (
             <ErrorBoundary>
               <FolderListView
@@ -712,22 +860,23 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
               currentPath={folderPath.length > 0 ? folderPath[folderPath.length - 1].name : 'Root'}
             />
           )}
+          
+          {/* Local Storage Option */}
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-md">
+            <h3 className="font-semibold mb-2 text-amber-800">Using local storage instead?</h3>
+            <p className="text-sm text-amber-700 mb-3">
+              If you prefer not to use OneDrive, you can store your data locally in your browser.
+            </p>
+            <Button
+              variant="outline"
+              className="bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200"
+              onClick={continueWithLocalStorage}
+            >
+              Use Local Storage
+            </Button>
+          </div>
         </>
       )}
-      
-      {/* Local Storage Option */}
-      <div className="pt-4 border-t mt-6 text-center">
-        <p className="text-sm text-muted-foreground mb-4">
-          Or continue without connecting to OneDrive
-        </p>
-        <Button
-          variant="outline"
-          onClick={continueWithLocalStorage}
-          className="w-full"
-        >
-          Continue with Local Storage
-        </Button>
-      </div>
       
       {/* Delete Confirmation Dialog */}
       <DeleteFolderModal

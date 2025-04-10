@@ -1,89 +1,93 @@
-import { Card } from '@/components/ui/card';
+import React from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { AlertTriangle, RefreshCw, FolderPlus } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
 
 interface OneDriveErrorCardProps {
-  folderError: string;
-  onRetry: () => void;
-  onCreateFolder: () => void;
-  onLocalStorage: () => void;
-  newFolderName: string;
-  setNewFolderName: (name: string) => void;
-  isLoading: boolean;
+  error: string;
+  retry?: () => void;
+  fallback?: () => void;
+  details?: any;
 }
 
-const OneDriveErrorCard: React.FC<OneDriveErrorCardProps> = ({
-  folderError,
-  onRetry,
-  onCreateFolder,
-  onLocalStorage,
-  newFolderName,
-  setNewFolderName,
-  isLoading
-}) => {
+const OneDriveErrorCard: React.FC<OneDriveErrorCardProps> = ({ error, retry, fallback, details }) => {
+  const isRedirectUriError = error.includes('redirect URI') || 
+                             error.includes('redirectUri') || 
+                             error.includes('AADSTS50011') ||
+                             (details?.error?.message && 
+                              details.error.message.includes('redirect'));
+
+  const currentUri = typeof window !== 'undefined' ? window.location.origin : '';
+  
   return (
-    <Card className="p-6 mb-4">
-      <div className="text-center space-y-4">
-        <AlertTriangle className="h-12 w-12 mx-auto text-amber-500" />
-        <h4 className="font-semibold">Unable to retrieve your OneDrive folders</h4>
-        <p className="text-sm text-muted-foreground">
-          We're having trouble connecting to your OneDrive. You can try these options:
-        </p>
-        <div className="space-y-4">
-          <Button
-            variant="outline"
-            onClick={onRetry}
-            className="flex items-center justify-center"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry Connection
-          </Button>
-          
-          <div className="border-t pt-4">
-            <h5 className="font-medium mb-2">Create a new folder anyway</h5>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter folder name"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-              />
-              <Button
-                onClick={onCreateFolder}
-                disabled={!newFolderName.trim() || isLoading}
-              >
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Creating...
-                  </span>
-                ) : (
-                  <>
-                    <FolderPlus className="h-4 w-4 mr-2" />
-                    Create
-                  </>
-                )}
-              </Button>
+    <Card className="w-full border-red-200 bg-red-50 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-red-700 flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5" />
+          OneDrive Connection Error
+        </CardTitle>
+        <CardDescription className="text-red-600">
+          {isRedirectUriError ? 'Redirect URI mismatch detected' : 'Failed to connect to Microsoft'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isRedirectUriError ? (
+          <div className="space-y-4">
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Redirect URI Configuration Error</AlertTitle>
+              <AlertDescription className="mt-2">
+                Your app's redirect URI is not properly configured in Azure Active Directory.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="rounded-md bg-white p-3 border border-red-200">
+              <h4 className="font-medium text-sm text-red-800 mb-2">How to fix this issue:</h4>
+              <ol className="list-decimal pl-5 text-sm space-y-2 text-red-700">
+                <li>
+                  Log in to the <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">Azure Portal</a>
+                </li>
+                <li>Go to Azure Active Directory &gt; App registrations</li>
+                <li>Find and select your application</li>
+                <li>In the left menu, click on "Authentication"</li>
+                <li>Under "Redirect URIs", add the following URI:
+                  <code className="block mt-1 p-2 bg-gray-100 rounded text-sm font-mono break-all">
+                    {currentUri}
+                  </code>
+                </li>
+                <li>Save your changes</li>
+              </ol>
             </div>
-          </div>
-          
-          <div className="border-t pt-4">
-            <p className="text-xs text-muted-foreground mb-2">
-              Alternatively, you can use local storage instead
+            
+            <p className="text-sm text-red-600">
+              Error details: {error}
             </p>
-            <Button
-              onClick={onLocalStorage}
-              variant="secondary"
-              className="flex items-center justify-center"
-            >
-              Continue with Local Storage
-            </Button>
           </div>
-        </div>
-      </div>
+        ) : (
+          <p className="text-sm text-red-600">{error}</p>
+        )}
+      </CardContent>
+      <CardFooter className="flex gap-2 pt-2">
+        {retry && (
+          <Button 
+            variant="default"
+            onClick={retry}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            Try Again
+          </Button>
+        )}
+        {fallback && (
+          <Button 
+            variant="outline" 
+            onClick={fallback}
+            className="border-red-200 text-red-700 hover:bg-red-50"
+          >
+            Use Local Storage Instead
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   );
 };
