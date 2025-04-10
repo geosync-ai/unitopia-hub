@@ -720,6 +720,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   }, []);
 
   const handleSummaryComplete = useCallback(() => {
+    console.log("Starting setup completion process...");
+    // Set the objectives, KRAs, and KPIs in the parent component
     if (setObjectives) {
       setObjectives(tempObjectives);
     }
@@ -729,8 +731,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     if (setKPIs) {
       setKPIs(tempKPIs);
     }
+    
+    // Start the setup completion process without prompting
+    setIsProcessing(true);
     handleComplete();
-  }, [tempObjectives, tempKRAs, tempKPIs, setObjectives, setKRAs, setKPIs, handleComplete]);
+  }, [tempObjectives, tempKRAs, tempKPIs, setObjectives, setKRAs, setKPIs, handleComplete, setIsProcessing]);
 
   // Update handlePathSelect in step 1 to handle temp folders
   const handlePathSelect = async (config: any) => {
@@ -2227,7 +2232,19 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   // Rest of the component (Dialog structure) with updated UI
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) onClose(); // Only call onClose when dialog is being closed
+      if (!open) {
+        // Don't prompt if we're completing setup properly
+        if (!isProcessing && currentStep === 5) {
+          // If user is at summary step, don't block closure
+          onClose();
+        } else {
+          // Only show confirmation dialog if not at last step or not processing
+          const confirmed = window.confirm("Are you sure you want to close the setup? Your progress will be lost.");
+          if (confirmed) {
+            onClose();
+          }
+        }
+      }
     }}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
@@ -2303,10 +2320,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 {currentStep === 5 ? (
                   <Button 
                     onClick={handleSummaryComplete}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-green-600 hover:bg-green-700 text-white"
                     disabled={isProcessing}
                   >
-                    Complete Setup
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Completing...
+                      </>
+                    ) : (
+                      "Complete Setup"
+                    )}
                   </Button>
                 ) : currentStep > 0 && currentStep < 5 ? (
                   <Button

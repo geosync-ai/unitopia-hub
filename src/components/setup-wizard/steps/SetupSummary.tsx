@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -20,6 +19,7 @@ export const SetupSummary: React.FC<SetupSummaryProps> = ({
   objectives,
   kras,
   kpis,
+  // We'll still keep these props but won't use them directly
   onComplete,
   onBack,
 }) => {
@@ -132,14 +132,7 @@ export const SetupSummary: React.FC<SetupSummaryProps> = ({
         </div>
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          Back
-        </Button>
-        <Button onClick={onComplete}>
-          Complete Setup
-        </Button>
-      </div>
+      {/* Remove the buttons - they're duplicated in the parent wizard */}
     </div>
   );
 }; 
