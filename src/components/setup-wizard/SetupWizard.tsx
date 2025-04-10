@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { useCsvSync } from '@/hooks/useCsvSync';
 import { 
   Loader2, Cloud, FileText, Database, Check, AlertTriangle, 
-  RefreshCw, FolderPlus, Edit, Trash2, Folder 
+  RefreshCw, FolderPlus, Edit, Trash2, Folder, ArrowUp, Image, 
+  FileIcon
 } from 'lucide-react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
@@ -763,17 +764,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
-  // Define a simple OneDriveSetup component that's easier to implement
+  // Enhanced OneDriveSetup component with file browser functionality
   const SimplifiedOneDriveSetup = ({ onComplete }) => {
     const { isAuthenticated, loginWithMicrosoft } = useAuth();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authError, setAuthError] = useState(null);
-    const [folders, setFolders] = useState([]);
-    const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+    const [items, setItems] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [selectedFolder, setSelectedFolder] = useState(null);
-    const foldersLoadedRef = useRef(false);
+    const [viewMode, setViewMode] = useState<'selection' | 'browser'>('selection');
+    const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+    const [folderPath, setFolderPath] = useState<Array<{id: string, name: string}>>([]);
+    const itemsLoadedRef = useRef(false);
     
     // Handle authentication
     const handleAuthenticate = async () => {
@@ -794,138 +798,111 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Load folders after authentication - only once
+    // Load files and folders after authentication - only once for root
     useEffect(() => {
-      if (isAuthenticated && !foldersLoadedRef.current && !isLoadingFolders) {
-        foldersLoadedRef.current = true;
-        loadFolders();
+      if (isAuthenticated && !itemsLoadedRef.current && !isLoading) {
+        itemsLoadedRef.current = true;
+        loadItems();
       }
-    }, [isAuthenticated, isLoadingFolders]);
+    }, [isAuthenticated, isLoading]);
     
-    // Load folders from OneDrive with error handling
-    const loadFolders = async () => {
-      if (isLoadingFolders) return; // Prevent multiple calls
+    // Load files and folders from OneDrive with error handling
+    const loadItems = async (folderId?: string) => {
+      if (isLoading) return; // Prevent multiple calls
       
       try {
-        setIsLoadingFolders(true);
-        // Use Microsoft Graph API to get folders
-        const { getOneDriveDocuments } = useMicrosoftGraph();
-        const documents = await getOneDriveDocuments();
+        setIsLoading(true);
         
-        // Filter only folders
-        const folderList = Array.isArray(documents) 
-          ? documents.filter(doc => doc && doc.isFolder) 
+        // Use Microsoft Graph API to get files and folders
+        const { getFolderContents, getOneDriveDocuments } = useMicrosoftGraph();
+        let documents;
+        
+        if (folderId) {
+          // Get contents of a specific folder
+          documents = await getFolderContents(folderId);
+        } else {
+          // Get root items
+          documents = await getOneDriveDocuments();
+          // Reset folder path when loading root
+          setFolderPath([]);
+        }
+        
+        // Sort items: folders first, then files alphabetically
+        const sortedItems = Array.isArray(documents) 
+          ? [...documents].sort((a, b) => {
+              // Folders first
+              if (a.isFolder && !b.isFolder) return -1;
+              if (!a.isFolder && b.isFolder) return 1;
+              // Alphabetical by name
+              return a.name.localeCompare(b.name);
+            })
           : [];
           
-        setFolders(folderList);
+        setItems(sortedItems);
+        setCurrentFolderId(folderId || null);
       } catch (error) {
-        console.error("Error loading folders:", error);
-        setAuthError("Could not load folders from OneDrive. You may need to use local storage instead.");
+        console.error("Error loading OneDrive items:", error);
+        setAuthError("Could not load items from OneDrive. You may need to use local storage instead.");
       } finally {
-        setIsLoadingFolders(false);
+        setIsLoading(false);
       }
     };
     
-    // Create new folder
-    const handleCreateFolder = async () => {
-      if (!newFolderName.trim()) {
-        toast({
-          title: "Folder name required",
-          description: "Please enter a name for the new folder",
-          variant: "destructive"
-        });
+    // Navigate to a folder
+    const navigateToFolder = (folder: any) => {
+      // Add current folder to path before navigating
+      if (currentFolderId) {
+        const currentFolder = items.find(item => item.id === currentFolderId);
+        if (currentFolder) {
+          setFolderPath([...folderPath, { id: currentFolderId, name: currentFolder.name }]);
+        }
+      }
+      
+      // Load contents of selected folder
+      loadItems(folder.id);
+      
+      // If in selection mode, set this as the selected folder
+      if (viewMode === 'selection') {
+        setSelectedFolder(folder);
+      }
+    };
+    
+    // Navigate up to parent folder
+    const navigateUp = () => {
+      if (folderPath.length === 0) {
+        // Already at root, reload root
+        loadItems();
         return;
       }
       
-      try {
-        setIsCreatingFolder(true);
-        const { createFolder } = useMicrosoftGraph();
-        const newFolder = await createFolder(newFolderName);
-        
-        // Add new folder to list
-        setFolders([...folders, newFolder]);
-        setNewFolderName("");
-        
-        toast({
-          title: "Folder created",
-          description: `Created folder: ${newFolderName}`
-        });
-      } catch (error) {
-        console.error("Error creating folder:", error);
-        toast({
-          title: "Error creating folder",
-          description: error.message || "Could not create folder",
-          variant: "destructive"
-        });
-      } finally {
-        setIsCreatingFolder(false);
-      }
-    };
-    
-    // Delete folder
-    const handleDeleteFolder = async (folder) => {
-      if (confirm(`Are you sure you want to delete folder "${folder.name}"?`)) {
-        try {
-          const { deleteFolder } = useMicrosoftGraph();
-          await deleteFolder(folder.id);
-          
-          // Remove folder from list
-          setFolders(folders.filter(f => f.id !== folder.id));
-          
-          // Deselect if this was the selected folder
-          if (selectedFolder && selectedFolder.id === folder.id) {
-            setSelectedFolder(null);
-          }
-          
-          toast({
-            title: "Folder deleted",
-            description: `Deleted folder: ${folder.name}`
-          });
-        } catch (error) {
-          console.error("Error deleting folder:", error);
-          toast({
-            title: "Error deleting folder",
-            description: error.message || "Could not delete folder",
-            variant: "destructive"
-          });
-        }
-      }
-    };
-    
-    // Rename folder
-    const handleRenameFolder = async (folder, newName) => {
-      if (!newName.trim()) {
-        toast({
-          title: "Folder name required",
-          description: "Please enter a new name for the folder",
-          variant: "destructive"
-        });
-        return;
-      }
+      // Get the parent folder from the path
+      const newPath = [...folderPath];
+      const parentFolder = newPath.pop();
+      setFolderPath(newPath);
       
-      try {
-        const { renameFolder } = useMicrosoftGraph();
-        const updatedFolder = await renameFolder(folder.id, newName);
-        
-        // Update folder in list
-        setFolders(folders.map(f => f.id === folder.id ? updatedFolder : f));
-        
-        // Update selected folder if needed
-        if (selectedFolder && selectedFolder.id === folder.id) {
-          setSelectedFolder(updatedFolder);
-        }
-        
-        toast({
-          title: "Folder renamed",
-          description: `Renamed folder to: ${newName}`
-        });
-      } catch (error) {
-        console.error("Error renaming folder:", error);
-        toast({
-          title: "Error renaming folder",
-          description: error.message || "Could not rename folder",
-          variant: "destructive"
-        });
+      if (parentFolder) {
+        // If we have a parent, load it
+        loadItems(parentFolder.id);
+      } else {
+        // If no parent (should not happen), load root
+        loadItems();
+      }
+    };
+    
+    // Navigate to a specific folder in the path
+    const navigateToPathFolder = (index: number) => {
+      if (index < 0 || index >= folderPath.length) return;
+      
+      const newPath = folderPath.slice(0, index);
+      setFolderPath(newPath);
+      
+      // If index is 0, we're navigating to the first item in path
+      // which is a direct child of root, so pass its ID
+      if (index === 0) {
+        loadItems(folderPath[0].id);
+      } else {
+        // Otherwise load the folder at the specified index
+        loadItems(folderPath[index].id);
       }
     };
     
@@ -960,6 +937,126 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         folderId: selectedFolder.id,
         isNewFolder: false
       });
+    };
+    
+    // Handle folder creation
+    const handleCreateFolder = async () => {
+      if (!newFolderName.trim()) {
+        toast({
+          title: "Folder name required",
+          description: "Please enter a name for the new folder",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      try {
+        setIsCreatingFolder(true);
+        const { createFolder } = useMicrosoftGraph();
+        // Create in current folder if we have one, otherwise in root
+        const newFolder = await createFolder(newFolderName, currentFolderId || undefined);
+        
+        if (newFolder) {
+          // Add new folder to list
+          setItems(prevItems => [...prevItems, newFolder]);
+          setNewFolderName("");
+          
+          toast({
+            title: "Folder created",
+            description: `Created folder: ${newFolderName}`
+          });
+        } else {
+          throw new Error("Failed to create folder");
+        }
+      } catch (error) {
+        console.error("Error creating folder:", error);
+        toast({
+          title: "Error creating folder",
+          description: error.message || "Could not create folder",
+          variant: "destructive"
+        });
+      } finally {
+        setIsCreatingFolder(false);
+      }
+    };
+    
+    // Handle folder renaming
+    const handleRenameFolder = async (folder: any, newName: string) => {
+      if (!newName.trim()) {
+        toast({
+          title: "Folder name required",
+          description: "Please enter a new name for the folder",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      try {
+        const { renameFolder } = useMicrosoftGraph();
+        const updatedFolder = await renameFolder(folder.id, newName);
+        
+        if (updatedFolder) {
+          // Update folder in list
+          setItems(prevItems => 
+            prevItems.map(item => item.id === folder.id ? updatedFolder : item)
+          );
+          
+          // Update selected folder if needed
+          if (selectedFolder && selectedFolder.id === folder.id) {
+            setSelectedFolder(updatedFolder);
+          }
+          
+          toast({
+            title: "Folder renamed",
+            description: `Renamed folder to: ${newName}`
+          });
+        } else {
+          throw new Error("Failed to rename folder");
+        }
+      } catch (error) {
+        console.error("Error renaming folder:", error);
+        toast({
+          title: "Error renaming folder",
+          description: error.message || "Could not rename folder",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    // Handle folder deletion
+    const handleDeleteFolder = async (folder: any) => {
+      if (!confirm(`Are you sure you want to delete folder "${folder.name}"?`)) {
+        return;
+      }
+      
+      try {
+        const { deleteFolder } = useMicrosoftGraph();
+        const success = await deleteFolder(folder.id);
+        
+        if (success) {
+          // Remove folder from list
+          setItems(prevItems => prevItems.filter(item => item.id !== folder.id));
+          
+          // Deselect if this was the selected folder
+          if (selectedFolder && selectedFolder.id === folder.id) {
+            setSelectedFolder(null);
+          }
+          
+          toast({
+            title: "Folder deleted",
+            description: `Deleted folder: ${folder.name}`
+          });
+        } else {
+          throw new Error("Failed to delete folder");
+        }
+      } catch (error) {
+        console.error("Error deleting folder:", error);
+        toast({
+          title: "Error deleting folder",
+          description: error.message || "Could not delete folder",
+          variant: "destructive"
+        });
+      }
     };
     
     return (
@@ -1026,10 +1123,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 <Button 
                   size="sm" 
                   variant="outline" 
-                  onClick={loadFolders}
-                  disabled={isLoadingFolders}
+                  onClick={() => loadItems()}
+                  disabled={isLoading}
                 >
-                  {isLoadingFolders ? (
+                  {isLoading ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     <RefreshCw className="h-3 w-3" />
@@ -1039,8 +1136,74 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               </div>
             </div>
             
+            {/* File/Folder View Mode Toggle */}
+            <div className="flex justify-between items-center mb-2">
+              <div className="space-x-1">
+                <Button 
+                  size="sm"
+                  variant={viewMode === 'selection' ? "default" : "outline"}
+                  onClick={() => setViewMode('selection')}
+                >
+                  <Folder className="h-3.5 w-3.5 mr-1" />
+                  Folder Selection
+                </Button>
+                <Button 
+                  size="sm"
+                  variant={viewMode === 'browser' ? "default" : "outline"}
+                  onClick={() => setViewMode('browser')}
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1" />
+                  File Browser
+                </Button>
+              </div>
+              
+              {viewMode === 'browser' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={navigateUp}
+                >
+                  <ArrowUp className="h-3.5 w-3.5 mr-1" />
+                  Up
+                </Button>
+              )}
+            </div>
+            
+            {/* Breadcrumb Navigation */}
+            {folderPath.length > 0 && (
+              <div className="flex flex-wrap items-center text-sm text-muted-foreground bg-muted/30 p-2 rounded mb-3 overflow-x-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 py-1 text-xs"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    loadItems();
+                  }}
+                >
+                  Root
+                </Button>
+                {folderPath.map((folder, index) => (
+                  <Fragment key={folder.id}>
+                    <span className="mx-1">/</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 py-1 text-xs max-w-[150px] truncate"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigateToPathFolder(index);
+                      }}
+                    >
+                      {folder.name}
+                    </Button>
+                  </Fragment>
+                ))}
+              </div>
+            )}
+            
             {/* Folder Creation */}
-            <div className="flex gap-2 items-center border p-2 rounded-md">
+            <div className="flex gap-2 items-center border p-2 rounded-md mb-4">
               <Input
                 placeholder="New folder name"
                 value={newFolderName}
@@ -1060,55 +1223,92 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               </Button>
             </div>
             
-            {/* Folder List */}
+            {/* Files and Folders List */}
             <div className="border rounded-md overflow-hidden">
               <div className="bg-muted p-2 font-medium text-sm">
-                Select a folder to store your unit data
+                {viewMode === 'selection' 
+                  ? 'Select a folder to store your unit data' 
+                  : 'Browse your OneDrive files and folders'}
               </div>
-              <div className="divide-y max-h-60 overflow-y-auto">
-                {isLoadingFolders ? (
+              <div className="divide-y max-h-80 overflow-y-auto">
+                {isLoading ? (
                   <div className="flex justify-center items-center p-4">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
-                ) : folders.length === 0 ? (
+                ) : items.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground text-sm">
-                    No folders found. Create a new folder to continue.
+                    {viewMode === 'selection'
+                      ? 'No folders found. Create a new folder to continue.'
+                      : 'This folder is empty.'}
                   </div>
                 ) : (
-                  folders.map(folder => (
+                  items.map(item => (
                     <div 
-                      key={folder.id} 
+                      key={item.id} 
                       className={`p-2 flex items-center justify-between hover:bg-muted/50 cursor-pointer ${
-                        selectedFolder && selectedFolder.id === folder.id ? 'bg-primary/10' : ''
+                        selectedFolder && selectedFolder.id === item.id ? 'bg-primary/10' : ''
                       }`}
-                      onClick={() => setSelectedFolder(folder)}
+                      onClick={() => {
+                        if (item.isFolder) {
+                          navigateToFolder(item);
+                        } else if (viewMode === 'browser') {
+                          // For files in browser mode, we could preview or download them
+                          // For now, just show a toast with file details
+                          toast({
+                            title: "File selected",
+                            description: `Name: ${item.name}, Size: ${formatFileSize(item.size || 0)}`,
+                          });
+                        }
+                      }}
                     >
                       <div className="flex items-center">
-                        <Folder className="h-4 w-4 mr-2 text-amber-500" />
-                        <span>{folder.name}</span>
+                        {item.isFolder ? (
+                          <Folder className="h-4 w-4 mr-2 text-amber-500" />
+                        ) : (
+                          getFileIcon(item.name)
+                        )}
+                        <span className="truncate max-w-[200px]">{item.name}</span>
                       </div>
                       <div className="flex gap-1">
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newName = prompt("Enter new folder name:", folder.name);
-                            if (newName) handleRenameFolder(folder, newName);
-                          }}
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteFolder(folder);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        {viewMode === 'selection' && item.isFolder && (
+                          <Button 
+                            size="sm" 
+                            variant={selectedFolder?.id === item.id ? "default" : "outline"} 
+                            className="text-xs py-1 h-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFolder(item);
+                            }}
+                          >
+                            {selectedFolder?.id === item.id ? 'Selected' : 'Select'}
+                          </Button>
+                        )}
+                        
+                        {item.isFolder && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newName = prompt("Enter new folder name:", item.name);
+                                if (newName && newName.trim()) handleRenameFolder(item, newName);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteFolder(item);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))
@@ -1116,6 +1316,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               </div>
             </div>
             
+            {/* Actions */}
             <div className="flex justify-between pt-4">
               <Button
                 variant="outline"
@@ -1123,17 +1324,66 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               >
                 Use Local Storage Instead
               </Button>
-              <Button
-                onClick={handleContinueWithFolder}
-                disabled={!selectedFolder}
-              >
-                Continue with Selected Folder
-              </Button>
+              
+              {viewMode === 'selection' ? (
+                <Button
+                  onClick={handleContinueWithFolder}
+                  disabled={!selectedFolder}
+                >
+                  Continue with Selected Folder
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setViewMode('selection')}
+                >
+                  Switch to Selection Mode
+                </Button>
+              )}
             </div>
           </div>
         )}
       </div>
     );
+  };
+
+  // Helper function to get appropriate icon for file types
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    switch(extension) {
+      case 'pdf':
+        return <FileText className="h-4 w-4 mr-2 text-red-500" />;
+      case 'doc':
+      case 'docx':
+        return <FileText className="h-4 w-4 mr-2 text-blue-500" />;
+      case 'xls':
+      case 'xlsx':
+        return <FileText className="h-4 w-4 mr-2 text-green-500" />;
+      case 'ppt':
+      case 'pptx':
+        return <FileText className="h-4 w-4 mr-2 text-orange-500" />;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'bmp':
+        return <Image className="h-4 w-4 mr-2 text-purple-500" />;
+      case 'csv':
+        return <FileText className="h-4 w-4 mr-2 text-green-600" />;
+      default:
+        return <FileIcon className="h-4 w-4 mr-2 text-gray-500" />;
+    }
+  };
+
+  // Helper function to format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Update renderStep to include an easy bypass for OneDrive
