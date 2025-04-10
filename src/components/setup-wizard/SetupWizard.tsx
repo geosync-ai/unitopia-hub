@@ -744,7 +744,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       if (setOneDriveConfig) {
         setOneDriveConfig({ 
           folderId: config.folderId, 
-          folderName: config.path,
+          folderName: config.path || config.folderName,
           isTemporary: true 
         });
         toast({ 
@@ -757,14 +757,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     } else {
       // Normal OneDrive folder setup
       if (setOneDriveConfig) {
-        setOneDriveConfig({ folderId: config.folderId, folderName: config.path });
+        // Ensure we're using the correct property names from the config
+        setOneDriveConfig({ 
+          folderId: config.folderId, 
+          folderName: config.path || config.folderName 
+        });
         toast({ 
           title: "OneDrive folder selected successfully!", 
-          description: `Using folder: "${config.path}"`,
+          description: `Using folder: "${config.path || config.folderName}"`,
           duration: 2000
         });
       }
-      setCurrentStep(2); // Move to Objectives step
+      
+      // Add a short delay to ensure state is updated before proceeding
+      setTimeout(() => {
+        setCurrentStep(2); // Move to Objectives step
+      }, 100);
     }
   };
 
@@ -1439,13 +1447,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           setSelectedFolder(formattedFolder);
           
           // Automatically continue with the newly created folder
-          onComplete({
+          const folderConfig = {
             path: formattedFolder.name,
             folderId: formattedFolder.id,
             isNewFolder: true,
             folderName: formattedFolder.name,
             isTemporary: false
-          });
+          };
+          
+          console.log('Created folder, calling onComplete with config:', folderConfig);
+          
+          // Add a tiny delay to ensure UI update before continuing
+          setTimeout(() => {
+            onComplete(folderConfig);
+          }, 200);
           
           // Create a reference to scroll to the new folder into view
           setTimeout(() => {
@@ -1458,7 +1473,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 folderElement.classList.remove('highlight-folder');
               }, 2000);
             }
-          }, 300);
+          }, 150);
         } else {
           throw new Error("Invalid response format from folder creation");
         }
@@ -1550,33 +1565,50 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     
     // Select a folder and complete the setup
     const handleSelectFolder = (folder: any) => {
+      console.log('Folder selected:', folder);
       setSelectedFolder(folder);
+      setIsLoading(true); // Set loading state to show user that processing is happening
+      
+      // Show a success toast to indicate folder selection
+      toast({
+        title: "Folder Selected",
+        description: `Selected folder: ${folder.name}`,
+        duration: 2000
+      });
       
       // Automatically continue with the selected folder
-      onComplete({
+      const folderConfig = {
         path: folder.name,
         folderId: folder.id,
         isTemporary: false,
         folderName: folder.name
-      });
+      };
+      console.log('Calling onComplete with folder config:', folderConfig);
+      
+      // Add a tiny delay to ensure UI update before continuing
+      setTimeout(() => {
+        onComplete(folderConfig);
+      }, 200);
     };
     
     // This function is now only used internally when selecting a folder directly
     const handleUseSelectedFolder = () => {
+      console.log('handleUseSelectedFolder called, selectedFolder:', selectedFolder);
+      
       if (!selectedFolder) {
-        toast({
-          title: "No Folder Selected",
-          description: "Please select a folder to continue.",
-          variant: "destructive"
-        });
+        console.error('No folder selected when handleUseSelectedFolder was called');
         return;
       }
       
-      onComplete({
+      const folderConfig = {
         path: selectedFolder.name,
         folderId: selectedFolder.id,
-        isTemporary: false
-      });
+        isTemporary: false,
+        folderName: selectedFolder.name
+      };
+      
+      console.log('Using selected folder, calling onComplete with config:', folderConfig);
+      onComplete(folderConfig);
     };
     
     // Render the folder path
