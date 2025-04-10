@@ -118,6 +118,17 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           } catch (redirectError) {
             console.error('Error handling redirect:', redirectError);
             setAuthError(redirectError instanceof Error ? redirectError : new Error(String(redirectError)));
+            
+            // Check if user exists in localStorage as a fallback
+            try {
+              const storedUser = localStorage.getItem('user');
+              if (storedUser) {
+                console.log('Found stored user despite redirect error, restoring session');
+                setUser(JSON.parse(storedUser));
+              }
+            } catch (e) {
+              console.error('Error checking localStorage for user:', e);
+            }
           }
         }
       } catch (err) {

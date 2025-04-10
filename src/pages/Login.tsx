@@ -18,7 +18,13 @@ export default function Login() {
     // Check if user is already authenticated
     if (isAuthenticated && user) {
       console.log('User is already authenticated, redirecting to home...');
-      navigate('/');
+      try {
+        navigate('/');
+      } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback - force a page reload to the home page
+        window.location.href = '/';
+      }
       return;
     }
 
@@ -26,7 +32,13 @@ export default function Login() {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       console.log('Found stored user, redirecting to home...');
-      navigate('/');
+      try {
+        navigate('/');
+      } catch (error) {
+        console.error('Navigation error from stored user:', error);
+        // Fallback - force a page reload to the home page
+        window.location.href = '/';
+      }
       return;
     }
 

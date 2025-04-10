@@ -877,7 +877,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         }
       } catch (error) {
         console.error("Error fetching OneDrive folders:", error);
-        setFolderError(`Error: ${error.message}`);
+        setFolderError(`Error: ${error.message || 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }

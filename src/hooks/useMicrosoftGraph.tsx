@@ -256,41 +256,43 @@ export const useMicrosoftGraph = () => {
       return null;
     }
     
-    try {
-      // Get accounts safely
-      let accounts: any[] = [];
+    // Add retry counter
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
       try {
-        accounts = msalInstance.getAllAccounts();
-        console.log('Found accounts:', accounts.length, accounts.map((a: any) => ({ username: a.username })));
-      } catch (accountError) {
-        console.error('Error getting accounts:', accountError);
-        setLastError(`Error getting accounts: ${accountError.message}`);
-        setIsRequestLocked(false);
-        setIsLoading(false);
-        return null;
-      }
-      
-      if (!accounts || accounts.length === 0) {
-        console.log('No accounts found, cannot fetch OneDrive documents');
-        setLastError('No Microsoft account found. Please sign in first.');
-        setIsRequestLocked(false);
-        setIsLoading(false);
-        return null;
-      }
-      
-      // Set active account if not already set
-      if (!msalInstance.getActiveAccount() && accounts.length > 0) {
-        console.log('Setting active account to:', accounts[0].username);
-        msalInstance.setActiveAccount(accounts[0]);
-      }
-
-      // Set the request lock to prevent duplicate requests
-      setHasFetchAttempted(true);
-      setLastError(null);
-
-      try {
-        console.log('Acquiring token for OneDrive documents...');
+        // Get accounts safely
+        let accounts: any[] = [];
+        try {
+          accounts = msalInstance.getAllAccounts();
+          console.log('Found accounts:', accounts.length, accounts.map((a: any) => ({ username: a.username })));
+        } catch (accountError) {
+          console.error('Error getting accounts:', accountError);
+          setLastError(`Error getting accounts: ${accountError.message}`);
+          setIsRequestLocked(false);
+          setIsLoading(false);
+          return null;
+        }
         
+        if (!accounts || accounts.length === 0) {
+          console.log('No accounts found, cannot fetch OneDrive documents');
+          setLastError('No Microsoft account found. Please sign in first.');
+          setIsRequestLocked(false);
+          setIsLoading(false);
+          return null;
+        }
+        
+        // Set active account if not already set
+        if (!msalInstance.getActiveAccount() && accounts.length > 0) {
+          console.log('Setting active account to:', accounts[0].username);
+          msalInstance.setActiveAccount(accounts[0]);
+        }
+
+        // Set the request lock to prevent duplicate requests
+        setHasFetchAttempted(true);
+        setLastError(null);
+
         // Try to acquire token with retry mechanism
         let response;
         try {
@@ -315,7 +317,7 @@ export const useMicrosoftGraph = () => {
             console.log('Interactive token acquisition successful:', response ? 'Token obtained' : 'No response');
           } catch (interactiveError) {
             console.error('Interactive token acquisition failed:', interactiveError);
-            throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
+            throw new Error(`Failed to acquire authentication token: ${interactiveError.message || 'Unknown error'}`);
           }
         }
         
@@ -385,120 +387,135 @@ export const useMicrosoftGraph = () => {
           }));
         } catch (fetchError) {
           console.error('Error during API fetch:', fetchError);
-          throw new Error(`API request failed: ${fetchError.message}`);
+          setLastError(`API request failed: ${fetchError.message || 'Unknown error'}`);
+          throw fetchError;
         }
       } catch (error) {
-        console.error('Error fetching OneDrive documents:', error);
-        const errorMsg = error.message || 'Unknown fetch error';
-        setLastError(`OneDrive documents error: ${errorMsg}`);
+        retryCount++;
+        console.error(`OneDrive documents fetch attempt ${retryCount}/${maxRetries} failed:`, error);
         
-        // Set a timeout before allowing another request
-        fetchTimeoutRef.current = setTimeout(() => {
-          console.log('Fetch request lock released after timeout');
+        if (retryCount >= maxRetries) {
+          const errorMsg = error.message || 'Unknown fetch error';
+          setLastError(`OneDrive documents error: ${errorMsg}`);
+          
+          // Set a timeout before allowing another request
+          fetchTimeoutRef.current = setTimeout(() => {
+            console.log('Fetch request lock released after timeout');
+            setIsRequestLocked(false);
+          }, 5000); // 5 second cooldown before allowing next request
+          
           setIsRequestLocked(false);
-        }, 5000); // 5 second cooldown before allowing next request
-        
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error in getOneDriveDocuments:', error);
-      setLastError(`OneDrive error: ${error.message || 'Unknown error'}`);
-      setIsRequestLocked(false);
-      setIsLoading(false);
-      return null;
-    } finally {
-      setIsLoading(false);
-      // Ensure the request lock is eventually released, even in error cases
-      setTimeout(() => {
-        if (isRequestLocked) {
-          console.log('Force releasing request lock after timeout');
-          setIsRequestLocked(false);
+          setIsLoading(false);
+          return null;
         }
-      }, 10000); // 10-second failsafe
+        
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+      }
     }
+    
+    setIsLoading(false);
+    setIsRequestLocked(false);
+    return null;
   }, [isRequestLocked]);
 
   const getFolderContents = useCallback(async (folderId: string, source: string): Promise<Document[] | null> => {
     console.log(`Getting contents of folder: ${folderId} from ${source}`);
     setIsLoading(true);
     
-    try {
-      if (source !== 'OneDrive') {
-        throw new Error('Unsupported source. Only OneDrive is supported.');
-      }
-      
-      if (!checkMsalAuth()) {
-        console.error('Authentication check failed');
-        setIsLoading(false);
-        return null;
-      }
-      
-      const accounts = msalInstance.getAllAccounts();
-      
-      // Get token
-      let response;
+    // Add retry counter for this function
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
       try {
-        response = await msalInstance.acquireTokenSilent({
-          scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All'],
-          account: accounts[0]
-        });
-      } catch (tokenError) {
-        console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
+        if (source !== 'OneDrive') {
+          throw new Error('Unsupported source. Only OneDrive is supported.');
+        }
         
+        if (!checkMsalAuth()) {
+          console.error('Authentication check failed');
+          setIsLoading(false);
+          return null;
+        }
+        
+        const accounts = msalInstance.getAllAccounts();
+        
+        // Get token
+        let response;
         try {
-          response = await msalInstance.acquireTokenPopup({
-            scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All']
+          response = await msalInstance.acquireTokenSilent({
+            scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All'],
+            account: accounts[0]
           });
-        } catch (interactiveError) {
-          throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
+        } catch (tokenError) {
+          console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
+          
+          try {
+            response = await msalInstance.acquireTokenPopup({
+              scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All']
+            });
+          } catch (interactiveError) {
+            throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
+          }
         }
-      }
-      
-      // Get folder contents using Microsoft Graph API
-      const graphEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
-      console.log('Fetching folder contents from endpoint:', graphEndpoint);
-      const result = await fetch(graphEndpoint, {
-        headers: {
-          Authorization: `Bearer ${response.accessToken}`
+        
+        // Get folder contents using Microsoft Graph API
+        const graphEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
+        console.log('Fetching folder contents from endpoint:', graphEndpoint);
+        const result = await fetch(graphEndpoint, {
+          headers: {
+            Authorization: `Bearer ${response.accessToken}`
+          }
+        });
+        
+        if (!result.ok) {
+          const errorText = await result.text();
+          console.error('OneDrive GraphAPI error response:', result.status, errorText);
+          throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
         }
-      });
-      
-      if (!result.ok) {
-        const errorText = await result.text();
-        console.error('OneDrive GraphAPI error response:', result.status, errorText);
-        throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
+        
+        const data = await result.json();
+        console.log(`Retrieved ${data.value?.length || 0} items from folder ${folderId}`);
+        
+        // Filter to only include folders and files we're interested in
+        const filteredItems = data.value.filter(item => 
+          // Include all folders and specific file types
+          item.folder || 
+          (item.name && item.name.endsWith('.csv'))
+        );
+        
+        console.log(`Filtered to ${filteredItems.length} relevant items`);
+        
+        setIsLoading(false);
+        
+        return filteredItems.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          url: item.webUrl || item['@microsoft.graph.downloadUrl'] || '',
+          lastModified: item.lastModifiedDateTime || new Date().toISOString(),
+          size: item.size || 0,
+          isFolder: item.folder !== undefined,
+          parentReference: item.parentReference,
+          source: 'OneDrive' as const
+        }));
+      } catch (error) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          console.error(`Error getting folder contents after ${maxRetries} attempts:`, error);
+          setLastError(`Error getting folder contents: ${error.message}`);
+          toast.error(`Could not access folder: ${error.message}`);
+          return null;
+        }
+        
+        console.warn(`Attempt ${retryCount}/${maxRetries} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
       }
-      
-      const data = await result.json();
-      console.log(`Retrieved ${data.value?.length || 0} items from folder ${folderId}`);
-      
-      // Filter to only include folders and files we're interested in
-      const filteredItems = data.value.filter(item => 
-        // Include all folders and specific file types
-        item.folder || 
-        (item.name && item.name.endsWith('.csv'))
-      );
-      
-      console.log(`Filtered to ${filteredItems.length} relevant items`);
-      
-      return filteredItems.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        url: item.webUrl || item['@microsoft.graph.downloadUrl'] || '',
-        lastModified: item.lastModifiedDateTime || new Date().toISOString(),
-        size: item.size || 0,
-        isFolder: item.folder !== undefined,
-        parentReference: item.parentReference,
-        source: 'OneDrive' as const
-      }));
-    } catch (error) {
-      console.error('Error getting folder contents:', error);
-      setLastError(`Error getting folder contents: ${error.message}`);
-      toast.error(`Could not access folder: ${error.message}`);
-      return null;
-    } finally {
-      setIsLoading(false);
     }
+    
+    // This should never be reached if the maxRetries is > 0
+    setIsLoading(false);
+    return null;
   }, [msalInstance, checkMsalAuth, toast]);
 
   // Create a new folder in OneDrive
