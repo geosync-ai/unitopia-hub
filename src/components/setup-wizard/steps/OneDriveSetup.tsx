@@ -66,6 +66,11 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
       updateAuthStatus();
+      
+      // Immediately attempt to authenticate when component loads
+      if (!isAuthenticated && !isAuthenticating) {
+        handleAuthenticate();
+      }
     }
   }, []);
 
@@ -1154,7 +1159,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
             <div>
               <p className="font-medium">{authError}</p>
               <p className="text-sm mt-1">
-                There appears to be an issue with the Microsoft authentication. Please ensure your app registration in Azure has the correct redirect URI.
+                There appears to be an issue with the Microsoft authentication. Please try again or contact support.
               </p>
               <div className="flex gap-2 mt-3">
                 <Button
@@ -1172,18 +1177,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                     'Retry Authentication'
                   )}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white hover:bg-amber-50 border-amber-300 text-amber-800"
-                  onClick={() => onComplete({
-                    path: "Local Storage",
-                    folderId: `local-${Date.now()}`,
-                    isTemporary: true
-                  })}
-                >
-                  Continue Without OneDrive
-                </Button>
               </div>
             </div>
           </div>
@@ -1192,61 +1185,25 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
 
       <div className="bg-white p-6 rounded-lg border shadow-sm">
         {!isAuthenticated ? (
-          // UI for authentication step
+          // UI for authentication step - simplified
           <>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Connect to OneDrive</h3>
               <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                Not Connected
-              </div>
-            </div>
-
-            {/* Emergency Continue Without OneDrive button */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-start">
-                <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
-                <div>
-                  <p className="font-medium text-blue-800">Having trouble with OneDrive?</p>
-                  <p className="text-sm text-blue-600 mt-1">
-                    You can continue without OneDrive and use local storage instead.
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="mt-3 bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
-                    onClick={() => onComplete({
-                      path: "Local Storage",
-                      folderId: `local-${Date.now()}`,
-                      isTemporary: true
-                    })}
-                  >
-                    <Database className="h-4 w-4 mr-2" />
-                    Continue With Local Storage
-                  </Button>
-                </div>
+                Connecting...
               </div>
             </div>
 
             <Card className="p-6">
               <div className="flex flex-col items-center justify-center py-8 space-y-4">
                 <Cloud className="h-16 w-16 text-blue-500" />
-                <h3 className="text-lg font-semibold">Connect to Microsoft OneDrive</h3>
+                <h3 className="text-lg font-semibold">Connecting to Microsoft OneDrive</h3>
                 <p className="text-center text-sm text-muted-foreground max-w-md">
-                  Connect to your Microsoft account to access OneDrive and select where to store your unit data.
+                  Please wait while we connect to your Microsoft account to access your OneDrive folders.
                 </p>
-                <Button 
-                  onClick={handleAuthenticate} 
-                  className="mt-4"
-                  disabled={isAuthenticating}
-                >
-                  {isAuthenticating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>Connect to OneDrive</>
-                  )}
-                </Button>
+                <div className="mt-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
               </div>
             </Card>
             {debugMode && renderDiagnostics()}
