@@ -195,8 +195,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     const status = updateAuthStatus();
     console.log('Auth status updated:', status);
     
-    if (isAuthenticated && documents.length === 0 && !isLoading && !shouldStopFetching) {
-      console.log('useEffect: Authenticated and no documents, fetching...');
+    if (isAuthenticated && documents.length === 0 && !isLoading && !shouldStopFetching && fetchCount < 5) {
+      console.log(`useEffect: Authenticated and no documents, fetching... (attempt ${fetchCount + 1}/5)`);
       
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
@@ -205,7 +205,17 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       fetchTimeoutRef.current = setTimeout(() => {
         setFetchCount(prev => prev + 1);
         fetchDocuments();
+        
+        if (fetchCount >= 4) {
+          setShouldStopFetching(true);
+          console.log('Maximum fetch attempts reached (5), stopping automatic fetching');
+          setAuthError('Failed to fetch OneDrive files after multiple attempts. Please try the "Continue Without OneDrive" option.');
+        }
       }, 1500);
+    } else if (fetchCount >= 5 && !shouldStopFetching) {
+      setShouldStopFetching(true);
+      console.log('Maximum fetch attempts reached (5), stopping automatic fetching');
+      setAuthError('Failed to fetch OneDrive files after multiple attempts. Please try the "Continue Without OneDrive" option.');
     } else if (isAuthenticated) {
       console.log('useEffect: Authenticated but documents already loaded or loading, skipping fetch.');
     } else {

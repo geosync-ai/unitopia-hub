@@ -775,6 +775,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   className="w-full flex items-center gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
                   onClick={() => {
                     setIsUsingLocalStorage(true);
+                    toast({ 
+                      title: "Using Local Storage", 
+                      description: "Your data will be stored locally for this session.",
+                      duration: 3000
+                    });
                     handlePathSelect({
                       path: "Local Storage",
                       folderId: `local-${Date.now()}`,

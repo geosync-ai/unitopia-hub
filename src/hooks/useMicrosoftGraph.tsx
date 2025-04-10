@@ -55,41 +55,64 @@ export const useMicrosoftGraph = () => {
     return true;
   }, [msalInstance]);
 
-  // Debug function to get authentication status
+  /**
+   * Gets current Microsoft authentication status
+   * @returns Object with authentication status information
+   */
   const getAuthStatus = useCallback(() => {
     try {
-      if (!msalInstance) {
+      // Guard against missing MSAL instance
+      if (!window.msalInstance) {
         return {
           isInitialized: false,
           hasAccounts: false,
+          accountCount: 0,
           activeAccount: null,
-          error: 'MSAL instance not found'
+          error: "MSAL instance not available"
         };
       }
       
-      const accounts = msalInstance.getAllAccounts();
-      const activeAccount = msalInstance.getActiveAccount();
+      // Safely get accounts
+      let accounts = [];
+      try {
+        accounts = window.msalInstance.getAllAccounts();
+      } catch (error) {
+        console.error("Error getting accounts:", error);
+        return {
+          isInitialized: true,
+          hasAccounts: false,
+          accountCount: 0,
+          activeAccount: null,
+          error: `Error getting accounts: ${error.message}`
+        };
+      }
+      
+      // Create a safe account object
+      const activeAccount = accounts && accounts.length > 0 ? {
+        // Type the account object properties explicitly
+        username: accounts[0].username || '',
+        name: accounts[0].name || '',
+        localAccountId: accounts[0].localAccountId || ''
+      } : null;
       
       return {
         isInitialized: true,
-        hasAccounts: accounts.length > 0,
-        accountCount: accounts.length,
-        activeAccount: activeAccount ? {
-          username: activeAccount.username,
-          name: activeAccount.name,
-          localAccountId: activeAccount.localAccountId
-        } : null,
+        hasAccounts: accounts && accounts.length > 0,
+        accountCount: accounts ? accounts.length : 0,
+        activeAccount: activeAccount,
         error: null
       };
     } catch (error) {
+      console.error("Error in getAuthStatus:", error);
       return {
         isInitialized: false,
         hasAccounts: false,
+        accountCount: 0,
         activeAccount: null,
-        error: error.message || 'Unknown error checking auth status'
+        error: `Error checking auth status: ${error.message}`
       };
     }
-  }, [msalInstance]);
+  }, []);
 
   const getAccessToken = useCallback(async () => {
     try {
@@ -119,105 +142,153 @@ export const useMicrosoftGraph = () => {
 
   const getOneDriveDocuments = useCallback(async (): Promise<Document[] | null> => {
     console.log('Attempting to get OneDrive documents...');
-    
-    // If a request is already in progress, avoid starting another
+
+    // Guard against multiple concurrent requests
     if (isRequestLocked) {
-      console.log('Request already in progress, skipping duplicate fetch request');
+      console.log('Request already in progress, skipping duplicate request');
       return null;
     }
     
-    // Enhanced authentication check
-    if (!msalInstance) {
-      console.error('MSAL instance not found or not initialized');
-      setLastError('MSAL instance not found - authentication service not initialized');
-      toast.error('Authentication service not initialized. Please refresh the page and try again.');
-      return null;
-    }
-    
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length === 0) {
-      console.error('No Microsoft accounts found');
-      setLastError('No Microsoft accounts found. Please sign in first.');
-      toast.error('You need to sign in with Microsoft before accessing OneDrive');
-      return null;
-    }
-    
-    // Set active account if not already set
-    if (!msalInstance.getActiveAccount() && accounts.length > 0) {
-      console.log('Setting active account to:', accounts[0].username);
-      msalInstance.setActiveAccount(accounts[0]);
-    }
-
-    // Set the request lock to prevent duplicate requests
     setIsRequestLocked(true);
-    setHasFetchAttempted(true);
     setIsLoading(true);
-    setLastError(null);
-
-    // Clear any existing timeout
+    
+    // Clear any existing fetch timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
       fetchTimeoutRef.current = null;
     }
-
-    try {
-      console.log('Acquiring token for OneDrive documents...');
-      
-      // Try to acquire token with retry mechanism
-      let response;
-      try {
-        response = await msalInstance.acquireTokenSilent({
-          scopes: ['User.Read', 'Files.Read.All'],
-          account: accounts[0]
-        });
-      } catch (tokenError) {
-        console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
-        
-        // Try interactive acquisition as fallback
-        try {
-          response = await msalInstance.acquireTokenPopup({
-            scopes: ['User.Read', 'Files.Read.All']
-          });
-        } catch (interactiveError) {
-          throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
-        }
-      }
-      
-      if (!response || !response.accessToken) {
-        throw new Error('Failed to obtain access token');
-      }
-      
-      console.log('Token acquired successfully for OneDrive');
-
-      const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
-      console.log('Fetching OneDrive from endpoint:', graphEndpoint);
-      const result = await fetch(graphEndpoint, {
-        headers: {
-          Authorization: `Bearer ${response.accessToken}`
-        }
-      });
-
-      if (!result.ok) {
-        const errorText = await result.text();
-        console.error('OneDrive GraphAPI error response:', result.status, errorText);
-        throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
-      }
-
-      const data = await result.json();
-      console.log(`Retrieved ${data.value.length} OneDrive items`);
-      setIsLoading(false);
+    
+    // Basic validation
+    const msalInstance = window.msalInstance;
+    if (!msalInstance) {
+      console.error('MSAL not initialized');
+      setLastError('Microsoft authentication not initialized');
       setIsRequestLocked(false);
+      setIsLoading(false);
+      toast.error('Authentication service not initialized. Please refresh the page and try again.');
+      return null;
+    }
+    
+    try {
+      // Get accounts safely
+      let accounts = [];
+      try {
+        accounts = msalInstance.getAllAccounts();
+      } catch (accountError) {
+        console.error('Error getting accounts:', accountError);
+        setLastError(`Error getting accounts: ${accountError.message}`);
+        setIsRequestLocked(false);
+        setIsLoading(false);
+        return null;
+      }
       
-      return data.value.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        url: item.webUrl || item['@microsoft.graph.downloadUrl'],
-        lastModified: item.lastModifiedDateTime,
-        size: item.size || 0,
-        isFolder: item.folder !== undefined,
-        parentReference: item.parentReference,
-        source: 'OneDrive' as const
-      }));
+      if (!accounts || accounts.length === 0) {
+        console.log('No accounts found, cannot fetch OneDrive documents');
+        setLastError('No Microsoft account found. Please sign in first.');
+        setIsRequestLocked(false);
+        setIsLoading(false);
+        return null;
+      }
+      
+      // Set active account if not already set
+      if (!msalInstance.getActiveAccount() && accounts.length > 0) {
+        console.log('Setting active account to:', accounts[0].username);
+        msalInstance.setActiveAccount(accounts[0]);
+      }
+
+      // Set the request lock to prevent duplicate requests
+      setHasFetchAttempted(true);
+      setLastError(null);
+
+      // Clear any existing timeout
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
+
+      try {
+        console.log('Acquiring token for OneDrive documents...');
+        
+        // Try to acquire token with retry mechanism
+        let response;
+        try {
+          response = await msalInstance.acquireTokenSilent({
+            scopes: ['User.Read', 'Files.Read.All'],
+            account: accounts[0]
+          });
+        } catch (tokenError) {
+          console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
+          
+          // Try interactive acquisition as fallback
+          try {
+            response = await msalInstance.acquireTokenPopup({
+              scopes: ['User.Read', 'Files.Read.All']
+            });
+          } catch (interactiveError) {
+            throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
+          }
+        }
+        
+        if (!response || !response.accessToken) {
+          throw new Error('Failed to obtain access token');
+        }
+        
+        console.log('Token acquired successfully for OneDrive');
+
+        const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+        console.log('Fetching OneDrive from endpoint:', graphEndpoint);
+        const result = await fetch(graphEndpoint, {
+          headers: {
+            Authorization: `Bearer ${response.accessToken}`
+          }
+        });
+
+        if (!result.ok) {
+          const errorText = await result.text();
+          console.error('OneDrive GraphAPI error response:', result.status, errorText);
+          throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
+        }
+
+        const data = await result.json();
+        console.log(`Retrieved ${data.value.length} OneDrive items`);
+        setIsLoading(false);
+        setIsRequestLocked(false);
+        
+        return data.value.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          url: item.webUrl || item['@microsoft.graph.downloadUrl'],
+          lastModified: item.lastModifiedDateTime,
+          size: item.size || 0,
+          isFolder: item.folder !== undefined,
+          parentReference: item.parentReference,
+          source: 'OneDrive' as const
+        }));
+      } catch (error) {
+        console.error('Error fetching OneDrive documents:', error);
+        const errorMsg = error.message || 'Unknown fetch error';
+        setLastError(`OneDrive documents error: ${errorMsg}`);
+        
+        // Check if this is a repeated failure and notify user accordingly
+        if (fetchTimeoutRef.current) {
+          toast.error(`Failed to fetch OneDrive documents: ${errorMsg}. Maximum retry count reached.`, {
+            duration: 6000,
+            description: "Please check your connection or try again later."
+          });
+        } else {
+          toast.error(`Failed to fetch OneDrive documents: ${errorMsg}`);
+        }
+        
+        // Set a timeout before allowing another request
+        fetchTimeoutRef.current = setTimeout(() => {
+          console.log('Fetch request lock released after timeout');
+          setIsRequestLocked(false);
+        }, 5000); // 5 second cooldown before allowing next request
+        
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Error fetching OneDrive documents:', error);
       const errorMsg = error.message || 'Unknown fetch error';
@@ -240,8 +311,6 @@ export const useMicrosoftGraph = () => {
       }, 5000); // 5 second cooldown before allowing next request
       
       return null;
-    } finally {
-      setIsLoading(false);
     }
   }, [msalInstance, toast, isRequestLocked]);
 

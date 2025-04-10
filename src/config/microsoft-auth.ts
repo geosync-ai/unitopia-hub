@@ -13,9 +13,9 @@ const microsoftAuthConfig = {
     "Sites.Read.All",
     "Sites.ReadWrite.All"
   ],
-  // IMPORTANT: Use a dynamic redirect URI based on the current environment
-  // This prevents AADSTS50011 "redirect URI mismatch" errors
-  redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app/",
+  // IMPORTANT: Use the exact redirect URI from Azure portal to avoid mismatch
+  // The URI must exactly match what's configured in Azure
+  redirectUri: "https://unitopia-hub.vercel.app",
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,
   last_confirmed: "2025-04-07T08:19:35.145Z"
@@ -30,8 +30,8 @@ if (typeof window !== 'undefined') {
   // Show warning if running in development
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     console.warn('⚠️ Running in development mode with production redirect URI.');
-    console.warn('This configuration will only work when deployed to https://unitopia-hub.vercel.app/');
-    console.warn('For local development testing, you need to add http://localhost:[port]/ to your app registration in Azure Portal');
+    console.warn('This configuration will only work when deployed to https://unitopia-hub.vercel.app');
+    console.warn('For local development testing, you need to add http://localhost:[port] to your app registration in Azure Portal');
   }
 }
 
