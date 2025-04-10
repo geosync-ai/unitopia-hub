@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { OneDriveSetup } from '@/components/setup-wizard/steps/OneDriveSetup';
 import { SetupMethod } from '@/components/setup-wizard/steps/SetupMethod';
 import { ObjectivesSetup } from '@/components/setup-wizard/steps/ObjectivesSetup';
@@ -17,7 +18,10 @@ import { KPISetup } from '@/components/setup-wizard/steps/KPISetup';
 import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useCsvSync } from '@/hooks/useCsvSync';
-import { Loader2, Cloud, FileText, Database, Check, AlertTriangle } from 'lucide-react';
+import { 
+  Loader2, Cloud, FileText, Database, Check, AlertTriangle, 
+  RefreshCw, FolderPlus, Edit, Trash2, Folder 
+} from 'lucide-react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -761,6 +765,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     const { isAuthenticated, loginWithMicrosoft } = useAuth();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authError, setAuthError] = useState(null);
+    const [folders, setFolders] = useState([]);
+    const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+    const [newFolderName, setNewFolderName] = useState("");
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+    const [selectedFolder, setSelectedFolder] = useState(null);
     
     // Handle authentication
     const handleAuthenticate = async () => {
@@ -779,7 +788,140 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Handler for using local storage instead
+    // Load folders after authentication
+    useEffect(() => {
+      if (isAuthenticated) {
+        loadFolders();
+      }
+    }, [isAuthenticated]);
+    
+    // Load folders from OneDrive
+    const loadFolders = async () => {
+      try {
+        setIsLoadingFolders(true);
+        // Use Microsoft Graph API to get folders
+        const { getOneDriveDocuments } = useMicrosoftGraph();
+        const documents = await getOneDriveDocuments();
+        
+        // Filter only folders
+        const folderList = documents.filter(doc => doc.isFolder);
+        setFolders(folderList);
+      } catch (error) {
+        console.error("Error loading folders:", error);
+        toast({
+          title: "Error loading folders",
+          description: error.message || "Could not load folders from OneDrive",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingFolders(false);
+      }
+    };
+    
+    // Create new folder
+    const handleCreateFolder = async () => {
+      if (!newFolderName.trim()) {
+        toast({
+          title: "Folder name required",
+          description: "Please enter a name for the new folder",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      try {
+        setIsCreatingFolder(true);
+        const { createFolder } = useMicrosoftGraph();
+        const newFolder = await createFolder(newFolderName);
+        
+        // Add new folder to list
+        setFolders([...folders, newFolder]);
+        setNewFolderName("");
+        
+        toast({
+          title: "Folder created",
+          description: `Created folder: ${newFolderName}`
+        });
+      } catch (error) {
+        console.error("Error creating folder:", error);
+        toast({
+          title: "Error creating folder",
+          description: error.message || "Could not create folder",
+          variant: "destructive"
+        });
+      } finally {
+        setIsCreatingFolder(false);
+      }
+    };
+    
+    // Delete folder
+    const handleDeleteFolder = async (folder) => {
+      if (confirm(`Are you sure you want to delete folder "${folder.name}"?`)) {
+        try {
+          const { deleteFolder } = useMicrosoftGraph();
+          await deleteFolder(folder.id);
+          
+          // Remove folder from list
+          setFolders(folders.filter(f => f.id !== folder.id));
+          
+          // Deselect if this was the selected folder
+          if (selectedFolder && selectedFolder.id === folder.id) {
+            setSelectedFolder(null);
+          }
+          
+          toast({
+            title: "Folder deleted",
+            description: `Deleted folder: ${folder.name}`
+          });
+        } catch (error) {
+          console.error("Error deleting folder:", error);
+          toast({
+            title: "Error deleting folder",
+            description: error.message || "Could not delete folder",
+            variant: "destructive"
+          });
+        }
+      }
+    };
+    
+    // Rename folder
+    const handleRenameFolder = async (folder, newName) => {
+      if (!newName.trim()) {
+        toast({
+          title: "Folder name required",
+          description: "Please enter a new name for the folder",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      try {
+        const { renameFolder } = useMicrosoftGraph();
+        const updatedFolder = await renameFolder(folder.id, newName);
+        
+        // Update folder in list
+        setFolders(folders.map(f => f.id === folder.id ? updatedFolder : f));
+        
+        // Update selected folder if needed
+        if (selectedFolder && selectedFolder.id === folder.id) {
+          setSelectedFolder(updatedFolder);
+        }
+        
+        toast({
+          title: "Folder renamed",
+          description: `Renamed folder to: ${newName}`
+        });
+      } catch (error) {
+        console.error("Error renaming folder:", error);
+        toast({
+          title: "Error renaming folder",
+          description: error.message || "Could not rename folder",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    // Handle continue with local storage
     const continueWithLocalStorage = () => {
       setIsUsingLocalStorage(true);
       toast({ 
@@ -794,68 +936,194 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       });
     };
     
+    // Proceed with selected folder
+    const handleContinueWithFolder = () => {
+      if (!selectedFolder) {
+        toast({
+          title: "No folder selected",
+          description: "Please select a folder to continue",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      onComplete({
+        path: selectedFolder.name,
+        folderId: selectedFolder.id,
+        isNewFolder: false
+      });
+    };
+    
     return (
       <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-md mb-6">
-          <div className="flex items-start">
-            <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
-            <div>
-              <p className="font-medium text-blue-800">OneDrive Integration</p>
-              <p className="text-sm text-blue-600 mt-1">
-                Connect to your Microsoft OneDrive to store your data in the cloud.
-              </p>
-              <div className="flex gap-2 mt-3">
-                <Button
-                  onClick={handleAuthenticate}
-                  disabled={isAuthenticating}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  {isAuthenticating ? (
-                    <>
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    'Connect to OneDrive'
-                  )}
-                </Button>
+        {!isAuthenticated ? (
+          // Authentication step - not yet authenticated
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
+              <div className="flex items-start">
+                <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
+                <div>
+                  <p className="font-medium text-blue-800">Connect to OneDrive</p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    Connect to your Microsoft OneDrive to store your data in the cloud.
+                  </p>
+                  <Button
+                    onClick={handleAuthenticate}
+                    disabled={isAuthenticating}
+                    className="mt-3 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    {isAuthenticating ? (
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      'Connect to OneDrive'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            {authError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                <p>Authentication error: {authError}</p>
+                <p className="mt-1">Please try again or continue with local storage.</p>
                 <Button
                   variant="outline"
                   onClick={continueWithLocalStorage}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                  className="mt-2 border-red-300 text-red-700 hover:bg-red-50"
                 >
                   Use Local Storage Instead
                 </Button>
               </div>
-              
-              {authError && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                  <p>Authentication error: {authError}</p>
-                  <p className="mt-1">Please try again or continue with local storage.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-          <div className="flex items-start">
-            <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 text-amber-500" />
-            <div>
-              <p className="font-medium text-amber-800">Having trouble with OneDrive?</p>
-              <p className="text-sm text-amber-600 mt-1">
-                If you're experiencing issues with Microsoft authentication, use local storage instead.
-              </p>
+            )}
+            
+            <div className="pt-2 border-t">
               <Button
                 variant="outline"
                 onClick={continueWithLocalStorage}
-                className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-50"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
               >
-                Continue Without OneDrive
+                Continue with Local Storage
               </Button>
             </div>
           </div>
-        </div>
+        ) : (
+          // Folder management - authenticated
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">OneDrive Folders</h3>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={loadFolders}
+                  disabled={isLoadingFolders}
+                >
+                  {isLoadingFolders ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
+            </div>
+            
+            {/* Folder Creation */}
+            <div className="flex gap-2 items-center border p-2 rounded-md">
+              <Input
+                placeholder="New folder name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+              />
+              <Button 
+                onClick={handleCreateFolder}
+                disabled={isCreatingFolder || !newFolderName.trim()}
+                className="whitespace-nowrap"
+              >
+                {isCreatingFolder ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <FolderPlus className="h-3 w-3 mr-1" />
+                )}
+                Create Folder
+              </Button>
+            </div>
+            
+            {/* Folder List */}
+            <div className="border rounded-md overflow-hidden">
+              <div className="bg-muted p-2 font-medium text-sm">
+                Select a folder to store your unit data
+              </div>
+              <div className="divide-y max-h-60 overflow-y-auto">
+                {isLoadingFolders ? (
+                  <div className="flex justify-center items-center p-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : folders.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    No folders found. Create a new folder to continue.
+                  </div>
+                ) : (
+                  folders.map(folder => (
+                    <div 
+                      key={folder.id} 
+                      className={`p-2 flex items-center justify-between hover:bg-muted/50 cursor-pointer ${
+                        selectedFolder && selectedFolder.id === folder.id ? 'bg-primary/10' : ''
+                      }`}
+                      onClick={() => setSelectedFolder(folder)}
+                    >
+                      <div className="flex items-center">
+                        <Folder className="h-4 w-4 mr-2 text-amber-500" />
+                        <span>{folder.name}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newName = prompt("Enter new folder name:", folder.name);
+                            if (newName) handleRenameFolder(folder, newName);
+                          }}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteFolder(folder);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-between pt-4">
+              <Button
+                variant="outline"
+                onClick={continueWithLocalStorage}
+              >
+                Use Local Storage Instead
+              </Button>
+              <Button
+                onClick={handleContinueWithFolder}
+                disabled={!selectedFolder}
+              >
+                Continue with Selected Folder
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -867,46 +1135,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         return renderInitialSelection();
       case 1:
         if (selectedSetupType === 'onedrive') {
-          return (
-            <div className="space-y-4">
-              {/* Add prominent notice about potential OneDrive issues */}
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md text-blue-800 mb-6">
-                <div className="flex items-start">
-                  <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
-                  <div>
-                    <p className="font-medium">OneDrive Integration Note</p>
-                    <p className="text-sm mt-1">
-                      Some users may experience issues with OneDrive authentication. If you encounter problems, you can use local storage instead.
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="mt-3 bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
-                      onClick={() => {
-                        setIsUsingLocalStorage(true);
-                        toast({ 
-                          title: "Using Local Storage", 
-                          description: "Your data will be stored locally for this session.",
-                          duration: 3000
-                        });
-                        handlePathSelect({
-                          path: "Local Storage",
-                          folderId: `local-${Date.now()}`,
-                          isTemporary: true
-                        });
-                      }}
-                    >
-                      <Database className="h-4 w-4 mr-2" />
-                      Continue With Local Storage
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              <SimplifiedOneDriveSetup
-                onComplete={handlePathSelect}
-              />
-            </div>
-          );
+          return <SimplifiedOneDriveSetup onComplete={handlePathSelect} />;
         } else if (selectedSetupType === 'csv') {
           return (
             <div className="space-y-6">
