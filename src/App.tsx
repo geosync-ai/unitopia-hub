@@ -29,6 +29,7 @@ const Apps = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isAuthInProgress, setIsAuthInProgress] = useState(false);
   
   // Initialize MSAL
   useEffect(() => {
@@ -45,6 +46,12 @@ const Apps = () => {
     };
 
     const msalInstanceCreate = new PublicClientApplication(msalConfig);
+    
+    // Handle the redirect promise to avoid unhandled promise rejection
+    msalInstanceCreate.handleRedirectPromise()
+      .catch(err => {
+        console.error("Redirect promise error:", err);
+      });
     
     msalInstanceCreate.initialize().then(() => {
       setMsalInstance(msalInstanceCreate);
@@ -72,16 +79,33 @@ const Apps = () => {
       return;
     }
     
+    if (isAuthInProgress) {
+      setError("Authentication is already in progress. Please complete the login process in the popup window.");
+      return;
+    }
+    
+    setIsAuthInProgress(true);
+    setLoading(true);
+    setError(null);
+    
     try {
       const loginResponse = await msalInstance.loginPopup(loginRequest);
       if (loginResponse) {
         setIsAuthenticated(true);
         setUser(loginResponse.account);
-        await getOneDriveFolders();
+        await getOneDriveFolders(loginResponse.account);
       }
     } catch (err) {
-      setError(`Authentication failed: ${err.message}`);
-      console.error(err);
+      if (err.name === "BrowserAuthError" && err.message.includes("interaction_in_progress")) {
+        // This error means there's already a popup open
+        setError("A login window is already open. Please complete that process first.");
+      } else {
+        setError(`Authentication failed: ${err.message}`);
+        console.error(err);
+      }
+    } finally {
+      setIsAuthInProgress(false);
+      setLoading(false);
     }
   };
 
@@ -97,19 +121,26 @@ const Apps = () => {
     setCurrentStep(STEPS.FOLDER_SELECTION);
   };
 
-  // Get OneDrive folders
-  const getOneDriveFolders = async () => {
+  // Get OneDrive folders with explicit account parameter
+  const getOneDriveFolders = async (accountToUse = null) => {
     if (!msalInstance) {
       setError("Authentication library is not initialized yet. Please try again in a moment.");
       return;
     }
     
+    const currentAccount = accountToUse || user || msalInstance.getAllAccounts()[0];
+    
+    if (!currentAccount) {
+      setError("No account found. Please sign in first.");
+      return;
+    }
+    
     setLoading(true);
     try {
-      // Get token
+      // Get token with explicit account parameter
       const tokenResponse = await msalInstance.acquireTokenSilent({
         ...loginRequest,
-        account: user
+        account: currentAccount
       });
 
       const response = await fetch(
@@ -133,9 +164,13 @@ const Apps = () => {
       console.error(err);
       
       // If silent token acquisition fails, fall back to interactive method
-      if (err.name === "InteractionRequiredAuthError" && msalInstance) {
+      // but make sure we're not already in a login flow
+      if (err.name === "InteractionRequiredAuthError" && msalInstance && !isAuthInProgress) {
         try {
+          setIsAuthInProgress(true);
           const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(false);
+          
           // Try fetching folders again with the new token
           const response = await fetch(
             'https://graph.microsoft.com/v1.0/me/drive/root/children?$filter=folder ne null',
@@ -149,6 +184,7 @@ const Apps = () => {
           setFolders(data.value);
           setError(null);
         } catch (interactiveErr) {
+          setIsAuthInProgress(false);
           setError(`Failed to get folders: ${interactiveErr.message}`);
         }
       }
@@ -166,9 +202,14 @@ const Apps = () => {
 
     setLoading(true);
     try {
+      const currentAccount = user || msalInstance.getAllAccounts()[0];
+      if (!currentAccount) {
+        throw new Error("No account found. Please sign in first.");
+      }
+      
       const tokenResponse = await msalInstance.acquireTokenSilent({
         ...loginRequest,
-        account: user
+        account: currentAccount
       });
 
       const response = await fetch(
@@ -199,12 +240,15 @@ const Apps = () => {
       setError(`Failed to create folder: ${err.message}`);
       console.error(err);
       
-      if (err.name === "InteractionRequiredAuthError" && msalInstance) {
+      if (err.name === "InteractionRequiredAuthError" && msalInstance && !isAuthInProgress) {
         try {
-          await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(true);
+          const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(false);
           // Retry after getting new token
           await createFolder();
         } catch (interactiveErr) {
+          setIsAuthInProgress(false);
           setError(`Failed to create folder: ${interactiveErr.message}`);
         }
       }
@@ -217,9 +261,14 @@ const Apps = () => {
   const deleteFolder = async (folderId) => {
     setLoading(true);
     try {
+      const currentAccount = user || msalInstance.getAllAccounts()[0];
+      if (!currentAccount) {
+        throw new Error("No account found. Please sign in first.");
+      }
+      
       const tokenResponse = await msalInstance.acquireTokenSilent({
         ...loginRequest,
-        account: user
+        account: currentAccount
       });
 
       const response = await fetch(
@@ -249,12 +298,15 @@ const Apps = () => {
       setError(`Failed to delete folder: ${err.message}`);
       console.error(err);
       
-      if (err.name === "InteractionRequiredAuthError" && msalInstance) {
+      if (err.name === "InteractionRequiredAuthError" && msalInstance && !isAuthInProgress) {
         try {
-          await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(true);
+          const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(false);
           // Retry after getting new token
           await deleteFolder(folderId);
         } catch (interactiveErr) {
+          setIsAuthInProgress(false);
           setError(`Failed to delete folder: ${interactiveErr.message}`);
         }
       }
@@ -279,9 +331,14 @@ const Apps = () => {
       // Create file blob
       const file = new Blob([csvContent], { type: 'text/csv' });
       
+      const currentAccount = user || msalInstance.getAllAccounts()[0];
+      if (!currentAccount) {
+        throw new Error("No account found. Please sign in first.");
+      }
+      
       const tokenResponse = await msalInstance.acquireTokenSilent({
         ...loginRequest,
-        account: user
+        account: currentAccount
       });
 
       // Upload file to the selected folder
@@ -307,12 +364,15 @@ const Apps = () => {
       setError(`Failed to upload CSV: ${err.message}`);
       console.error(err);
       
-      if (err.name === "InteractionRequiredAuthError" && msalInstance) {
+      if (err.name === "InteractionRequiredAuthError" && msalInstance && !isAuthInProgress) {
         try {
-          await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(true);
+          const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+          setIsAuthInProgress(false);
           // Retry after getting new token
           await uploadCSV();
         } catch (interactiveErr) {
+          setIsAuthInProgress(false);
           setError(`Failed to upload CSV: ${interactiveErr.message}`);
         }
       }
@@ -349,6 +409,21 @@ const Apps = () => {
     setCurrentStep(currentStep - 1);
   };
 
+  // Clear any auth errors when component unmounts
+  useEffect(() => {
+    return () => {
+      // This function runs when the component unmounts
+      if (msalInstance) {
+        // Remove any interaction_in_progress flags from storage
+        try {
+          sessionStorage.removeItem('msal.interaction.status');
+        } catch (e) {
+          console.error('Failed to clear interaction status:', e);
+        }
+      }
+    };
+  }, [msalInstance]);
+
   // Render steps based on current step
   const renderStep = () => {
     switch (currentStep) {
@@ -361,7 +436,7 @@ const Apps = () => {
               <button 
                 onClick={handleSignIn}
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                disabled={!msalInstance || loading}
+                disabled={!msalInstance || loading || isAuthInProgress}
               >
                 {loading ? 'Connecting...' : 'Connect to OneDrive'}
               </button>
@@ -380,9 +455,9 @@ const Apps = () => {
                 <div className="mb-6">
                   <h3 className="font-medium mb-2">Your OneDrive Folders</h3>
                   <button 
-                    onClick={getOneDriveFolders} 
+                    onClick={() => getOneDriveFolders()} 
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-2"
-                    disabled={loading}
+                    disabled={loading || isAuthInProgress}
                   >
                     {loading ? 'Refreshing...' : 'Refresh Folders'}
                   </button>
@@ -436,7 +511,7 @@ const Apps = () => {
                     />
                     <button
                       onClick={createFolder}
-                      disabled={loading || !newFolderName.trim()}
+                      disabled={loading || !newFolderName.trim() || isAuthInProgress}
                       className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
                     >
                       Create
@@ -514,7 +589,7 @@ const Apps = () => {
               
               <button
                 onClick={nextStep}
-                disabled={!formData.name || !formData.email || loading}
+                disabled={!formData.name || !formData.email || loading || isAuthInProgress}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50"
               >
                 {loading ? 'Saving...' : 'Save Data'}
