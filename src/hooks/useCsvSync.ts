@@ -75,7 +75,11 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         config.fileNames = {
           objectives: 'objectives.csv',
           kras: 'kras.csv',
-          kpis: 'kpis.csv'
+          kpis: 'kpis.csv',
+          tasks: 'tasks.csv',
+          projects: 'projects.csv',
+          risks: 'risks.csv',
+          assets: 'assets.csv'
         };
       }
       
@@ -85,7 +89,7 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       let successCount = 0;
       let failCount = 0;
       
-      // Create each CSV file one by one (not in parallel) to avoid rate limiting
+      // Create each CSV file one by one to avoid rate limiting
       for (const [key, fileName] of Object.entries(config.fileNames)) {
         try {
           console.log(`[CSV INIT] Creating CSV file: ${fileName} for ${key}`);
@@ -102,26 +106,77 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
               headers.push('id', 'name', 'department', 'responsible', 'objectiveId', 'objectiveName', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt');
             } else if (key === 'kpis') {
               headers.push('id', 'name', 'kraId', 'kraName', 'target', 'actual', 'status', 'startDate', 'date', 'createdAt', 'updatedAt');
+            } else if (key === 'tasks') {
+              headers.push('id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName', 'createdAt', 'updatedAt');
+            } else if (key === 'projects') {
+              headers.push('id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'progress', 'createdAt', 'updatedAt');
+            } else if (key === 'risks') {
+              headers.push('id', 'title', 'description', 'impact', 'likelihood', 'status', 'category', 'projectId', 'projectName', 'owner', 'createdAt', 'updatedAt');
+            } else if (key === 'assets') {
+              headers.push('id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes', 'createdAt', 'updatedAt');
             }
           }
           
-          const initialContent = headers.join(',');
-          console.log(`[CSV INIT] Prepared headers for ${fileName}: ${initialContent}`);
+          // Add some initial data for testing if rows are empty
+          const rows = config.data[key]?.rows || [];
+          let initialContent = headers.join(',') + '\n';
           
-          // Create empty CSV file with headers
-          console.log(`[CSV INIT] Calling createCsvFile for ${fileName} with folder ID ${config.folderId}`);
-          const csvFile = await createCsvFile(
-            fileName,
-            initialContent,
-            config.folderId
-          );
+          // If we have rows, include them in the initial content
+          if (rows.length > 0) {
+            rows.forEach(row => {
+              const values = headers.map(header => {
+                const value = row[header];
+                
+                // Handle values that might need quotes
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                  return `"${value.replace(/"/g, '""')}"`;
+                }
+                
+                return value === null || value === undefined ? '' : String(value);
+              });
+              
+              initialContent += values.join(',') + '\n';
+            });
+          }
           
-          if (csvFile && csvFile.id) {
-            console.log(`[CSV INIT] CSV file created: ${fileName} with ID: ${csvFile.id}`);
+          console.log(`[CSV INIT] Prepared content for ${fileName}:`, initialContent.substring(0, 100) + '...');
+          
+          // Try up to 3 times to create the file
+          let fileCreated = false;
+          let attempts = 0;
+          let csvFile = null;
+          
+          while (!fileCreated && attempts < 3) {
+            attempts++;
+            try {
+              console.log(`[CSV INIT] Attempt ${attempts}/3: Creating file ${fileName}`);
+              // Create CSV file with content
+              csvFile = await createCsvFile(
+                fileName,
+                initialContent,
+                config.folderId
+              );
+              
+              if (csvFile && csvFile.id) {
+                fileCreated = true;
+                console.log(`[CSV INIT] CSV file created: ${fileName} with ID: ${csvFile.id}`);
+              } else {
+                console.warn(`[CSV INIT] Creation attempt ${attempts} for ${fileName} returned no valid file ID`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // wait longer for each attempt
+              }
+            } catch (attemptError) {
+              console.error(`[CSV INIT] Creation attempt ${attempts} for ${fileName} failed:`, attemptError);
+              if (attempts < 3) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // wait longer for each attempt
+              }
+            }
+          }
+          
+          if (fileCreated && csvFile) {
             fileIds[key] = csvFile.id;
             successCount++;
           } else {
-            console.error(`[CSV INIT] Failed to create CSV file: ${fileName} - No valid ID returned`);
+            console.error(`[CSV INIT] Failed to create CSV file after ${attempts} attempts: ${fileName}`);
             failCount++;
           }
         } catch (fileError) {
@@ -130,12 +185,12 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         }
         
         // Brief pause between file creations to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
       
       // Update the config with the file IDs if we have at least one successful file
       if (Object.keys(fileIds).length > 0) {
-        console.log(`[CSV INIT] Updating config with ${Object.keys(fileIds).length} file IDs`);
+        console.log(`[CSV INIT] Updating config with ${Object.keys(fileIds).length} file IDs:`, fileIds);
         const updatedConfig = {
           ...config,
           fileIds

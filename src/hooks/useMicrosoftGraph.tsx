@@ -4,6 +4,13 @@ import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { Client } from '@microsoft/microsoft-graph-client';
 
+// Declare global Window interface extension for msalInstance
+declare global {
+  interface Window {
+    msalInstance: any;
+  }
+}
+
 export interface Document {
   id: string;
   name: string;
@@ -745,125 +752,67 @@ export const useMicrosoftGraph = () => {
       });
       console.log('[CSV CREATE] Token acquired successfully');
 
-      // Define API endpoints
-      const baseEndpoint = 'https://graph.microsoft.com/v1.0/me/drive';
-      const endpoint = folderId 
-        ? `${baseEndpoint}/items/${folderId}/children`
-        : `${baseEndpoint}/root/children`;
+      // Upload file directly to the specified folder - this is a simpler approach
+      // that creates the file with content in a single API call
+      let endpoint = '';
+      if (folderId) {
+        // Upload to specific folder with file name in path
+        endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}:/${fileName}:/content`;
+      } else {
+        // Upload to root folder with file name in path
+        endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
+      }
 
-      console.log('[CSV CREATE] Using Graph API endpoint:', endpoint);
+      console.log('[CSV CREATE] Using direct upload endpoint:', endpoint);
+      console.log('[CSV CREATE] Uploading content directly');
 
-      // Step 1: Create an empty CSV file
-      console.log('[CSV CREATE] Creating empty file');
-      const result = await fetch(endpoint, {
-        method: 'POST',
+      const contentResult = await fetch(endpoint, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${response.accessToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/csv; charset=utf-8'
         },
-        body: JSON.stringify({
-          name: fileName,
-          '@microsoft.graph.conflictBehavior': 'replace',
-          file: {
-            mimeType: 'text/csv'
-          }
-        })
+        body: initialContent || ' ' // Ensure we have at least a space to create a non-empty file
       });
 
-      // Handle file creation errors
-      if (!result.ok) {
+      if (!contentResult.ok) {
         let errorText = '';
         try {
-          errorText = await result.text();
+          errorText = await contentResult.text();
         } catch (e) {
           errorText = 'Could not read error response';
         }
         
-        console.error('[CSV CREATE] Failed to create file:', result.status, result.statusText, errorText);
-        
-        // Check specifically for folder not found errors
-        if (result.status === 404) {
-          throw new Error(`Folder not found (${folderId}). Please select a valid folder.`);
-        }
-        
-        throw new Error(`Failed to create CSV file: ${result.statusText} - ${errorText}`);
+        console.error('[CSV CREATE] Failed to create file:', contentResult.status, contentResult.statusText, errorText);
+        throw new Error(`Failed to create CSV file: ${contentResult.statusText} - ${errorText}`);
       }
 
-      // Parse successful response
-      const data = await result.json();
-      console.log('[CSV CREATE] File created successfully with ID:', data.id, 'Name:', data.name);
-      
-      // Step 2: If initial content is provided, update the file with it
-      if (initialContent && initialContent.trim() !== '') {
-        console.log('[CSV CREATE] Updating file with initial content');
+      // Parse the response to get the created file info
+      const data = await contentResult.json();
+      console.log('[CSV CREATE] File created successfully:', data);
+
+      // Verify the file was created by checking it exists
+      try {
+        console.log('[CSV CREATE] Verifying file creation');
+        const verifyEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}`;
+        const verifyResult = await fetch(verifyEndpoint, {
+          headers: {
+            'Authorization': `Bearer ${response.accessToken}`
+          }
+        });
         
-        try {
-          // Upload content to the created file
-          const contentEndpoint = `${baseEndpoint}/items/${data.id}/content`;
-          
-          console.log('[CSV CREATE] Using content upload endpoint:', contentEndpoint);
-          console.log('[CSV CREATE] Content first 100 chars:', initialContent.substring(0, 100));
-          
-          // Add delay before content upload to ensure file is fully created
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const contentResult = await fetch(contentEndpoint, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${response.accessToken}`,
-              'Content-Type': 'text/csv; charset=utf-8'
-            },
-            body: initialContent
-          });
-          
-          if (!contentResult.ok) {
-            let errorText = '';
-            try {
-              errorText = await contentResult.text();
-            } catch (e) {
-              errorText = 'Could not read error response';
-            }
-            
-            console.error('[CSV CREATE] Failed to upload content:', contentResult.status, contentResult.statusText, errorText);
-            throw new Error(`Failed to upload CSV content: ${contentResult.statusText} - ${errorText}`);
-          }
-          
-          console.log('[CSV CREATE] Content uploaded successfully');
-          
-          // Verify the content was uploaded by reading it back
-          try {
-            console.log('[CSV CREATE] Verifying content upload by reading file');
-            const verifyResult = await fetch(contentEndpoint, {
-              headers: {
-                'Authorization': `Bearer ${response.accessToken}`
-              }
-            });
-            
-            if (verifyResult.ok) {
-              const verifiedContent = await verifyResult.text();
-              const contentMatches = verifiedContent.includes(initialContent.substring(0, 20));
-              console.log('[CSV CREATE] Content verification:', contentMatches ? 'SUCCESS' : 'FAILED');
-              
-              if (!contentMatches) {
-                console.warn('[CSV CREATE] Content verification failed - uploaded content does not match expected content');
-              }
-            } else {
-              console.warn('[CSV CREATE] Could not verify content - read operation failed');
-            }
-          } catch (verifyError) {
-            console.warn('[CSV CREATE] Error during content verification:', verifyError);
-          }
-        } catch (contentError) {
-          console.error('[CSV CREATE] Error uploading content:', contentError);
-          // Still return the file even if content upload fails since the file was created
-          toast.error(`Warning: File created but content may not have been saved: ${contentError.message}`);
+        if (verifyResult.ok) {
+          const fileInfo = await verifyResult.json();
+          console.log('[CSV CREATE] File verification successful:', fileInfo.name);
+        } else {
+          console.warn('[CSV CREATE] Could not verify file creation');
         }
-      } else {
-        console.log('[CSV CREATE] No initial content provided, skipping content upload');
+      } catch (verifyError) {
+        console.warn('[CSV CREATE] Error during file verification:', verifyError);
       }
 
       // Return the successfully created file info
-      console.log('[CSV CREATE] File creation completed successfully');
+      console.log('[CSV CREATE] File creation completed successfully with ID:', data.id);
       return {
         id: data.id,
         name: data.name,
@@ -941,6 +890,7 @@ export const useMicrosoftGraph = () => {
       });
       console.log('[CSV UPDATE] Token acquired successfully');
 
+      // Direct content update endpoint
       const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`;
       console.log('[CSV UPDATE] Using endpoint:', endpoint);
       
@@ -949,63 +899,91 @@ export const useMicrosoftGraph = () => {
         console.log('[CSV UPDATE] Content preview:', content.substring(0, Math.min(100, content.length)) + '...');
       }
       
-      // Make the API request to update the file
-      console.log('[CSV UPDATE] Making PUT request');
-      const result = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`,
-          'Content-Type': 'text/csv; charset=utf-8'
-        },
-        body: content
-      });
-
-      // Handle response errors
-      if (!result.ok) {
-        let errorText = '';
+      // Add retry mechanism
+      let success = false;
+      let attemptCount = 0;
+      const maxAttempts = 3;
+      let lastError: any = null;
+      
+      while (!success && attemptCount < maxAttempts) {
+        attemptCount++;
+        console.log(`[CSV UPDATE] Attempt ${attemptCount}/${maxAttempts}`);
+        
         try {
-          errorText = await result.text();
-        } catch (e) {
-          errorText = 'Could not read error response';
-        }
-        
-        console.error('[CSV UPDATE] Failed to update file:', result.status, result.statusText, errorText);
-        throw new Error(`Failed to update CSV file: ${result.statusText} - ${errorText}`);
-      }
+          const result = await fetch(endpoint, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${response.accessToken}`,
+              'Content-Type': 'text/csv; charset=utf-8'
+            },
+            body: content
+          });
 
-      console.log('[CSV UPDATE] File updated successfully');
-      
-      // Optionally verify the file content was updated correctly
-      try {
-        console.log('[CSV UPDATE] Verifying update by reading file');
-        const verifyResult = await fetch(endpoint, {
-          headers: {
-            'Authorization': `Bearer ${response.accessToken}`
-          }
-        });
-        
-        if (verifyResult.ok) {
-          const verifiedContent = await verifyResult.text();
-          // Check if the first part of the content matches
-          const contentMatches = content.length > 0 ? 
-            verifiedContent.includes(content.substring(0, Math.min(50, content.length))) : 
-            verifiedContent.length === 0;
+          // Handle response errors
+          if (!result.ok) {
+            let errorText = '';
+            try {
+              errorText = await result.text();
+            } catch (e) {
+              errorText = 'Could not read error response';
+            }
             
-          console.log('[CSV UPDATE] Content verification:', contentMatches ? 'SUCCESS' : 'FAILED');
-          
-          if (!contentMatches) {
-            console.warn('[CSV UPDATE] Verification failed - content does not match expected content');
-            console.log('[CSV UPDATE] Expected to find:', content.substring(0, Math.min(50, content.length)));
-            console.log('[CSV UPDATE] Found:', verifiedContent.substring(0, Math.min(100, verifiedContent.length)));
+            console.error('[CSV UPDATE] Failed to update file:', result.status, result.statusText, errorText);
+            lastError = new Error(`Failed to update CSV file: ${result.statusText} - ${errorText}`);
+            
+            // If we get a 404, the file doesn't exist
+            if (result.status === 404) {
+              throw new Error(`File with ID ${fileId} not found. It may have been deleted.`);
+            }
+            
+            // Pause before retry
+            if (attemptCount < maxAttempts) {
+              console.log(`[CSV UPDATE] Waiting ${attemptCount * 1000}ms before retry`);
+              await new Promise(resolve => setTimeout(resolve, attemptCount * 1000));
+            }
+          } else {
+            // Success!
+            const updatedFile = await result.json();
+            console.log('[CSV UPDATE] File updated successfully:', updatedFile.name);
+            success = true;
+            
+            // Optionally verify the content was updated
+            try {
+              console.log('[CSV UPDATE] Verifying update');
+              // We'll just verify the file exists and is accessible
+              const verifyResult = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`, {
+                headers: {
+                  'Authorization': `Bearer ${response.accessToken}`
+                }
+              });
+              
+              if (verifyResult.ok) {
+                console.log('[CSV UPDATE] File verification successful');
+              } else {
+                console.warn('[CSV UPDATE] Could not verify file update - verification request failed');
+              }
+            } catch (verifyError) {
+              console.warn('[CSV UPDATE] Error during update verification:', verifyError);
+            }
           }
-        } else {
-          console.warn('[CSV UPDATE] Could not verify update - read operation failed');
+        } catch (error) {
+          console.error(`[CSV UPDATE] Error on attempt ${attemptCount}:`, error);
+          lastError = error;
+          
+          // Pause before retry
+          if (attemptCount < maxAttempts) {
+            console.log(`[CSV UPDATE] Waiting ${attemptCount * 1000}ms before retry`);
+            await new Promise(resolve => setTimeout(resolve, attemptCount * 1000));
+          }
         }
-      } catch (verifyError) {
-        console.warn('[CSV UPDATE] Error during update verification:', verifyError);
       }
       
-      return true;
+      if (!success) {
+        // If all attempts failed, throw the last error
+        throw lastError || new Error('Failed to update file after multiple attempts');
+      }
+      
+      return success;
     } catch (error) {
       console.error('[CSV UPDATE] Error updating file:', error);
       toast.error('Failed to update CSV file: ' + error.message);
@@ -1098,12 +1076,5 @@ export const useMicrosoftGraph = () => {
     handleLogin
   };
 };
-
-// Add global type definition for the MSAL instance
-declare global {
-  interface Window {
-    msalInstance: any;
-  }
-}
 
 export default useMicrosoftGraph;
