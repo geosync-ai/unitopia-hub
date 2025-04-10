@@ -18,13 +18,13 @@ import { SetupSummary } from '@/components/setup-wizard/steps/SetupSummary';
 import { useToast } from '@/components/ui/use-toast';
 import { useCsvSync } from '@/hooks/useCsvSync';
 import { Loader2, Cloud, FileText, Database, Check } from 'lucide-react';
-import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
+import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
 
 // Define individual props needed from the setup state
 interface SetupWizardSpecificProps {
   setSetupMethod: (method: string) => void;
-  setOneDriveConfig: (config: { folderId: string; folderName: string } | null) => void;
+  setOneDriveConfig: (config: { folderId: string; folderName: string; isTemporary?: boolean } | null) => void;
   setObjectives: (objectives: any[]) => void;
   setKRAs: (kras: any[]) => void;
   setKPIs: (kpis: any[]) => void;
@@ -75,9 +75,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   const [tempKRAs, setTempKRAs] = useState<any[]>([]);
   const [tempKPIs, setTempKPIs] = useState<any[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
+  const [isUsingLocalStorage, setIsUsingLocalStorage] = useState(false);
   
   // Add the useMicrosoftGraph hook at the component level
-  const { createCsvFile } = useMicrosoftGraph();
+  const { createCsvFile, isLoading: graphLoading } = useMicrosoftGraph();
 
   // Define steps for the wizard with the new KRA step
   const steps = [
@@ -196,7 +197,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   // Define handleComplete with KRAs support
   const handleComplete = useCallback(async () => {
-    if (!csvConfig) { // Use prop
+    if (!csvConfig && !isUsingLocalStorage) {
       toast({
         title: "Setup Error",
         description: "CSV configuration is not properly initialized. Please try again.",
@@ -204,11 +205,50 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       });
       return;
     }
+    
     setIsProcessing(true);
     setProgress(10);
+    
     try {
       // Prepare data for CSV files
       setProgress(20);
+      
+      if (isUsingLocalStorage) {
+        // Use local storage instead of OneDrive
+        console.log('Using local storage for unit data');
+        
+        // Create a local storage version of the data
+        const localData = {
+          objectives: tempObjectives,
+          kras: tempKRAs,
+          kpis: tempKPIs
+        };
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('unitopia_objectives', JSON.stringify(tempObjectives));
+        localStorage.setItem('unitopia_kras', JSON.stringify(tempKRAs));
+        localStorage.setItem('unitopia_kpis', JSON.stringify(tempKPIs));
+        
+        // Update the state in parent
+        if (setObjectives) setObjectives(tempObjectives);
+        if (setKRAs) setKRAs(tempKRAs);
+        if (setKPIs) setKPIs(tempKPIs);
+        
+        // Complete setup
+        setProgress(100);
+        if (handleSetupCompleteFromHook) {
+          handleSetupCompleteFromHook();
+        }
+        
+        toast({ 
+          title: "Setup Complete", 
+          description: "Your unit data has been stored locally for this session." 
+        });
+        
+        onComplete();
+        onClose();
+        return;
+      }
       
       // Create a copy of the current config to update
       const updatedConfig = { ...csvConfig };
@@ -372,6 +412,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             const initialContent = headers.join(',');
             
             try {
+              // Check if createCsvFile is properly defined (not a stub)
+              if (typeof createCsvFile !== 'function' || createCsvFile.length === 0) {
+                console.error('createCsvFile is not properly defined or is a stub function');
+                toast({
+                  title: "Setup Error",
+                  description: "Unable to create files in OneDrive. Please try again after refreshing the page.",
+                  variant: "destructive",
+                });
+                throw new Error('CSV file creation function is not available');
+              }
+            
               // Create the CSV file with properly typed folderId
               const csvFile = await createCsvFile(
                 fileName,
@@ -473,7 +524,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     createCsvFile, 
     setObjectives,
     setKRAs,
-    setKPIs
+    setKPIs,
+    isUsingLocalStorage
   ]);
 
   const handleNext = useCallback(() => {
@@ -541,6 +593,42 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     }
     handleComplete();
   }, [tempObjectives, tempKRAs, tempKPIs, setObjectives, setKRAs, setKPIs, handleComplete]);
+
+  // Update handlePathSelect in step 1 to handle temp folders
+  const handlePathSelect = async (config: any) => {
+    console.log('OneDrive path selected:', config);
+    
+    if (config.isTemporary) {
+      console.log('Using temporary local storage instead of OneDrive');
+      setIsUsingLocalStorage(true);
+      
+      // Set up local storage config for later steps
+      if (setOneDriveConfig) {
+        setOneDriveConfig({ 
+          folderId: config.folderId, 
+          folderName: config.path,
+          isTemporary: true 
+        });
+        toast({ 
+          title: "Using Local Storage", 
+          description: "Your data will be stored locally for this session.",
+          duration: 3000
+        });
+      }
+      setCurrentStep(2); // Move to Objectives step
+    } else {
+      // Normal OneDrive folder setup
+      if (setOneDriveConfig) {
+        setOneDriveConfig({ folderId: config.folderId, folderName: config.path });
+        toast({ 
+          title: "OneDrive folder selected successfully!", 
+          description: `Using folder: "${config.path}"`,
+          duration: 2000
+        });
+      }
+      setCurrentStep(2); // Move to Objectives step
+    }
+  };
 
   const renderInitialSelection = () => {
     return (
@@ -617,25 +705,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         if (selectedSetupType === 'onedrive') {
           return (
             <OneDriveSetup
-              onComplete={(config) => {
-                console.log('OneDrive setup completed:', config);
-                if (setOneDriveConfig) { // Use prop
-                  setOneDriveConfig({ folderId: config.folderId, folderName: config.path });
-                  toast({ title: "OneDrive folder selected successfully!", description: `Using folder: "${config.path}"`, duration: 2000 });
-                  
-                  // Give time for the OneDrive setup to complete before moving to the next step
-                  setTimeout(() => { 
-                    handleNext(); 
-                  }, 1000);
-                } else {
-                  setSetupError("Failed to set OneDrive configuration. The configuration handler is not available.");
-                  toast({ 
-                    title: "OneDrive Setup Error", 
-                    description: "Failed to apply OneDrive configuration. Please try again.", 
-                    variant: "destructive" 
-                  });
-                }
-              }}
+              onComplete={handlePathSelect}
             />
           );
         } else if (selectedSetupType === 'csv') {
@@ -823,6 +893,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 <Button
                   variant="outline"
                   onClick={onClose}
+                  disabled={isProcessing}
                 >
                   Cancel
                 </Button>
@@ -831,12 +902,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   <Button 
                     onClick={handleSummaryComplete}
                     className="bg-green-600 hover:bg-green-700"
+                    disabled={isProcessing}
                   >
                     Complete Setup
                   </Button>
                 ) : currentStep > 0 && currentStep < 5 ? (
                   <Button
                     onClick={handleNext}
+                    disabled={isProcessing}
                   >
                     Next
                   </Button>

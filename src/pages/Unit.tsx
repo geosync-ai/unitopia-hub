@@ -570,7 +570,25 @@ const Unit = () => {
       title: "Setup Complete",
       description: "Your dashboard has been successfully configured.",
     });
+
+    // Force a refresh of the page to ensure all components re-render with the updated data
+    window.location.reload();
   }, [toast]);
+
+  // Handle setup wizard close with confirmation if data has been entered
+  const handleSetupClose = useCallback(() => {
+    // Check if any data has been entered
+    const hasSetupData = setupWizard.objectives?.length > 0 || 
+                        setupWizard.oneDriveConfig !== null;
+    
+    if (hasSetupData) {
+      if (window.confirm('Are you sure you want to close the setup? Your progress will be lost.')) {
+        setShowSetupWizard(false);
+      }
+    } else {
+      setShowSetupWizard(false);
+    }
+  }, [setupWizard.objectives, setupWizard.oneDriveConfig]);
 
   // Add authentication check
   useEffect(() => {
@@ -732,7 +750,7 @@ const Unit = () => {
       {showSetupWizard && (
         <SetupWizard
           isOpen={showSetupWizard}
-          onClose={() => setShowSetupWizard(false)}
+          onClose={handleSetupClose}
           onComplete={handleSetupComplete}
           setSetupMethod={setupWizard.setSetupMethod}
           setOneDriveConfig={setupWizard.setOneDriveConfig}

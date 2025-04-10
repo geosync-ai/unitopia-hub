@@ -43,6 +43,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [folderToDelete, setFolderToDelete] = useState<Document | null>(null);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+  const [connectionRetryCount, setConnectionRetryCount] = useState(0);
+  const [skipOneDriveAuth, setSkipOneDriveAuth] = useState(false);
 
   const updateAuthStatus = useCallback(() => {
     const status = getAuthStatus();
@@ -54,6 +56,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const handleAuthenticate = useCallback(async () => {
     setIsAuthenticating(true);
     setAuthError(null);
+    setConnectionRetryCount(prev => prev + 1);
     try {
       console.log('Starting Microsoft authentication...');
       await loginWithMicrosoft();
@@ -378,6 +381,20 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     }
   };
 
+  const handleSkipOneDriveAuth = useCallback(() => {
+    setSkipOneDriveAuth(true);
+    // Create a temporary folder ID to use
+    const tempFolderId = `temp-${Date.now()}`;
+    // Complete the step with a temporary folder
+    onComplete({
+      path: "Temporary Folder",
+      folderId: tempFolderId,
+      isNewFolder: true,
+      isTemporary: true
+    });
+    toast.warning('Proceeding with temporary setup. Some features may be limited.');
+  }, [onComplete]);
+
   const renderDiagnostics = () => {
     const redirectUriWarning = msGraphConfig?.redirectUri !== "https://unitopia-hub.vercel.app/" 
       ? "Warning: Redirect URI doesn't match the one configured in Azure portal (should be https://unitopia-hub.vercel.app/)"
@@ -455,6 +472,48 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     );
   };
 
+  const renderConnectionIssue = () => {
+    return (
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+        <h4 className="font-medium text-amber-700 mb-2">Connection Issues Detected</h4>
+        <p className="text-sm text-amber-600 mb-3">
+          We're having trouble connecting to OneDrive. This could be due to:
+        </p>
+        <ul className="list-disc list-inside text-sm text-amber-600 mb-3 pl-2">
+          <li>Network connectivity issues</li>
+          <li>Microsoft authentication service disruption</li>
+          <li>Browser security settings blocking the authentication</li>
+        </ul>
+        <div className="flex flex-col space-y-2 mt-4">
+          <Button 
+            variant="outline" 
+            onClick={handleAuthenticate} 
+            disabled={isAuthenticating}
+            className="w-full"
+          >
+            {isAuthenticating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Retrying...
+              </>
+            ) : (
+              <>Retry Connection</>
+            )}
+          </Button>
+          {connectionRetryCount >= 1 && (
+            <Button
+              variant="ghost"
+              onClick={handleSkipOneDriveAuth}
+              className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+            >
+              Continue Without OneDrive
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
@@ -496,6 +555,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               </Button>
             </div>
           </Card>
+          {connectionRetryCount > 0 && renderConnectionIssue()}
           {renderDiagnostics()}
         </>
       ) : (

@@ -7,12 +7,15 @@ export interface SetupWizardState {
   oneDriveConfig: {
     folderId: string;
     folderName: string;
+    isTemporary?: boolean;
   } | null;
-  setOneDriveConfig: (config: { folderId: string; folderName: string } | null) => void;
+  setOneDriveConfig: (config: { folderId: string; folderName: string; isTemporary?: boolean } | null) => void;
   setupMethod: string;
   setSetupMethod: (method: string) => void;
   objectives: any[];
   setObjectives: (objectives: any[]) => void;
+  kras: any[];
+  setKRAs: (kras: any[]) => void;
   kpis: any[];
   setKPIs: (kpis: any[]) => void;
   csvConfig: CsvSyncConfig | null;
@@ -39,9 +42,10 @@ export const useSetupWizard = ({
   assetState,
 }: UseSetupWizardProps): SetupWizardState => {
   const [showSetupWizard, setShowSetupWizard] = useState(false);
-  const [oneDriveConfig, setOneDriveConfig] = useState<{ folderId: string; folderName: string } | null>(null);
+  const [oneDriveConfig, setOneDriveConfig] = useState<{ folderId: string; folderName: string; isTemporary?: boolean } | null>(null);
   const [setupMethod, setSetupMethod] = useState<string>('');
   const [objectives, setObjectives] = useState<any[]>([]);
+  const [kras, setKRAs] = useState<any[]>([]);
   const [kpis, setKPIs] = useState<any[]>([]);
   const [csvConfig, setCsvConfig] = useState<CsvSyncConfig | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
@@ -247,6 +251,8 @@ export const useSetupWizard = ({
     setSetupMethod,
     objectives,
     setObjectives,
+    kras,
+    setKRAs,
     kpis,
     setKPIs,
     csvConfig,
