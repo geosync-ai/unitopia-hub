@@ -109,51 +109,52 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       const status = updateAuthStatus();
       console.log('[DEBUG] Post-authentication status:', status);
       
-      setTimeout(async () => {
-        try {
-          if (status.hasAccounts) {
-            console.log('[DEBUG] Account found, fetching OneDrive documents');
-            setIsLoading(true);
-            const oneDriveDocs = await getOneDriveDocuments();
-            
-            if (oneDriveDocs) {
-              console.log('[DEBUG] Post-auth document fetch successful:', oneDriveDocs);
-              setDocuments(oneDriveDocs);
+      // Immediately try to fetch folders after authentication
+      try {
+        console.log('[DEBUG] Account found, fetching OneDrive documents');
+        setIsLoading(true);
+        const oneDriveDocs = await getOneDriveDocuments();
+        
+        if (oneDriveDocs) {
+          console.log('[DEBUG] Post-auth document fetch successful:', oneDriveDocs);
+          // Initialize both document lists - regular and folder contents
+          setDocuments(oneDriveDocs);
+          setFolderContents(oneDriveDocs);
+          
+          // Set folder selection mode active immediately after successful authentication
+          if (oneDriveDocs.length > 0) {
+            const folders = oneDriveDocs.filter(doc => doc.isFolder);
+            if (folders.length > 0) {
+              console.log('[DEBUG] Found folders, showing folder selection UI');
             } else {
-              console.log('[DEBUG] getOneDriveDocuments returned null');
-              setErrorDetails({
-                type: 'document_fetch_null',
-                status,
-                timestamp: new Date().toISOString()
-              });
-              setAuthError("Failed to retrieve OneDrive documents (null response)");
+              console.log('[DEBUG] No folders found, user will need to create one');
             }
-          } else {
-            console.log('[DEBUG] No accounts found after authentication');
-            setErrorDetails({
-              type: 'no_accounts_after_auth',
-              status,
-              timestamp: new Date().toISOString()
-            });
-            setAuthError("Authentication did not return any Microsoft accounts");
           }
-        } catch (fetchError) {
-          console.error('[DEBUG] Post-auth document fetch error:', fetchError);
+        } else {
+          console.log('[DEBUG] getOneDriveDocuments returned null');
           setErrorDetails({
-            type: 'document_fetch_error',
-            error: {
-              message: fetchError.message,
-              stack: fetchError.stack,
-              name: fetchError.name
-            },
+            type: 'document_fetch_null',
             status,
             timestamp: new Date().toISOString()
           });
-          setAuthError(`Error fetching documents: ${fetchError.message}`);
-        } finally {
-          setIsLoading(false);
+          setAuthError("Failed to retrieve OneDrive documents (null response)");
         }
-      }, 1000);
+      } catch (fetchError) {
+        console.error('[DEBUG] Post-auth document fetch error:', fetchError);
+        setErrorDetails({
+          type: 'document_fetch_error',
+          error: {
+            message: fetchError.message,
+            stack: fetchError.stack,
+            name: fetchError.name
+          },
+          status,
+          timestamp: new Date().toISOString()
+        });
+        setAuthError(`Error fetching documents: ${fetchError.message}`);
+      } finally {
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('[DEBUG] Authentication initiation error:', error);
       const errorMsg = error.message || 'Unknown auth error';
@@ -311,10 +312,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       const folder = await createFolder(newFolderName, currentFolderId);
       
       if (folder) {
-        toast({
-          title: "Folder Created",
-          description: `Successfully created folder: ${folder.name}`,
-        });
+        toast.success(`Folder created: ${folder.name}`);
         
         // Add the new folder to the current folder contents
         setFolderContents(prev => [...prev, folder]);
@@ -341,11 +339,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } catch (error) {
       console.error('Error creating folder:', error);
       setCreateFolderError(`Failed to create folder: ${error.message}`);
-      toast({
-        title: "Folder Creation Error",
-        description: `Could not create folder: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Failed to create folder: ${error.message}`);
     } finally {
       setIsCreatingFolder(false);
     }
@@ -438,10 +432,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
         
         if (newFolder) {
           console.log('Calling onComplete with new folder');
-          toast.success('Folder created successfully!', {
-            description: `Created "${newFolderName}" in OneDrive`,
-            duration: 2000,
-          });
+          toast.success(`Folder created: ${newFolderName}`);
           
           await new Promise(resolve => setTimeout(resolve, 1000));
           
@@ -911,10 +902,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     if (isLoadingContents || isCreatingFolder) return;
     
     setSelectedFolder(folder);
-    toast({
-      title: "Folder Selected",
-      description: `Selected folder: ${folder.name}`,
-    });
+    toast.success(`Folder selected: ${folder.name}`);
     
     // Also select this path
     const completePath = [...currentPath, folder];
@@ -971,11 +959,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } catch (error) {
       console.error('Error navigating to folder:', error);
       setFolderError(`Could not navigate to folder: ${error.message}`);
-      toast({
-        title: "Folder Navigation Error",
-        description: `Failed to navigate to folder: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Failed to navigate to folder: ${error.message}`);
     } finally {
       setIsLoadingContents(false);
     }
@@ -999,11 +983,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } catch (error) {
       console.error('Error navigating to root:', error);
       setFolderError(`Could not navigate to root: ${error.message}`);
-      toast({
-        title: "Folder Navigation Error",
-        description: `Failed to navigate to root: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Failed to navigate to root: ${error.message}`);
     } finally {
       setIsLoadingContents(false);
     }
@@ -1159,11 +1139,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } catch (error) {
       console.error('Error retrying folder load:', error);
       setFolderError(`Could not load folders: ${error.message}`);
-      toast({
-        title: "Folder Load Error",
-        description: `Failed to load folders: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Failed to load folders: ${error.message}`);
     } finally {
       setIsLoadingContents(false);
     }
@@ -1215,306 +1191,85 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       )}
 
       <div className="bg-white p-6 rounded-lg border shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Connect to OneDrive</h3>
-          {isAuthenticated ? (
-            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              Authenticated
+        {!isAuthenticated ? (
+          // UI for authentication step
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Connect to OneDrive</h3>
+              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                Not Connected
+              </div>
             </div>
-          ) : (
-            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              Not Connected
-            </div>
-          )}
-        </div>
 
-        {/* Emergency Continue Without OneDrive button */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <div className="flex items-start">
-            <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
-            <div>
-              <p className="font-medium text-blue-800">Having trouble with OneDrive?</p>
-              <p className="text-sm text-blue-600 mt-1">
-                You can continue without OneDrive and use local storage instead.
-              </p>
-              <Button
-                variant="outline"
-                className="mt-3 bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
-                onClick={() => onComplete({
-                  path: "Local Storage",
-                  folderId: `local-${Date.now()}`,
-                  isTemporary: true
-                })}
-              >
-                <Database className="h-4 w-4 mr-2" />
-                Continue With Local Storage
-              </Button>
-            </div>
-          </div>
-        </div>
-
-      {!isAuthenticated ? (
-        <>
-          <Card className="p-6">
-            <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <Cloud className="h-16 w-16 text-blue-500" />
-              <h3 className="text-lg font-semibold">Connect to Microsoft OneDrive</h3>
-              <p className="text-center text-sm text-muted-foreground max-w-md">
-                Connect to your Microsoft account to access OneDrive and select where to store your unit data.
-              </p>
-              <Button 
-                onClick={handleAuthenticate} 
-                className="mt-4"
-                disabled={isAuthenticating}
-              >
-                {isAuthenticating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>Connect to OneDrive</>
-                )}
-              </Button>
-            </div>
-          </Card>
-          {renderDiagnostics()}
-        </>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2 text-sm">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNavigateUp}
-              disabled={isLoading}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <div className="flex items-center space-x-2 overflow-x-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setCurrentPath([]);
-                  fetchDocuments();
-                  setSelectedFolder(null);
-                }}
-                disabled={isLoading}
-              >
-                OneDrive Root
-              </Button>
-              {currentPath.map((item, index) => (
-                <div key={item.id} className="flex items-center">
-                  <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
+            {/* Emergency Continue Without OneDrive button */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-start">
+                <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
+                <div>
+                  <p className="font-medium text-blue-800">Having trouble with OneDrive?</p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    You can continue without OneDrive and use local storage instead.
+                  </p>
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const newPath = currentPath.slice(0, index + 1);
-                      setCurrentPath(newPath);
-                      const folder = {
-                        id: item.id,
-                        name: item.name,
-                        url: '',
-                        lastModified: new Date().toISOString(),
-                        size: 0,
-                        isFolder: true,
-                        source: 'OneDrive' as const
-                      };
-                      handleFolderClick(folder);
-                    }}
-                    disabled={isLoading || index === currentPath.length - 1}
+                    variant="outline"
+                    className="mt-3 bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
+                    onClick={() => onComplete({
+                      path: "Local Storage",
+                      folderId: `local-${Date.now()}`,
+                      isTemporary: true
+                    })}
                   >
-                    {item.name}
+                    <Database className="h-4 w-4 mr-2" />
+                    Continue With Local Storage
                   </Button>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
 
-          <Card className="p-4 min-h-[300px]">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-[300px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                <p>Loading files from OneDrive...</p>
-                <p className="text-sm text-muted-foreground mt-2">Please wait while we retrieve your OneDrive folders</p>
-              </div>
-            ) : documents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                {authError ? (
-                  <>
-                    <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-                    <h4 className="font-medium">Error Connecting to OneDrive</h4>
-                    <p className="text-sm text-red-500 mt-2 mb-4">
-                      {authError}
-                    </p>
-                    <Button onClick={handleAuthenticate} disabled={isAuthenticating}>
-                      {isAuthenticating ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Connecting...
-                        </>
-                      ) : (
-                        'Connect to OneDrive'
-                      )}
-                    </Button>
-                    {showDiagnostics && authStatus && (
-                      <div className="mt-4 text-xs text-left w-full bg-gray-50 p-2 rounded border">
-                        <p className="font-semibold">Authentication Status:</p>
-                        <pre className="overflow-auto">{JSON.stringify(authStatus, null, 2)}</pre>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h4 className="font-medium">No OneDrive Files Found</h4>
-                    <p className="text-sm text-muted-foreground mt-2 mb-4">
-                      Connect to your OneDrive account to view your files and folders.
-                    </p>
-                    <Button onClick={handleAuthenticate} disabled={isAuthenticating}>
-                      {isAuthenticating ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Connecting...
-                        </>
-                      ) : (
-                        'Connect to OneDrive'
-                      )}
-                    </Button>
-                  </>
-                )}
+            <Card className="p-6">
+              <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                <Cloud className="h-16 w-16 text-blue-500" />
+                <h3 className="text-lg font-semibold">Connect to Microsoft OneDrive</h3>
+                <p className="text-center text-sm text-muted-foreground max-w-md">
+                  Connect to your Microsoft account to access OneDrive and select where to store your unit data.
+                </p>
                 <Button 
-                  variant="link" 
-                  size="sm" 
-                  onClick={() => setShowDiagnostics(!showDiagnostics)} 
+                  onClick={handleAuthenticate} 
                   className="mt-4"
+                  disabled={isAuthenticating}
                 >
-                  {showDiagnostics ? 'Hide' : 'Show'} Diagnostics
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>Connect to OneDrive</>
+                  )}
                 </Button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className={cn(
-                      "p-4 rounded-lg border flex flex-col hover:border-primary/50 transition-colors",
-                      selectedFolder?.id === doc.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border"
-                    )}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div
-                        className="flex flex-1 items-center cursor-pointer"
-                        onClick={() => handleFolderClick(doc)}
-                      >
-                        <Folder className="h-5 w-5 mr-2 text-blue-400" />
-                        <div className="font-medium overflow-hidden text-ellipsis">{doc.name}</div>
-                      </div>
-                      
-                      {doc.isFolder && (
-                        <div className="flex space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNavigateToFolder(doc.id);
-                            }}
-                            className="h-6 w-6"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteFolder(doc)}
-                            className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <Trash className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {doc.isFolder && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => handleFolderClick(doc)}
-                      >
-                        <ChevronRight className="h-4 w-4 mr-1" />
-                        Open
-                      </Button>
-                    )}
-                  </div>
-                ))}
+            </Card>
+            {debugMode && renderDiagnostics()}
+          </>
+        ) : (
+          // UI for folder selection (after authentication)
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Select OneDrive Folder</h3>
+              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Connected to OneDrive
               </div>
-            )}
-          </Card>
-
-          {renderDiagnostics()}
-
-          <div className="space-y-4">
-            {isCreatingFolder ? (
-              <div className="flex space-x-2">
-                <div className="flex-1">
-                  <Input
-                    value={newFolderName}
-                    onChange={e => setNewFolderName(e.target.value)}
-                    placeholder="New folder name"
-                    disabled={isLoading}
-                  />
-                </div>
-                <Button onClick={handleCreateFolder} disabled={isLoading || !newFolderName.trim()}>
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
-                </Button>
-                <Button variant="outline" onClick={() => setIsCreatingFolder(false)} disabled={isLoading}>
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsCreatingFolder(true);
-                  setNewFolderName('');
-                }}
-                disabled={isLoading}
-                className="w-full"
-              >
-                <FolderPlus className="h-4 w-4 mr-2" />
-                Create New Folder
-              </Button>
-            )}
-
-            <Button
-              onClick={() => {
-                if (selectedFolder) {
-                  onComplete({
-                    path: selectedFolder.name,
-                    folderId: selectedFolder.id
-                  });
-                }
-              }}
-              disabled={!selectedFolder || isLoading}
-              className="w-full"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <ChevronRight className="h-4 w-4 mr-2" />
-              )}
-              Continue with {selectedFolder ? `"${selectedFolder.name}"` : 'selected folder'}
-            </Button>
-          </div>
-        </div>
-      )}
+            </div>
+            
+            <p className="text-sm text-muted-foreground mb-4">
+              Select an existing folder or create a new one to store your unit data.
+            </p>
+            
+            {renderCurrentPath()}
+            {renderFolderContents()}
+          </>
+        )}
+      </div>
 
       {isDeletingFolder && folderToDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
