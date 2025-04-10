@@ -14,7 +14,7 @@ export interface Document {
   parentReference?: {
     path: string;
   };
-  source: 'SharePoint' | 'OneDrive';
+  source: 'OneDrive';
 }
 
 export interface CsvFile {
@@ -114,52 +114,6 @@ export const useMicrosoftGraph = () => {
     });
   }, [getAccessToken]);
 
-  const getSharePointDocuments = async (): Promise<Document[] | null> => {
-    if (!checkMsalAuth()) {
-      throw new Error('No accounts found');
-    }
-
-    try {
-      console.log('Acquiring token for SharePoint documents...');
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['Files.Read.All', 'Sites.Read.All']
-      });
-      console.log('Token acquired successfully');
-
-      const graphEndpoint = 'https://graph.microsoft.com/v1.0/sites/root/drive/root/children';
-      console.log('Fetching from endpoint:', graphEndpoint);
-      const result = await fetch(graphEndpoint, {
-        headers: {
-          Authorization: `Bearer ${response.accessToken}`
-        }
-      });
-
-      if (!result.ok) {
-        const errorText = await result.text();
-        console.error('GraphAPI error response:', errorText);
-        throw new Error(`Failed to fetch SharePoint documents: ${result.statusText}`);
-      }
-
-      const data = await result.json();
-      console.log(`Retrieved ${data.value.length} SharePoint items`);
-      return data.value.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        url: item.webUrl || item['@microsoft.graph.downloadUrl'],
-        lastModified: item.lastModifiedDateTime,
-        size: item.size || 0,
-        isFolder: item.folder !== undefined,
-        parentReference: item.parentReference,
-        source: 'SharePoint' as const
-      }));
-    } catch (error) {
-      console.error('Error fetching SharePoint documents:', error);
-      setLastError(`SharePoint documents error: ${error.message}`);
-      toast.error('Failed to fetch SharePoint documents');
-      throw error;
-    }
-  };
-
   const getOneDriveDocuments = useCallback(async (): Promise<Document[] | null> => {
     console.log('Attempting to get OneDrive documents...');
     
@@ -254,7 +208,7 @@ export const useMicrosoftGraph = () => {
     }
   }, [msalInstance, toast]);
 
-  const getFolderContents = useCallback(async (folderId: string, source: 'SharePoint' | 'OneDrive'): Promise<Document[] | null> => {
+  const getFolderContents = useCallback(async (folderId: string): Promise<Document[] | null> => {
     if (!checkMsalAuth()) {
        const status = getAuthStatus();
        const errorMsg = status.error || 'Authentication check failed.';
@@ -266,19 +220,14 @@ export const useMicrosoftGraph = () => {
     setIsLoading(true);
     setLastError(null);
     try {
-      const scopes = source === 'SharePoint' 
-          ? ['Files.Read.All', 'Sites.Read.All'] 
-          : ['User.Read', 'Files.Read.All'];
-      console.log(`Acquiring token for ${source} folder contents (ID: ${folderId})...`);
-      const response = await msalInstance.acquireTokenSilent({ scopes });
-      console.log(`Token acquired for ${source} folder contents`);
+      console.log(`Acquiring token for OneDrive folder contents (ID: ${folderId})...`);
+      const response = await msalInstance.acquireTokenSilent({
+        scopes: ['User.Read', 'Files.Read.All']
+      });
+      console.log(`Token acquired for OneDrive folder contents`);
 
-      const baseEndpoint = source === 'SharePoint' 
-        ? 'https://graph.microsoft.com/v1.0/sites/root/drive/items'
-        : 'https://graph.microsoft.com/v1.0/me/drive/items';
-      
-      const graphEndpoint = `${baseEndpoint}/${folderId}/children`;
-      console.log(`Fetching ${source} folder contents from:`, graphEndpoint);
+      const graphEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
+      console.log(`Fetching OneDrive folder contents from:`, graphEndpoint);
       
       const result = await fetch(graphEndpoint, {
         headers: {
@@ -288,12 +237,12 @@ export const useMicrosoftGraph = () => {
 
       if (!result.ok) {
         const errorText = await result.text();
-        console.error(`${source} GraphAPI error response:`, result.status, errorText);
+        console.error(`OneDrive GraphAPI error response:`, result.status, errorText);
         throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
       }
 
       const data = await result.json();
-      console.log(`Retrieved ${data.value.length} items from ${source} folder ${folderId}`);
+      console.log(`Retrieved ${data.value.length} items from OneDrive folder ${folderId}`);
       setIsLoading(false);
       return data.value.map((item: any) => ({
         id: item.id,
@@ -303,7 +252,7 @@ export const useMicrosoftGraph = () => {
         size: item.size || 0,
         isFolder: item.folder !== undefined,
         parentReference: item.parentReference,
-        source: source
+        source: 'OneDrive' as const
       }));
     } catch (error) {
       console.error('Error fetching folder contents:', error);
@@ -639,7 +588,6 @@ export const useMicrosoftGraph = () => {
 
   // Return memoized functions
   return {
-    getSharePointDocuments,
     getOneDriveDocuments,
     getFolderContents,
     createFolder,

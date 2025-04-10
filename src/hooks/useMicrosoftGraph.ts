@@ -8,7 +8,14 @@ export interface Document {
   parentReference?: {
     path: string;
   };
-  source: 'SharePoint' | 'OneDrive';
+  source: 'OneDrive';
+}
+
+export interface CsvFile {
+  id: string;
+  name: string;
+  url: string;
+  content?: string;
 }
 
 export const useMicrosoftGraph = () => {
