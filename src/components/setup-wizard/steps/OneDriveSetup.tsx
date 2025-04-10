@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, Plus, Edit, Trash } from 'lucide-react';
+import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, Plus, Edit, Trash, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,6 +45,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [skipOneDriveAuth, setSkipOneDriveAuth] = useState(false);
+  const [debugMode, setDebugMode] = useState(true);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   const updateAuthStatus = useCallback(() => {
     const status = getAuthStatus();
@@ -52,46 +54,92 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     return status;
   }, [getAuthStatus]);
   
-  // Define handleAuthenticate first to avoid circular dependency
   const handleAuthenticate = useCallback(async () => {
     setIsAuthenticating(true);
     setAuthError(null);
     setConnectionRetryCount(prev => prev + 1);
+    setErrorDetails(null);
+    
     try {
-      console.log('Starting Microsoft authentication...');
+      console.log('[DEBUG] Starting Microsoft authentication...');
+      console.log('[DEBUG] Auth config:', {
+        msGraphConfig,
+        window: typeof window !== 'undefined' ? 'exists' : 'not defined',
+        msalInstance: typeof window !== 'undefined' && window.msalInstance ? 'exists' : 'not defined',
+        origin: typeof window !== 'undefined' ? window.location.origin : 'unknown'
+      });
+      
       await loginWithMicrosoft();
-      console.log('Authentication initiated successfully via redirect');
+      console.log('[DEBUG] Authentication initiated successfully via redirect');
       
-      // Force re-check auth status
       const status = updateAuthStatus();
-      console.log('Post-authentication status:', status);
+      console.log('[DEBUG] Post-authentication status:', status);
       
-      // Add a small delay to ensure the auth token is processed
       setTimeout(async () => {
-        if (status.hasAccounts) {
-          try {
+        try {
+          if (status.hasAccounts) {
+            console.log('[DEBUG] Account found, fetching OneDrive documents');
             setIsLoading(true);
             const oneDriveDocs = await getOneDriveDocuments();
+            
             if (oneDriveDocs) {
-              console.log('Post-auth document fetch successful:', oneDriveDocs);
+              console.log('[DEBUG] Post-auth document fetch successful:', oneDriveDocs);
               setDocuments(oneDriveDocs);
+            } else {
+              console.log('[DEBUG] getOneDriveDocuments returned null');
+              setErrorDetails({
+                type: 'document_fetch_null',
+                status,
+                timestamp: new Date().toISOString()
+              });
+              setAuthError("Failed to retrieve OneDrive documents (null response)");
             }
-          } catch (fetchError) {
-            console.error('Post-auth document fetch failed:', fetchError);
-          } finally {
-            setIsLoading(false);
+          } else {
+            console.log('[DEBUG] No accounts found after authentication');
+            setErrorDetails({
+              type: 'no_accounts_after_auth',
+              status,
+              timestamp: new Date().toISOString()
+            });
+            setAuthError("Authentication did not return any Microsoft accounts");
           }
+        } catch (fetchError) {
+          console.error('[DEBUG] Post-auth document fetch error:', fetchError);
+          setErrorDetails({
+            type: 'document_fetch_error',
+            error: {
+              message: fetchError.message,
+              stack: fetchError.stack,
+              name: fetchError.name
+            },
+            status,
+            timestamp: new Date().toISOString()
+          });
+          setAuthError(`Error fetching documents: ${fetchError.message}`);
+        } finally {
+          setIsLoading(false);
         }
       }, 1000);
     } catch (error) {
-      console.error('Authentication initiation error:', error);
+      console.error('[DEBUG] Authentication initiation error:', error);
       const errorMsg = error.message || 'Unknown auth error';
       setAuthError(`Authentication failed: ${errorMsg}`);
+      setErrorDetails({
+        type: 'auth_initiation_error',
+        error: {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        },
+        timestamp: new Date().toISOString()
+      });
       toast.error('Failed to connect to OneDrive. Please try again.');
     } finally {
-      setIsAuthenticating(false); 
+      setTimeout(() => {
+        setIsAuthenticating(false);
+      }, 1500);
     }
-  }, [loginWithMicrosoft, updateAuthStatus, getOneDriveDocuments]);
+  }, [loginWithMicrosoft, updateAuthStatus, getOneDriveDocuments, msGraphConfig]);
 
   const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) {
@@ -109,14 +157,11 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       if (oneDriveDocs) {
         console.log('fetchDocuments: Successfully fetched documents.', oneDriveDocs);
         setDocuments(oneDriveDocs);
-        // Reset retry count on success
         setRetryCount(0);
       } else {
         console.log('fetchDocuments: getOneDriveDocuments returned null (likely an error occurred).');
         setAuthError("Couldn't retrieve OneDrive files. Please try to authenticate again.");
         
-        // If we're getting null results but are supposedly authenticated,
-        // we might need to try logging in again
         if (retryCount < 2) {
           console.log(`Retry attempt ${retryCount + 1}/2`);
           setRetryCount(prev => prev + 1);
@@ -135,7 +180,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     const status = updateAuthStatus();
     console.log('Auth status updated:', status);
     
-    // If we're authenticated but have no documents, fetch them
     if (isAuthenticated && documents.length === 0 && !isLoading) {
       console.log('useEffect: Authenticated and no documents, fetching...');
       fetchDocuments();
@@ -383,9 +427,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
 
   const handleSkipOneDriveAuth = useCallback(() => {
     setSkipOneDriveAuth(true);
-    // Create a temporary folder ID to use
     const tempFolderId = `temp-${Date.now()}`;
-    // Complete the step with a temporary folder
     onComplete({
       path: "Temporary Folder",
       folderId: tempFolderId,
@@ -394,6 +436,48 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     });
     toast.warning('Proceeding with temporary setup. Some features may be limited.');
   }, [onComplete]);
+
+  const bypassAuthForTesting = useCallback(() => {
+    console.log('[DEBUG] Bypassing Microsoft authentication for testing');
+    setErrorDetails({
+      type: 'auth_bypassed',
+      timestamp: new Date().toISOString(),
+      message: 'Authentication bypassed for testing purposes'
+    });
+    
+    // Create completely mock data to use
+    const mockFolders = [
+      {
+        id: 'mock-folder-1',
+        name: 'Mock Folder 1',
+        url: '',
+        lastModified: new Date().toISOString(),
+        size: 0,
+        isFolder: true,
+        source: 'OneDrive' as const
+      },
+      {
+        id: 'mock-folder-2',
+        name: 'Unit Data',
+        url: '',
+        lastModified: new Date().toISOString(),
+        size: 0,
+        isFolder: true,
+        source: 'OneDrive' as const
+      }
+    ];
+    
+    // Use the mock data
+    setDocuments(mockFolders);
+    
+    // We can't set isAuthenticated directly (it's a prop, not state)
+    // Instead, we'll just clear the error and continue as if authenticated
+    setAuthError(null);
+    
+    // Mark this in the status
+    const updatedStatus = getAuthStatus();
+    console.log('[DEBUG] Bypassed auth, status:', updatedStatus);
+  }, [getAuthStatus]);
 
   const renderDiagnostics = () => {
     const redirectUriWarning = msGraphConfig?.redirectUri !== "https://unitopia-hub.vercel.app/" 
@@ -472,6 +556,90 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     );
   };
 
+  const renderDebugInfo = () => {
+    if (!debugMode) return null;
+    
+    return (
+      <div className="mt-4 border border-gray-200 rounded-md p-4 bg-gray-50">
+        <div className="flex justify-between items-center mb-2">
+          <h4 className="font-medium text-sm">Debug Information</h4>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setDebugMode(false)}
+            className="h-6 w-6 p-0"
+          >
+            <span className="sr-only">Close</span>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="space-y-2 text-xs">
+          <div>
+            <span className="font-semibold">Authentication Error:</span>
+            <span className="ml-2">{authError || 'None'}</span>
+          </div>
+          
+          <div>
+            <span className="font-semibold">Last Error:</span>
+            <span className="ml-2">{lastError || 'None'}</span>
+          </div>
+          
+          <div>
+            <span className="font-semibold">Retry Count:</span>
+            <span className="ml-2">{connectionRetryCount}</span>
+          </div>
+          
+          <div>
+            <span className="font-semibold">Auth Status:</span>
+            <pre className="mt-1 p-2 bg-gray-100 rounded overflow-auto max-h-[100px]">
+              {JSON.stringify(authStatus, null, 2)}
+            </pre>
+          </div>
+          
+          {errorDetails && (
+            <div>
+              <span className="font-semibold">Error Details:</span>
+              <pre className="mt-1 p-2 bg-gray-100 rounded overflow-auto max-h-[150px]">
+                {JSON.stringify(errorDetails, null, 2)}
+              </pre>
+            </div>
+          )}
+          
+          <div>
+            <span className="font-semibold">MS Graph Config:</span>
+            <pre className="mt-1 p-2 bg-gray-100 rounded overflow-auto max-h-[100px]">
+              {JSON.stringify(msGraphConfig, null, 2)}
+            </pre>
+          </div>
+          
+          <div className="flex flex-col space-y-2 mt-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                updateAuthStatus();
+                console.log('[DEBUG] Auth status updated manually');
+              }}
+              className="w-full"
+            >
+              Refresh Status
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={bypassAuthForTesting}
+              className="w-full text-orange-600 border-orange-200 hover:bg-orange-50"
+            >
+              Bypass Auth For Testing
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderAuthError = () => {
     if (!authError) return null;
     
@@ -508,8 +676,21 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                 Continue Without OneDrive
               </Button>
             </div>
+            
+            {!debugMode && (
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setDebugMode(true)}
+                className="mt-2"
+              >
+                Show Debug Info
+              </Button>
+            )}
           </div>
         </div>
+        
+        {debugMode && renderDebugInfo()}
       </div>
     );
   };

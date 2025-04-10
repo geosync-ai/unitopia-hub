@@ -578,8 +578,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     
     // Set the appropriate setup method based on the selected type
     if (type === 'onedrive') {
-      setSetupMethod('standard'); // Standard setup for OneDrive
-      setCurrentStep(1);
+      try {
+        console.log('[DEBUG] Setting up OneDrive integration');
+        setSetupMethod('standard'); // Standard setup for OneDrive
+        
+        // Add a small delay to ensure console logs are visible
+        setTimeout(() => {
+          console.log('[DEBUG] Moving to step 1 for OneDrive setup');
+          setCurrentStep(1);
+        }, 500);
+      } catch (error) {
+        console.error('[DEBUG] Error in OneDrive setup initialization:', error);
+        // Don't proceed to next step if there's an error
+        setSetupError(`OneDrive initialization error: ${error.message || 'Unknown error'}`);
+      }
     } else if (type === 'csv') {
       setSetupMethod('import'); // Import method for CSV
       setCurrentStep(1);
@@ -750,9 +762,31 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       case 1:
         if (selectedSetupType === 'onedrive') {
           return (
-            <OneDriveSetup
-              onComplete={handlePathSelect}
-            />
+            <div className="space-y-4">
+              <OneDriveSetup
+                onComplete={handlePathSelect}
+              />
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Having trouble connecting to OneDrive? You can continue without it:
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full flex items-center gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
+                  onClick={() => {
+                    setIsUsingLocalStorage(true);
+                    handlePathSelect({
+                      path: "Local Storage",
+                      folderId: `local-${Date.now()}`,
+                      isTemporary: true
+                    });
+                  }}
+                >
+                  <Database className="h-4 w-4" />
+                  Continue Without OneDrive
+                </Button>
+              </div>
+            </div>
           );
         } else if (selectedSetupType === 'csv') {
           return (

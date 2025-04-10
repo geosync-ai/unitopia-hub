@@ -153,29 +153,77 @@ export const getUserPhoto = async (instance: IPublicClientApplication, apiEndpoi
 // Login with Microsoft
 export const loginWithMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
   try {
-    console.log('Starting Microsoft login with redirect...');
-    console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
-    console.log('Current window origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
+    console.log('[DEBUG - MSAL] Starting Microsoft login process...');
+    console.log('[DEBUG - MSAL] Authentication parameters:', {
+      redirectUri: microsoftAuthConfig.redirectUri,
+      currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
+      loginRequest: JSON.stringify(loginRequest),
+      clientId: microsoftAuthConfig.clientId,
+      authority: microsoftAuthConfig.authorityUrl,
+      scopes: microsoftAuthConfig.permissions
+    });
+    
+    // Check if the MSAL instance is properly initialized
+    if (!instance) {
+      console.error('[DEBUG - MSAL] Error: MSAL instance is null or undefined');
+      throw new Error('MSAL instance not initialized');
+    }
+    
+    // Check for existing accounts
+    const accounts = instance.getAllAccounts();
+    console.log('[DEBUG - MSAL] Existing accounts:', accounts.length ? accounts.map(a => ({ username: a.username, name: a.name })) : 'None');
+    
+    if (accounts.length > 0) {
+      console.log('[DEBUG - MSAL] User is already logged in. Setting active account.');
+      instance.setActiveAccount(accounts[0]);
+      return;
+    }
     
     // Log warning if there might be a mismatch
     if (typeof window !== 'undefined' && window.location.origin !== 'https://unitopia-hub.vercel.app') {
-      console.warn('Warning: Current origin does not match the configured redirect URI. This may cause authentication issues.');
-      console.warn('Current origin:', window.location.origin);
-      console.warn('Configured redirect URI:', microsoftAuthConfig.redirectUri);
+      console.warn('[DEBUG - MSAL] Warning: Current origin does not match the configured redirect URI. This may cause authentication issues.');
+      console.warn('[DEBUG - MSAL] Current origin:', window.location.origin);
+      console.warn('[DEBUG - MSAL] Configured redirect URI:', microsoftAuthConfig.redirectUri);
     }
     
-    await instance.loginRedirect(loginRequest);
-    console.log('Login redirect initiated');
-  } catch (error) {
-    console.error('Error during Microsoft login:', error);
+    // Add an attempt counter to localStorage to track redirect loop issues
+    const attemptKey = 'msalLoginAttempts';
+    const attempts = parseInt(localStorage.getItem(attemptKey) || '0', 10);
+    localStorage.setItem(attemptKey, (attempts + 1).toString());
+    console.log(`[DEBUG - MSAL] Login attempt #${attempts + 1}`);
     
-    // Add more detailed error logging for redirect URI issues
+    // If we detect multiple redirect attempts in a short time, we might be in a redirect loop
+    if (attempts > 3) {
+      console.error('[DEBUG - MSAL] Detected potential redirect loop. Stopping login process to prevent infinite redirects.');
+      localStorage.removeItem(attemptKey);
+      throw new Error('Potential redirect loop detected');
+    }
+    
+    console.log('[DEBUG - MSAL] Attempting to initiate redirect login');
+    await instance.loginRedirect(loginRequest);
+    console.log('[DEBUG - MSAL] Login redirect initiated successfully');
+  } catch (error) {
+    console.error('[DEBUG - MSAL] Error during Microsoft login:', error);
+    
+    // Detailed error logging
+    console.error('[DEBUG - MSAL] Error details:', {
+      name: error.name,
+      message: error.message,
+      errorCode: error.errorCode,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Add more detailed error logging for specific issues
     if (error.errorCode === 'redirect_uri_mismatch' || 
         (error.message && error.message.includes('redirect'))) {
-      console.error('This appears to be a redirect URI mismatch issue.');
-      console.error('Configured redirect URI:', microsoftAuthConfig.redirectUri);
-      console.error('Make sure this exact URI is configured in the Azure portal for app ID:', microsoftAuthConfig.clientId);
+      console.error('[DEBUG - MSAL] This appears to be a redirect URI mismatch issue.');
+      console.error('[DEBUG - MSAL] Configured redirect URI:', microsoftAuthConfig.redirectUri);
+      console.error('[DEBUG - MSAL] Make sure this exact URI is configured in the Azure portal for app ID:', microsoftAuthConfig.clientId);
     }
+    
+    // Reset attempt counter on error
+    localStorage.removeItem('msalLoginAttempts');
     
     throw error;
   }
