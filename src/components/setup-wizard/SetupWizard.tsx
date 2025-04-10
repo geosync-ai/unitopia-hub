@@ -863,14 +863,46 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           // Filter to only show folders
           const onlyFolders = docs.filter(doc => doc.isFolder);
           setFolders(onlyFolders);
+          
+          // Clear any previous error once we successfully fetch folders
+          setFolderError(null);
         } else {
-          setFolderError("Could not retrieve OneDrive folders");
+          const errorMessage = lastError || "Could not retrieve OneDrive folders. Please try again.";
+          setFolderError(errorMessage);
+          
+          // If still authenticated but no folders returned, log a more detailed error
+          if (isAuthenticated) {
+            console.error("Failed to fetch OneDrive folders despite being authenticated. Error:", lastError);
+          }
         }
       } catch (error) {
         console.error("Error fetching OneDrive folders:", error);
         setFolderError(`Error: ${error.message}`);
       } finally {
         setIsLoading(false);
+      }
+    };
+    
+    // Add retry functionality
+    const handleRetryFolderFetch = async () => {
+      // Clear any existing error
+      setFolderError(null);
+      
+      // If we're already authenticated, try fetching folders again
+      if (isAuthenticated) {
+        toast({
+          title: "Retrying",
+          description: "Attempting to fetch your OneDrive folders again...",
+          duration: 3000
+        });
+        
+        // Add a small delay before retrying
+        setTimeout(() => {
+          fetchOneDriveFolders(currentFolderId || undefined);
+        }, 500);
+      } else {
+        // Try authenticating again
+        handleAuthenticate();
       }
     };
     
@@ -1108,6 +1140,20 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             <Folder className="h-12 w-12 mx-auto text-gray-400 mb-2" />
             <p className="text-gray-500">No folders found in {folderPath.length > 0 ? 'this folder' : 'your OneDrive'}</p>
             <p className="text-sm text-gray-400 mt-1">Create a new folder to continue</p>
+            
+            {folderError && (
+              <div className="mt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRetryFolderFetch}
+                  className="mx-auto flex items-center"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            )}
           </div>
         );
       }
@@ -1283,34 +1329,98 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             </div>
             
             {folderError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm mb-4">
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm mb-4 flex items-center justify-between">
                 <p>{folderError}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRetryFolderFetch}
+                  className="ml-2 whitespace-nowrap"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
               </div>
             )}
             
             {/* Folder List */}
-            {renderFolderList()}
-            
-            {/* Create New Folder */}
-            <Card className="p-6">
-              <h4 className="font-semibold mb-4">Create New Folder</h4>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter folder name"
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                  />
-                  <Button
-                    onClick={handleCreateFolder}
-                    disabled={!newFolderName.trim() || isLoading}
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderPlus className="h-4 w-4 mr-2" />}
-                    Create
-                  </Button>
+            {folderError ? (
+              <Card className="p-6 mb-4">
+                <div className="text-center space-y-4">
+                  <AlertTriangle className="h-12 w-12 mx-auto text-amber-500" />
+                  <h4 className="font-semibold">Unable to retrieve your OneDrive folders</h4>
+                  <p className="text-sm text-muted-foreground">
+                    We're having trouble connecting to your OneDrive. You can try these options:
+                  </p>
+                  <div className="space-y-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleRetryFolderFetch}
+                      className="flex items-center justify-center"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry Connection
+                    </Button>
+                    
+                    <div className="border-t pt-4">
+                      <h5 className="font-medium mb-2">Create a new folder anyway</h5>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter folder name"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                        />
+                        <Button
+                          onClick={handleCreateFolder}
+                          disabled={!newFolderName.trim() || isLoading}
+                        >
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderPlus className="h-4 w-4 mr-2" />}
+                          Create
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Alternatively, you can use local storage instead
+                      </p>
+                      <Button
+                        onClick={continueWithLocalStorage}
+                        variant="secondary"
+                        className="flex items-center justify-center"
+                      >
+                        Continue with Local Storage
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            ) : (
+              renderFolderList()
+            )}
+            
+            {/* Create New Folder - only show when no error or we have folders */}
+            {!folderError && (
+              <Card className="p-6">
+                <h4 className="font-semibold mb-4">Create New Folder</h4>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter folder name"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                    />
+                    <Button
+                      onClick={handleCreateFolder}
+                      disabled={!newFolderName.trim() || isLoading}
+                    >
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderPlus className="h-4 w-4 mr-2" />}
+                      Create
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
             
             {/* Selection Actions */}
             {selectedFolder && (

@@ -73,7 +73,7 @@ export const useMicrosoftGraph = () => {
       }
       
       // Safely get accounts
-      let accounts = [];
+      let accounts: any[] = [];
       try {
         accounts = window.msalInstance.getAllAccounts();
       } catch (error) {
@@ -127,7 +127,7 @@ export const useMicrosoftGraph = () => {
       // 2. Get all accounts and log them for debugging
       const accounts = msalInstance.getAllAccounts();
       console.log(`getAccessToken: Found ${accounts.length} accounts:`, 
-        accounts.map(a => ({ username: a.username, homeAccountId: a.homeAccountId })));
+        accounts.map((a: any) => ({ username: a.username, homeAccountId: a.homeAccountId })));
       
       // 3. Get the active account or first account
       const activeAccount = msalInstance.getActiveAccount() || accounts[0];
@@ -144,7 +144,9 @@ export const useMicrosoftGraph = () => {
         'Files.Read',
         'Files.Read.All',
         'Files.ReadWrite',
-        'Files.ReadWrite.All'
+        'Files.ReadWrite.All',
+        'Sites.Read.All',
+        'User.Read'
       ];
       
       console.log(`getAccessToken: Requesting token with OneDrive scopes: ${oneDriveScopes.join(', ')}`);
@@ -161,30 +163,43 @@ export const useMicrosoftGraph = () => {
       } catch (specificScopeError) {
         console.warn("getAccessToken: Failed with specific scopes, trying with default scope", specificScopeError);
         
-        // Fall back to .default scope which gets all consented permissions
+        // Attempt to get token with popup - the user might need to consent to permissions
         try {
-          const response = await msalInstance.acquireTokenSilent({
-            scopes: ['https://graph.microsoft.com/.default'],
-            account: activeAccount
+          console.log("getAccessToken: Attempting popup token acquisition with OneDrive scopes");
+          const response = await msalInstance.acquireTokenPopup({
+            scopes: oneDriveScopes
           });
           
-          console.log("getAccessToken: Successfully acquired token with default scope");
+          console.log("getAccessToken: Successfully acquired token with popup");
           return response.accessToken;
-        } catch (defaultScopeError) {
-          console.error("getAccessToken: Failed with default scope", defaultScopeError);
+        } catch (popupError) {
+          console.error("getAccessToken: Popup token acquisition failed", popupError);
           
-          // Final fallback: try interactive token acquisition
+          // Fall back to .default scope which gets all consented permissions
           try {
-            console.log("getAccessToken: Attempting interactive token acquisition");
-            const response = await msalInstance.acquireTokenPopup({
-              scopes: oneDriveScopes
+            const response = await msalInstance.acquireTokenSilent({
+              scopes: ['https://graph.microsoft.com/.default'],
+              account: activeAccount
             });
             
-            console.log("getAccessToken: Successfully acquired token interactively");
+            console.log("getAccessToken: Successfully acquired token with default scope");
             return response.accessToken;
-          } catch (interactiveError) {
-            console.error("getAccessToken: Interactive token acquisition failed", interactiveError);
-            throw new Error(`Failed to acquire token interactively: ${interactiveError.message}`);
+          } catch (defaultScopeError) {
+            console.error("getAccessToken: Failed with default scope", defaultScopeError);
+            
+            // Final fallback: try interactive token acquisition
+            try {
+              console.log("getAccessToken: Attempting interactive token acquisition");
+              const response = await msalInstance.acquireTokenPopup({
+                scopes: oneDriveScopes
+              });
+              
+              console.log("getAccessToken: Successfully acquired token interactively");
+              return response.accessToken;
+            } catch (interactiveError) {
+              console.error("getAccessToken: Interactive token acquisition failed", interactiveError);
+              throw new Error(`Failed to acquire token interactively: ${interactiveError.message}`);
+            }
           }
         }
       }
@@ -243,9 +258,10 @@ export const useMicrosoftGraph = () => {
     
     try {
       // Get accounts safely
-      let accounts = [];
+      let accounts: any[] = [];
       try {
         accounts = msalInstance.getAllAccounts();
+        console.log('Found accounts:', accounts.length, accounts.map((a: any) => ({ username: a.username })));
       } catch (accountError) {
         console.error('Error getting accounts:', accountError);
         setLastError(`Error getting accounts: ${accountError.message}`);
@@ -278,24 +294,33 @@ export const useMicrosoftGraph = () => {
         // Try to acquire token with retry mechanism
         let response;
         try {
+          // Add more debug logging
+          console.log('Attempting silent token acquisition with scopes: User.Read, Files.Read.All, Files.ReadWrite.All');
+          
           response = await msalInstance.acquireTokenSilent({
             scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All'],
             account: accounts[0]
           });
+          
+          console.log('Silent token acquisition successful:', response ? 'Token obtained' : 'No response');
         } catch (tokenError) {
           console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
           
           // Try interactive acquisition as fallback
           try {
+            console.log('Attempting interactive token acquisition');
             response = await msalInstance.acquireTokenPopup({
               scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All']
             });
+            console.log('Interactive token acquisition successful:', response ? 'Token obtained' : 'No response');
           } catch (interactiveError) {
+            console.error('Interactive token acquisition failed:', interactiveError);
             throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
           }
         }
         
         if (!response || !response.accessToken) {
+          console.error('No access token received:', response);
           throw new Error('Failed to obtain access token');
         }
         
@@ -304,43 +329,64 @@ export const useMicrosoftGraph = () => {
         // Use Microsoft Graph endpoint to get root items
         const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
         console.log('Fetching OneDrive from endpoint:', graphEndpoint);
-        const result = await fetch(graphEndpoint, {
-          headers: {
-            Authorization: `Bearer ${response.accessToken}`
+        
+        try {
+          const result = await fetch(graphEndpoint, {
+            headers: {
+              'Authorization': `Bearer ${response.accessToken}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          console.log('Graph API response status:', result.status, result.statusText);
+          
+          if (!result.ok) {
+            let errorDetails = '';
+            try {
+              const errorText = await result.text();
+              errorDetails = errorText;
+              console.error('OneDrive GraphAPI error response:', result.status, errorText);
+            } catch (e) {
+              console.error('Failed to parse error response:', e);
+            }
+            
+            throw new Error(`Failed Graph API request (${result.status}): ${result.statusText} ${errorDetails}`);
           }
-        });
 
-        if (!result.ok) {
-          const errorText = await result.text();
-          console.error('OneDrive GraphAPI error response:', result.status, errorText);
-          throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
+          const data = await result.json();
+          console.log(`Retrieved ${data.value?.length || 0} OneDrive items:`, data.value ? data.value.map(item => ({ name: item.name, isFolder: !!item.folder })) : 'No items');
+          
+          if (!data.value) {
+            console.error('Unexpected API response format, missing value property:', data);
+            throw new Error('Invalid API response format');
+          }
+          
+          // Filter to include all folders
+          const filteredItems = data.value.filter(item => 
+            // Include all folders and specific file types
+            item.folder || 
+            (item.name && (item.name.endsWith('.csv') || item.name.endsWith('.xlsx')))
+          );
+          
+          console.log(`Filtered to ${filteredItems.length} relevant items`);
+          
+          setIsLoading(false);
+          setIsRequestLocked(false);
+          
+          return filteredItems.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            url: item.webUrl || item['@microsoft.graph.downloadUrl'] || '',
+            lastModified: item.lastModifiedDateTime || new Date().toISOString(),
+            size: item.size || 0,
+            isFolder: item.folder !== undefined,
+            parentReference: item.parentReference,
+            source: 'OneDrive' as const
+          }));
+        } catch (fetchError) {
+          console.error('Error during API fetch:', fetchError);
+          throw new Error(`API request failed: ${fetchError.message}`);
         }
-
-        const data = await result.json();
-        console.log(`Retrieved ${data.value?.length || 0} OneDrive items`);
-        
-        // Filter to only include folders and files we're interested in
-        const filteredItems = data.value.filter(item => 
-          // Include all folders and specific file types
-          item.folder || 
-          (item.name && item.name.endsWith('.csv'))
-        );
-        
-        console.log(`Filtered to ${filteredItems.length} relevant items`);
-        
-        setIsLoading(false);
-        setIsRequestLocked(false);
-        
-        return filteredItems.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          url: item.webUrl || item['@microsoft.graph.downloadUrl'] || '',
-          lastModified: item.lastModifiedDateTime || new Date().toISOString(),
-          size: item.size || 0,
-          isFolder: item.folder !== undefined,
-          parentReference: item.parentReference,
-          source: 'OneDrive' as const
-        }));
       } catch (error) {
         console.error('Error fetching OneDrive documents:', error);
         const errorMsg = error.message || 'Unknown fetch error';
@@ -362,8 +408,15 @@ export const useMicrosoftGraph = () => {
       return null;
     } finally {
       setIsLoading(false);
+      // Ensure the request lock is eventually released, even in error cases
+      setTimeout(() => {
+        if (isRequestLocked) {
+          console.log('Force releasing request lock after timeout');
+          setIsRequestLocked(false);
+        }
+      }, 10000); // 10-second failsafe
     }
-  }, [msalInstance, toast, isRequestLocked]);
+  }, [isRequestLocked]);
 
   const getFolderContents = useCallback(async (folderId: string, source: string): Promise<Document[] | null> => {
     console.log(`Getting contents of folder: ${folderId} from ${source}`);
