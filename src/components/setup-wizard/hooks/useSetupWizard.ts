@@ -312,11 +312,13 @@ export function useSetupWizard({
       // Update the CSV config with the new data
       setProgress(30);
       updateCsvConfigWithData(updatedConfig);
+      console.log('[SetupWizard] Updated CsvConfig with prepared data:', updatedConfig);
       
       // Create CSV files if they don't exist
       setProgress(40);
-      if (Object.keys(updatedConfig.fileIds || {}).length === 0) {
-        console.log('No CSV file IDs found, creating CSV files');
+      const existingFileIds = updatedConfig.fileIds || {};
+      if (Object.keys(existingFileIds).length === 0) {
+        console.log('[SetupWizard] No existing CSV file IDs found. Attempting to create initial CSV files in OneDrive.');
         
         // Clear any previous session storage to force file creation
         const sessionKey = `csv_init_attempt_${updatedConfig.folderId}`;
@@ -326,94 +328,78 @@ export function useSetupWizard({
           const fileIds: Record<string, string> = {};
           
           // Ensure the folder ID is correctly set
-          console.log('OneDrive folder ID for CSV creation:', updatedConfig.folderId);
+          console.log('[SetupWizard] Using OneDrive folder ID for CSV creation:', updatedConfig.folderId || oneDriveConfig?.folderId);
           
           // Double-check that we have a folder ID from oneDriveConfig
           if (!updatedConfig.folderId && oneDriveConfig && oneDriveConfig.folderId) {
-            console.log('Using folder ID from oneDriveConfig:', oneDriveConfig.folderId);
+            console.log('[SetupWizard] Setting folder ID from oneDriveConfig:', oneDriveConfig.folderId);
             updatedConfig.folderId = oneDriveConfig.folderId;
           }
           
           if (!updatedConfig.folderId) {
-            throw new Error('No folder ID found for CSV file creation');
+            throw new Error('[SetupWizard] Critical Error: No folder ID found for CSV file creation');
           }
           
-          // Ensure updatedConfig has proper typing
-          const typedConfig = updatedConfig as {
-            folderId: string;
-            fileNames: Record<string, string>;
-            data: Record<string, { headers: string[] }>;
+          // Define the entities we are setting up in this wizard
+          const initialEntities = {
+            objectives: 'objectives.csv',
+            kras: 'kras.csv',
+            kpis: 'kpis.csv'
           };
-          
-          // Setup file names if not already defined
-          if (!typedConfig.fileNames || Object.keys(typedConfig.fileNames).length === 0) {
-            console.log('No file names defined, setting up default file names');
-            typedConfig.fileNames = {
-              objectives: 'objectives.csv',
-              kras: 'kras.csv',
-              kpis: 'kpis.csv',
-              tasks: 'tasks.csv',
-              projects: 'projects.csv',
-              risks: 'risks.csv',
-              assets: 'assets.csv'
-            };
+
+          // Prepare fileNames in the config if not present
+          if (!updatedConfig.fileNames || Object.keys(updatedConfig.fileNames).length === 0) {
+              updatedConfig.fileNames = {};
           }
-          
-          // Update sessionKey to use typed config for consistency
-          const typedSessionKey = `csv_init_attempt_${typedConfig.folderId}`;
-          sessionStorage.removeItem(typedSessionKey);
-          
-          // Create CSV files in parallel
-          const createFilePromises = Object.entries(typedConfig.fileNames || {}).map(async ([entityType, fileName]) => {
-            console.log(`Creating CSV file for ${entityType}: ${fileName} in folder ${typedConfig.folderId}`);
+          Object.assign(updatedConfig.fileNames, initialEntities); // Ensure our initial entities are in fileNames
+
+          console.log(`[SetupWizard] Preparing to create files for entities: ${Object.keys(initialEntities).join(', ')}`);
+
+          // Create CSV files in parallel ONLY for the initial entities
+          const createFilePromises = Object.entries(initialEntities).map(async ([entityType, fileName]) => {
+            console.log(`[SetupWizard] Creating CSV file for ${entityType}: ${fileName} in folder ${updatedConfig.folderId}`);
             
             // Prepare initial content with headers
-            const headers = typedConfig.data[entityType]?.headers || [];
+            const headers = updatedConfig.data[entityType]?.headers || [];
             const initialContent = headers.join(',');
+            console.log(`[SetupWizard] File: ${fileName}, Headers: ${headers.length > 0 ? headers.join(',') : 'No headers found'}`);
             
             try {
-              // Create the CSV file with properly typed folderId
-              let csvFile;
-              try {
-                // Log the exact call parameters for debugging
-                console.log('Creating CSV file with params:', {
-                  fileName,
-                  contentLength: initialContent.length,
-                  folderId: typedConfig.folderId
-                });
-                
-                csvFile = await createCsvFile(
-                  fileName,
-                  initialContent,
-                  typedConfig.folderId
-                );
-                
-                if (!csvFile) throw new Error('Failed to create CSV file: No response received');
-                
-                console.log(`Successfully created CSV file for ${entityType}:`, csvFile);
-              } catch (fileError) {
-                console.error(`Error creating CSV file for ${entityType}:`, fileError);
-                // Create a mock file as fallback
-                setIsUsingLocalStorage(true);
-                const tempFileId = `local-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-                localStorage.setItem(`unitopia_csv_${entityType}`, initialContent);
-                csvFile = {
-                  id: tempFileId,
-                  name: fileName,
-                  url: '',
-                  content: initialContent
-                };
+              // Log the exact call parameters for debugging
+              const createParams = {
+                fileName,
+                contentLength: initialContent.length,
+                folderId: updatedConfig.folderId
+              };
+              console.log('[SetupWizard] Calling createCsvFile with params:', createParams);
+              
+              const csvFile = await createCsvFile(
+                fileName,
+                initialContent,
+                updatedConfig.folderId
+              );
+              
+              if (!csvFile || !csvFile.id) {
+                 throw new Error(`[SetupWizard] Failed to create CSV file for ${entityType}: API response missing file ID.`);
               }
               
-              if (csvFile) {
-                console.log(`CSV file created for ${entityType} with ID:`, csvFile.id);
-                fileIds[entityType] = csvFile.id;
-              } else {
-                throw new Error(`Failed to create CSV file for ${entityType}`);
-              }
+              console.log(`[SetupWizard] Successfully created CSV file for ${entityType}. File ID: ${csvFile.id}, Name: ${csvFile.name}`);
+              fileIds[entityType] = csvFile.id;
+
             } catch (fileError) {
-              console.error(`Error creating CSV file for ${entityType}:`, fileError);
-              throw fileError;
+              console.error(`[SetupWizard] Error creating CSV file for ${entityType} (${fileName}):`, fileError);
+              // Create a mock file as fallback
+              console.warn(`[SetupWizard] Fallback: Creating mock local file for ${entityType}`);
+              setIsUsingLocalStorage(true);
+              const tempFileId = `local-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+              localStorage.setItem(`unitopia_csv_${entityType}`, initialContent);
+              fileIds[entityType] = tempFileId; // Still need an ID for the config
+              toast({
+                title: "OneDrive Error (Fallback)",
+                description: `Failed to create ${fileName}. Using local storage for ${entityType}.`,
+                variant: "default",
+                duration: 5000
+              });
             }
           });
           
@@ -421,60 +407,80 @@ export function useSetupWizard({
           await Promise.all(createFilePromises);
           
           // Update the config with the file IDs
-          updatedConfig.fileIds = fileIds;
+          updatedConfig.fileIds = { ...existingFileIds, ...fileIds }; // Merge with any potential pre-existing IDs
           updateCsvConfigWithData(updatedConfig);
+          console.log('[SetupWizard] Updated CsvConfig with new file IDs:', updatedConfig.fileIds);
           
-          // Wait for the config update to complete
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait briefly for state update propagation if needed
+          await new Promise(resolve => setTimeout(resolve, 500)); // Reduced delay
         } catch (error) {
-          console.error('Error creating CSV files:', error);
+          console.error('[SetupWizard] Error during initial CSV file creation process:', error);
           toast({
             title: "CSV File Creation Error",
-            description: `Failed to create CSV files: ${error.message || 'Unknown error'}`,
+            description: `Failed to create initial CSV files: ${error.message || 'Unknown error'}. Check console for details.`,
             variant: "destructive",
           });
-          throw error;
+          // Decide if we should stop or try local storage fallback entirely
+          // For now, we let the error propagate to the main handler
+          throw error; 
         }
+      } else {
+          console.log('[SetupWizard] Existing CSV file IDs found, skipping creation step:', existingFileIds);
       }
       
       // Save data to CSV files
       setProgress(60);
-      console.log('Saving data to CSV files');
+      console.log('[SetupWizard] Attempting to save data to CSV files using useCsvSync...');
       try {
         // Double-check we have the correct folder ID before proceeding
         if (!updatedConfig.folderId && oneDriveConfig && oneDriveConfig.folderId) {
-          console.log('Using folder ID from oneDriveConfig for saving data:', oneDriveConfig.folderId);
+          console.log('[SetupWizard] Setting folder ID from oneDriveConfig for saving:', oneDriveConfig.folderId);
           updatedConfig.folderId = oneDriveConfig.folderId;
         }
         
         if (!updatedConfig.folderId) {
-          throw new Error('No folder ID found for saving CSV files');
+          throw new Error('[SetupWizard] Critical Error: No folder ID found for saving CSV files');
         }
         
-        console.log('CSV configuration for saving:', {
+        console.log('[SetupWizard] CSV configuration being used for saving:', {
           folderId: updatedConfig.folderId,
           folderName: updatedConfig.folderName || oneDriveConfig?.folderName,
-          fileIds: updatedConfig.fileIds ? Object.keys(updatedConfig.fileIds) : 'none'
+          fileIds: updatedConfig.fileIds ? Object.keys(updatedConfig.fileIds) : 'none',
+          dataKeys: updatedConfig.data ? Object.keys(updatedConfig.data) : 'none'
         });
         
-        await saveDataToCsv();
-        console.log('CSV data saved successfully!');
+        await saveDataToCsv(); // Assumes saveDataToCsv uses the latest config state internally via useCsvSync
+        console.log('[SetupWizard] Successfully saved data via saveDataToCsv.');
       } catch (error) {
-        console.error('Error saving data to CSV files:', error);
+        console.error('[SetupWizard] Error saving data to CSV files via saveDataToCsv:', error);
         toast({
           title: "CSV Save Error",
-          description: `Failed to save data: ${error.message}. Please try again.`,
+          description: `Failed to save data: ${error.message || 'Unknown error'}. Please try again.`,
           variant: "destructive",
         });
-        throw error;
+        throw error; // Propagate error to main catch block
       }
       
-      // Load data from CSV to verify
+      // Optional: Load data from CSV to verify (consider performance implications)
       setProgress(80);
-      await loadDataFromCsv();
+      console.log('[SetupWizard] Attempting to reload data from CSV for verification...');
+      try {
+        await loadDataFromCsv();
+        console.log('[SetupWizard] Successfully reloaded data from CSV.');
+      } catch (loadError) {
+          console.warn('[SetupWizard] Failed to reload data from CSV after saving. Setup might still be complete.', loadError);
+          // Don't throw an error here, as saving might have succeeded.
+          toast({
+            title: "Verification Warning",
+            description: "Could not verify data save by reloading. Please check your OneDrive folder manually.",
+            variant: "default",
+            duration: 7000
+          });
+      }
       
       // Store objectives, KRAs, and KPIs in parent state
       setProgress(90);
+      console.log('[SetupWizard] Updating application state with saved data...');
       if (setObjectives && tempObjectives) {
         setObjectives(tempObjectives);
       }
@@ -488,19 +494,22 @@ export function useSetupWizard({
       // Complete the setup
       setProgress(95);
       if (handleSetupCompleteFromHook) {
+        console.log('[SetupWizard] Calling final setup completion handler...');
         handleSetupCompleteFromHook();
       }
       
       setProgress(100);
+      console.log('[SetupWizard] Setup process fully completed successfully.');
       toast({ 
         title: "Setup Complete", 
-        description: "Your unit has been successfully configured and all data has been saved to CSV files." 
+        description: "Your unit configuration and data have been saved to OneDrive.",
+        variant: "default"
       });
       
       return true;
     } catch (error) {
-      console.error('Error completing setup:', error);
-      setSetupError(`Setup error: ${error.message || 'Unknown error'}`);
+      console.error('[SetupWizard] Error completing setup:', error);
+      setSetupError(`Setup error: ${error.message || 'Unknown error'}. Check console for details.`);
       toast({ 
         title: "Setup Error", 
         description: "There was an error completing the setup process. Please try again.", 
