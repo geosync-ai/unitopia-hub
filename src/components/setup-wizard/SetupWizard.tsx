@@ -28,6 +28,22 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useMsal } from '@azure/msal-react';
 
+// Add global style directly to head
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @keyframes highlightFolder {
+      0% { background-color: rgba(59, 130, 246, 0.1); }
+      50% { background-color: rgba(59, 130, 246, 0.3); }
+      100% { background-color: rgba(59, 130, 246, 0.1); }
+    }
+    .highlight-folder {
+      animation: highlightFolder 2s ease;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Extend Window interface for our global variables
 declare global {
   interface Window {
@@ -1415,12 +1431,25 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           
           toast({
             title: "Folder Created",
-            description: `Created folder: ${newFolderName}`,
+            description: `Created folder: ${formattedFolder.name}`,
             duration: 3000
           });
           
           // Auto-select the new folder
           setSelectedFolder(formattedFolder);
+          
+          // Create a reference to scroll to the new folder into view
+          setTimeout(() => {
+            const folderElement = document.getElementById(`folder-${newFolder.id}`);
+            if (folderElement) {
+              folderElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Add a highlight effect
+              folderElement.classList.add('highlight-folder');
+              setTimeout(() => {
+                folderElement.classList.remove('highlight-folder');
+              }, 2000);
+            }
+          }, 300);
         } else {
           throw new Error("Invalid response format from folder creation");
         }
@@ -1654,7 +1683,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               {folders.map((folder) => folder && (
                 <div
                   key={folder.id || `folder-${Math.random()}`}
-                  className={`flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer ${
+                  id={`folder-${folder.id}`}
+                  className={`flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
                     selectedFolder?.id === folder.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                   }`}
                   onClick={() => handleSelectFolder(folder)}
@@ -1886,20 +1916,37 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               <Card className="p-6">
                 <h4 className="font-semibold mb-4">Create New Folder</h4>
                 <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter folder name"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                    />
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleCreateFolder();
+                    }}
+                    className="flex gap-2"
+                  >
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Enter folder name"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        disabled={isLoading}
+                        className="w-full"
+                        autoFocus
+                      />
+                      {currentFolderId && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Creating in: {folderPath.length > 0 ? folderPath[folderPath.length - 1].name : 'Root'}
+                        </div>
+                      )}
+                    </div>
                     <Button
-                      onClick={handleCreateFolder}
+                      type="submit"
                       disabled={!newFolderName.trim() || isLoading}
+                      className="shrink-0"
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderPlus className="h-4 w-4 mr-2" />}
                       Create
                     </Button>
-                  </div>
+                  </form>
                 </div>
               </Card>
             )}
@@ -1907,13 +1954,43 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             {/* Selection Actions */}
             {selectedFolder && (
               <div className="border rounded-lg p-4 bg-blue-50">
-                <p className="font-medium mb-2">Selected folder: {selectedFolder.name}</p>
-                <Button 
-                  onClick={handleUseSelectedFolder}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Use This Folder
-                </Button>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3">
+                  <div>
+                    <h4 className="font-semibold">Selected Folder</h4>
+                    <p className="text-sm text-muted-foreground">{selectedFolder.name}</p>
+                  </div>
+                  <div className="text-sm">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Ready to use
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="p-3 bg-white rounded border text-sm">
+                    <p className="font-medium">This folder will be used to:</p>
+                    <ul className="list-disc list-inside space-y-1 mt-2 text-muted-foreground">
+                      <li>Store CSV files for your unit data</li>
+                      <li>Manage objectives, KRAs, and KPIs</li>
+                      <li>Synchronize with OneDrive for collaboration</li>
+                    </ul>
+                  </div>
+                
+                  <Button 
+                    onClick={handleUseSelectedFolder}
+                    className="w-full bg-primary hover:bg-primary/90 text-white"
+                  >
+                    Use This Folder and Continue
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {!selectedFolder && folders.length > 0 && (
+              <div className="border rounded-lg p-4 bg-gray-50 mt-4">
+                <p className="text-sm text-center text-muted-foreground">
+                  Select a folder above or create a new one to continue
+                </p>
               </div>
             )}
           </>
