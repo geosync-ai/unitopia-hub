@@ -729,7 +729,7 @@ export const useMicrosoftGraph = () => {
       // Make sure parentFolderId is a string if present
       const folderId = parentFolderId ? String(parentFolderId) : undefined;
       
-      console.log('Creating CSV file:', fileName, 'in folder:', folderId);
+      console.log('Creating CSV file:', fileName, 'in folder:', folderId, 'Content length:', initialContent.length);
       
       // Validate the folder ID
       if (!folderId) {
@@ -781,9 +781,37 @@ export const useMicrosoftGraph = () => {
       console.log('CSV file created successfully with ID:', data.id, 'Name:', data.name, 'in folder:', folderId);
       
       // If initial content is provided, update the file with it
-      if (initialContent) {
+      if (initialContent && initialContent.trim() !== '') {
         console.log('Updating CSV file with initial content, length:', initialContent.length);
-        await updateCsvFile(data.id, initialContent);
+        try {
+          // Directly upload content to the created file instead of using updateCsvFile
+          // This ensures a fresh upload request with proper content headers
+          const contentEndpoint = `${baseEndpoint}/items/${data.id}/content`;
+          
+          console.log('Using content upload endpoint:', contentEndpoint);
+          
+          const contentResult = await fetch(contentEndpoint, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${response.accessToken}`,
+              'Content-Type': 'text/csv; charset=utf-8'
+            },
+            body: initialContent
+          });
+          
+          if (!contentResult.ok) {
+            const errorText = await contentResult.text();
+            console.error('Failed to upload CSV content:', contentResult.status, contentResult.statusText, errorText);
+            throw new Error(`Failed to upload CSV content: ${contentResult.statusText}`);
+          }
+          
+          console.log('CSV content uploaded successfully to file:', data.name);
+        } catch (contentError) {
+          console.error('Error uploading CSV content:', contentError);
+          // We'll still return the file even if content upload fails
+          // as the file was created successfully
+          toast.error(`Warning: File created but content may not have been saved: ${contentError.message}`);
+        }
       }
 
       return {

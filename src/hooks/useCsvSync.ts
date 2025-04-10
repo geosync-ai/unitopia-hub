@@ -218,19 +218,32 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     try {
       // Get the current timestamp for logging
       const saveTimestamp = new Date().toISOString();
-      console.log(`Saving data to CSV files at ${saveTimestamp}`);
+      console.log(`Saving data to CSV files at ${saveTimestamp}`, {
+        folderId: config.folderId,
+        fileIdsCount: Object.keys(config.fileIds).length,
+        fileNames: Object.keys(config.fileNames || {}).join(', ')
+      });
+      
+      // Keep track of successful files
+      const successfulFiles = [];
+      const failedFiles = [];
       
       // Save data to each CSV file
       for (const [key, fileId] of Object.entries(config.fileIds)) {
-        if (!fileId) continue;
+        if (!fileId) {
+          console.warn(`Skipping CSV file for ${key}: No file ID defined`);
+          failedFiles.push(key);
+          continue;
+        }
         
         const { headers, rows } = config.data[key] || { headers: [], rows: [] };
         
-        console.log(`Processing CSV file: ${config.fileNames[key]} with ${rows.length} rows`);
+        console.log(`Processing CSV file: ${config.fileNames[key]} (${fileId}) with ${rows.length} rows and ${headers.length} headers`);
         
         // Skip files with no headers
         if (!headers || headers.length === 0) {
           console.warn(`Skipping CSV file ${config.fileNames[key]}: No headers defined`);
+          failedFiles.push(key);
           continue;
         }
         
@@ -259,19 +272,54 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         
         const csvContent = csvLines.join('\n');
         
-        console.log(`Updating CSV file: ${config.fileNames[key]} at ${saveTimestamp}`);
+        console.log(`Preparing to update CSV file: ${config.fileNames[key]} with ${csvLines.length} lines (${csvContent.length} bytes)`);
         
         try {
-          // Update CSV file
-          await updateCsvFile(fileId, csvContent);
-          console.log(`Successfully updated CSV file: ${config.fileNames[key]} at ${saveTimestamp}`);
+          // Update CSV file with a retry mechanism
+          let success = false;
+          let attempt = 1;
+          const maxAttempts = 3;
+          
+          while (!success && attempt <= maxAttempts) {
+            try {
+              console.log(`Attempt ${attempt}/${maxAttempts} to update CSV file: ${config.fileNames[key]}`);
+              // Update CSV file
+              await updateCsvFile(fileId, csvContent);
+              success = true;
+              console.log(`Successfully updated CSV file: ${config.fileNames[key]} on attempt ${attempt}`);
+              successfulFiles.push(key);
+            } catch (fileError) {
+              console.error(`Error updating CSV file ${config.fileNames[key]} on attempt ${attempt}:`, fileError);
+              
+              if (attempt === maxAttempts) {
+                failedFiles.push(key);
+                throw fileError; // Re-throw on final attempt
+              }
+              
+              // Wait a bit before retrying
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+              attempt++;
+            }
+          }
         } catch (fileError) {
-          console.error(`Error updating CSV file ${config.fileNames[key]}:`, fileError);
+          const maxAttempts = 3; // Add the constant here too for the error message
+          console.error(`Error updating CSV file ${config.fileNames[key]} after ${maxAttempts} attempts:`, fileError);
           // Continue with other files rather than failing completely
         }
       }
-
-      toast.success('Data saved to CSV successfully');
+      
+      // Summary logging
+      console.log(`CSV sync complete. Success: ${successfulFiles.length}, Failed: ${failedFiles.length}`);
+      console.log(`Successful files: ${successfulFiles.join(', ')}`);
+      
+      if (failedFiles.length > 0) {
+        console.warn(`Failed files: ${failedFiles.join(', ')}`);
+        toast.warning(`${successfulFiles.length} files saved successfully, but ${failedFiles.length} files failed.`);
+      } else if (successfulFiles.length > 0) {
+        toast.success('All data saved to CSV successfully');
+      } else {
+        toast.error('No CSV files were successfully saved');
+      }
     } catch (err) {
       console.error('Error saving data to CSV:', err);
       setError('Failed to save data to CSV');

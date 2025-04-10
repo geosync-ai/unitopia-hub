@@ -581,7 +581,13 @@ const Unit = () => {
 
   // Handle setup wizard close with confirmation if data has been entered
   const handleSetupClose = useCallback(() => {
-    // Check if any data has been entered
+    // Check if setup is complete - don't show confirmation if setup is completed
+    if (setupWizard.isSetupComplete) {
+      setShowSetupWizard(false);
+      return;
+    }
+    
+    // Only show confirmation dialog if setup is NOT complete and data has been entered
     const hasSetupData = setupWizard.objectives?.length > 0 || 
                         setupWizard.oneDriveConfig !== null;
     
@@ -592,7 +598,7 @@ const Unit = () => {
     } else {
       setShowSetupWizard(false);
     }
-  }, [setupWizard.objectives, setupWizard.oneDriveConfig]);
+  }, [setupWizard.objectives, setupWizard.oneDriveConfig, setupWizard.isSetupComplete]);
   
   // Improved version of handleSkipOneDriveSetup that provides better user feedback
   const handleSkipOneDriveSetup = useCallback(() => {
