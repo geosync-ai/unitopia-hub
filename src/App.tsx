@@ -7,22 +7,39 @@ const Apps = () => {
   const [folders, setFolders] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [msalInstance, setMsalInstance] = useState(null);
 
-  // MSAL configuration
-  const msalConfig = {
-    auth: {
-      clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f', // Your application (client) ID
-      authority: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab', // Your directory (tenant) ID
-      redirectUri: 'https://unitopia-hub.vercel.app/', // Your specific redirect URI
-    },
-    cache: {
-      cacheLocation: 'sessionStorage',
-      storeAuthStateInCookie: false,
-    }
-  };
+  // Initialize MSAL
+  useEffect(() => {
+    const msalConfig = {
+      auth: {
+        clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f', // Your application (client) ID
+        authority: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab', // Your directory (tenant) ID
+        redirectUri: 'https://unitopia-hub.vercel.app/', // Your specific redirect URI
+      },
+      cache: {
+        cacheLocation: 'sessionStorage',
+        storeAuthStateInCookie: false,
+      }
+    };
 
-  // MSAL instance
-  const msalInstance = new PublicClientApplication(msalConfig);
+    const msalInstanceCreate = new PublicClientApplication(msalConfig);
+    
+    // Ensure MSAL is properly initialized before using it
+    msalInstanceCreate.initialize().then(() => {
+      setMsalInstance(msalInstanceCreate);
+      
+      // Check if user is already signed in after initialization
+      const accounts = msalInstanceCreate.getAllAccounts();
+      if (accounts.length > 0) {
+        setIsAuthenticated(true);
+        setUser(accounts[0]);
+      }
+    }).catch(err => {
+      setError(`Failed to initialize MSAL: ${err.message}`);
+      console.error(err);
+    });
+  }, []);
 
   // Authentication parameters
   const loginRequest = {
@@ -31,6 +48,11 @@ const Apps = () => {
 
   // Handle sign in
   const handleSignIn = async () => {
+    if (!msalInstance) {
+      setError("Authentication library is not initialized yet. Please try again in a moment.");
+      return;
+    }
+    
     try {
       const loginResponse = await msalInstance.loginPopup(loginRequest);
       if (loginResponse) {
@@ -45,6 +67,8 @@ const Apps = () => {
 
   // Handle sign out
   const handleSignOut = () => {
+    if (!msalInstance) return;
+    
     msalInstance.logout();
     setIsAuthenticated(false);
     setUser(null);
@@ -53,6 +77,11 @@ const Apps = () => {
 
   // Get OneDrive folders
   const getOneDriveFolders = async () => {
+    if (!msalInstance) {
+      setError("Authentication library is not initialized yet. Please try again in a moment.");
+      return;
+    }
+    
     setLoading(true);
     try {
       // Get token
@@ -82,7 +111,7 @@ const Apps = () => {
       console.error(err);
       
       // If silent token acquisition fails, fall back to interactive method
-      if (err.name === "InteractionRequiredAuthError") {
+      if (err.name === "InteractionRequiredAuthError" && msalInstance) {
         try {
           const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
           // Try fetching folders again with the new token
@@ -106,25 +135,19 @@ const Apps = () => {
     }
   };
 
-  // Check if user is already signed in on page load
-  useEffect(() => {
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      setIsAuthenticated(true);
-      setUser(accounts[0]);
-    }
-  }, []);
-
   return (
     <div className="p-4 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">OneDrive Folder Retrieval</h1>
       
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
       
+      {!msalInstance && <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">Initializing authentication service...</div>}
+      
       {!isAuthenticated ? (
         <button 
           onClick={handleSignIn}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          disabled={!msalInstance}
         >
           Sign in with Microsoft
         </button>

@@ -28,6 +28,14 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useMsal } from '@azure/msal-react';
 
+// Extend Window interface for our global variables
+declare global {
+  interface Window {
+    oneDriveFetchAttempts?: number;
+    oneDriveToastShown?: boolean;
+  }
+}
+
 // Define individual props needed from the setup state
 interface SetupWizardSpecificProps {
   setSetupMethod: (method: string) => void;
@@ -844,6 +852,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           return;
         }
         
+        // Check if we have a window-level flag for too many fetch attempts
+        if (window.oneDriveFetchAttempts && window.oneDriveFetchAttempts > 5) {
+          console.log("Too many OneDrive fetch attempts detected in useEffect, not retrying");
+          // Show a message once per session by checking a flag
+          if (!window.oneDriveToastShown) {
+            window.oneDriveToastShown = true;
+            toast({
+              title: "OneDrive Connection Failed",
+              description: "We're having trouble connecting to OneDrive. You may want to use local storage instead.",
+              variant: "destructive",
+              duration: 10000
+            });
+          }
+          return;
+        }
+        
         try {
           console.log("Attempting to fetch OneDrive folders (authenticated)");
           await fetchOneDriveFolders();
@@ -942,6 +966,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     
     // Fetch OneDrive folders
     const fetchOneDriveFolders = async (folderId?: string) => {
+      // Add a static counter to prevent infinite retries across component re-renders
+      if (!window.oneDriveFetchAttempts) {
+        window.oneDriveFetchAttempts = 0;
+      }
+      
+      // If we've already tried too many times, just show the local storage option
+      if (window.oneDriveFetchAttempts > 5) {
+        console.log("Too many OneDrive fetch attempts, suggesting local storage instead");
+        setFolderError("Multiple OneDrive connection attempts failed. Please use local storage or try again later.");
+        setFolders([]);
+        return;
+      }
+      
+      window.oneDriveFetchAttempts++;
+      console.log(`OneDrive fetch attempt #${window.oneDriveFetchAttempts}`);
+      
       try {
         setIsLoading(true);
         setFolderError(null);
@@ -975,7 +1015,21 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           } else {
             // Get root folders
             console.log("Fetching root folders from OneDrive");
-            docs = await getOneDriveDocuments();
+            
+            // Add more detailed logging
+            try {
+              // Log Microsoft authentication status
+              console.log("Current authentication status:", {
+                isAuthenticated,
+                msGraphAvailable: !!getOneDriveDocuments
+              });
+              
+              docs = await getOneDriveDocuments();
+              console.log("GetOneDriveDocuments returned:", docs);
+            } catch (graphError) {
+              console.error("Graph API error details:", graphError);
+              throw graphError;
+            }
             
             // Reset path when navigating to root
             setFolderPath([]);
@@ -995,22 +1049,28 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           
           // Clear any previous error once we successfully fetch folders
           setFolderError(null);
+          
+          // Reset retry counter on success
+          window.oneDriveFetchAttempts = 0;
         } else {
           console.error("No documents returned or invalid response format", docs);
-          const errorMessage = lastError || "Could not retrieve OneDrive folders. Please try again.";
+          const errorMessage = lastError || "Could not retrieve OneDrive folders. Please try again or use local storage.";
           setFolderError(errorMessage);
           
           // If still authenticated but no folders returned, log a more detailed error
           if (isAuthenticated) {
             console.error("Failed to fetch OneDrive folders despite being authenticated. Error:", lastError);
             
-            // Try to recover by setting up an empty folder list instead of failing
-            setFolders([]);
-            toast({
-              title: "OneDrive Connection Issue",
-              description: "Could not retrieve folders. You can create a new folder or try again.",
-              duration: 5000
-            });
+            // For repeated null results, provide a better UX
+            if (window.oneDriveFetchAttempts > 3) {
+              // Show empty folders list with option to create or use local storage
+              setFolders([]);
+              toast({
+                title: "OneDrive Connection Issue",
+                description: "Unable to retrieve your folders. You can create a new folder or use local storage.",
+                duration: 5000
+              });
+            }
           }
         }
       } catch (error) {
@@ -1028,12 +1088,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           console.error("Non-error object thrown:", error);
         }
         
-        toast({
-          title: "OneDrive Error",
-          description: "There was a problem connecting to OneDrive. You can try again or use local storage.",
-          variant: "destructive",
-          duration: 5000
-        });
+        // After multiple failures, suggest local storage
+        if (window.oneDriveFetchAttempts > 3) {
+          toast({
+            title: "OneDrive Connection Problems",
+            description: "Having trouble connecting to OneDrive. Consider using local storage instead.",
+            variant: "destructive",
+            duration: 7000
+          });
+        }
       } finally {
         setIsLoading(false);
       }
