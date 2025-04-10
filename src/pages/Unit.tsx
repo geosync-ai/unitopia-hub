@@ -589,6 +589,65 @@ const Unit = () => {
       setShowSetupWizard(false);
     }
   }, [setupWizard.objectives, setupWizard.oneDriveConfig]);
+  
+  // Add a direct method to bypass OneDrive setup
+  const handleSkipOneDriveSetup = useCallback(() => {
+    // Set up with local storage instead
+    localStorage.setItem('unitopia_storage_type', 'local');
+    
+    // Create some default objectives and KRAs
+    const defaultObjectives = [
+      {
+        id: '1',
+        name: 'Default Objective',
+        description: 'This is a default objective created when skipping OneDrive setup',
+        startDate: new Date().toISOString(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    
+    const defaultKras = [
+      {
+        id: '1',
+        name: 'Default KRA',
+        objectiveId: '1',
+        objectiveName: 'Default Objective',
+        department: 'IT',
+        responsible: 'Admin User',
+        startDate: new Date().toISOString(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+        progress: 0,
+        status: 'open',
+        kpis: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    
+    // Store in localStorage
+    localStorage.setItem('unitopia_objectives', JSON.stringify(defaultObjectives));
+    localStorage.setItem('unitopia_kras', JSON.stringify(defaultKras));
+    localStorage.setItem('unitopia_kpis', JSON.stringify([]));
+    
+    // Update state
+    setupWizard.setObjectives(defaultObjectives);
+    setupWizard.setKRAs(defaultKras);
+    setupWizard.setKPIs([]);
+    setupWizard.handleSetupComplete();
+    
+    // Hide setup wizard
+    setShowSetupWizard(false);
+    
+    toast({
+      title: "Setup Completed",
+      description: "Your unit has been set up with local storage.",
+    });
+    
+    // Force a refresh
+    window.location.reload();
+  }, [setupWizard, toast]);
 
   // Add authentication check
   useEffect(() => {
@@ -765,6 +824,19 @@ const Unit = () => {
           objectivesProp={setupWizard.objectives}
           isSetupComplete={setupWizard.isSetupComplete}
         />
+      )}
+      
+      {/* Skip OneDrive Setup Button */}
+      {showSetupWizard && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Button
+            variant="outline"
+            className="bg-white border-amber-300 text-amber-700 hover:bg-amber-50"
+            onClick={handleSkipOneDriveSetup}
+          >
+            Skip OneDrive Setup
+          </Button>
+        </div>
       )}
     </PageLayout>
   );

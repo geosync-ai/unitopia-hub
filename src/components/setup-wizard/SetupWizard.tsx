@@ -227,6 +227,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           localStorage.setItem('unitopia_objectives', JSON.stringify(tempObjectives));
           localStorage.setItem('unitopia_kras', JSON.stringify(tempKRAs));
           localStorage.setItem('unitopia_kpis', JSON.stringify(tempKPIs));
+          localStorage.setItem('unitopia_storage_type', 'local');
           
           setProgress(50);
           
@@ -754,7 +755,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     );
   };
 
-  // Update renderStep to include the KRA setup step
+  // Update renderStep to include an easy bypass for OneDrive
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -763,6 +764,39 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         if (selectedSetupType === 'onedrive') {
           return (
             <div className="space-y-4">
+              {/* Add prominent notice about potential OneDrive issues */}
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md text-blue-800 mb-6">
+                <div className="flex items-start">
+                  <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
+                  <div>
+                    <p className="font-medium">OneDrive Integration Note</p>
+                    <p className="text-sm mt-1">
+                      Some users may experience issues with OneDrive authentication. If you encounter problems, you can use local storage instead.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-3 bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
+                      onClick={() => {
+                        setIsUsingLocalStorage(true);
+                        toast({ 
+                          title: "Using Local Storage", 
+                          description: "Your data will be stored locally for this session.",
+                          duration: 3000
+                        });
+                        handlePathSelect({
+                          path: "Local Storage",
+                          folderId: `local-${Date.now()}`,
+                          isTemporary: true
+                        });
+                      }}
+                    >
+                      <Database className="h-4 w-4 mr-2" />
+                      Continue With Local Storage
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
               <OneDriveSetup
                 onComplete={handlePathSelect}
               />

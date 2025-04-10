@@ -3,7 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, Plus, Edit, Trash, X, AlertTriangle } from 'lucide-react';
+import { 
+  Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, 
+  Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, 
+  Plus, Edit, Trash, X, AlertTriangle, Database 
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { useAuth } from '@/hooks/useAuth';
@@ -38,7 +43,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [folderToRename, setFolderToRename] = useState<Document | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(true);
   const [authStatus, setAuthStatus] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [folderToDelete, setFolderToDelete] = useState<Document | null>(null);
@@ -50,6 +55,12 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [fetchCount, setFetchCount] = useState(0);
   const [shouldStopFetching, setShouldStopFetching] = useState(false);
   const fetchTimeoutRef = useRef<any>(null);
+  const fetchAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    setAuthError("Redirect URI mismatch detected. Using the 'Continue Without OneDrive' option is recommended.");
+    setShouldStopFetching(true);
+  }, []);
 
   const updateAuthStatus = useCallback(() => {
     const status = getAuthStatus();
@@ -195,27 +206,25 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     const status = updateAuthStatus();
     console.log('Auth status updated:', status);
     
-    if (isAuthenticated && documents.length === 0 && !isLoading && !shouldStopFetching && fetchCount < 5) {
-      console.log(`useEffect: Authenticated and no documents, fetching... (attempt ${fetchCount + 1}/5)`);
+    if (isAuthenticated && documents.length === 0 && !isLoading && !shouldStopFetching && fetchAttemptsRef.current < 1) {
+      console.log(`useEffect: Authenticated and no documents, fetching... (attempt ${fetchAttemptsRef.current + 1}/1)`);
       
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
       
+      fetchAttemptsRef.current += 1;
+      
       fetchTimeoutRef.current = setTimeout(() => {
         setFetchCount(prev => prev + 1);
         fetchDocuments();
         
-        if (fetchCount >= 4) {
-          setShouldStopFetching(true);
-          console.log('Maximum fetch attempts reached (5), stopping automatic fetching');
-          setAuthError('Failed to fetch OneDrive files after multiple attempts. Please try the "Continue Without OneDrive" option.');
-        }
+        setShouldStopFetching(true);
+        setAuthError("OneDrive connection failed. Please use 'Continue Without OneDrive' option below.");
       }, 1500);
-    } else if (fetchCount >= 5 && !shouldStopFetching) {
+    } else if (fetchAttemptsRef.current >= 1 && !shouldStopFetching) {
       setShouldStopFetching(true);
-      console.log('Maximum fetch attempts reached (5), stopping automatic fetching');
-      setAuthError('Failed to fetch OneDrive files after multiple attempts. Please try the "Continue Without OneDrive" option.');
+      setAuthError("OneDrive connection failed. Please use 'Continue Without OneDrive' option below.");
     } else if (isAuthenticated) {
       console.log('useEffect: Authenticated but documents already loaded or loading, skipping fetch.');
     } else {
@@ -479,10 +488,8 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const bypassAuthForTesting = useCallback(() => {
     console.log('[DEBUG] Bypassing Microsoft authentication for testing');
     
-    // Stop any more fetch attempts
     setShouldStopFetching(true);
     
-    // Clear any errors
     setAuthError(null);
     setErrorDetails({
       type: 'auth_bypassed',
@@ -490,7 +497,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       message: 'Authentication bypassed for testing purposes'
     });
     
-    // Create completely mock data to use
     const mockFolders = [
       {
         id: 'mock-folder-1',
@@ -512,16 +518,13 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       }
     ];
     
-    // Set loading state briefly to simulate a fetch
     setIsLoading(true);
     setTimeout(() => {
-      // Use the mock data
       setDocuments(mockFolders);
       setIsLoading(false);
       toast.success('Successfully connected with mock data');
     }, 500);
     
-    // Clear the auth status (this prevents further fetch attempts)
     const updatedStatus = getAuthStatus();
     console.log('[DEBUG] Bypassed auth, status:', updatedStatus);
   }, [getAuthStatus, toast]);
@@ -744,7 +747,6 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const renderAuthError = () => {
     if (!authError) return null;
     
-    // If we've hit the maximum retry attempts, show the specialized error
     if (shouldStopFetching && fetchCount > 5) {
       return <MaxRetriesReached />;
     }
@@ -802,15 +804,67 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Connect to OneDrive</h3>
-        <p className="text-sm text-muted-foreground">
-          Choose where to store your unit's data
-        </p>
-      </div>
+    <div className="space-y-4">
+      {authError && (
+        <div className="bg-amber-50 border border-amber-300 p-4 rounded-md text-amber-800 mb-6">
+          <div className="flex items-start">
+            <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 text-amber-500" />
+            <div>
+              <p className="font-medium">{authError}</p>
+              <p className="text-sm mt-1">
+                There appears to be an issue with the Microsoft authentication. The OneDrive integration may not work properly.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 bg-white hover:bg-amber-50 border-amber-300 text-amber-800"
+                onClick={() => onComplete({
+                  path: "Local Storage",
+                  folderId: `local-${Date.now()}`,
+                  isTemporary: true
+                })}
+              >
+                Continue Without OneDrive
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {renderAuthError()}
+      <div className="bg-white p-6 rounded-lg border shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Connect to OneDrive</h3>
+          {isAuthenticated ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Authenticated</Badge>
+          ) : (
+            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Not Connected</Badge>
+          )}
+        </div>
+
+        {/* Emergency Continue Without OneDrive button */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-start">
+            <Cloud className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />
+            <div>
+              <p className="font-medium text-blue-800">Having trouble with OneDrive?</p>
+              <p className="text-sm text-blue-600 mt-1">
+                You can continue without OneDrive and use local storage instead.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-3 bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
+                onClick={() => onComplete({
+                  path: "Local Storage",
+                  folderId: `local-${Date.now()}`,
+                  isTemporary: true
+                })}
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Continue With Local Storage
+              </Button>
+            </div>
+          </div>
+        </div>
 
       {!isAuthenticated ? (
         <>
