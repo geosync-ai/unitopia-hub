@@ -21,7 +21,7 @@ import { useCsvSync } from '@/hooks/useCsvSync';
 import { 
   Loader2, Cloud, FileText, Database, Check, AlertTriangle, 
   RefreshCw, FolderPlus, Edit, Trash2, Folder, ArrowUp, Image, 
-  FileIcon
+  FileIcon, Home, ChevronLeft, FolderOpen
 } from 'lucide-react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
 import { cn } from '@/lib/utils';
@@ -771,12 +771,38 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authError, setAuthError] = useState(null);
     const [newFolderName, setNewFolderName] = useState("");
+    const [folders, setFolders] = useState<Document[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedFolder, setSelectedFolder] = useState<Document | null>(null);
+    const [deletingFolder, setDeletingFolder] = useState<Document | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [folderError, setFolderError] = useState<string | null>(null);
+    const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+    const [folderPath, setFolderPath] = useState<Array<{id: string, name: string}>>([]);
+    
+    // Import OneDrive functions from useMicrosoftGraph hook
+    const { 
+      getOneDriveDocuments, 
+      getFolderContents,
+      createFolder, 
+      deleteFolder,
+      lastError,
+      isLoading: graphLoading 
+    } = useMicrosoftGraph();
+    
+    // Fetch OneDrive documents when authenticated
+    useEffect(() => {
+      if (isAuthenticated && !isLoading) {
+        fetchOneDriveFolders();
+      }
+    }, [isAuthenticated]);
     
     // Handle Microsoft authentication
     const handleAuthenticate = async () => {
       try {
         setIsAuthenticating(true);
         setAuthError(null);
+        setFolderError(null);
         
         await loginWithMicrosoft();
         toast({ 
@@ -799,6 +825,100 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           setIsAuthenticating(false);
         }, 2000);
       }
+    };
+    
+    // Fetch OneDrive folders
+    const fetchOneDriveFolders = async (folderId?: string) => {
+      try {
+        setIsLoading(true);
+        setFolderError(null);
+        
+        let docs;
+        if (folderId) {
+          // Get contents of a specific folder
+          docs = await getFolderContents(folderId, 'OneDrive');
+          
+          // If this is a new folder navigation (not a refresh of current), update the path
+          if (folderId !== currentFolderId) {
+            // Find the current folder in the list to get its name
+            const folder = folders.find(f => f.id === folderId);
+            if (folder) {
+              // Add this folder to the path
+              setFolderPath(prev => [...prev, { id: folderId, name: folder.name }]);
+            }
+          }
+          
+          // Update current folder ID
+          setCurrentFolderId(folderId);
+        } else {
+          // Get root folders
+          docs = await getOneDriveDocuments();
+          
+          // Reset path when navigating to root
+          setFolderPath([]);
+          setCurrentFolderId(null);
+        }
+        
+        if (docs) {
+          // Filter to only show folders
+          const onlyFolders = docs.filter(doc => doc.isFolder);
+          setFolders(onlyFolders);
+        } else {
+          setFolderError("Could not retrieve OneDrive folders");
+        }
+      } catch (error) {
+        console.error("Error fetching OneDrive folders:", error);
+        setFolderError(`Error: ${error.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Navigate to a folder
+    const navigateToFolder = (folder: Document) => {
+      fetchOneDriveFolders(folder.id);
+    };
+    
+    // Navigate up one level
+    const navigateUp = () => {
+      if (folderPath.length === 0) {
+        // Already at root, nothing to do
+        return;
+      }
+      
+      // Remove the last item from the path
+      const newPath = [...folderPath];
+      newPath.pop();
+      setFolderPath(newPath);
+      
+      // Navigate to parent folder or root
+      if (newPath.length > 0) {
+        const parentFolder = newPath[newPath.length - 1];
+        fetchOneDriveFolders(parentFolder.id);
+      } else {
+        // Back to root
+        fetchOneDriveFolders();
+      }
+    };
+    
+    // Navigate to a specific point in the path
+    const navigateToPathItem = (index: number) => {
+      if (index < 0 || index >= folderPath.length) {
+        return;
+      }
+      
+      // If clicking on the last item in path (current folder), do nothing
+      if (index === folderPath.length - 1) {
+        return;
+      }
+      
+      // Create a new path up to the clicked index
+      const newPath = folderPath.slice(0, index + 1);
+      setFolderPath(newPath);
+      
+      // Navigate to the folder at that index
+      const folderId = newPath[index].id;
+      fetchOneDriveFolders(folderId);
     };
     
     // Handle continuing with local storage
@@ -831,8 +951,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Create a new folder and use it
-    const createAndUseFolder = async () => {
+    // Create a folder in the current location
+    const handleCreateFolder = async () => {
       if (!newFolderName.trim()) {
         toast({
           title: "Folder Name Required",
@@ -843,33 +963,267 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
       
       try {
-        // For a more reliable experience, create a simulated folder
-        // This helps avoid API issues while still giving the user a good experience
-        const simulatedFolderId = `simulated-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        setIsLoading(true);
+        setFolderError(null);
         
-        toast({
-          title: "Folder Created",
-          description: `Created folder: ${newFolderName}`,
-          duration: 3000
-        });
+        // Create folder in OneDrive (in current folder or root)
+        const newFolder = await createFolder(newFolderName, currentFolderId || undefined);
         
-        // Complete with the simulated folder
-        onComplete({
-          path: newFolderName,
-          folderId: simulatedFolderId,
-          isTemporary: true
-        });
+        if (newFolder) {
+          // Add the new folder to the list
+          setFolders(prev => [...prev, newFolder]);
+          setNewFolderName("");
+          
+          toast({
+            title: "Folder Created",
+            description: `Created folder: ${newFolderName}`,
+            duration: 3000
+          });
+          
+          // Auto-select the new folder
+          setSelectedFolder(newFolder);
+        } else {
+          throw new Error("Failed to create folder");
+        }
       } catch (error) {
         console.error("Error creating folder:", error);
+        setFolderError(`Error creating folder: ${error.message}`);
         toast({
           title: "Error",
-          description: "Failed to create folder. Using local storage instead.",
+          description: `Failed to create folder: ${error.message}`,
           variant: "destructive"
         });
-        
-        // Fall back to local storage
-        continueWithLocalStorage();
+      } finally {
+        setIsLoading(false);
       }
+    };
+    
+    // Delete a folder in OneDrive
+    const handleDeleteFolder = async (folder: Document) => {
+      setDeletingFolder(folder);
+      setConfirmDelete(true);
+    };
+    
+    const confirmDeleteFolder = async () => {
+      if (!deletingFolder) return;
+      
+      try {
+        setIsLoading(true);
+        setFolderError(null);
+        
+        const success = await deleteFolder(deletingFolder.id);
+        
+        if (success) {
+          // Remove the folder from the list
+          setFolders(prev => prev.filter(f => f.id !== deletingFolder.id));
+          
+          // Reset selection if the deleted folder was selected
+          if (selectedFolder && selectedFolder.id === deletingFolder.id) {
+            setSelectedFolder(null);
+          }
+          
+          toast({
+            title: "Folder Deleted",
+            description: `Deleted folder: ${deletingFolder.name}`,
+            duration: 3000
+          });
+        } else {
+          throw new Error("Failed to delete folder");
+        }
+      } catch (error) {
+        console.error("Error deleting folder:", error);
+        setFolderError(`Error deleting folder: ${error.message}`);
+        toast({
+          title: "Error",
+          description: `Failed to delete folder: ${error.message}`,
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+        setDeletingFolder(null);
+        setConfirmDelete(false);
+      }
+    };
+    
+    // Select a folder and complete the setup
+    const handleSelectFolder = (folder: Document) => {
+      setSelectedFolder(folder);
+    };
+    
+    const handleUseSelectedFolder = () => {
+      if (!selectedFolder) {
+        toast({
+          title: "No Folder Selected",
+          description: "Please select a folder to continue.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      onComplete({
+        path: selectedFolder.name,
+        folderId: selectedFolder.id,
+        isTemporary: false
+      });
+    };
+    
+    // Render the folder path
+    const renderFolderPath = () => {
+      return (
+        <div className="mb-2 flex items-center text-sm text-gray-600 overflow-x-auto whitespace-nowrap">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-1 mr-1"
+            onClick={() => fetchOneDriveFolders()}
+            title="Go to root folder"
+          >
+            <Home className="h-4 w-4" />
+          </Button>
+          
+          <span>/</span>
+          
+          {folderPath.map((folder, index) => (
+            <Fragment key={folder.id}>
+              <Button
+                variant="link"
+                size="sm"
+                className="px-1 py-0 h-auto text-blue-600"
+                onClick={() => navigateToPathItem(index)}
+              >
+                {folder.name}
+              </Button>
+              {index < folderPath.length - 1 && <span>/</span>}
+            </Fragment>
+          ))}
+        </div>
+      );
+    };
+
+    // Render the folder list
+    const renderFolderList = () => {
+      if (folders.length === 0) {
+        return (
+          <div className="text-center p-6 border rounded-lg bg-gray-50">
+            <Folder className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+            <p className="text-gray-500">No folders found in {folderPath.length > 0 ? 'this folder' : 'your OneDrive'}</p>
+            <p className="text-sm text-gray-400 mt-1">Create a new folder to continue</p>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
+            <div className="flex items-center">
+              {folderPath.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mr-2 p-1"
+                  onClick={navigateUp}
+                  title="Go up one level"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <h5 className="font-medium text-sm">
+                {folderPath.length > 0 
+                  ? `${folderPath[folderPath.length - 1].name}`
+                  : 'OneDrive Root'}
+              </h5>
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => fetchOneDriveFolders(currentFolderId || undefined)}
+              disabled={isLoading}
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+          
+          {folderPath.length > 0 && renderFolderPath()}
+          
+          <div className="max-h-[220px] overflow-y-auto">
+            {folders.map((folder) => (
+              <div
+                key={folder.id}
+                className={`flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer ${
+                  selectedFolder?.id === folder.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                }`}
+                onClick={() => handleSelectFolder(folder)}
+                onDoubleClick={() => navigateToFolder(folder)}
+              >
+                <div className="flex items-center">
+                  <Folder className="h-5 w-5 mr-2 text-blue-500" />
+                  <span>{folder.name}</span>
+                </div>
+                <div className="flex items-center">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToFolder(folder);
+                    }}
+                    title="Open folder"
+                  >
+                    <FolderOpen className="h-4 w-4 text-blue-500" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteFolder(folder);
+                    }}
+                    title="Delete folder"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+    
+    // Render delete confirmation dialog
+    const renderDeleteConfirmation = () => {
+      if (!confirmDelete || !deletingFolder) return null;
+      
+      return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">Delete Folder</h3>
+            <p className="mb-4">
+              Are you sure you want to delete the folder "{deletingFolder.name}"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setConfirmDelete(false);
+                  setDeletingFolder(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteFolder}
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
     };
     
     return (
@@ -881,76 +1235,97 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           </p>
         </div>
         
-        {/* Authentication Card */}
-        <Card className="p-6">
-          <div className="flex items-start space-x-4 mb-6">
-            <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-              <Cloud className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold">Connect to Microsoft</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Use your Microsoft account to store data in OneDrive
-              </p>
-              
-              <Button
-                onClick={handleAuthenticate}
-                disabled={isAuthenticating}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {isAuthenticating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Cloud className="mr-2 h-4 w-4" />
-                    Connect with Microsoft
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-          
-          {authError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm mt-4">
-              <p>Error: {authError}</p>
-            </div>
-          )}
-          
-          {isAuthenticated && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm mt-4">
-              <p>✅ Successfully authenticated with Microsoft!</p>
-              <p className="mt-1">You can now create a folder for your unit data.</p>
-            </div>
-          )}
-        </Card>
-        
-        {/* Create New Folder */}
-        <Card className="p-6">
-          <h4 className="font-semibold mb-4">Create Folder</h4>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium block mb-1.5">Folder Name</label>
-              <Input
-                placeholder="Enter folder name"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                className="mb-4"
-              />
+        {!isAuthenticated ? (
+          /* Authentication Card */
+          <Card className="p-6">
+            <div className="flex items-start space-x-4 mb-6">
+              <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                <Cloud className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold">Connect to Microsoft</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Use your Microsoft account to store data in OneDrive
+                </p>
+                
+                <Button
+                  onClick={handleAuthenticate}
+                  disabled={isAuthenticating}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="mr-2 h-4 w-4" />
+                      Connect with Microsoft
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
             
-            <Button
-              onClick={createAndUseFolder}
-              disabled={!newFolderName.trim()}
-              className="w-full"
-            >
-              <FolderPlus className="mr-2 h-4 w-4" />
-              Create Folder and Continue
-            </Button>
-          </div>
-        </Card>
+            {authError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm mt-4">
+                <p>Error: {authError}</p>
+              </div>
+            )}
+          </Card>
+        ) : (
+          /* OneDrive Folders Section */
+          <>
+            <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm mb-4">
+              <p>✅ Successfully authenticated with Microsoft!</p>
+              <p className="mt-1">Select an existing folder or create a new one for your unit data.</p>
+            </div>
+            
+            {folderError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm mb-4">
+                <p>{folderError}</p>
+              </div>
+            )}
+            
+            {/* Folder List */}
+            {renderFolderList()}
+            
+            {/* Create New Folder */}
+            <Card className="p-6">
+              <h4 className="font-semibold mb-4">Create New Folder</h4>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter folder name"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                  />
+                  <Button
+                    onClick={handleCreateFolder}
+                    disabled={!newFolderName.trim() || isLoading}
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderPlus className="h-4 w-4 mr-2" />}
+                    Create
+                  </Button>
+                </div>
+              </div>
+            </Card>
+            
+            {/* Selection Actions */}
+            {selectedFolder && (
+              <div className="border rounded-lg p-4 bg-blue-50">
+                <p className="font-medium mb-2">Selected folder: {selectedFolder.name}</p>
+                <Button 
+                  onClick={handleUseSelectedFolder}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Use This Folder
+                </Button>
+              </div>
+            )}
+          </>
+        )}
         
         {/* Local Storage Option */}
         <div className="pt-4 border-t mt-6 text-center">
@@ -965,6 +1340,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
             Continue with Local Storage
           </Button>
         </div>
+        
+        {/* Delete Confirmation Dialog */}
+        {renderDeleteConfirmation()}
       </div>
     );
   };
