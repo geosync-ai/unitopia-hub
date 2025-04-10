@@ -737,6 +737,7 @@ const Unit = () => {
           setSetupMethod={setupWizard.setSetupMethod}
           setOneDriveConfig={setupWizard.setOneDriveConfig}
           setObjectives={setupWizard.setObjectives}
+          setKRAs={setupWizard.setKRAs}
           setKPIs={setupWizard.setKPIs}
           handleSetupCompleteFromHook={setupWizard.handleSetupComplete}
           updateCsvConfig={setupWizard.updateCsvConfig}
