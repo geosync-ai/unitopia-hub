@@ -813,29 +813,32 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   };
 
   // Create a simplified OneDrive setup component
-  const SimplifiedOneDriveSetup = ({ onComplete }) => {
+  const SimplifiedOneDriveSetup = ({ onComplete }: { onComplete: (config: any) => void }): JSX.Element => {
     const { isAuthenticated, loginWithMicrosoft } = useAuth();
+    const { instance } = useMsal();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authError, setAuthError] = useState(null);
     const [newFolderName, setNewFolderName] = useState("");
-    const [folders, setFolders] = useState<Document[]>([]);
+    const [folders, setFolders] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedFolder, setSelectedFolder] = useState<Document | null>(null);
-    const [deletingFolder, setDeletingFolder] = useState<Document | null>(null);
+    const [selectedFolder, setSelectedFolder] = useState<any | null>(null);
+    const [deletingFolder, setDeletingFolder] = useState<any | null>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [folderError, setFolderError] = useState<string | null>(null);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
     const [folderPath, setFolderPath] = useState<Array<{id: string, name: string}>>([]);
     
-    // Import OneDrive functions from useMicrosoftGraph hook
+    // Import OneDrive functions from useMicrosoftGraph hook for folder creation/deletion
     const { 
-      getOneDriveDocuments, 
-      getFolderContents,
       createFolder, 
       deleteFolder,
-      lastError,
       isLoading: graphLoading 
     } = useMicrosoftGraph();
+    
+    // Auth scopes for Microsoft Graph
+    const graphScopes = {
+      scopes: ["Files.ReadWrite", "Sites.ReadWrite.All", "User.Read"]
+    };
     
     // Fetch OneDrive documents when authenticated
     useEffect(() => {
@@ -964,7 +967,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Fetch OneDrive folders
+    // Fetch OneDrive folders directly using Microsoft Graph API
     const fetchOneDriveFolders = async (folderId?: string) => {
       // Add a static counter to prevent infinite retries across component re-renders
       if (!window.oneDriveFetchAttempts) {
@@ -987,18 +990,33 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setFolderError(null);
         
         // Check authentication status first
-        if (!isAuthenticated) {
+        if (!isAuthenticated || !instance) {
           console.log("User not authenticated, attempting authentication first");
           await handleAuthenticate();
           // After authentication completes, we'll continue with the fetch below
+          if (!isAuthenticated) {
+            throw new Error("Authentication required to access OneDrive");
+          }
         }
         
-        let docs;
+        // Get current active account
+        const accounts = instance.getAllAccounts();
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No Microsoft account found. Please sign in again.");
+        }
+        
         try {
+          // Get access token for Microsoft Graph
+          const tokenResponse = await instance.acquireTokenSilent({
+            ...graphScopes,
+            account: accounts[0]
+          });
+          
+          let endpoint;
           if (folderId) {
             // Get contents of a specific folder
             console.log(`Fetching contents of folder: ${folderId}`);
-            docs = await getFolderContents(folderId, 'OneDrive');
+            endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children?$filter=folder ne null`;
             
             // If this is a new folder navigation (not a refresh of current), update the path
             if (folderId !== currentFolderId) {
@@ -1015,62 +1033,114 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           } else {
             // Get root folders
             console.log("Fetching root folders from OneDrive");
-            
-            // Add more detailed logging
-            try {
-              // Log Microsoft authentication status
-              console.log("Current authentication status:", {
-                isAuthenticated,
-                msGraphAvailable: !!getOneDriveDocuments
-              });
-              
-              docs = await getOneDriveDocuments();
-              console.log("GetOneDriveDocuments returned:", docs);
-            } catch (graphError) {
-              console.error("Graph API error details:", graphError);
-              throw graphError;
-            }
+            endpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children?$filter=folder ne null';
             
             // Reset path when navigating to root
             setFolderPath([]);
             setCurrentFolderId(null);
           }
-        } catch (fetchError) {
-          console.error("Error during folder fetch operation:", fetchError);
-          throw fetchError; // Re-throw to be caught by the outer try-catch
-        }
-        
-        if (docs && Array.isArray(docs)) {
-          console.log(`Retrieved ${docs.length} documents, filtering folders only`);
-          // Filter to only show folders
-          const onlyFolders = docs.filter(doc => doc.isFolder);
-          console.log(`Found ${onlyFolders.length} folders`);
-          setFolders(onlyFolders);
           
-          // Clear any previous error once we successfully fetch folders
-          setFolderError(null);
-          
-          // Reset retry counter on success
-          window.oneDriveFetchAttempts = 0;
-        } else {
-          console.error("No documents returned or invalid response format", docs);
-          const errorMessage = lastError || "Could not retrieve OneDrive folders. Please try again or use local storage.";
-          setFolderError(errorMessage);
-          
-          // If still authenticated but no folders returned, log a more detailed error
-          if (isAuthenticated) {
-            console.error("Failed to fetch OneDrive folders despite being authenticated. Error:", lastError);
-            
-            // For repeated null results, provide a better UX
-            if (window.oneDriveFetchAttempts > 3) {
-              // Show empty folders list with option to create or use local storage
-              setFolders([]);
-              toast({
-                title: "OneDrive Connection Issue",
-                description: "Unable to retrieve your folders. You can create a new folder or use local storage.",
-                duration: 5000
-              });
+          const response = await fetch(endpoint, {
+            headers: {
+              'Authorization': `Bearer ${tokenResponse.accessToken}`,
+              'Content-Type': 'application/json'
             }
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error("Graph API error response:", errorData);
+            throw new Error(`Failed to fetch folders: ${response.status} ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          console.log("Folder response data:", data);
+          
+          if (data && data.value && Array.isArray(data.value)) {
+            const folderItems = data.value;
+            console.log(`Retrieved ${folderItems.length} items`);
+            
+            // Map to a consistent format
+            const formattedFolders = folderItems.map(item => ({
+              id: item.id,
+              name: item.name,
+              isFolder: !!item.folder,
+              path: item.parentReference?.path,
+              webUrl: item.webUrl
+            }));
+            
+            // Filter to only include folders
+            const onlyFolders = formattedFolders.filter(item => item.isFolder);
+            console.log(`Found ${onlyFolders.length} folders`);
+            
+            setFolders(onlyFolders);
+            setFolderError(null);
+            
+            // Reset retry counter on success
+            window.oneDriveFetchAttempts = 0;
+          } else {
+            console.error("Invalid response format from Graph API:", data);
+            throw new Error("Invalid response format from OneDrive API");
+          }
+        } catch (tokenError) {
+          console.error("Token acquisition or API error:", tokenError);
+          
+          // If silent token acquisition fails, fall back to interactive method
+          if (tokenError.name === "InteractionRequiredAuthError") {
+            try {
+              console.log("Silent token acquisition failed, trying interactive method");
+              const tokenResponse = await instance.acquireTokenPopup(graphScopes);
+              
+              // Retry the fetch with the new token
+              let endpoint;
+              if (folderId) {
+                endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children?$filter=folder ne null`;
+              } else {
+                endpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children?$filter=folder ne null';
+              }
+              
+              const response = await fetch(endpoint, {
+                headers: {
+                  'Authorization': `Bearer ${tokenResponse.accessToken}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (!response.ok) {
+                throw new Error(`Failed to fetch folders: ${response.status} ${response.statusText}`);
+              }
+              
+              const data = await response.json();
+              
+              if (data && data.value && Array.isArray(data.value)) {
+                const folderItems = data.value;
+                
+                // Map to a consistent format
+                const formattedFolders = folderItems.map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  isFolder: !!item.folder,
+                  path: item.parentReference?.path,
+                  webUrl: item.webUrl
+                }));
+                
+                // Filter to only include folders
+                const onlyFolders = formattedFolders.filter(item => item.isFolder);
+                
+                setFolders(onlyFolders);
+                setFolderError(null);
+                
+                // Reset retry counter on success
+                window.oneDriveFetchAttempts = 0;
+              } else {
+                throw new Error("Invalid response format from OneDrive API");
+              }
+            } catch (interactiveError) {
+              console.error("Interactive token acquisition error:", interactiveError);
+              throw new Error(`Failed to authenticate: ${interactiveError.message}`);
+            }
+          } else {
+            throw tokenError;
           }
         }
       } catch (error) {
@@ -1126,7 +1196,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     };
     
     // Navigate to a folder
-    const navigateToFolder = (folder: Document) => {
+    const navigateToFolder = (folder: any) => {
       fetchOneDriveFolders(folder.id);
     };
     
@@ -1202,7 +1272,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Create a folder in the current location
+    // Create a folder in the current location using direct Graph API
     const handleCreateFolder = async () => {
       if (!newFolderName.trim()) {
         toast({
@@ -1217,12 +1287,70 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setIsLoading(true);
         setFolderError(null);
         
-        // Create folder in OneDrive (in current folder or root)
-        const newFolder = await createFolder(newFolderName, currentFolderId || undefined);
+        if (!isAuthenticated || !instance) {
+          throw new Error("Authentication required to create folders");
+        }
         
-        if (newFolder) {
+        // Get current active account
+        const accounts = instance.getAllAccounts();
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No Microsoft account found. Please sign in again.");
+        }
+        
+        // Get access token for Microsoft Graph
+        const tokenResponse = await instance.acquireTokenSilent({
+          scopes: ["Files.ReadWrite", "Sites.ReadWrite.All"],
+          account: accounts[0]
+        });
+        
+        // Determine endpoint based on whether we're in a specific folder or root
+        let endpoint;
+        if (currentFolderId) {
+          // Create folder in a specific parent folder
+          endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${currentFolderId}/children`;
+        } else {
+          // Create folder in root
+          endpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+        }
+        
+        // Set up the request body to create a folder
+        const folderData = {
+          name: newFolderName,
+          folder: {},
+          "@microsoft.graph.conflictBehavior": "rename"
+        };
+        
+        // Send the request to create the folder
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${tokenResponse.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(folderData)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Folder creation API error:", errorData);
+          throw new Error(`Failed to create folder: ${response.status} ${response.statusText}`);
+        }
+        
+        // Parse the response to get the created folder
+        const newFolder = await response.json();
+        
+        if (newFolder && newFolder.id) {
+          // Format the folder to match our expected structure
+          const formattedFolder = {
+            id: newFolder.id,
+            name: newFolder.name,
+            isFolder: true,
+            path: newFolder.parentReference?.path,
+            webUrl: newFolder.webUrl
+          };
+          
           // Add the new folder to the list
-          setFolders(prev => [...prev, newFolder]);
+          setFolders(prev => [...prev, formattedFolder]);
           setNewFolderName("");
           
           toast({
@@ -1232,9 +1360,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           });
           
           // Auto-select the new folder
-          setSelectedFolder(newFolder);
+          setSelectedFolder(formattedFolder);
         } else {
-          throw new Error("Failed to create folder");
+          throw new Error("Invalid response format from folder creation");
         }
       } catch (error) {
         console.error("Error creating folder:", error);
@@ -1249,8 +1377,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       }
     };
     
-    // Delete a folder in OneDrive
-    const handleDeleteFolder = async (folder: Document) => {
+    // Delete a folder in OneDrive using direct Graph API
+    const handleDeleteFolder = async (folder: any) => {
       setDeletingFolder(folder);
       setConfirmDelete(true);
     };
@@ -1262,25 +1390,51 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setIsLoading(true);
         setFolderError(null);
         
-        const success = await deleteFolder(deletingFolder.id);
-        
-        if (success) {
-          // Remove the folder from the list
-          setFolders(prev => prev.filter(f => f.id !== deletingFolder.id));
-          
-          // Reset selection if the deleted folder was selected
-          if (selectedFolder && selectedFolder.id === deletingFolder.id) {
-            setSelectedFolder(null);
-          }
-          
-          toast({
-            title: "Folder Deleted",
-            description: `Deleted folder: ${deletingFolder.name}`,
-            duration: 3000
-          });
-        } else {
-          throw new Error("Failed to delete folder");
+        if (!isAuthenticated || !instance) {
+          throw new Error("Authentication required to delete folders");
         }
+        
+        // Get current active account
+        const accounts = instance.getAllAccounts();
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No Microsoft account found. Please sign in again.");
+        }
+        
+        // Get access token for Microsoft Graph
+        const tokenResponse = await instance.acquireTokenSilent({
+          scopes: ["Files.ReadWrite", "Sites.ReadWrite.All"],
+          account: accounts[0]
+        });
+        
+        // Delete the folder by ID
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${deletingFolder.id}`;
+        
+        const response = await fetch(endpoint, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${tokenResponse.accessToken}`
+          }
+        });
+        
+        if (!response.ok && response.status !== 204) { // 204 No Content is success for DELETE
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Folder deletion API error:", errorData);
+          throw new Error(`Failed to delete folder: ${response.status} ${response.statusText}`);
+        }
+        
+        // Remove the folder from the list
+        setFolders(prev => prev.filter(f => f.id !== deletingFolder.id));
+        
+        // Reset selection if the deleted folder was selected
+        if (selectedFolder && selectedFolder.id === deletingFolder.id) {
+          setSelectedFolder(null);
+        }
+        
+        toast({
+          title: "Folder Deleted",
+          description: `Deleted folder: ${deletingFolder.name}`,
+          duration: 3000
+        });
       } catch (error) {
         console.error("Error deleting folder:", error);
         setFolderError(`Error deleting folder: ${error.message}`);
@@ -1297,7 +1451,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     };
     
     // Select a folder and complete the setup
-    const handleSelectFolder = (folder: Document) => {
+    const handleSelectFolder = (folder: any) => {
       setSelectedFolder(folder);
     };
     
@@ -1537,6 +1691,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       );
     };
     
+    // Return the component JSX
     return (
       <div className="space-y-6">
         <div className="text-center mb-6">
@@ -1662,23 +1817,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
               </Card>
             ) : (
               <ErrorBoundary>
-                {typeof renderFolderList === 'function' ? renderFolderList() : (
-                  <div className="text-center p-6 border rounded-lg bg-gray-50">
-                    <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-2" />
-                    <p className="text-gray-500">Error rendering folder list</p>
-                    <div className="mt-4">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleRetryFolderFetch}
-                        className="mx-auto flex items-center"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Retry
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                {renderFolderList()}
               </ErrorBoundary>
             )}
             
