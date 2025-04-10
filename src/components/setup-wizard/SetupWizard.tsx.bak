@@ -2238,15 +2238,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   // Rest of the component (Dialog structure) with updated UI
   return (
-    <Dialog 
-      open={isOpen} 
-      onOpenChange={(open) => {
-        // Only allow closing if not processing
-        if (!open && !isProcessing) {
-          onClose();
-        }
-      }}
-    >
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // Simply close the dialog without showing any confirmation
+      if (!open) {
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-2xl">Unit Setup Wizard</DialogTitle>
@@ -2320,11 +2317,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                 
                 {currentStep === 5 ? (
                   <Button 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      console.log("Complete Setup button clicked, starting processing...");
-                      handleSummaryComplete();
-                    }}
+                    onClick={handleSummaryComplete}
                     className="bg-green-600 hover:bg-green-700 text-white"
                     disabled={isProcessing}
                   >
