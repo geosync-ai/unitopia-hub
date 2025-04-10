@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { 
   Cloud, FolderPlus, FolderOpen, ChevronLeft, ChevronRight, 
   Folder, Edit2, Loader2, AlertCircle, ChevronDown, RefreshCw, 
-  Plus, Edit, Trash, X, AlertTriangle, Database 
+  Plus, Edit, Trash, X, AlertTriangle, Database, Home 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -57,6 +57,10 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const fetchTimeoutRef = useRef<any>(null);
   const fetchAttemptsRef = useRef(0);
   const hasInitializedRef = useRef(false);
+  const [folderContents, setFolderContents] = useState<Document[]>([]);
+  const [folderError, setFolderError] = useState<string | null>(null);
+  const [isLoadingContents, setIsLoadingContents] = useState(false);
+  const [createFolderError, setCreateFolderError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasInitializedRef.current) {
@@ -294,33 +298,56 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   };
 
   const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) {
-      toast.error('Please enter a folder name');
-      return;
-    }
-
+    if (!newFolderName.trim() || isCreatingFolder) return;
+    
     try {
-      setIsLoading(true);
-      const parentId = selectedFolder?.id;
-      const newFolder = await createFolder(newFolderName, parentId);
-      if (newFolder) {
-        toast.success('Folder created successfully');
+      setIsCreatingFolder(true);
+      setCreateFolderError(null);
+      
+      const currentFolderId = currentPath.length > 0 
+        ? currentPath[currentPath.length - 1].id 
+        : undefined; // undefined means create in root
+      
+      const folder = await createFolder(newFolderName, currentFolderId);
+      
+      if (folder) {
+        toast({
+          title: "Folder Created",
+          description: `Successfully created folder: ${folder.name}`,
+        });
+        
+        // Add the new folder to the current folder contents
+        setFolderContents(prev => [...prev, folder]);
+        
+        // Clear the input
         setNewFolderName('');
-        setIsCreatingFolder(false);
-        if (selectedFolder) {
-          const contents = await getFolderContents(selectedFolder.id, 'OneDrive');
-          if (contents) {
-            setDocuments(contents);
-          }
-        } else {
-          await fetchDocuments();
-        }
+        
+        // Auto-select the created folder
+        setSelectedFolder(folder);
+        
+        // Also select this path for onComplete
+        const completePath = [...currentPath, folder];
+        const pathString = completePath.map(f => f.name).join('/');
+        
+        // Call onComplete with the selected folder
+        onComplete({
+          folderId: folder.id,
+          path: pathString,
+          folderName: folder.name
+        });
+      } else {
+        throw new Error('Failed to create folder');
       }
     } catch (error) {
       console.error('Error creating folder:', error);
-      toast.error('Failed to create folder');
+      setCreateFolderError(`Failed to create folder: ${error.message}`);
+      toast({
+        title: "Folder Creation Error",
+        description: `Could not create folder: ${error.message}`,
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setIsCreatingFolder(false);
     }
   };
 
@@ -793,6 +820,355 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     );
   };
 
+  const renderFolderCreation = () => {
+    return (
+      <div className="mt-6 border rounded-lg p-4 space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Create New Folder</h3>
+          {isCreatingFolder && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+              Creating...
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex gap-2 items-center">
+          <Input
+            placeholder="Enter folder name"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            disabled={isCreatingFolder}
+            className="flex-1"
+          />
+          <Button 
+            onClick={handleCreateFolder}
+            disabled={isCreatingFolder || !newFolderName.trim()} 
+            variant="outline"
+            className="whitespace-nowrap"
+          >
+            {isCreatingFolder ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <FolderPlus className="mr-2 h-4 w-4" />
+                Create Folder
+              </>
+            )}
+          </Button>
+        </div>
+        
+        {createFolderError && (
+          <div className="text-sm text-red-500 mt-2">
+            <AlertTriangle className="h-4 w-4 inline mr-1" />
+            {createFolderError}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCurrentPath = () => {
+    return (
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-4 overflow-x-auto py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleNavigateToRoot()}
+          className="h-8 px-2"
+          disabled={isLoadingContents}
+        >
+          <Home className="h-4 w-4 mr-1" />
+          Root
+        </Button>
+        
+        {currentPath.length > 0 && (
+          <>
+            {currentPath.map((folder, index) => (
+              <React.Fragment key={folder.id}>
+                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleNavigateToFolder(folder.id, index)}
+                  className="h-8 px-2 truncate max-w-[180px]"
+                  disabled={isLoadingContents || index === currentPath.length - 1}
+                >
+                  <Folder className="h-4 w-4 mr-1 flex-shrink-0" />
+                  <span className="truncate">{folder.name}</span>
+                </Button>
+              </React.Fragment>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const handleSelectFolder = (folder: Document) => {
+    if (isLoadingContents || isCreatingFolder) return;
+    
+    setSelectedFolder(folder);
+    toast({
+      title: "Folder Selected",
+      description: `Selected folder: ${folder.name}`,
+    });
+    
+    // Also select this path
+    const completePath = [...currentPath, folder];
+    const pathString = completePath.map(f => f.name).join('/');
+    
+    // Call onComplete with the selected folder
+    onComplete({
+      folderId: folder.id,
+      path: pathString,
+      folderName: folder.name
+    });
+  };
+
+  const handleNavigateToFolder = async (folderId: string, pathIndex?: number) => {
+    if (isLoadingContents) return;
+    
+    try {
+      setIsLoadingContents(true);
+      setFolderError(null);
+      
+      // If a pathIndex is provided, navigate to that specific path level
+      if (typeof pathIndex === 'number') {
+        // Slice the path up to the clicked index (inclusive)
+        setCurrentPath(prev => prev.slice(0, pathIndex + 1));
+        
+        // The folder to navigate to is already in our path
+        const targetFolder = currentPath[pathIndex];
+        
+        // Fetch contents of this folder
+        const contents = await getFolderContents(targetFolder.id, 'OneDrive');
+        if (contents) {
+          setFolderContents(contents);
+        } else {
+          throw new Error('Could not fetch folder contents');
+        }
+      } else {
+        // Navigate to a new folder and add it to the path
+        const folder = folderContents.find(f => f.id === folderId);
+        if (!folder) {
+          throw new Error('Folder not found');
+        }
+        
+        // Add this folder to the current path
+        setCurrentPath(prev => [...prev, folder]);
+        
+        // Fetch contents of this folder
+        const contents = await getFolderContents(folderId, 'OneDrive');
+        if (contents) {
+          setFolderContents(contents);
+        } else {
+          throw new Error('Could not fetch folder contents');
+        }
+      }
+    } catch (error) {
+      console.error('Error navigating to folder:', error);
+      setFolderError(`Could not navigate to folder: ${error.message}`);
+      toast({
+        title: "Folder Navigation Error",
+        description: `Failed to navigate to folder: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingContents(false);
+    }
+  };
+
+  const handleNavigateToRoot = async () => {
+    if (isLoadingContents) return;
+    
+    try {
+      setIsLoadingContents(true);
+      setFolderError(null);
+      setCurrentPath([]);
+      
+      // Fetch the root contents
+      const rootContents = await getOneDriveDocuments();
+      if (rootContents) {
+        setFolderContents(rootContents);
+      } else {
+        throw new Error('Could not fetch root contents');
+      }
+    } catch (error) {
+      console.error('Error navigating to root:', error);
+      setFolderError(`Could not navigate to root: ${error.message}`);
+      toast({
+        title: "Folder Navigation Error",
+        description: `Failed to navigate to root: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingContents(false);
+    }
+  };
+
+  const renderFolderContents = () => {
+    // Handle the case where auth is needed first
+    if (authError) {
+      return renderAuthError();
+    }
+    
+    // Handle loading state
+    if (isLoadingContents) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <p className="text-sm text-muted-foreground">Loading folder contents...</p>
+        </div>
+      );
+    }
+    
+    // Handle error state
+    if (folderError) {
+      return (
+        <div className="border rounded-lg p-6 text-center">
+          <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Folder Error</h3>
+          <p className="text-sm text-muted-foreground mb-4">{folderError}</p>
+          <Button 
+            onClick={handleRetryLoadFolders}
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </div>
+      );
+    }
+    
+    // Handle empty state
+    if (folderContents.length === 0) {
+      return (
+        <div className="border rounded-lg p-6 text-center">
+          <FolderOpen className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Folder is Empty</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            This folder doesn't contain any items. You can create a new folder here.
+          </p>
+          {renderFolderCreation()}
+        </div>
+      );
+    }
+    
+    // Filter to only show folders (not files)
+    const folders = folderContents.filter(item => item.isFolder);
+    
+    // Normal state with folder contents
+    return (
+      <div className="space-y-6">
+        {/* Folder selection UI */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="p-3 bg-muted border-b flex justify-between items-center">
+            <h3 className="font-medium">Select a Folder</h3>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRetryLoadFolders}
+              disabled={isLoadingContents}
+              className="h-8 px-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="sr-only">Refresh</span>
+            </Button>
+          </div>
+          
+          {folders.length > 0 ? (
+            <div className="divide-y max-h-[300px] overflow-y-auto">
+              {folders.map((folder) => (
+                <div 
+                  key={folder.id}
+                  className={cn(
+                    "p-3 flex items-center justify-between hover:bg-muted/50 cursor-pointer transition-colors",
+                    selectedFolder?.id === folder.id && "bg-blue-50 hover:bg-blue-50"
+                  )}
+                  onClick={() => handleSelectFolder(folder)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Folder className={cn(
+                      "h-5 w-5", 
+                      selectedFolder?.id === folder.id ? "text-blue-600" : "text-yellow-600"
+                    )} />
+                    <div>
+                      <p className="font-medium">{folder.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(folder.lastModified).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigateToFolder(folder.id);
+                      }}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      <span className="sr-only">Open</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                No folders found. Create a new folder to start.
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {renderFolderCreation()}
+      </div>
+    );
+  };
+
+  const handleRetryLoadFolders = async () => {
+    try {
+      setIsLoadingContents(true);
+      setFolderError(null);
+      
+      if (currentPath.length > 0) {
+        // We're in a subfolder, reload its contents
+        const currentFolder = currentPath[currentPath.length - 1];
+        const contents = await getFolderContents(currentFolder.id, 'OneDrive');
+        if (contents) {
+          setFolderContents(contents);
+        } else {
+          throw new Error('Could not fetch folder contents');
+        }
+      } else {
+        // We're at root, reload root contents
+        const rootContents = await getOneDriveDocuments();
+        if (rootContents) {
+          setFolderContents(rootContents);
+        } else {
+          throw new Error('Could not fetch root contents');
+        }
+      }
+    } catch (error) {
+      console.error('Error retrying folder load:', error);
+      setFolderError(`Could not load folders: ${error.message}`);
+      toast({
+        title: "Folder Load Error",
+        description: `Failed to load folders: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingContents(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {authError && (
@@ -1045,10 +1421,9 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => {
-                              setNewFolderName(doc.name);
-                              setFolderToRename(doc);
-                              setIsRenamingFolder(true);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNavigateToFolder(doc.id);
                             }}
                             className="h-6 w-6"
                           >
