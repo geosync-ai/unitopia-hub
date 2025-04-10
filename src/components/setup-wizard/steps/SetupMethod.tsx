@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Upload, Database, FileSpreadsheet } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Database, UploadCloud, PlayCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 interface SetupMethodProps {
@@ -10,31 +10,10 @@ interface SetupMethodProps {
 
 export const SetupMethod: React.FC<SetupMethodProps> = ({ onSelect }) => {
   const { toast } = useToast();
-  const [selectedMethod, setSelectedMethod] = useState<string>('');
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
 
-  const methods = [
-    {
-      id: 'standard',
-      title: 'Standard Setup',
-      description: 'Generate empty but pre-structured files for each tab (KRs, Tasks, etc.)',
-      icon: Database,
-    },
-    {
-      id: 'import',
-      title: 'Drag & Drop to AI',
-      description: 'Upload files (Excel, CSV, JSON) and let AI map the content',
-      icon: Upload,
-    },
-    {
-      id: 'demo',
-      title: 'Demo Data',
-      description: 'Load sample data for all tabs to get started quickly',
-      icon: FileSpreadsheet,
-    },
-  ];
-
-  const handleMethodSelect = (methodId: string) => {
-    setSelectedMethod(methodId);
+  const handleSelect = (method: string) => {
+    setSelectedMethod(method);
   };
 
   const handleContinue = () => {
@@ -49,41 +28,52 @@ export const SetupMethod: React.FC<SetupMethodProps> = ({ onSelect }) => {
     }
   };
 
+  const methods = [
+    {
+      id: 'onedrive',
+      title: 'Standard Setup',
+      description: 'Connect to OneDrive to store and manage your data.',
+      icon: <Database className="h-6 w-6 text-purple-600" />
+    },
+    {
+      id: 'csv',
+      title: 'Import CSV',
+      description: 'Upload existing data from CSV files.',
+      icon: <UploadCloud className="h-6 w-6 text-blue-600" />
+    },
+    {
+      id: 'demo',
+      title: 'Demo Data',
+      description: 'Load sample data to explore the application.',
+      icon: <PlayCircle className="h-6 w-6 text-green-600" />
+    }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Choose Setup Method</h3>
+      <div className="text-center">
+        <h2 className="text-xl font-semibold">Choose Setup Method</h2>
         <p className="text-sm text-muted-foreground">
           Select how you want to initialize your unit's data
         </p>
       </div>
 
-      <div className="grid gap-4">
+      <div className="space-y-4">
         {methods.map((method) => (
           <Card
             key={method.id}
-            className={`p-4 cursor-pointer transition-colors ${
-              selectedMethod === method.id
-                ? 'border-primary bg-primary/5'
-                : 'hover:border-primary/50'
-            }`}
-            onClick={() => handleMethodSelect(method.id)}
+            className={`cursor-pointer hover:shadow-md transition-shadow ${selectedMethod === method.id ? 'border-primary ring-2 ring-primary' : ''}`}
+            onClick={() => handleSelect(method.id)}
           >
-            <div className="flex items-start space-x-4">
-              <div className={`p-2 rounded-lg ${
-                selectedMethod === method.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
-              }`}>
-                <method.icon className="h-6 w-6" />
+            <CardContent className="p-4 flex items-center space-x-4">
+              <div className="p-2 bg-muted rounded-full">
+                {method.icon}
               </div>
-              <div className="flex-1">
-                <h4 className="font-semibold">{method.title}</h4>
-                <p className="text-sm text-muted-foreground">
-                  {method.description}
-                </p>
+              <div>
+                <h3 className="font-medium">{method.title}</h3>
+                <p className="text-sm text-muted-foreground">{method.description}</p>
               </div>
-            </div>
+            </CardContent>
           </Card>
         ))}
       </div>
