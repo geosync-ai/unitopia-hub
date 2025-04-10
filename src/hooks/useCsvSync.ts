@@ -658,6 +658,13 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     error,
     loadDataFromCsv,
     saveDataToCsv,
-    updateEntityData
+    updateEntityData,
+    setCsvSyncConfig: (config: CsvSyncConfig) => {
+      if (!config.folderId) {
+        console.error('[CSV CONFIG] Cannot set config without folder ID');
+        return;
+      }
+      onConfigChange(config);
+    }
   };
 }; 

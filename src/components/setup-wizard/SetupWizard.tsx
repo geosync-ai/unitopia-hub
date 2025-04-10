@@ -71,7 +71,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     setTempKPIs,
     handleComplete,
     useLocalStorage,
-    setSetupError
+    setSetupError,
+    setIsProcessing
   } = useSetupWizard({
     oneDriveConfig,
     csvConfig,
@@ -105,7 +106,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setSetupError(null);
       setIsInitialized(true);
     }
-  }, [isOpen, isInitialized, setSetupError, setTempObjectives, setTempKRAs, setTempKPIs]);
+  }, [isOpen, isInitialized, setSetupError, setTempObjectives, setTempKRAs, setTempKPIs, setIsProcessing]);
 
   // Reset initialization when dialog closes
   useEffect(() => {
@@ -371,7 +372,6 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       case 4:
         return (
           <KPISetup
-            kras={tempKRAs}
             onComplete={handleKPIComplete}
           />
         );

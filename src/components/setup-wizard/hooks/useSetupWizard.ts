@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useCsvSync } from '@/hooks/useCsvSync';
 import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
-import { OneDriveConfig, CsvConfig } from '../types';
+import { OneDriveConfig, CsvConfig, CsvSyncConfig } from '../types';
 import { generateId, clearSetupLocalStorage, addTimestamps } from '../utils';
 
 interface UseSetupWizardProps {
@@ -43,7 +43,7 @@ export function useSetupWizard({
     isLoading: isCsvLoading, 
     error: csvError, 
     loadDataFromCsv, 
-    saveDataToCsv 
+    saveDataToCsv
   } = useCsvSync({
     config: csvConfig || null,
     onConfigChange: updateCsvConfig || (() => {}),
@@ -542,6 +542,7 @@ export function useSetupWizard({
     setTempKPIs,
     handleComplete,
     useLocalStorage,
-    setSetupError
+    setSetupError,
+    setIsProcessing
   };
 } 

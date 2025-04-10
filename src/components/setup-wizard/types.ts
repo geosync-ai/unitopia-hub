@@ -21,12 +21,35 @@ export interface FolderItem {
 export interface CsvConfig {
   folderId?: string;
   folderName?: string;
-  fileIds?: Record<string, string>;
-  fileNames?: Record<string, string>;
-  data?: Record<string, {
-    headers: string[];
-    rows: Record<string, string>[];
-  }>;
+  fileIds?: {
+    [key: string]: string; 
+  };
+  fileNames?: {
+    [key: string]: string;
+  };
+  data?: {
+    [key: string]: {
+      headers: string[];
+      rows: any[];
+    };
+  };
+}
+
+// Interface matching useCsvSync requirements
+export interface CsvSyncConfig {
+  folderId: string;
+  fileNames: {
+    [key: string]: string;
+  };
+  fileIds: {
+    [key: string]: string;
+  };
+  data: {
+    [key: string]: {
+      headers: string[];
+      rows: any[];
+    };
+  };
 }
 
 // Setup Wizard specific props
