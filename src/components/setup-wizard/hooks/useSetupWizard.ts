@@ -45,7 +45,12 @@ export function useSetupWizard({
     loadDataFromCsv, 
     saveDataToCsv
   } = useCsvSync({
-    config: csvConfig || null,
+    config: csvConfig && csvConfig.folderId ? {
+      folderId: csvConfig.folderId,
+      fileNames: csvConfig.fileNames || {},
+      fileIds: csvConfig.fileIds || {},
+      data: csvConfig.data || {}
+    } as CsvSyncConfig : null,
     onConfigChange: updateCsvConfig || (() => {}),
     isSetupComplete
   });
