@@ -38,14 +38,58 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [authStatus, setAuthStatus] = useState<any>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const updateAuthStatus = useCallback(() => {
-    setAuthStatus(getAuthStatus());
+    const status = getAuthStatus();
+    setAuthStatus(status);
+    return status;
   }, [getAuthStatus]);
+  
+  // Define handleAuthenticate first to avoid circular dependency
+  const handleAuthenticate = useCallback(async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+    try {
+      console.log('Starting Microsoft authentication...');
+      await loginWithMicrosoft();
+      console.log('Authentication initiated successfully via redirect');
+      
+      // Force re-check auth status
+      const status = updateAuthStatus();
+      console.log('Post-authentication status:', status);
+      
+      // Add a small delay to ensure the auth token is processed
+      setTimeout(async () => {
+        if (status.hasAccounts) {
+          try {
+            setIsLoading(true);
+            const oneDriveDocs = await getOneDriveDocuments();
+            if (oneDriveDocs) {
+              console.log('Post-auth document fetch successful:', oneDriveDocs);
+              setDocuments(oneDriveDocs);
+            }
+          } catch (fetchError) {
+            console.error('Post-auth document fetch failed:', fetchError);
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Authentication initiation error:', error);
+      const errorMsg = error.message || 'Unknown auth error';
+      setAuthError(`Authentication failed: ${errorMsg}`);
+      toast.error('Failed to connect to OneDrive. Please try again.');
+    } finally {
+      setIsAuthenticating(false); 
+    }
+  }, [loginWithMicrosoft, updateAuthStatus, getOneDriveDocuments]);
 
   const fetchDocuments = useCallback(async () => {
     if (!isAuthenticated) {
       console.log('fetchDocuments: Not authenticated, returning.');
+      setAuthError('Not authenticated. Please sign in with Microsoft first.');
       return;
     }
     
@@ -56,10 +100,21 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     try {
       const oneDriveDocs = await getOneDriveDocuments();
       if (oneDriveDocs) {
-        console.log('fetchDocuments: Successfully fetched documents.');
+        console.log('fetchDocuments: Successfully fetched documents.', oneDriveDocs);
         setDocuments(oneDriveDocs);
+        // Reset retry count on success
+        setRetryCount(0);
       } else {
         console.log('fetchDocuments: getOneDriveDocuments returned null (likely an error occurred).');
+        setAuthError("Couldn't retrieve OneDrive files. Please try to authenticate again.");
+        
+        // If we're getting null results but are supposedly authenticated,
+        // we might need to try logging in again
+        if (retryCount < 2) {
+          console.log(`Retry attempt ${retryCount + 1}/2`);
+          setRetryCount(prev => prev + 1);
+          await handleAuthenticate();
+        }
       }
     } catch (error) {
       console.error('fetchDocuments: Error caught:', error);
@@ -67,11 +122,14 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, getOneDriveDocuments]);
+  }, [isAuthenticated, getOneDriveDocuments, retryCount, handleAuthenticate]);
 
   useEffect(() => {
-    updateAuthStatus();
-    if (isAuthenticated && documents.length === 0) {
+    const status = updateAuthStatus();
+    console.log('Auth status updated:', status);
+    
+    // If we're authenticated but have no documents, fetch them
+    if (isAuthenticated && documents.length === 0 && !isLoading) {
       console.log('useEffect: Authenticated and no documents, fetching...');
       fetchDocuments();
     } else if (isAuthenticated) {
@@ -82,24 +140,7 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
       setSelectedFolder(null);
       setCurrentPath([]);
     }
-  }, [isAuthenticated, documents.length, fetchDocuments, updateAuthStatus]);
-
-  const handleAuthenticate = useCallback(async () => {
-    setIsAuthenticating(true);
-    setAuthError(null);
-    try {
-      console.log('Starting Microsoft authentication...');
-      await loginWithMicrosoft();
-      console.log('Authentication initiated successfully via redirect');
-    } catch (error) {
-      console.error('Authentication initiation error:', error);
-      const errorMsg = error.message || 'Unknown auth error';
-      setAuthError(`Authentication failed: ${errorMsg}`);
-      toast.error('Failed to connect to OneDrive. Please try again.');
-    } finally {
-      setIsAuthenticating(false); 
-    }
-  }, [loginWithMicrosoft]);
+  }, [isAuthenticated, documents.length, fetchDocuments, updateAuthStatus, isLoading]);
 
   const handleFolderClick = useCallback(async (folder: Document) => {
     if (!folder.isFolder) return;
@@ -481,11 +522,57 @@ export const OneDriveSetup: React.FC<OneDriveSetupProps> = ({ onComplete }) => {
               </div>
             ) : documents.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                <h4 className="font-medium">No items found</h4>
-                <p className="text-sm text-muted-foreground mt-2">
-                  This folder is empty. Create a new folder or navigate to a different location.
-                </p>
+                {authError ? (
+                  <>
+                    <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+                    <h4 className="font-medium">Error Connecting to OneDrive</h4>
+                    <p className="text-sm text-red-500 mt-2 mb-4">
+                      {authError}
+                    </p>
+                    <Button onClick={handleAuthenticate} disabled={isAuthenticating}>
+                      {isAuthenticating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Connecting...
+                        </>
+                      ) : (
+                        'Connect to OneDrive'
+                      )}
+                    </Button>
+                    {showDiagnostics && authStatus && (
+                      <div className="mt-4 text-xs text-left w-full bg-gray-50 p-2 rounded border">
+                        <p className="font-semibold">Authentication Status:</p>
+                        <pre className="overflow-auto">{JSON.stringify(authStatus, null, 2)}</pre>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h4 className="font-medium">No OneDrive Files Found</h4>
+                    <p className="text-sm text-muted-foreground mt-2 mb-4">
+                      Connect to your OneDrive account to view your files and folders.
+                    </p>
+                    <Button onClick={handleAuthenticate} disabled={isAuthenticating}>
+                      {isAuthenticating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Connecting...
+                        </>
+                      ) : (
+                        'Connect to OneDrive'
+                      )}
+                    </Button>
+                  </>
+                )}
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  onClick={() => setShowDiagnostics(!showDiagnostics)} 
+                  className="mt-4"
+                >
+                  {showDiagnostics ? 'Hide' : 'Show'} Diagnostics
+                </Button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

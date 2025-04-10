@@ -20,13 +20,33 @@ const ADMIN_EMAILS = ['geosyncsurvey@gmail.com', 'admin@scpng.com'];
 export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [msalInstance, setMsalInstanceState] = useState<PublicClientApplication | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const { setUser } = useAuth();
+  const { setUser, msGraphConfig } = useAuth();
 
   useEffect(() => {
     const initializeMsal = async () => {
       try {
-        console.log('Initializing MSAL with config:', msalConfig);
-        const instance = new PublicClientApplication(msalConfig);
+        // Update config with the current window location as redirectUri if running in browser
+        const configToUse = typeof window !== 'undefined' 
+          ? updateMsalConfig({
+              ...microsoftAuthConfig,
+              redirectUri: window.location.origin
+            })
+          : msalConfig;
+          
+        console.log('Initializing MSAL with config:', configToUse);
+        const instance = new PublicClientApplication(configToUse);
+        
+        // Register event callbacks
+        instance.addEventCallback((event: EventMessage) => {
+          if (event.eventType === EventType.LOGIN_SUCCESS) {
+            console.log('Login success event detected');
+            const result = event.payload as AuthenticationResult;
+            if (result && result.account) {
+              instance.setActiveAccount(result.account);
+            }
+          }
+        });
+        
         await instance.initialize();
         setMsalInstanceState(instance);
         setMsalInstance(instance);
@@ -34,39 +54,17 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         console.log('MSAL initialized successfully');
 
         // Handle redirect response
-        const response = await instance.handleRedirectPromise();
-        if (response) {
-          console.log('Handling redirect response...');
-          const account = getAccount(instance);
-          if (account) {
-            try {
-              const userProfile = await getUserProfile(instance, microsoftAuthConfig.apiEndpoint);
-              const userObj = {
-                id: account.localAccountId,
-                email: account.username,
-                name: userProfile.displayName || account.name || account.username.split('@')[0],
-                role: ADMIN_EMAILS.includes(account.username.toLowerCase()) ? 'admin' as UserRole : 'user' as UserRole,
-                accessToken: 'ms-token',
-                profilePicture: userProfile.photo || undefined
-              };
-              setUser(userObj);
-              localStorage.setItem('user', JSON.stringify(userObj));
-              console.log('User state updated after redirect');
-            } catch (error) {
-              console.error('Error getting user profile after redirect:', error);
-            }
-          }
-        }
-
-        // Register event callbacks
-        const callbackId = instance.addEventCallback((event: EventMessage) => {
-          if (event.eventType === EventType.LOGIN_SUCCESS) {
-            console.log('Login success event received');
-            const result = event.payload as AuthenticationResult;
-            const account = result.account;
-            if (account) {
-              getUserProfile(instance, microsoftAuthConfig.apiEndpoint)
-                .then(userProfile => {
+        if (typeof window !== 'undefined') {
+          try {
+            console.log('Checking for redirect response...');
+            const response = await instance.handleRedirectPromise();
+            
+            if (response) {
+              console.log('Handling redirect response...', response);
+              const account = getAccount(instance);
+              if (account) {
+                try {
+                  const userProfile = await getUserProfile(instance, microsoftAuthConfig.apiEndpoint);
                   const userObj = {
                     id: account.localAccountId,
                     email: account.username,
@@ -75,41 +73,44 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                     accessToken: 'ms-token',
                     profilePicture: userProfile.photo || undefined
                   };
+                  
                   setUser(userObj);
                   localStorage.setItem('user', JSON.stringify(userObj));
-                  console.log('User state updated after login success');
-                })
-                .catch(error => {
-                  console.error('Error getting user profile after login success:', error);
-                });
+                  console.log('User state updated after redirect');
+                  toast.success(`Welcome, ${userObj.name}! You're now signed in.`);
+                } catch (profileError) {
+                  console.error('Error getting user profile after redirect:', profileError);
+                  toast.error('Signed in, but had trouble getting your profile details.');
+                }
+              }
+            } else {
+              console.log('No redirect response detected');
             }
-          } else if (event.eventType === EventType.LOGIN_FAILURE) {
-            console.error('Login failure event received:', event.error);
-          } else if (event.eventType === EventType.LOGOUT_SUCCESS) {
-            console.log('Logout success event received');
-            setUser(null);
-            localStorage.removeItem('user');
+          } catch (redirectError) {
+            console.error('Error handling redirect:', redirectError);
           }
-        });
-
-        return () => {
-          if (callbackId) {
-            instance.removeEventCallback(callbackId);
-          }
-        };
-      } catch (error) {
-        console.error('Error initializing MSAL:', error);
+        }
+      } catch (err) {
+        console.error('Error initializing MSAL:', err);
+        toast.error('Failed to initialize Microsoft authentication.');
       }
     };
 
-    initializeMsal();
-  }, [setUser]);
+    if (!isInitialized) {
+      initializeMsal();
+    }
+  }, [isInitialized, setUser, msGraphConfig]);
 
-  if (!isInitialized) {
-    return null;
+  if (!msalInstance || !isInitialized) {
+    // Don't render children until MSAL is initialized to avoid auth issues
+    return <div className="flex justify-center items-center h-screen">Initializing authentication...</div>;
   }
 
-  return <>{children}</>;
+  return (
+    <MsalReactProvider instance={msalInstance}>
+      {children}
+    </MsalReactProvider>
+  );
 };
 
 export default MsalAuthProvider; 

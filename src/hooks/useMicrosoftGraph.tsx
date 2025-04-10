@@ -162,12 +162,27 @@ export const useMicrosoftGraph = () => {
 
   const getOneDriveDocuments = useCallback(async (): Promise<Document[] | null> => {
     console.log('Attempting to get OneDrive documents...');
-    if (!checkMsalAuth()) {
-      const status = getAuthStatus();
-      const errorMsg = status.error || 'Authentication check failed.';
-      setLastError(`OneDrive fetch error: ${errorMsg}`);
-      toast.error(`Failed to fetch OneDrive documents: ${errorMsg}`);
+    
+    // Enhanced authentication check
+    if (!msalInstance) {
+      console.error('MSAL instance not found or not initialized');
+      setLastError('MSAL instance not found - authentication service not initialized');
+      toast.error('Authentication service not initialized. Please refresh the page and try again.');
       return null;
+    }
+    
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length === 0) {
+      console.error('No Microsoft accounts found');
+      setLastError('No Microsoft accounts found. Please sign in first.');
+      toast.error('You need to sign in with Microsoft before accessing OneDrive');
+      return null;
+    }
+    
+    // Set active account if not already set
+    if (!msalInstance.getActiveAccount() && accounts.length > 0) {
+      console.log('Setting active account to:', accounts[0].username);
+      msalInstance.setActiveAccount(accounts[0]);
     }
 
     setIsLoading(true);
@@ -175,9 +190,31 @@ export const useMicrosoftGraph = () => {
 
     try {
       console.log('Acquiring token for OneDrive documents...');
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['User.Read', 'Files.Read.All']
-      });
+      
+      // Try to acquire token with retry mechanism
+      let response;
+      try {
+        response = await msalInstance.acquireTokenSilent({
+          scopes: ['User.Read', 'Files.Read.All'],
+          account: accounts[0]
+        });
+      } catch (tokenError) {
+        console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
+        
+        // Try interactive acquisition as fallback
+        try {
+          response = await msalInstance.acquireTokenPopup({
+            scopes: ['User.Read', 'Files.Read.All']
+          });
+        } catch (interactiveError) {
+          throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
+        }
+      }
+      
+      if (!response || !response.accessToken) {
+        throw new Error('Failed to obtain access token');
+      }
+      
       console.log('Token acquired successfully for OneDrive');
 
       const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
@@ -211,11 +248,11 @@ export const useMicrosoftGraph = () => {
       console.error('Error fetching OneDrive documents:', error);
       const errorMsg = error.message || 'Unknown fetch error';
       setLastError(`OneDrive documents error: ${errorMsg}`);
-      toast.error('Failed to fetch OneDrive documents');
+      toast.error(`Failed to fetch OneDrive documents: ${errorMsg}`);
       setIsLoading(false);
       return null;
     }
-  }, [checkMsalAuth, getAuthStatus, msalInstance]);
+  }, [msalInstance, toast]);
 
   const getFolderContents = useCallback(async (folderId: string, source: 'SharePoint' | 'OneDrive'): Promise<Document[] | null> => {
     if (!checkMsalAuth()) {

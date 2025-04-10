@@ -1,4 +1,5 @@
-export const microsoftAuthConfig = {
+// Microsoft Graph API configuration
+const microsoftAuthConfig = {
   clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
   confirmed: true,
   apiEndpoint: "https://graph.microsoft.com/v1.0/me",
@@ -12,9 +13,9 @@ export const microsoftAuthConfig = {
     "Sites.Read.All",
     "Sites.ReadWrite.All"
   ],
-  // IMPORTANT: This redirect URI must exactly match what's configured in the Azure portal
-  // Using only the Vercel production URL to avoid AADSTS50011 "redirect URI mismatch" errors
-  redirectUri: "https://unitopia-hub.vercel.app/",
+  // IMPORTANT: Use a dynamic redirect URI based on the current environment
+  // This prevents AADSTS50011 "redirect URI mismatch" errors
+  redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app/",
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,
   last_confirmed: "2025-04-07T08:19:35.145Z"
