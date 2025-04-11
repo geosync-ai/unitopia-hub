@@ -26,7 +26,7 @@ import LocalStorageFallbackNotice from './components/LocalStorageFallbackNotice'
 import SimplifiedOneDriveSetup from './components/SimplifiedOneDriveSetup';
 
 // Import utilities and types
-import { SetupWizardProps, WizardStep, CsvConfig } from './types';
+import { SetupWizardProps, WizardStep, CsvConfig, OneDriveConfig } from './types';
 import { addGlobalFolderHighlightStyle } from './utils';
 import { useSetupWizard } from './hooks/useSetupWizard';
 import microsoftAuthConfig from '@/config/microsoft-auth';
@@ -289,12 +289,20 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
           fileNames: {
             objectives: "objectives.csv",
             kras: "kras.csv",
-            kpis: "kpis.csv"
+            kpis: "kpis.csv",
+            tasks: "tasks.csv",
+            projects: "projects.csv",
+            risks: "risks.csv",
+            assets: "assets.csv"
           },
           fileIds: {
             objectives: `local-${Date.now()}-objectives`,
             kras: `local-${Date.now()}-kras`,
-            kpis: `local-${Date.now()}-kpis`
+            kpis: `local-${Date.now()}-kpis`,
+            tasks: `local-${Date.now()}-tasks`,
+            projects: `local-${Date.now()}-projects`,
+            risks: `local-${Date.now()}-risks`,
+            assets: `local-${Date.now()}-assets`
           },
           data: {}
         };
@@ -400,6 +408,13 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
       localStorage.setItem('unitopia_objectives', JSON.stringify(tempObjectives));
       localStorage.setItem('unitopia_kras', JSON.stringify(tempKRAs));
       localStorage.setItem('unitopia_kpis', JSON.stringify(tempKPIs));
+      
+      // Add localStorage entries for additional entities
+      localStorage.setItem('unitopia_tasks', JSON.stringify([]));
+      localStorage.setItem('unitopia_projects', JSON.stringify([]));
+      localStorage.setItem('unitopia_risks', JSON.stringify([]));
+      localStorage.setItem('unitopia_assets', JSON.stringify([]));
+      
       localStorage.setItem('unitopia_storage_type', 'local');
       
       // Complete setup without OneDrive
@@ -430,12 +445,25 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         const krasCsv = convertToCsv(tempKRAs, ['id', 'objectiveId', 'name', 'description', 'startDate', 'endDate']);
         const kpisCsv = convertToCsv(tempKPIs, ['id', 'kraId', 'name', 'description', 'target', 'unit', 'frequency']);
         
+        // Create empty CSV files for tasks, projects, risks, and assets with appropriate headers
+        const tasksCsv = convertToCsv([], ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName']);
+        const projectsCsv = convertToCsv([], ['id', 'name', 'status', 'manager', 'startDate', 'endDate', 'budget', 'progress']);
+        const risksCsv = convertToCsv([], ['id', 'title', 'project', 'impact', 'likelihood', 'status', 'owner', 'lastUpdated']);
+        const assetsCsv = convertToCsv([], ['id', 'name', 'type', 'assignedTo', 'department', 'serialNumber', 'purchaseDate', 'warranty', 'status']);
+        
         // Upload each file to OneDrive
         const objectivesSuccess = await uploadDirectToOneDrive('objectives.csv', objectivesCsv);
         const krasSuccess = await uploadDirectToOneDrive('kras.csv', krasCsv);
         const kpisSuccess = await uploadDirectToOneDrive('kpis.csv', kpisCsv);
         
-        if (objectivesSuccess && krasSuccess && kpisSuccess) {
+        // Upload the additional CSV files
+        const tasksSuccess = await uploadDirectToOneDrive('tasks.csv', tasksCsv);
+        const projectsSuccess = await uploadDirectToOneDrive('projects.csv', projectsCsv);
+        const risksSuccess = await uploadDirectToOneDrive('risks.csv', risksCsv);
+        const assetsSuccess = await uploadDirectToOneDrive('assets.csv', assetsCsv);
+        
+        if (objectivesSuccess && krasSuccess && kpisSuccess && 
+            tasksSuccess && projectsSuccess && risksSuccess && assetsSuccess) {
           console.log('All files successfully uploaded to OneDrive');
           
           // Update CSV config with file info
@@ -446,7 +474,11 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
               fileNames: {
                 objectives: "objectives.csv",
                 kras: "kras.csv",
-                kpis: "kpis.csv"
+                kpis: "kpis.csv",
+                tasks: "tasks.csv",
+                projects: "projects.csv",
+                risks: "risks.csv",
+                assets: "assets.csv"
               },
               fileIds: {
                 // We don't have the file IDs from the response, but that's okay
@@ -455,7 +487,11 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
               data: {
                 objectives: { headers: Object.keys(tempObjectives[0] || {}), rows: tempObjectives },
                 kras: { headers: Object.keys(tempKRAs[0] || {}), rows: tempKRAs },
-                kpis: { headers: Object.keys(tempKPIs[0] || {}), rows: tempKPIs }
+                kpis: { headers: Object.keys(tempKPIs[0] || {}), rows: tempKPIs },
+                tasks: { headers: ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName'], rows: [] },
+                projects: { headers: ['id', 'name', 'status', 'manager', 'startDate', 'endDate', 'budget', 'progress'], rows: [] },
+                risks: { headers: ['id', 'title', 'project', 'impact', 'likelihood', 'status', 'owner', 'lastUpdated'], rows: [] },
+                assets: { headers: ['id', 'name', 'type', 'assignedTo', 'department', 'serialNumber', 'purchaseDate', 'warranty', 'status'], rows: [] }
               }
             };
             setCsvConfig(updatedCsvConfig);
@@ -591,12 +627,20 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
             fileNames: {
               objectives: "objectives.csv",
               kras: "kras.csv",
-              kpis: "kpis.csv"
+              kpis: "kpis.csv",
+              tasks: "tasks.csv",
+              projects: "projects.csv",
+              risks: "risks.csv",
+              assets: "assets.csv"
             },
             fileIds: {
               objectives: `local-${Date.now()}-objectives`,
               kras: `local-${Date.now()}-kras`,
-              kpis: `local-${Date.now()}-kpis`
+              kpis: `local-${Date.now()}-kpis`,
+              tasks: `local-${Date.now()}-tasks`,
+              projects: `local-${Date.now()}-projects`,
+              risks: `local-${Date.now()}-risks`,
+              assets: `local-${Date.now()}-assets`
             },
             data: {}
           };
@@ -616,6 +660,10 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         localStorage.removeItem('unitopia_objectives');
         localStorage.removeItem('unitopia_kras');
         localStorage.removeItem('unitopia_kpis');
+        localStorage.removeItem('unitopia_tasks');
+        localStorage.removeItem('unitopia_projects');
+        localStorage.removeItem('unitopia_risks');
+        localStorage.removeItem('unitopia_assets');
         localStorage.removeItem('unitopia_storage_type');
         
         // Clear CSV-related storage
@@ -648,7 +696,11 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
           fileNames: {
             objectives: "objectives.csv",
             kras: "kras.csv",
-            kpis: "kpis.csv"
+            kpis: "kpis.csv",
+            tasks: "tasks.csv",
+            projects: "projects.csv",
+            risks: "risks.csv",
+            assets: "assets.csv"
           },
           fileIds: {
             // Explicitly set to empty to force creation of new files
