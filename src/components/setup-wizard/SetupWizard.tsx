@@ -65,6 +65,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
+  const [oneDriveFailures, setOneDriveFailures] = useState(0); // Track OneDrive failures
 
   // Use our custom hook to manage wizard state
   const {
@@ -113,6 +114,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
       setTempKRAs([]);
       setTempKPIs([]);
       setSetupError(null);
+      setOneDriveFailures(0); // Reset failure counter
       setIsInitialized(true);
     }
   }, [isOpen, isInitialized, setSetupError, setTempObjectives, setTempKRAs, setTempKPIs, setIsProcessing]);
@@ -123,6 +125,60 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
       setIsInitialized(false);
     }
   }, [isOpen]);
+
+  // Function to handle OneDrive failures and switch to local storage if needed
+  const handleOneDriveFailure = useCallback((error: any) => {
+    const newFailureCount = oneDriveFailures + 1;
+    setOneDriveFailures(newFailureCount);
+    
+    console.error("[SetupWizard] OneDrive operation failed:", error);
+    
+    // After 3 failures, force switch to local storage
+    if (newFailureCount >= 3) {
+      console.log("[SetupWizard] Multiple OneDrive failures detected, switching to local storage");
+      useLocalStorage(true);
+      
+      toast({
+        title: "OneDrive connection issue",
+        description: "Having trouble connecting to OneDrive. Switched to local storage mode.",
+        variant: "destructive",
+        duration: 5000,
+      });
+      
+      // Update OneDrive config to mark it as temporary (local)
+      if (setOneDriveConfig && oneDriveConfig) {
+        setOneDriveConfig({
+          ...oneDriveConfig,
+          isTemporary: true
+        });
+      }
+      
+      // Clear CSV config to prevent further API calls
+      if (setCsvConfig) {
+        const localCsvConfig = {
+          folderId: "local-storage",
+          folderName: "Local Storage",
+          fileNames: {
+            objectives: "objectives.csv",
+            kras: "kras.csv",
+            kpis: "kpis.csv"
+          },
+          fileIds: {
+            objectives: `local-${Date.now()}-objectives`,
+            kras: `local-${Date.now()}-kras`,
+            kpis: `local-${Date.now()}-kpis`
+          },
+          data: {}
+        };
+        setCsvConfig(localCsvConfig);
+        localStorage.setItem('unitopia_storage_type', 'local');
+      }
+      
+      return true; // Switched to local storage
+    }
+    
+    return false; // Still trying OneDrive
+  }, [oneDriveFailures, useLocalStorage, toast, setOneDriveConfig, oneDriveConfig, setCsvConfig]);
 
   const handleNext = useCallback(() => {
     if (currentStep < steps.length - 1) {
@@ -208,6 +264,34 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
       setKPIs(tempKPIs);
     }
     
+    // Check if we've already had OneDrive failures and are using local storage
+    if (oneDriveFailures >= 3 || isUsingLocalStorage) {
+      console.log("[SetupWizard] Using local storage for setup completion due to previous failures");
+      
+      // Store data in localStorage
+      localStorage.setItem('unitopia_objectives', JSON.stringify(tempObjectives));
+      localStorage.setItem('unitopia_kras', JSON.stringify(tempKRAs));
+      localStorage.setItem('unitopia_kpis', JSON.stringify(tempKPIs));
+      localStorage.setItem('unitopia_storage_type', 'local');
+      
+      // Complete setup without OneDrive
+      if (handleSetupCompleteFromHook) {
+        handleSetupCompleteFromHook();
+      }
+      
+      // Close the dialog after successful completion
+      setTimeout(onComplete, 500); // Call parent's onComplete
+      setTimeout(onClose, 500);    // Call parent's onClose
+      
+      toast({
+        title: "Setup completed with local storage",
+        description: "Your unit data is saved locally in your browser.",
+        duration: 3000
+      });
+      
+      return;
+    }
+    
     // Start the setup completion process without prompting
     handleComplete()
       .then((success) => {
@@ -215,11 +299,26 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
           // Close the dialog after successful completion
           setTimeout(onComplete, 500); // Call parent's onComplete
           setTimeout(onClose, 500);    // Call parent's onClose
+        } else {
+          // If not successful but no error was set, it might be OneDrive issue
+          const switched = handleOneDriveFailure(new Error("Unknown error during setup completion"));
+          if (switched) {
+            // Try again with local storage
+            handleSummaryComplete();
+          }
         }
       })
       .catch((error) => {
         console.error("Error during setup completion:", error);
-        setSetupError(`Setup failed: ${error?.message || 'Unknown error'}`);
+        
+        // Try to handle as OneDrive failure
+        const switched = handleOneDriveFailure(error);
+        if (switched) {
+          // If switched to local storage, try again
+          handleSummaryComplete();
+        } else {
+          setSetupError(`Setup failed: ${error?.message || 'Unknown error'}`);
+        }
       });
   }, [
     tempObjectives, 
@@ -231,7 +330,12 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
     handleComplete, 
     onComplete, 
     onClose,
-    setSetupError
+    setSetupError,
+    handleOneDriveFailure,
+    oneDriveFailures,
+    isUsingLocalStorage,
+    handleSetupCompleteFromHook,
+    toast
   ]);
 
   // Update handlePathSelect in step 1 to initialize csvConfig
@@ -251,7 +355,22 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         });
         // Clear any potentially conflicting CSV config
         if (setCsvConfig) {
-          setCsvConfig(null); 
+          const localCsvConfig = {
+            folderId: "local-storage",
+            folderName: "Local Storage",
+            fileNames: {
+              objectives: "objectives.csv",
+              kras: "kras.csv",
+              kpis: "kpis.csv"
+            },
+            fileIds: {
+              objectives: `local-${Date.now()}-objectives`,
+              kras: `local-${Date.now()}-kras`,
+              kpis: `local-${Date.now()}-kpis`
+            },
+            data: {}
+          };
+          setCsvConfig(localCsvConfig);
         }
         toast({ 
           title: "Using Local Storage", 
@@ -293,11 +412,20 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         setOneDriveConfig(currentOneDriveConfig);
 
         // ---> Initialize CsvConfig <--- 
-        const initialCsvConfig: CsvConfig = {
+        const initialCsvConfig = {
           folderId: config.folderId,         // Use the selected folder ID
           folderName: config.path || config.folderName, // Use the selected folder name/path
-          fileNames: {}, // Initialize empty, useCsvSync hook might define defaults later
-          fileIds: {},   // Initialize empty, will be populated on first save/creation
+          fileNames: {
+            objectives: "objectives.csv",
+            kras: "kras.csv",
+            kpis: "kpis.csv"
+          },
+          fileIds: {
+            // Pre-initialize with local IDs as fallback
+            objectives: `local-${Date.now()}-objectives`,
+            kras: `local-${Date.now()}-kras`,
+            kpis: `local-${Date.now()}-kpis`
+          },
           data: {},      // Initialize empty
         };
         console.log('Initializing CsvConfig:', initialCsvConfig);
@@ -503,6 +631,14 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
             <p className="text-sm text-muted-foreground text-center">
               This may take a moment as we configure your data.
             </p>
+            {oneDriveFailures > 0 && (
+              <div className="text-sm text-amber-600 mt-2 max-w-md text-center">
+                Having trouble connecting to OneDrive. 
+                {oneDriveFailures >= 3 
+                  ? " Switched to local storage mode." 
+                  : ` Attempt ${oneDriveFailures}/3...`}
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -511,7 +647,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         )}
       </div>
     );
-  }, [isProcessing, renderStep]);
+  }, [isProcessing, renderStep, oneDriveFailures]);
 
   // Dialog structure with updated UI
   return (
@@ -552,6 +688,14 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
                 <strong className="font-bold">Error: </strong>
                 <span className="block sm:inline">{setupError}</span>
+                {oneDriveFailures > 0 && (
+                  <div className="mt-2 text-sm">
+                    Having issues with OneDrive connection. 
+                    {isUsingLocalStorage 
+                      ? " Using local storage as fallback." 
+                      : " Will fallback to local storage if issues persist."}
+                  </div>
+                )}
               </div>
             )}
 

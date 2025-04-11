@@ -64,9 +64,17 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     }
 
     // Skip if we already have file IDs or have already attempted initialization
-    if (config.fileIds && Object.keys(config.fileIds).length > 0) {
-      console.log('[CSV INIT] Files already initialized, skipping');
+    const existingFileIds = config.fileIds && Object.keys(config.fileIds).length > 0;
+    
+    // For robustness, check if the file IDs we have are valid (not temporary local IDs)
+    const hasValidFileIds = existingFileIds && 
+      !Object.values(config.fileIds).some(id => id.startsWith('local-'));
+    
+    if (hasValidFileIds) {
+      console.log('[CSV INIT] Files already initialized with valid IDs, skipping', config.fileIds);
       return;
+    } else if (existingFileIds) {
+      console.log('[CSV INIT] Existing file IDs found but they are temporary local IDs, will try to create real files');
     }
 
     if (hasAttemptedInit) {
@@ -106,13 +114,21 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       
       console.log('[CSV INIT] Files to create:', Object.entries(config.fileNames).map(([key, name]) => `${key}: ${name}`).join(', '));
       
-      const fileIds: { [key: string]: string } = {};
+      const fileIds: { [key: string]: string } = { ...config.fileIds || {} };
       let successCount = 0;
       let failCount = 0;
+      let useLocalStorage = false;
       
       // Create each CSV file one by one to avoid rate limiting
       for (const [key, fileName] of Object.entries(config.fileNames)) {
         try {
+          // Skip if we already have a valid ID for this file
+          if (fileIds[key] && !fileIds[key].startsWith('local-')) {
+            console.log(`[CSV INIT] Skipping ${fileName}, already has valid ID: ${fileIds[key]}`);
+            successCount++;
+            continue;
+          }
+          
           console.log(`[CSV INIT] Creating CSV file: ${fileName} for ${key}`);
           
           // Prepare content - headers as first line
@@ -166,6 +182,7 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
           let fileCreated = false;
           let attempts = 0;
           let csvFile = null;
+          let lastError = null;
           
           while (!fileCreated && attempts < 3) {
             attempts++;
@@ -180,12 +197,19 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
               
               if (csvFile && csvFile.id) {
                 fileCreated = true;
-                console.log(`[CSV INIT] CSV file created: ${fileName} with ID: ${csvFile.id}`);
+                // Check if this is a local fallback ID
+                if (csvFile.id.startsWith('local-')) {
+                  console.warn(`[CSV INIT] File ${fileName} created with local fallback ID: ${csvFile.id}`);
+                  useLocalStorage = true;
+                } else {
+                  console.log(`[CSV INIT] CSV file created successfully: ${fileName} with ID: ${csvFile.id}`);
+                }
               } else {
                 console.warn(`[CSV INIT] Creation attempt ${attempts} for ${fileName} returned no valid file ID`);
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // wait longer for each attempt
               }
             } catch (attemptError) {
+              lastError = attemptError;
               console.error(`[CSV INIT] Creation attempt ${attempts} for ${fileName} failed:`, attemptError);
               if (attempts < 3) {
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // wait longer for each attempt
@@ -196,12 +220,48 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
           if (fileCreated && csvFile) {
             fileIds[key] = csvFile.id;
             successCount++;
+            
+            // Store content in local storage as backup
+            if (csvFile.id.startsWith('local-')) {
+              localStorage.setItem(`unitopia_csv_${key}`, initialContent);
+              console.log(`[CSV INIT] Stored backup content for ${key} in localStorage`);
+            }
           } else {
             console.error(`[CSV INIT] Failed to create CSV file after ${attempts} attempts: ${fileName}`);
+            
+            // Create a fallback local ID if all attempts failed
+            if (!fileIds[key]) {
+              const localId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+              fileIds[key] = localId;
+              
+              // Create default headers for fallback content
+              const defaultHeaders = getDefaultHeaders(key);
+              const fallbackContent = defaultHeaders.join(',') + '\n';
+              
+              localStorage.setItem(`unitopia_csv_${key}`, fallbackContent);
+              console.log(`[CSV INIT] Created fallback local ID for ${key}: ${localId}`);
+              useLocalStorage = true;
+            }
+            
             failCount++;
           }
         } catch (fileError) {
           console.error(`[CSV INIT] Error creating CSV file ${fileName}:`, fileError);
+          
+          // Create a fallback local ID if all attempts failed
+          if (!fileIds[key]) {
+            const localId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+            fileIds[key] = localId;
+            
+            // Create default headers for fallback content
+            const defaultHeaders = getDefaultHeaders(key);
+            const fallbackContent = defaultHeaders.join(',') + '\n';
+            
+            localStorage.setItem(`unitopia_csv_${key}`, fallbackContent);
+            console.log(`[CSV INIT] Created fallback local ID for ${key}: ${localId}`);
+            useLocalStorage = true;
+          }
+          
           failCount++;
         }
         
@@ -209,12 +269,20 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         await new Promise(resolve => setTimeout(resolve, 800));
       }
       
-      // Update the config with the file IDs if we have at least one successful file
+      // If all attempts failed with OneDrive, mark that we should use local storage
+      if (failCount > 0 && successCount === 0) {
+        useLocalStorage = true;
+        localStorage.setItem('unitopia_storage_type', 'local');
+        console.warn('[CSV INIT] All OneDrive operations failed, switching to local storage mode');
+      }
+      
+      // Update the config with the file IDs if we have at least one
       if (Object.keys(fileIds).length > 0) {
         console.log(`[CSV INIT] Updating config with ${Object.keys(fileIds).length} file IDs:`, fileIds);
         const updatedConfig = {
           ...config,
-          fileIds
+          fileIds,
+          isUsingLocalStorage: useLocalStorage
         };
         
         onConfigChange(updatedConfig);
@@ -222,17 +290,43 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         // Mark that we've attempted initialization in this session
         sessionStorage.setItem(sessionKey, 'true');
         
-        toast.success(`CSV files created successfully (${successCount} of ${Object.keys(config.fileNames).length})`);
+        if (failCount === 0) {
+          toast.success(`CSV files created successfully (${successCount} of ${Object.keys(config.fileNames).length})`);
+        } else if (successCount > 0) {
+          toast.info(`Some CSV files were created (${successCount} of ${Object.keys(config.fileNames).length}). Using local backup for others.`);
+        } else {
+          toast.warning('Using local storage as OneDrive connection failed.');
+        }
       } else {
         console.error('[CSV INIT] Failed to create any CSV files');
         toast.error('Failed to create CSV files in OneDrive');
       }
       
-      console.log(`[CSV INIT] CSV initialization complete. Success: ${successCount}, Failed: ${failCount}`);
+      console.log(`[CSV INIT] CSV initialization complete. Success: ${successCount}, Failed: ${failCount}, Using local storage: ${useLocalStorage}`);
     } catch (err) {
       console.error('[CSV INIT] Error initializing CSV files:', err);
       setError('Failed to initialize CSV files');
       toast.error(`Failed to initialize CSV files: ${err.message || 'Unknown error'}`);
+      
+      // Create fallback local IDs for all files
+      const localFileIds: { [key: string]: string } = {};
+      for (const key of Object.keys(config.fileNames || {})) {
+        const localId = `local-${Date.now()}-${key}`;
+        localFileIds[key] = localId;
+      }
+      
+      // Update config with local IDs
+      if (Object.keys(localFileIds).length > 0) {
+        console.log(`[CSV INIT] Using fallback local IDs due to error:`, localFileIds);
+        const updatedConfig = {
+          ...config,
+          fileIds: localFileIds,
+          isUsingLocalStorage: true
+        };
+        onConfigChange(updatedConfig);
+        localStorage.setItem('unitopia_storage_type', 'local');
+      }
+      
       throw err; // Re-throw to allow caller to handle
     } finally {
       setIsLoading(false);
@@ -652,6 +746,28 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       initializeCsvFiles();
     }
   }, [config, initializeCsvFiles, hasAttemptedInit, isSetupComplete]);
+
+  // Helper function to get default headers for a given entity type
+  const getDefaultHeaders = (entityType: string): string[] => {
+    switch (entityType) {
+      case 'objectives':
+        return ['id', 'name', 'description', 'startDate', 'endDate', 'createdAt', 'updatedAt'];
+      case 'kras':
+        return ['id', 'name', 'department', 'responsible', 'objectiveId', 'objectiveName', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt'];
+      case 'kpis':
+        return ['id', 'name', 'kraId', 'kraName', 'target', 'actual', 'status', 'startDate', 'date', 'createdAt', 'updatedAt'];
+      case 'tasks':
+        return ['id', 'title', 'description', 'status', 'priority', 'assignee', 'dueDate', 'projectId', 'projectName', 'createdAt', 'updatedAt'];
+      case 'projects':
+        return ['id', 'name', 'description', 'status', 'startDate', 'endDate', 'manager', 'progress', 'createdAt', 'updatedAt'];
+      case 'risks':
+        return ['id', 'title', 'description', 'impact', 'likelihood', 'status', 'category', 'projectId', 'projectName', 'owner', 'createdAt', 'updatedAt'];
+      case 'assets':
+        return ['id', 'name', 'type', 'serialNumber', 'assignedTo', 'department', 'purchaseDate', 'warrantyExpiry', 'status', 'notes', 'createdAt', 'updatedAt'];
+      default:
+        return ['id', 'name', 'createdAt', 'updatedAt'];
+    }
+  };
 
   return {
     isLoading,
