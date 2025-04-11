@@ -466,9 +466,17 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       return false;
     }
 
+    // Modify validation to detect local file IDs
     if (!config.fileIds || Object.keys(config.fileIds).length === 0) {
-      console.error('[CSV SAVE] Cannot save data to CSV: No file IDs available', config);
-      return false;
+      // Check if we have at least one fallback local ID
+      const hasLocalFallback = localStorage.getItem('unitopia_storage_type') === 'local';
+      
+      if (hasLocalFallback) {
+        console.log('[CSV SAVE] No file IDs available but local storage mode is enabled, proceeding with local save');
+      } else {
+        console.error('[CSV SAVE] Cannot save data to CSV: No file IDs available', config);
+        return false;
+      }
     }
 
     if (!config.data || Object.keys(config.data).length === 0) {
@@ -485,9 +493,32 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
 
       // Check if we should use local storage instead of OneDrive
       const hasLocalFileIds = Object.values(config.fileIds).some(id => id && id.toString().startsWith('local-'));
-      const isUsingLocalStorage = config.isUsingLocalStorage === true || hasLocalFileIds;
+      const isUsingLocalStorage = config.isUsingLocalStorage === true || hasLocalFileIds || localStorage.getItem('unitopia_storage_type') === 'local';
 
+      // Create local file IDs for any missing entries if we're in local storage mode
       if (isUsingLocalStorage) {
+        const fileIdsUpdated = {...config.fileIds};
+        let idsWereCreated = false;
+        
+        // Check each data key and ensure it has a file ID
+        for (const key of Object.keys(config.data)) {
+          if (!fileIdsUpdated[key]) {
+            const localId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            fileIdsUpdated[key] = localId;
+            console.log(`[CSV SAVE] Created missing local file ID for ${key}: ${localId}`);
+            idsWereCreated = true;
+          }
+        }
+        
+        // Update the config if we created new IDs
+        if (idsWereCreated) {
+          onConfigChange({
+            ...config,
+            fileIds: fileIdsUpdated,
+            isUsingLocalStorage: true
+          });
+        }
+        
         console.log('[CSV SAVE] Detected local storage mode, saving to localStorage instead of OneDrive');
         await saveToLocalStorage();
         return true;
