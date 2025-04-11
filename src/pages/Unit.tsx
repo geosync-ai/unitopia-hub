@@ -540,8 +540,13 @@ const Unit = () => {
         setIsLoading(true);
         setError(null);
 
+        console.log("Fetching data, setup complete:", setupWizard.isSetupComplete);
+        console.log("Storage type:", localStorage.getItem('unitopia_storage_type'));
+        console.log("CSV Config:", setupWizard.csvConfig);
+
         // Check if setup is complete - if not, we'll use mock data
         if (!setupWizard.isSetupComplete) {
+          console.log("Setup not complete, loading mock data");
           // Filter mock data by user for demo purposes
           const userTasks = mockTasks.filter(task => task.assignee === user.email);
           const userProjects = mockProjects.filter(project => project.manager === user.email);
@@ -553,6 +558,8 @@ const Unit = () => {
           localStorage.setItem('unitopia_projects', JSON.stringify(userProjects));
           localStorage.setItem('unitopia_risks', JSON.stringify(userRisks));
           localStorage.setItem('unitopia_assets', JSON.stringify(userAssets));
+        } else {
+          console.log("Setup complete, should be loading from CSV or localStorage");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -567,7 +574,16 @@ const Unit = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, toast, setupWizard.isSetupComplete]);
+  }, [isAuthenticated, user, toast, setupWizard.isSetupComplete, setupWizard.csvConfig]);
+
+  // Add effect to log data after it's loaded
+  useEffect(() => {
+    console.log("Task data:", taskState.data);
+    console.log("Project data:", projectState.data);
+    console.log("Risk data:", riskState.data);
+    console.log("Asset data:", assetState.data);
+    console.log("KRA data:", kraState.kras);
+  }, [taskState.data, projectState.data, riskState.data, assetState.data, kraState.kras]);
 
   // Initialize data from mock data and setup wizard
   useEffect(() => {
@@ -727,6 +743,19 @@ const Unit = () => {
     }
   }, [isAuthenticated, login]);
 
+  // Add effect to check if the setupWizard is initialized correctly
+  useEffect(() => {
+    console.log("Setup Wizard State:", {
+      isSetupComplete: setupWizard.isSetupComplete,
+      csvConfig: setupWizard.csvConfig ? {
+        folderId: setupWizard.csvConfig.folderId,
+        fileNames: setupWizard.csvConfig.fileNames,
+        fileIds: setupWizard.csvConfig.fileIds
+      } : null,
+      oneDriveConfig: setupWizard.oneDriveConfig
+    });
+  }, [setupWizard]);
+
   // If not authenticated, show loading state
   if (!isAuthenticated) {
     return (
@@ -865,7 +894,6 @@ const Unit = () => {
                 assets={assetState.data}
                 addAsset={assetState.add}
                 editAsset={assetState.edit}
-                deleteAsset={assetState.remove}
               />
             </TabsContent>
           </Tabs>
