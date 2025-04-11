@@ -742,6 +742,14 @@ export const useMicrosoftGraph = () => {
       return null;
     }
     
+    // Check authentication status first
+    const authStatus = getAuthStatus();
+    if (!authStatus.hasAccounts || !authStatus.isInitialized) {
+      console.error('createCsvFile: Not authenticated', authStatus);
+      setLastError('Not authenticated with Microsoft Graph');
+      throw new Error('Not authenticated with Microsoft Graph');
+    }
+    
     setIsLoading(true);
     setLastError(null);
     let retryCount = 0;
@@ -751,161 +759,88 @@ export const useMicrosoftGraph = () => {
       try {
         console.log(`createCsvFile: Attempt ${retryCount + 1}/${maxRetries} - Creating file ${fileName}`);
         
-        // Get Microsoft Graph client
-        const client = await getClient();
-        
-        if (!client) {
-          console.error('createCsvFile: Failed to initialize Microsoft Graph client');
-          setLastError('Failed to initialize Microsoft Graph client');
-          throw new Error('Failed to initialize Microsoft Graph client');
+        // First, get a fresh access token to ensure we're authenticated
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error('Failed to get access token');
         }
         
-        // Prepare file content
-        const contentLength = initialContent ? initialContent.length : 0;
-        console.log(`createCsvFile: Creating file with size: ${contentLength} bytes`);
+        // Use the fetch API directly instead of the client, which has more reliability issues
+        const folderIdStr = String(parentFolderId);
         
-        // Check if we should use upload session (for larger files)
-        if (contentLength > 4000000) { // 4MB threshold for using upload session
-          console.log('createCsvFile: File size exceeds 4MB, using upload session');
-          // Implement upload session logic for large files if needed
-          setLastError('Files larger than 4MB are not currently supported');
-          throw new Error('Files larger than 4MB are not currently supported');
+        // First create an empty file
+        console.log(`createCsvFile: Creating empty file ${fileName} in folder ${folderIdStr}`);
+        
+        // Try direct approach with fetch API
+        const createEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderIdStr}/children`;
+        console.log(`createCsvFile: Using endpoint: ${createEndpoint}`);
+        
+        const createResponse = await fetch(createEndpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: fileName,
+            file: {},
+            '@microsoft.graph.conflictBehavior': 'replace'
+          })
+        });
+        
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text();
+          console.error(`createCsvFile: Error creating file: ${createResponse.status} ${createResponse.statusText}`, errorText);
+          throw new Error(`Failed to create file: ${createResponse.status} ${createResponse.statusText}`);
         }
         
-        // Create the file in one operation for small files
-        let response;
-        try {
-          console.log(`createCsvFile: Calling Graph API to create ${fileName} in folder ${parentFolderId}`);
-          
-          // First try with the newer /drive/items/{id}/children endpoint
-          response = await client
-            .api(`/drive/items/${parentFolderId}/children`)
-            .post({
-              name: fileName,
-              file: {},
-              '@microsoft.graph.conflictBehavior': 'replace'
-            });
-            
-          console.log('createCsvFile: File created with newer API endpoint, response:', response);
-          
-          // Validate the response has an ID
-          if (!response || !response.id) {
-            console.warn('createCsvFile: Response missing ID, will retry with alternative method');
-            throw new Error('API response missing file ID');
-          }
-        } catch (createError) {
-          console.warn(`createCsvFile: Error with primary method: ${createError.message}, trying fallback method`);
-          
-          // Try alternative method - using drive/root: endpoint if the first method fails
-          try {
-            // Convert parentFolderId to string if it's not already
-            const folderIdStr = String(parentFolderId);
-            
-            // Handle potential OneDrive folder ID formats
-            let apiPath;
-            if (folderIdStr.includes('!')) {
-              // Handle special OneDrive folder ID format (contains '!')
-              apiPath = `/drive/items/${folderIdStr}/children`;
-            } else {
-              // Standard folder ID format
-              apiPath = `/drive/items/${folderIdStr}/children`;
-            }
-            
-            console.log(`createCsvFile: Trying alternative endpoint: ${apiPath}`);
-            response = await client
-              .api(apiPath)
-              .post({
-                name: fileName,
-                file: {},
-                '@microsoft.graph.conflictBehavior': 'replace'
-              });
-            
-            console.log('createCsvFile: File created with alternative API endpoint, response:', response);
-            
-            // Validate the response has an ID
-            if (!response || !response.id) {
-              console.warn('createCsvFile: Alternative method response missing ID, trying second fallback');
-              throw new Error('Alternative API response missing file ID');
-            }
-          } catch (alternativeError) {
-            console.warn(`createCsvFile: Alternative method also failed: ${alternativeError.message}`);
-            
-            // Final fallback - try with site endpoint if both methods fail
-            try {
-              console.log('createCsvFile: Trying site-based endpoint as final fallback');
-              response = await client
-                .api(`/me/drive/root:/${encodeURIComponent(fileName)}:/content`)
-                .put(initialContent);
-              
-              console.log('createCsvFile: File created with final fallback API endpoint, response:', response);
-              
-              if (!response || !response.id) {
-                throw new Error('Final fallback API response missing file ID');
-              }
-            } catch (finalFallbackError) {
-              console.error('createCsvFile: All API methods failed:', finalFallbackError);
-              throw finalFallbackError; // Let outer catch handle this
-            }
-          }
+        // Parse the response to get the file ID
+        const fileData = await createResponse.json();
+        console.log('createCsvFile: File creation response:', fileData);
+        
+        if (!fileData || !fileData.id) {
+          console.error('createCsvFile: No file ID in response');
+          throw new Error('No file ID in response');
         }
         
         // Now update the file content
-        if (response && response.id && initialContent) {
-          console.log(`createCsvFile: Updating content for file ${response.id}`);
-          try {
-            // Update the file content
-            let uploadResponse = await client
-              .api(`/drive/items/${response.id}/content`)
-              .put(initialContent);
+        if (initialContent && initialContent.length > 0) {
+          console.log(`createCsvFile: Updating content for file ${fileData.id}`);
+          
+          const contentEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileData.id}/content`;
+          console.log(`createCsvFile: Using content endpoint: ${contentEndpoint}`);
+          
+          const contentResponse = await fetch(contentEndpoint, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'text/csv'
+            },
+            body: initialContent
+          });
+          
+          if (!contentResponse.ok) {
+            const errorText = await contentResponse.text();
+            console.error(`createCsvFile: Error updating content: ${contentResponse.status} ${contentResponse.statusText}`, errorText);
             
-            console.log('createCsvFile: File content updated successfully:', uploadResponse);
-            
-            // If uploadResponse doesn't have an ID but we got here, use the original response ID
-            if (!uploadResponse || !uploadResponse.id) {
-              uploadResponse = response;
-            }
-            
-            // Return success
-            const result: CsvFile = {
-              id: uploadResponse.id,
-              name: fileName,
-              url: uploadResponse.webUrl || '',
-              content: initialContent
-            };
-            
-            console.log(`createCsvFile: Successfully created file ${fileName} with ID ${result.id}`);
-            return result;
-          } catch (updateError) {
-            console.error(`createCsvFile: Error updating file content:`, updateError);
-            
-            // Even if content update fails, return the file info since it was created
-            const result: CsvFile = {
-              id: response.id,
-              name: fileName,
-              url: response.webUrl || '',
-              content: ''
-            };
-            
-            console.log(`createCsvFile: File created but content update failed. Returning file info:`, result);
-            return result;
+            // Even if content update fails, we still have the file
+            console.log('createCsvFile: Content update failed, but file was created');
+          } else {
+            console.log('createCsvFile: Content updated successfully');
           }
         }
         
-        // If we get here with a valid response, return it
-        if (response && response.id) {
-          const result: CsvFile = {
-            id: response.id,
-            name: fileName,
-            url: response.webUrl || '',
-            content: initialContent
-          };
-          
-          console.log(`createCsvFile: Successfully created file ${fileName} with ID ${result.id}`);
-          return result;
-        }
+        // Return success with file info
+        const result: CsvFile = {
+          id: fileData.id,
+          name: fileName,
+          url: fileData.webUrl || '',
+          content: initialContent
+        };
         
-        // Should not reach here if response has ID, but just in case
-        throw new Error('Unexpected error: File created but no valid ID returned');
+        console.log(`createCsvFile: Successfully created file ${fileName} with ID ${result.id}`);
+        setIsLoading(false);
+        return result;
         
       } catch (err) {
         retryCount++;
@@ -925,6 +860,7 @@ export const useMicrosoftGraph = () => {
           
           console.log(`createCsvFile: Returning mock file with local ID for fallback:`, mockFile);
           localStorage.setItem(`mock_file_${mockFile.id}`, initialContent);
+          setIsLoading(false);
           return mockFile;
         }
         

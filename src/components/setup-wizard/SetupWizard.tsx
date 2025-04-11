@@ -454,7 +454,66 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         );
       case 1:
         if (selectedSetupType === 'onedrive') {
-          return <SimplifiedOneDriveSetup onComplete={handlePathSelect} />;
+          return (
+            <>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">OneDrive Connection</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    // This forces a re-authentication with Microsoft Graph
+                    try {
+                      // Use window.msalInstance if available (it should be available when using the MSAL library)
+                      if (window.msalInstance) {
+                        console.log('[SetupWizard] Forcing re-authentication with Microsoft Graph');
+                        window.msalInstance.logout();
+                        setTimeout(() => {
+                          if (window.msalInstance) {
+                            window.msalInstance.loginPopup().then(() => {
+                              console.log('[SetupWizard] Re-authentication successful');
+                              toast({
+                                title: "Authentication refreshed",
+                                description: "Microsoft Graph connection refreshed successfully.",
+                                duration: 3000
+                              });
+                            }).catch(error => {
+                              console.error('[SetupWizard] Re-authentication failed:', error);
+                              toast({
+                                title: "Authentication failed",
+                                description: "Failed to refresh Microsoft Graph connection.",
+                                variant: "destructive",
+                                duration: 3000
+                              });
+                            });
+                          }
+                        }, 500);
+                      } else {
+                        console.error('[SetupWizard] msalInstance not available for re-authentication');
+                        toast({
+                          title: "Authentication failed",
+                          description: "Microsoft authentication service not available.",
+                          variant: "destructive",
+                          duration: 3000
+                        });
+                      }
+                    } catch (error) {
+                      console.error('[SetupWizard] Error during re-authentication:', error);
+                      toast({
+                        title: "Authentication error",
+                        description: `Error refreshing authentication: ${error.message}`,
+                        variant: "destructive",
+                        duration: 3000
+                      });
+                    }
+                  }}
+                >
+                  Refresh Authentication
+                </Button>
+              </div>
+              <SimplifiedOneDriveSetup onComplete={handlePathSelect} />
+            </>
+          );
         } else if (selectedSetupType === 'csv') {
           return (
             <div className="space-y-6">
