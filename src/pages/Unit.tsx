@@ -69,6 +69,7 @@ import { useSetupWizard } from '@/hooks/useSetupWizard';
 import { mockTasks, mockProjects, mockRisks, mockAssets } from '@/mockData/mockData';
 import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
 import { useAuth } from "@/hooks/useAuth";
+import { OneDriveConfig, CsvConfig } from '@/components/setup-wizard/types';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -861,6 +862,7 @@ const Unit = () => {
           setKPIs={setupWizard.setKPIs}
           handleSetupCompleteFromHook={setupWizard.handleSetupComplete}
           updateCsvConfig={setupWizard.updateCsvConfig}
+          setCsvConfig={setupWizard.setCsvConfig}
           csvConfig={setupWizard.csvConfig}
           oneDriveConfig={setupWizard.oneDriveConfig}
           setupMethodProp={setupWizard.setupMethod}
