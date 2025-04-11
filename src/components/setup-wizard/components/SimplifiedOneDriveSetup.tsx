@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { OneDriveConfig } from '../types';
-import { Loader2, Folder, FolderPlus, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
+import { Loader2, Folder, FolderPlus, RefreshCw, AlertTriangle, Trash2, ArrowUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import microsoftAuthConfig from '@/config/microsoft-auth'; // Import config
@@ -15,7 +15,7 @@ interface OneDriveItem {
   name: string;
   webUrl: string;
   folder?: {}; // Indicates it's a folder
-  parentReference?: { path: string };
+  parentReference?: { path: string; id?: string }; // Ensure parentReference might have id
 }
 
 interface OneDriveFolder {
@@ -23,6 +23,12 @@ interface OneDriveFolder {
   name: string;
   isFolder: true;
   path?: string;
+  parentId?: string; // Add parentId for navigation
+}
+
+interface FolderPathItem {
+    id: string;
+    name: string;
 }
 
 // Props definition remains the same
@@ -64,6 +70,9 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [isDeletingFolderId, setIsDeletingFolderId] = useState<string | null>(null);
   const [isAuthInProgress, setIsAuthInProgress] = useState(false); // Prevent overlapping popups
+  // State for navigation
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null); // null for root
+  const [folderPath, setFolderPath] = useState<FolderPathItem[]>([]); // Breadcrumbs
 
   // --- MSAL Initialization Effect ---
   useEffect(() => {
@@ -77,7 +86,8 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
         console.log("[SimplifiedOneDriveSetup] User already logged in.");
         setAccount(currentAccounts[0]);
         setIsAuthenticated(true);
-        fetchRootFolders(instance, currentAccounts[0]); // Fetch folders immediately
+        // Fetch root folders on initial load if authenticated
+        fetchFolders(null, instance, currentAccounts[0]);
       } else {
         console.log("[SimplifiedOneDriveSetup] No existing login found.");
         setIsLoading(false); // Stop loading if not logged in
@@ -136,32 +146,39 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
 
   // --- Core Logic Callbacks ---
 
-  // Fetch root folders
-  const fetchRootFolders = useCallback(async (instance: PublicClientApplication | null = msalInstance, currentAccount: AccountInfo | null = account) => {
+  // Fetch folders (renamed and modified)
+  const fetchFolders = useCallback(async (folderId: string | null = currentFolderId, instance: PublicClientApplication | null = msalInstance, currentAccount: AccountInfo | null = account) => {
     if (!instance || !currentAccount) {
       setError("Not authenticated or MSAL not ready.");
       setIsLoading(false);
       return;
     }
-    console.log("[SimplifiedOneDriveSetup] Fetching root folders...");
+    const targetFolderDisplay = folderId ? `folder ID ${folderId}` : "root folder";
+    console.log(`[SimplifiedOneDriveSetup] Fetching folders for ${targetFolderDisplay}...`);
     setIsLoading(true);
     setError(null);
+    // Clear selection when navigating
+    setSelectedFolder(null);
 
     const accessToken = await getAccessToken(instance, currentAccount);
     if (!accessToken) {
       setIsLoading(false);
-      return; // Error handled within getAccessToken
+      return;
     }
 
+    // Determine the correct Graph API endpoint
+    let endpoint = 'https://graph.microsoft.com/v1.0/me/drive/';
+    if (folderId) {
+      endpoint += `items/${folderId}/children?$filter=folder ne null`;
+    } else {
+      endpoint += 'root/children?$filter=folder ne null';
+    }
+    console.log(`[SimplifiedOneDriveSetup] Using Graph Endpoint: ${endpoint}`);
+
     try {
-      const response = await fetch(
-        'https://graph.microsoft.com/v1.0/me/drive/root/children?$filter=folder ne null',
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
-      );
+      const response = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
 
       if (!response.ok) {
         throw new Error(`Graph API error fetching folders: ${response.statusText}`);
@@ -175,18 +192,23 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
           name: item.name,
           isFolder: true,
           path: item.parentReference?.path,
+          parentId: item.parentReference?.id // Store parent ID if available
         }));
 
-      console.log(`[SimplifiedOneDriveSetup] Found ${oneDriveFolders.length} root folders.`);
+      console.log(`[SimplifiedOneDriveSetup] Found ${oneDriveFolders.length} folders in ${targetFolderDisplay}.`);
       setFolders(oneDriveFolders);
+      // Update currentFolderId state AFTER successful fetch
+      setCurrentFolderId(folderId);
+
     } catch (err) {
       console.error("[SimplifiedOneDriveSetup] Error fetching folders:", err);
       setError(`Failed to fetch folders: ${err.message}`);
       setFolders([]);
+      // Don't reset currentFolderId on error, allow user to retry or navigate up
     } finally {
       setIsLoading(false);
     }
-  }, [msalInstance, account, getAccessToken]);
+  }, [msalInstance, account, currentFolderId, getAccessToken]);
 
   // Handle authentication button click
   const handleAuthenticate = useCallback(async () => {
@@ -203,7 +225,9 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
         console.log("[SimplifiedOneDriveSetup] Login successful.");
         setAccount(loginResponse.account);
         setIsAuthenticated(true);
-        await fetchRootFolders(msalInstance, loginResponse.account); // Pass instance/account directly
+        setFolderPath([]); // Reset path on new login
+        setCurrentFolderId(null); // Ensure we start at root
+        await fetchFolders(null, msalInstance, loginResponse.account); // Fetch root folders
       } else {
         // User might have closed popup
         console.log("[SimplifiedOneDriveSetup] Login popup closed or no account returned.");
@@ -218,16 +242,20 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
       }
     } finally {
       setIsAuthInProgress(false);
-      // Don't set isLoading false here if fetchRootFolders was called
+      // Don't set isLoading false here if fetchFolders was called
       if (!account) setIsLoading(false); 
     }
-  }, [msalInstance, isAuthInProgress, fetchRootFolders, toast]);
+  }, [msalInstance, isAuthInProgress, fetchFolders, toast]);
 
   // Handle create folder button click
   const handleCreateFolder = useCallback(async () => {
+    // Use currentFolderId for parent context
+    const parentFolderId = currentFolderId;
+    const parentFolderName = folderPath.length > 0 ? folderPath[folderPath.length - 1].name : "Root";
+
     if (!msalInstance || !account || !newFolderName.trim()) return;
 
-    console.log(`[SimplifiedOneDriveSetup] Creating root folder: ${newFolderName}`);
+    console.log(`[SimplifiedOneDriveSetup] Creating folder "${newFolderName}" in ${parentFolderName} (ID: ${parentFolderId || 'root'})`);
     setIsCreatingFolder(true);
     setError(null);
 
@@ -237,22 +265,27 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
       return;
     }
 
+    // Determine endpoint based on currentFolderId
+    let endpoint = 'https://graph.microsoft.com/v1.0/me/drive/';
+    if (parentFolderId) {
+        endpoint += `items/${parentFolderId}/children`;
+    } else {
+        endpoint += 'root/children';
+    }
+
     try {
-      const response = await fetch(
-        'https://graph.microsoft.com/v1.0/me/drive/root/children',
-        {
-          method: 'POST',
-          headers: {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+        },
+        body: JSON.stringify({
             name: newFolderName.trim(),
             folder: {},
             '@microsoft.graph.conflictBehavior': 'rename'
-          })
-        }
-      );
+        })
+      });
 
       if (!response.ok) {
         throw new Error(`Graph API error creating folder: ${response.statusText}`);
@@ -263,14 +296,16 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
           id: newFolderData.id,
           name: newFolderData.name,
           isFolder: true,
-          path: newFolderData.parentReference?.path
+          path: newFolderData.parentReference?.path,
+          parentId: newFolderData.parentReference?.id
       };
 
       console.log("[SimplifiedOneDriveSetup] Folder created:", createdFolder);
-      toast({ title: `Folder "${createdFolder.name}" created` });
+      toast({ title: `Folder "${createdFolder.name}" created in ${parentFolderName}` });
       setNewFolderName('');
-      await fetchRootFolders(); // Refresh list
-      setSelectedFolder(createdFolder); // Auto-select
+      await fetchFolders(parentFolderId); // Refresh current folder view
+      // Don't auto-select when creating in a subfolder, maybe?
+      // setSelectedFolder(createdFolder); // Optional: Auto-select
 
     } catch (err) {
       console.error("[SimplifiedOneDriveSetup] Error creating folder:", err);
@@ -279,7 +314,7 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
     } finally {
       setIsCreatingFolder(false);
     }
-  }, [msalInstance, account, newFolderName, getAccessToken, fetchRootFolders, toast]);
+  }, [msalInstance, account, newFolderName, currentFolderId, folderPath, getAccessToken, fetchFolders, toast]);
 
   // Handle delete folder button click
   const handleDeleteFolder = useCallback(async (folderId: string, folderName: string) => {
@@ -318,7 +353,7 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
       if (selectedFolder?.id === folderId) {
         setSelectedFolder(null);
       }
-      await fetchRootFolders(); // Refresh list
+      await fetchFolders(currentFolderId); // Refresh CURRENT folder view
 
     } catch (err) {
       console.error("[SimplifiedOneDriveSetup] Error deleting folder:", err);
@@ -327,22 +362,81 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
     } finally {
       setIsDeletingFolderId(null);
     }
-  }, [msalInstance, account, selectedFolder, getAccessToken, fetchRootFolders, toast]);
+  }, [msalInstance, account, selectedFolder, currentFolderId, getAccessToken, fetchFolders, toast]);
+
+  // --- Navigation Callbacks ---
+
+  // Navigate into a folder (on double-click)
+  const navigateToFolder = useCallback((folder: OneDriveFolder) => {
+      if (!folder || !folder.id) return;
+      console.log(`[SimplifiedOneDriveSetup] Navigating into: ${folder.name} (ID: ${folder.id})`);
+      // Update breadcrumb path
+      setFolderPath(prevPath => [...prevPath, { id: folder.id, name: folder.name }]);
+      // Fetch contents of the new folder
+      fetchFolders(folder.id);
+  }, [fetchFolders]);
+
+  // Navigate up one level or to a specific breadcrumb item
+  const navigateToPathIndex = useCallback((index: number) => {
+    if (index < -1) return; // -1 signifies root
+
+    let targetFolderId: string | null = null;
+    let newPath: FolderPathItem[] = [];
+
+    if (index === -1) { // Navigate to Root
+        console.log("[SimplifiedOneDriveSetup] Navigating to Root");
+        targetFolderId = null;
+        newPath = [];
+    } else if (index < folderPath.length) { // Navigate to specific parent
+        console.log(`[SimplifiedOneDriveSetup] Navigating to path index ${index}: ${folderPath[index].name}`);
+        targetFolderId = folderPath[index].id;
+        newPath = folderPath.slice(0, index + 1);
+    } else {
+        console.warn("[SimplifiedOneDriveSetup] Invalid path index for navigation:", index);
+        return;
+    }
+
+    setFolderPath(newPath);
+    fetchFolders(targetFolderId);
+
+  }, [folderPath, fetchFolders]);
 
   // Handle confirm selection button click
   const handleCompleteSelection = useCallback(() => {
+    // Selection confirms the SINGLE-CLICKED folder, regardless of current view
     if (!selectedFolder) {
       toast({ title: "Please select a folder first", variant: "destructive" });
       return;
     }
     console.log("[SimplifiedOneDriveSetup] Confirming selection:", selectedFolder);
+
+    // Construct the full path for the selected folder based on current breadcrumbs
+    // This assumes the selected folder is within the currently viewed folder or is the current folder itself
+    // A more robust approach might store the full path with the folder item itself when fetched
+    let constructedPath = '/';
+    if (folderPath.length > 0) {
+        constructedPath += folderPath.map(p => p.name).join('/') + '/';
+    }
+    // Check if the selected folder is the *current* folder being viewed
+    const currentViewedFolder = folderPath.length > 0 ? folderPath[folderPath.length -1] : null;
+    let finalFolderName = selectedFolder.name;
+    // If selected folder IS the currently viewed folder, its name is already last in path
+    if (currentViewedFolder && currentViewedFolder.id === selectedFolder.id) {
+        finalFolderName = ''; // Avoid duplicating name in path
+        constructedPath = '/' + folderPath.map(p => p.name).join('/');
+    } else {
+        constructedPath += selectedFolder.name;
+    }
+
+    console.log("[SimplifiedOneDriveSetup] Constructed Path for selected folder:", constructedPath);
+
     onComplete({
       folderId: selectedFolder.id,
       folderName: selectedFolder.name,
-      path: selectedFolder.path ? `${selectedFolder.path}/${selectedFolder.name}` : `/${selectedFolder.name}`, // Construct path
+      path: constructedPath, // Use the constructed path
       isTemporary: false,
     });
-  }, [selectedFolder, onComplete, toast]);
+  }, [selectedFolder, folderPath, onComplete, toast]);
 
   // Handle use local storage button click
   const continueWithLocalStorage = useCallback(() => {
@@ -397,7 +491,7 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
                <AlertDescription>
                  {error}
                  <div className="mt-2">
-                    <Button variant="outline" size="sm" onClick={() => fetchRootFolders()} disabled={effectiveIsLoading}>
+                    <Button variant="outline" size="sm" onClick={() => fetchFolders()} disabled={effectiveIsLoading}>
                        Retry
                     </Button>
                  </div>
@@ -408,41 +502,73 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
           {/* Folder Selection and Creation (if authenticated) */} 
           {isAuthenticated && !effectiveIsLoading && !error && (
             <div className="space-y-4">
-              {/* Refresh Button */}
-               <div className="flex justify-end">
+              {/* Navigation: Up Button and Breadcrumbs */} 
+              <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                      {currentFolderId && (
+                          <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigateToPathIndex(folderPath.length - 2)} // Go to parent (index before last)
+                              disabled={effectiveIsLoading}
+                              title="Go up one level"
+                          >
+                              <ArrowUp className="h-4 w-4 mr-1" /> Up
+                          </Button>
+                      )}
+                      <Button variant="link" size="sm" className={`p-1 h-auto ${currentFolderId === null ? 'font-bold text-primary' : ''}`} onClick={() => navigateToPathIndex(-1)} disabled={effectiveIsLoading}>Root</Button>
+                      {folderPath.map((folder, index) => (
+                          <React.Fragment key={folder.id}>
+                              <span className="mx-1">/</span>
+                              <Button
+                                  variant="link"
+                                  size="sm"
+                                  className={`p-1 h-auto ${index === folderPath.length - 1 ? 'font-bold text-primary' : ''}`}
+                                  onClick={() => navigateToPathIndex(index)}
+                                  disabled={effectiveIsLoading || index === folderPath.length - 1} // Disable click on current folder
+                                  title={folder.name}
+                              >
+                                  <span className="truncate max-w-[100px]">{folder.name}</span>
+                              </Button>
+                          </React.Fragment>
+                      ))}
+                  </div>
+                  {/* Refresh Button */} 
                   <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => fetchRootFolders()}
+                      onClick={() => fetchFolders()} // Refresh current folder
                       disabled={effectiveIsLoading}
-                      title="Refresh folder list"
+                      title="Refresh current folder"
                   >
                       <RefreshCw className="mr-2 h-4 w-4" />
                       Refresh
                   </Button>
-               </div>
+              </div>
 
               {/* Folder List */} 
               <div className="border rounded-md max-h-60 overflow-y-auto">
                 {folders.length === 0 && (
-                  <p className="p-4 text-sm text-muted-foreground text-center italic">No root folders found. You can create one below.</p>
+                  <p className="p-4 text-sm text-muted-foreground text-center italic">No folders found in this location.</p>
                 )}
                 {folders.map((folder) => (
                   <div
                     key={folder.id}
                     className={`flex items-center justify-between p-3 cursor-pointer hover:bg-gray-100 ${selectedFolder?.id === folder.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
-                    onClick={() => setSelectedFolder(folder)}
+                    onClick={() => setSelectedFolder(folder)} // Single click selects
+                    onDoubleClick={() => navigateToFolder(folder)} // Double click navigates
+                    title={`Double-click to open ${folder.name}`}
                   >
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-grow min-w-0">
                       <Folder className="h-5 w-5 text-yellow-500 flex-shrink-0" />
                       <span className="font-medium truncate" title={folder.name}>{folder.name}</span>
                     </div>
                     <Button
                        variant="ghost"
                        size="icon"
-                       className="text-gray-500 hover:text-red-500"
+                       className="text-gray-500 hover:text-red-500 flex-shrink-0 ml-2"
                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent selection when clicking delete
+                          e.stopPropagation();
                           handleDeleteFolder(folder.id, folder.name);
                        }}
                        disabled={isDeletingFolderId === folder.id}
@@ -456,7 +582,9 @@ const SimplifiedOneDriveSetup: React.FC<SimplifiedOneDriveSetupProps> = ({ onCom
 
               {/* Create New Folder */} 
               <div>
-                <label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 mb-1">Create New Folder in Root</label>
+                <label htmlFor="new-folder-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Create New Folder in "{folderPath.length > 0 ? folderPath[folderPath.length - 1].name : 'Root'}"
+                </label>
                 <div className="flex gap-2">
                   <Input
                     id="new-folder-name"
