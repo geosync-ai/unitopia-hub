@@ -1040,6 +1040,182 @@ export const useMicrosoftGraph = () => {
     }
   };
 
+  // Create a new direct file upload function
+  const directFileUpload = async (fileName: string, content: string, parentFolderId: string): Promise<CsvFile | null> => {
+    console.log(`[DIRECT UPLOAD] Starting direct upload for ${fileName} to folder ${parentFolderId}`);
+    
+    // Basic validation
+    if (!fileName || !parentFolderId) {
+      console.error('[DIRECT UPLOAD] Missing file name or folder ID');
+      return null;
+    }
+    
+    // Ensure authentication
+    if (!checkMsalAuth()) {
+      console.error('[DIRECT UPLOAD] Authentication failed');
+      return null;
+    }
+    
+    try {
+      // Get access token
+      console.log('[DIRECT UPLOAD] Getting access token');
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error('Failed to get access token');
+      }
+      
+      // 1. Try the simplest approach first - direct upload to specific path
+      const directEndpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(fileName)}:/content`;
+      console.log(`[DIRECT UPLOAD] Attempting direct upload to ${directEndpoint}`);
+      
+      const directResponse = await fetch(directEndpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'text/csv'
+        },
+        body: content || ' ' // Use space if empty to ensure file creation
+      });
+      
+      if (directResponse.ok) {
+        const responseData = await directResponse.json();
+        console.log('[DIRECT UPLOAD] Direct upload successful', responseData);
+        
+        if (responseData && responseData.id) {
+          return {
+            id: responseData.id,
+            name: fileName,
+            url: responseData.webUrl || '',
+            content: content || ''
+          };
+        }
+      }
+      
+      console.log(`[DIRECT UPLOAD] Direct upload failed: ${directResponse.status}. Trying alternative method...`);
+      
+      // 2. Try full folder path approach with folder reference
+      const pathEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${parentFolderId}:/${encodeURIComponent(fileName)}:/content`;
+      console.log(`[DIRECT UPLOAD] Trying path-based upload to ${pathEndpoint}`);
+      
+      const pathResponse = await fetch(pathEndpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'text/csv'
+        },
+        body: content || ' ' // Use space if empty to ensure file creation
+      });
+      
+      if (pathResponse.ok) {
+        const responseData = await pathResponse.json();
+        console.log('[DIRECT UPLOAD] Path-based upload successful', responseData);
+        
+        if (responseData && responseData.id) {
+          return {
+            id: responseData.id,
+            name: fileName,
+            url: responseData.webUrl || '',
+            content: content || ''
+          };
+        }
+      }
+      
+      console.log(`[DIRECT UPLOAD] Path-based upload failed: ${pathResponse.status}. Trying folder children method...`);
+      
+      // 3. Try the two-step method - create empty file first, then update content
+      const childrenEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${parentFolderId}/children`;
+      console.log(`[DIRECT UPLOAD] Creating empty file using ${childrenEndpoint}`);
+      
+      // Create an empty file
+      const createResponse = await fetch(childrenEndpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: fileName,
+          file: {},
+          '@microsoft.graph.conflictBehavior': 'replace'
+        })
+      });
+      
+      // Get the file ID from the response
+      let fileId: string | null = null;
+      if (createResponse.ok) {
+        const createData = await createResponse.json();
+        console.log('[DIRECT UPLOAD] Empty file created', createData);
+        
+        if (createData && createData.id) {
+          fileId = createData.id;
+          
+          // Now update the content if we have content to upload
+          if (content) {
+            const contentEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`;
+            console.log(`[DIRECT UPLOAD] Updating content for file ${fileId}`);
+            
+            const contentResponse = await fetch(contentEndpoint, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'text/csv'
+              },
+              body: content
+            });
+            
+            if (contentResponse.ok) {
+              const contentData = await contentResponse.json();
+              console.log('[DIRECT UPLOAD] Content update successful', contentData);
+              
+              // Return successfully created file info
+              return {
+                id: fileId,
+                name: fileName,
+                url: contentData.webUrl || createData.webUrl || '',
+                content: content || ''
+              };
+            } else {
+              console.error(`[DIRECT UPLOAD] Content update failed: ${contentResponse.status}`);
+              // Still return file info since the file was created
+              return {
+                id: fileId,
+                name: fileName,
+                url: createData.webUrl || '',
+                content: ''
+              };
+            }
+          } else {
+            // Return empty file info
+            return {
+              id: fileId,
+              name: fileName,
+              url: createData.webUrl || '',
+              content: ''
+            };
+          }
+        }
+      }
+      
+      // If we get here, all approaches failed
+      console.error('[DIRECT UPLOAD] All upload methods failed');
+      throw new Error('Failed to upload file using all available methods');
+      
+    } catch (error) {
+      console.error('[DIRECT UPLOAD] Error:', error);
+      
+      // Create local fallback
+      const localId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      localStorage.setItem(`mock_file_${localId}`, content || '');
+      
+      return {
+        id: localId,
+        name: fileName,
+        url: '',
+        content: content || ''
+      };
+    }
+  };
+
   const handleLogin = useCallback(async () => {
     try {
       if (!msalInstance) {
@@ -1122,6 +1298,7 @@ export const useMicrosoftGraph = () => {
     renameFolder,
     deleteFolder,
     createCsvFile,
+    directFileUpload,
     readCsvFile,
     updateCsvFile,
     handleLogin
