@@ -421,12 +421,11 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
             kpis: "kpis.csv"
           },
           fileIds: {
-            // Pre-initialize with local IDs as fallback
-            objectives: `local-${Date.now()}-objectives`,
-            kras: `local-${Date.now()}-kras`,
-            kpis: `local-${Date.now()}-kpis`
+            // Explicitly set to empty to force creation of new files
+            // This ensures we always create new files in the selected folder
           },
           data: {},      // Initialize empty
+          forceCreation: true // Add flag to force file creation
         };
         console.log('Initializing CsvConfig:', initialCsvConfig);
         setCsvConfig(initialCsvConfig); // Update the CsvConfig state
