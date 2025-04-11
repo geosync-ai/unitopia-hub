@@ -25,7 +25,7 @@ import LocalStorageFallbackNotice from './components/LocalStorageFallbackNotice'
 import SimplifiedOneDriveSetup from './components/SimplifiedOneDriveSetup';
 
 // Import utilities and types
-import { SetupWizardProps, WizardStep } from './types';
+import { SetupWizardProps, WizardStep, CsvConfig } from './types';
 import { addGlobalFolderHighlightStyle } from './utils';
 import { useSetupWizard } from './hooks/useSetupWizard';
 
@@ -35,7 +35,12 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 // Add global style for folder highlighting
 addGlobalFolderHighlightStyle();
 
-export const SetupWizard: React.FC<SetupWizardProps> = ({
+// Add setCsvConfig to props interface
+export interface ExtendedSetupWizardProps extends SetupWizardProps {
+  setCsvConfig: (config: CsvConfig | null) => void; 
+}
+
+export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
   isOpen,
   onClose,
   onComplete,
@@ -54,6 +59,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   krasProp,
   kpisProp,
   isSetupComplete,
+  setCsvConfig, // Added setCsvConfig
 }) => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
@@ -228,7 +234,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
     setSetupError
   ]);
 
-  // Update handlePathSelect in step 1 to handle temp folders
+  // Update handlePathSelect in step 1 to initialize csvConfig
   const handlePathSelect = useCallback((config: any) => {
     console.log('OneDrive path selected:', config);
     
@@ -243,6 +249,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           folderName: config.path || config.folderName,
           isTemporary: true 
         });
+        // Clear any potentially conflicting CSV config
+        if (setCsvConfig) {
+          setCsvConfig(null); 
+        }
         toast({ 
           title: "Using Local Storage", 
           description: "Your data will be stored locally for this session.",
@@ -252,7 +262,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
       setCurrentStep(2); // Move to Objectives step
     } else {
       // Normal OneDrive folder setup
-      if (setOneDriveConfig) {
+      if (setOneDriveConfig && setCsvConfig) { // Check for setCsvConfig
         // Clear any existing local storage data
         localStorage.removeItem('unitopia_objectives');
         localStorage.removeItem('unitopia_kras');
@@ -273,16 +283,30 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           }
         }
         
-        console.log('Cleared all local storage data to prevent old data contamination');
+        console.log('Cleared all local/session storage data to prevent old data contamination');
         
-        // Ensure we're using the correct property names from the config
-        setOneDriveConfig({ 
+        // Update OneDriveConfig
+        const currentOneDriveConfig = { 
           folderId: config.folderId, 
           folderName: config.path || config.folderName 
-        });
+        };
+        setOneDriveConfig(currentOneDriveConfig);
+
+        // ---> Initialize CsvConfig <--- 
+        const initialCsvConfig: CsvConfig = {
+          folderId: config.folderId,         // Use the selected folder ID
+          folderName: config.path || config.folderName, // Use the selected folder name/path
+          fileNames: {}, // Initialize empty, useCsvSync hook might define defaults later
+          fileIds: {},   // Initialize empty, will be populated on first save/creation
+          data: {},      // Initialize empty
+        };
+        console.log('Initializing CsvConfig:', initialCsvConfig);
+        setCsvConfig(initialCsvConfig); // Update the CsvConfig state
+        // <-------------------------------
+
         toast({ 
           title: "OneDrive folder selected successfully!", 
-          description: `Using folder: "${config.path || config.folderName}"`,
+          description: `Using folder: "${config.path || config.folderName}"`, // Corrected description
           duration: 2000
         });
       }
@@ -292,7 +316,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
         setCurrentStep(2); // Move to Objectives step
       }, 100);
     }
-  }, [setOneDriveConfig, toast, setCurrentStep, useLocalStorage]);
+  }, [setOneDriveConfig, setCsvConfig, toast, setCurrentStep, useLocalStorage]); // Added setCsvConfig dependency
 
   // Render the appropriate step content
   const renderStep = useCallback(() => {
