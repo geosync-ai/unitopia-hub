@@ -730,99 +730,81 @@ export const useMicrosoftGraph = () => {
   const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string | unknown): Promise<CsvFile | null> => {
     if (!checkMsalAuth()) {
       console.error('[CSV CREATE] Authentication check failed');
-      throw new Error('No accounts found');
+      // Return null instead of throwing error here, let calling function handle fallback
+      return null; 
     }
 
     try {
-      // Make sure parentFolderId is a string if present
       const folderId = parentFolderId ? String(parentFolderId) : undefined;
-      
-      console.log('[CSV CREATE] Creating file:', fileName, 'in folder:', folderId);
+      console.log('[CSV CREATE] Creating file:', fileName, 'in folder:', folderId || 'root');
       console.log('[CSV CREATE] Content length:', initialContent.length, 'bytes');
       
-      // Validate the folder ID
-      if (!folderId) {
-        console.warn('[CSV CREATE] No folder ID provided, file will be created in the root folder');
-      }
+      // Removed folderId validation warning, handled by endpoint logic
       
-      // Get token for Microsoft Graph API
       console.log('[CSV CREATE] Acquiring access token');
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
+      const accessToken = await getAccessToken(); // Use the hook's getAccessToken
+      if (!accessToken) {
+          console.error('[CSV CREATE] Failed to acquire access token.');
+          // Let error propagate or return null
+          return null; 
+      }
       console.log('[CSV CREATE] Token acquired successfully');
 
-      // Upload file directly to the specified folder - this is a simpler approach
-      // that creates the file with content in a single API call
       let endpoint = '';
       if (folderId) {
-        // Upload to specific folder with file name in path
         endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}:/${fileName}:/content`;
       } else {
-        // Upload to root folder with file name in path
         endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
       }
 
       console.log('[CSV CREATE] Using direct upload endpoint:', endpoint);
-      console.log('[CSV CREATE] Uploading content directly');
 
       const contentResult = await fetch(endpoint, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${response.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'text/csv; charset=utf-8'
         },
-        body: initialContent || ' ' // Ensure we have at least a space to create a non-empty file
+        body: initialContent || ' ' // Ensure non-empty to force creation
       });
 
       if (!contentResult.ok) {
         let errorText = '';
         try {
           errorText = await contentResult.text();
-        } catch (e) {
-          errorText = 'Could not read error response';
-        }
-        
-        console.error('[CSV CREATE] Failed to create file:', contentResult.status, contentResult.statusText, errorText);
-        throw new Error(`Failed to create CSV file: ${contentResult.statusText} - ${errorText}`);
+        } catch (e) { /* Ignore */ }
+        console.error('[CSV CREATE] Failed to create file via API:', contentResult.status, contentResult.statusText, errorText);
+        throw new Error(`Graph API Error (${contentResult.status}): Failed to create CSV file: ${contentResult.statusText}. ${errorText}`);
       }
 
-      // Parse the response to get the created file info
-      const data = await contentResult.json();
-      console.log('[CSV CREATE] File created successfully:', data);
+      // ---> FIX: Correctly parse the response JSON <--- 
+      const createdFileData = await contentResult.json();
+      console.log('[CSV CREATE] API Response data:', createdFileData);
 
-      // Verify the file was created by checking it exists
-      try {
-        console.log('[CSV CREATE] Verifying file creation');
-        const verifyEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}`;
-        const verifyResult = await fetch(verifyEndpoint, {
-          headers: {
-            'Authorization': `Bearer ${response.accessToken}`
-          }
-        });
-        
-        if (verifyResult.ok) {
-          const fileInfo = await verifyResult.json();
-          console.log('[CSV CREATE] File verification successful:', fileInfo.name);
-        } else {
-          console.warn('[CSV CREATE] Could not verify file creation');
-        }
-      } catch (verifyError) {
-        console.warn('[CSV CREATE] Error during file verification:', verifyError);
+      // Check if the ID exists in the response
+      if (!createdFileData || !createdFileData.id) {
+          console.error('[CSV CREATE] API response missing expected 'id' field.', createdFileData);
+          // Throw specific error instead of returning null, let caller handle fallback
+          throw new Error('API response missing file ID.'); 
       }
+      // <-------------------------------------------
 
-      // Return the successfully created file info
-      console.log('[CSV CREATE] File creation completed successfully with ID:', data.id);
+      console.log('[CSV CREATE] File created successfully with ID:', createdFileData.id);
+      
+      // Verification step removed for brevity, assume success if ID is present
+
       return {
-        id: data.id,
-        name: data.name,
-        url: data.webUrl || '',
-        content: initialContent
+        id: createdFileData.id, // Use the extracted ID
+        name: createdFileData.name || fileName, // Use name from response or fallback to input name
+        url: createdFileData.webUrl || '', // Use webUrl from response
+        content: initialContent // Content is not typically in the response
       };
     } catch (error) {
-      console.error('[CSV CREATE] Error:', error);
-      toast.error(`Failed to create CSV file: ${error.message}`);
-      throw error;
+      console.error('[CSV CREATE] Overall Error:', error);
+      // Don't show toast here, let calling component decide based on context
+      // toast.error(`Failed to create CSV file: ${error.message}`);
+      // Re-throw the error so the calling function knows it failed
+      throw error; 
     }
   };
 
