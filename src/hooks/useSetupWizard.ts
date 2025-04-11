@@ -179,40 +179,84 @@ export const useSetupWizard = ({
       }));
     }
 
-    // Add tasks if available
-    if (taskState?.tasks && taskState.tasks.length > 0) {
-      data.tasks.rows = taskState.tasks.map(task => ({
-        ...task,
-        createdAt: task.createdAt || currentTimestamp,
-        updatedAt: currentTimestamp
-      }));
+    // Add tasks if available - handle both patterns (old state or CSV entity data)
+    if (taskState) {
+      // Check for CSV entity data pattern
+      if (taskState.data && Array.isArray(taskState.data)) {
+        data.tasks.rows = taskState.data.map((task: any) => ({
+          ...task,
+          createdAt: task.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
+      // Check for old pattern
+      else if (taskState.tasks && Array.isArray(taskState.tasks)) {
+        data.tasks.rows = taskState.tasks.map((task: any) => ({
+          ...task,
+          createdAt: task.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
     }
 
-    // Add projects if available
-    if (projectState?.projects && projectState.projects.length > 0) {
-      data.projects.rows = projectState.projects.map(project => ({
-        ...project,
-        createdAt: project.createdAt || currentTimestamp,
-        updatedAt: currentTimestamp
-      }));
+    // Add projects if available - handle both patterns
+    if (projectState) {
+      // Check for CSV entity data pattern
+      if (projectState.data && Array.isArray(projectState.data)) {
+        data.projects.rows = projectState.data.map((project: any) => ({
+          ...project,
+          createdAt: project.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
+      // Check for old pattern
+      else if (projectState.projects && Array.isArray(projectState.projects)) {
+        data.projects.rows = projectState.projects.map((project: any) => ({
+          ...project,
+          createdAt: project.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
     }
 
-    // Add risks if available
-    if (riskState?.risks && riskState.risks.length > 0) {
-      data.risks.rows = riskState.risks.map(risk => ({
-        ...risk,
-        createdAt: risk.createdAt || currentTimestamp,
-        updatedAt: currentTimestamp
-      }));
+    // Add risks if available - handle both patterns
+    if (riskState) {
+      // Check for CSV entity data pattern
+      if (riskState.data && Array.isArray(riskState.data)) {
+        data.risks.rows = riskState.data.map((risk: any) => ({
+          ...risk,
+          createdAt: risk.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
+      // Check for old pattern
+      else if (riskState.risks && Array.isArray(riskState.risks)) {
+        data.risks.rows = riskState.risks.map((risk: any) => ({
+          ...risk,
+          createdAt: risk.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
     }
 
-    // Add assets if available
-    if (assetState?.assets && assetState.assets.length > 0) {
-      data.assets.rows = assetState.assets.map(asset => ({
-        ...asset,
-        createdAt: asset.createdAt || currentTimestamp,
-        updatedAt: currentTimestamp
-      }));
+    // Add assets if available - handle both patterns
+    if (assetState) {
+      // Check for CSV entity data pattern
+      if (assetState.data && Array.isArray(assetState.data)) {
+        data.assets.rows = assetState.data.map((asset: any) => ({
+          ...asset,
+          createdAt: asset.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
+      // Check for old pattern
+      else if (assetState.assets && Array.isArray(assetState.assets)) {
+        data.assets.rows = assetState.assets.map((asset: any) => ({
+          ...asset,
+          createdAt: asset.createdAt || currentTimestamp,
+          updatedAt: currentTimestamp
+        }));
+      }
     }
 
     return {
@@ -221,7 +265,7 @@ export const useSetupWizard = ({
       fileIds: {},
       data
     };
-  }, [oneDriveConfig, objectives, kpis, taskState?.tasks, projectState?.projects, riskState?.risks, assetState?.assets]);
+  }, [oneDriveConfig, objectives, kpis, taskState, projectState, riskState, assetState]);
 
   // Update CSV config when setup method or data changes
   const updateCsvConfig = useCallback(() => {

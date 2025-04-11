@@ -70,6 +70,7 @@ import { mockTasks, mockProjects, mockRisks, mockAssets } from '@/mockData/mockD
 import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
 import { useAuth } from "@/hooks/useAuth";
 import { OneDriveConfig, CsvConfig } from '@/components/setup-wizard/types';
+import { useCsvEntityData } from '@/hooks/useCsvEntityData';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -482,21 +483,46 @@ const Unit = () => {
   const initializedRef = useRef(false);
   const { toast } = useToast();
 
-  // Initialize state hooks
-  const taskState = useTaskState([]);
-  const projectState = useProjectState([]);
-  const riskState = useRiskState([]);
-  const assetState = useAssetState([]);
-  const kraState = useKraState();
-
   // Initialize setup wizard with required state
   const setupWizard = useSetupWizard({
-    projectState,
-    taskState,
-    riskState,
-    assetState,
-    kraState
+    projectState: null, // Will be passed as null to use CSV data instead
+    taskState: null,
+    riskState: null,
+    assetState: null,
+    kraState: null
   });
+
+  // Load data from CSV or localStorage for each entity type
+  const taskState = useCsvEntityData<Task>(
+    'tasks',
+    setupWizard.csvConfig,
+    setupWizard.setCsvConfig,
+    setupWizard.isSetupComplete
+  );
+  
+  const projectState = useCsvEntityData<Project>(
+    'projects',
+    setupWizard.csvConfig,
+    setupWizard.setCsvConfig,
+    setupWizard.isSetupComplete
+  );
+  
+  const riskState = useCsvEntityData<Risk>(
+    'risks',
+    setupWizard.csvConfig,
+    setupWizard.setCsvConfig,
+    setupWizard.isSetupComplete
+  );
+  
+  const assetState = useCsvEntityData<UserAsset>(
+    'assets',
+    setupWizard.csvConfig,
+    setupWizard.setCsvConfig,
+    setupWizard.isSetupComplete
+  );
+  
+  // Keep the existing KRA state for now, could be migrated later
+  const kraState = useKraState();
 
   // Memoize the setup check to prevent unnecessary re-renders
   const checkSetupNeeded = useCallback(() => {
@@ -514,19 +540,20 @@ const Unit = () => {
         setIsLoading(true);
         setError(null);
 
-        // In a real application, you would fetch this data from your API
-        // using the user's authentication token
-        const userTasks = mockTasks.filter(task => task.assignee === user.email);
-        const userProjects = mockProjects.filter(project => project.manager === user.email);
-        const userRisks = mockRisks.filter(risk => risk.owner === user.email);
-        const userAssets = mockAssets.filter(asset => asset.assignedTo === user.email);
+        // Check if setup is complete - if not, we'll use mock data
+        if (!setupWizard.isSetupComplete) {
+          // Filter mock data by user for demo purposes
+          const userTasks = mockTasks.filter(task => task.assignee === user.email);
+          const userProjects = mockProjects.filter(project => project.manager === user.email);
+          const userRisks = mockRisks.filter(risk => risk.owner === user.email);
+          const userAssets = mockAssets.filter(asset => asset.assignedTo === user.email);
 
-        // Update state using the state setters from our hooks
-        userTasks.forEach(task => taskState.addTask(task));
-        userProjects.forEach(project => projectState.addProject(project));
-        userRisks.forEach(risk => riskState.addRisk(risk));
-        userAssets.forEach(asset => assetState.addAsset(asset));
-
+          // Set as initial data in localStorage for demo
+          localStorage.setItem('unitopia_tasks', JSON.stringify(userTasks));
+          localStorage.setItem('unitopia_projects', JSON.stringify(userProjects));
+          localStorage.setItem('unitopia_risks', JSON.stringify(userRisks));
+          localStorage.setItem('unitopia_assets', JSON.stringify(userAssets));
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
         toast({
@@ -540,7 +567,7 @@ const Unit = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, toast, taskState.addTask, projectState.addProject, riskState.addRisk, assetState.addAsset]);
+  }, [isAuthenticated, user, toast, setupWizard.isSetupComplete]);
 
   // Initialize data from mock data and setup wizard
   useEffect(() => {
@@ -783,9 +810,9 @@ const Unit = () => {
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-8">
               <OverviewTab 
-                projects={projectState.projects}
-                tasks={taskState.tasks}
-                risks={riskState.risks}
+                projects={projectState.data}
+                tasks={taskState.data}
+                risks={riskState.data}
                 kras={kraState.kras}
                 setupState={setupWizard}
               />
@@ -793,7 +820,12 @@ const Unit = () => {
             
             {/* Tasks/Daily Operations Tab */}
             <TabsContent value="tasks" className="space-y-6">
-              <TasksTab {...taskState} />
+              <TasksTab 
+                tasks={taskState.data} 
+                addTask={taskState.add}
+                editTask={taskState.edit}
+                deleteTask={taskState.remove}
+              />
             </TabsContent>
             
             {/* KRAs Tab - Conditionally Rendered */}
@@ -809,17 +841,32 @@ const Unit = () => {
             
             {/* Projects Tab */}
             <TabsContent value="projects" className="space-y-6">
-              <ProjectsTab {...projectState} />
+              <ProjectsTab 
+                projects={projectState.data}
+                addProject={projectState.add}
+                editProject={projectState.edit}
+                deleteProject={projectState.remove}
+              />
             </TabsContent>
             
             {/* Risks Tab */}
             <TabsContent value="risks" className="space-y-6">
-              <RisksTab {...riskState} />
+              <RisksTab 
+                risks={riskState.data}
+                addRisk={riskState.add}
+                editRisk={riskState.edit}
+                deleteRisk={riskState.remove}
+              />
             </TabsContent>
             
             {/* User Asset Management Tab */}
             <TabsContent value="assets" className="space-y-6">
-              <AssetsTab {...assetState} />
+              <AssetsTab 
+                assets={assetState.data}
+                addAsset={assetState.add}
+                editAsset={assetState.edit}
+                deleteAsset={assetState.remove}
+              />
             </TabsContent>
           </Tabs>
         </div>
