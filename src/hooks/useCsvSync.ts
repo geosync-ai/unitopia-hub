@@ -466,17 +466,10 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       return false;
     }
 
-    // Modify validation to detect local file IDs
+    // Check if we have at least some file IDs
     if (!config.fileIds || Object.keys(config.fileIds).length === 0) {
-      // Check if we have at least one fallback local ID
-      const hasLocalFallback = localStorage.getItem('unitopia_storage_type') === 'local';
-      
-      if (hasLocalFallback) {
-        console.log('[CSV SAVE] No file IDs available but local storage mode is enabled, proceeding with local save');
-      } else {
-        console.error('[CSV SAVE] Cannot save data to CSV: No file IDs available', config);
-        return false;
-      }
+      console.error('[CSV SAVE] Cannot save data to CSV: No file IDs available', config);
+      return false;
     }
 
     if (!config.data || Object.keys(config.data).length === 0) {
@@ -491,65 +484,123 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
       const dataKeys = Object.keys(config.data);
       console.log(`[CSV SAVE] Processing save for ${dataKeys.length} data sets:`, dataKeys);
 
-      // Check if we should use local storage instead of OneDrive
-      const hasLocalFileIds = Object.values(config.fileIds).some(id => id && id.toString().startsWith('local-'));
-      const isUsingLocalStorage = config.isUsingLocalStorage === true || hasLocalFileIds || localStorage.getItem('unitopia_storage_type') === 'local';
-
-      // Create local file IDs for any missing entries if we're in local storage mode
-      if (isUsingLocalStorage) {
-        const fileIdsUpdated = {...config.fileIds};
-        let idsWereCreated = false;
+      // Force OneDrive save regardless of local IDs
+      console.log('[CSV SAVE] Prioritizing save to OneDrive...');
+      
+      // First try to save to OneDrive
+      try {
+        // If we have any local file IDs, create real OneDrive files first
+        const hasLocalFileIds = Object.values(config.fileIds).some(id => id && id.toString().startsWith('local-'));
         
-        // Check each data key and ensure it has a file ID
-        for (const key of Object.keys(config.data)) {
-          if (!fileIdsUpdated[key]) {
-            const localId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-            fileIdsUpdated[key] = localId;
-            console.log(`[CSV SAVE] Created missing local file ID for ${key}: ${localId}`);
-            idsWereCreated = true;
+        if (hasLocalFileIds && createCsvFile) {
+          console.log('[CSV SAVE] Detected local file IDs, attempting to create real OneDrive files first');
+          
+          const updatedFileIds = {...config.fileIds};
+          let filesCreated = 0;
+          
+          // Create OneDrive files for any local IDs
+          for (const [key, fileId] of Object.entries(updatedFileIds)) {
+            if (fileId && fileId.toString().startsWith('local-')) {
+              console.log(`[CSV SAVE] Creating real OneDrive file for ${key} to replace local ID ${fileId}`);
+              
+              // Create CSV content
+              const dataSet = config.data[key];
+              const fileName = config.fileNames?.[key] || `${key}.csv`;
+              
+              if (dataSet && dataSet.headers) {
+                let content = dataSet.headers.join(',') + '\n';
+                
+                if (dataSet.rows) {
+                  for (const row of dataSet.rows) {
+                    const rowValues = dataSet.headers.map(header => {
+                      const value = row[header];
+                      
+                      if (value === null || value === undefined) {
+                        return '';
+                      } else if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                      } else {
+                        return String(value);
+                      }
+                    });
+                    
+                    content += rowValues.join(',') + '\n';
+                  }
+                }
+                
+                try {
+                  // Create file in OneDrive
+                  const csvFile = await createCsvFile(fileName, content, config.folderId);
+                  
+                  if (csvFile && csvFile.id && !csvFile.id.toString().startsWith('local-')) {
+                    console.log(`[CSV SAVE] Successfully created OneDrive file ${fileName} with ID ${csvFile.id}`);
+                    updatedFileIds[key] = csvFile.id;
+                    filesCreated++;
+                  }
+                } catch (createError) {
+                  console.error(`[CSV SAVE] Failed to create OneDrive file for ${key}:`, createError);
+                }
+              }
+            }
+          }
+          
+          // If we created any new files, update the config
+          if (filesCreated > 0) {
+            console.log(`[CSV SAVE] Created ${filesCreated} new OneDrive files, updating config`);
+            onConfigChange({
+              ...config,
+              fileIds: updatedFileIds,
+              isUsingLocalStorage: false
+            });
+            
+            // Update local reference for the current operation
+            config.fileIds = updatedFileIds;
+            
+            // Clear local storage flag
+            localStorage.removeItem('unitopia_storage_type');
           }
         }
         
-        // Update the config if we created new IDs
-        if (idsWereCreated) {
-          onConfigChange({
-            ...config,
-            fileIds: fileIdsUpdated,
-            isUsingLocalStorage: true
-          });
-        }
-        
-        console.log('[CSV SAVE] Detected local storage mode, saving to localStorage instead of OneDrive');
-        await saveToLocalStorage();
-        return true;
-      }
-
-      // If we get here, we should use OneDrive
-      console.log('[CSV SAVE] Attempting to save to OneDrive...');
-      try {
+        // Try to save to OneDrive
         const results = await saveToOneDrive();
+        
         if (results.success) {
+          console.log('[CSV SAVE] Successfully saved to OneDrive');
+          toast.success('Data saved to OneDrive successfully');
           return true;
         } else {
-          // If OneDrive save fails, fall back to localStorage
-          console.warn('[CSV SAVE] OneDrive save failed, falling back to localStorage...');
-          await saveToLocalStorage();
-          return true;
+          console.warn('[CSV SAVE] OneDrive save failed with errors:', results.message);
+          
+          // Only fall back to localStorage if absolutely necessary
+          if ('filesProcessed' in results && results.filesProcessed === 0) {
+            console.warn('[CSV SAVE] No files saved to OneDrive, falling back to localStorage');
+            await saveToLocalStorage();
+            toast.warning('Saved to local storage instead of OneDrive. Please check your connection.');
+            return true;
+          } else {
+            const filesProcessed = 'filesProcessed' in results ? results.filesProcessed : 0;
+            toast.warning(`Partially saved to OneDrive (${filesProcessed} files). Some files could not be saved.`);
+            return true;
+          }
         }
       } catch (oneDriveError) {
         console.error('[CSV SAVE] OneDrive save error:', oneDriveError);
-        console.warn('[CSV SAVE] Falling back to localStorage...');
+        toast.error('Failed to save to OneDrive: ' + (oneDriveError.message || 'Unknown error'));
+        
+        // Fall back to localStorage as last resort
+        console.warn('[CSV SAVE] Falling back to localStorage as last resort');
         await saveToLocalStorage();
         return true;
       }
     } catch (err) {
       console.error('[CSV SAVE] Error saving data to CSV:', err);
       setError(`Failed to save data: ${err.message}`);
+      toast.error('Error saving data: ' + (err.message || 'Unknown error'));
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [config, updateCsvFile]);
+  }, [config, updateCsvFile, createCsvFile, onConfigChange]);
 
   // Save to localStorage helper
   const saveToLocalStorage = useCallback(async () => {
@@ -650,16 +701,17 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
     
     try {
       for (const [key, dataSet] of Object.entries(config.data)) {
-        // Skip keys without file IDs or using local IDs
+        // Skip keys without file IDs
         const fileId = config.fileIds[key];
         if (!fileId) {
           console.warn(`[CSV SAVE] No file ID for ${key}, skipping`);
           continue;
         }
         
+        // If it's a local ID, warn but continue anyway since we might have just created a real file
         if (fileId.toString().startsWith('local-')) {
-          console.warn(`[CSV SAVE] Local storage ID detected for ${key}, skipping OneDrive save: ${fileId}`);
-          continue;
+          console.warn(`[CSV SAVE] Local storage ID detected for ${key}, will try OneDrive save anyway: ${fileId}`);
+          // We won't skip here, since we might have created a real file
         }
         
         const fileName = config.fileNames?.[key] || `${key}.csv`;
@@ -693,6 +745,14 @@ export const useCsvSync = ({ config, onConfigChange, isSetupComplete }: UseCsvSy
         console.log(`[CSV SAVE] OneDrive file has ${dataSet.rows.length} rows and ${dataSet.headers.length} headers`);
         
         try {
+          // Don't attempt to update local IDs with updateCsvFile
+          if (fileId.toString().startsWith('local-')) {
+            console.warn(`[CSV SAVE] Cannot update local file ID with OneDrive: ${fileId}`);
+            errors.push(`Cannot update local ID for ${fileName}`);
+            results.filesFailed++;
+            continue;
+          }
+          
           // Update the OneDrive file
           const updated = await updateCsvFile(fileId, content);
           

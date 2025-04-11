@@ -16,10 +16,11 @@ interface ObjectiveInput {
 
 interface ObjectivesSetupProps {
   onComplete: (objectives: ObjectiveInput[]) => void;
+  initialObjectives?: ObjectiveInput[];
 }
 
-export const ObjectivesSetup: React.FC<ObjectivesSetupProps> = ({ onComplete }) => {
-  const [objectives, setObjectives] = useState<ObjectiveInput[]>([]);
+export const ObjectivesSetup: React.FC<ObjectivesSetupProps> = ({ onComplete, initialObjectives = [] }) => {
+  const [objectives, setObjectives] = useState<ObjectiveInput[]>(initialObjectives);
   const [expandedObjectiveId, setExpandedObjectiveId] = useState<string | null>(null);
 
   // Add a new objective

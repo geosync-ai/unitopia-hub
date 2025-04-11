@@ -17,12 +17,13 @@ import { SetupMethod } from './steps/SetupMethod';
 import { ObjectivesSetup } from './steps/ObjectivesSetup';
 import { KRASetup } from './steps/KRASetup';
 import { KPISetup } from './steps/KPISetup';
-import { SetupSummary } from './steps/SetupSummary';
+import { SetupSummary } from './steps/SetupSummary'; 
 
 // Import custom components
 import ProgressSteps from './components/ProgressSteps';
 import LocalStorageFallbackNotice from './components/LocalStorageFallbackNotice';
 import SimplifiedOneDriveSetup from './components/SimplifiedOneDriveSetup';
+import EnhancedOneDriveIntegration from './components/EnhancedOneDriveIntegration';
 
 // Import utilities and types
 import { SetupWizardProps, WizardStep, CsvConfig } from './types';
@@ -31,6 +32,9 @@ import { useSetupWizard } from './hooks/useSetupWizard';
 
 // Import ErrorBoundary
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Re-export the same interface for better type safety
+export { Steps } from '@/types';
 
 // Add global style for folder highlighting
 addGlobalFolderHighlightStyle();
@@ -447,160 +451,51 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
 
   // Render the appropriate step content
   const renderStep = useCallback(() => {
+    // Specific to OneDrive path selection (step 1)
+    if (currentStep === 1 && setupMethodProp === 'standard') {
+      return (
+        <>
+          <div className="pb-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                useLocalStorage(true);
+                setCurrentStep(2);
+              }}
+              disabled={isProcessing}
+            >
+              Skip and use local storage
+            </Button>
+          </div>
+          <EnhancedOneDriveIntegration onComplete={handlePathSelect} />
+        </>
+      );
+    }
+    
     switch (currentStep) {
       case 0:
-        return (
-          <SetupMethod onSelect={handleSetupTypeSelect} />
-        );
-      case 1:
-        if (selectedSetupType === 'onedrive') {
-          return (
-            <>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold">OneDrive Connection</h3>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    // This forces a re-authentication with Microsoft Graph
-                    try {
-                      // Use window.msalInstance if available (it should be available when using the MSAL library)
-                      if (window.msalInstance) {
-                        console.log('[SetupWizard] Forcing re-authentication with Microsoft Graph');
-                        window.msalInstance.logout();
-                        setTimeout(() => {
-                          if (window.msalInstance) {
-                            window.msalInstance.loginPopup().then(() => {
-                              console.log('[SetupWizard] Re-authentication successful');
-                              toast({
-                                title: "Authentication refreshed",
-                                description: "Microsoft Graph connection refreshed successfully.",
-                                duration: 3000
-                              });
-                            }).catch(error => {
-                              console.error('[SetupWizard] Re-authentication failed:', error);
-                              toast({
-                                title: "Authentication failed",
-                                description: "Failed to refresh Microsoft Graph connection.",
-                                variant: "destructive",
-                                duration: 3000
-                              });
-                            });
-                          }
-                        }, 500);
-                      } else {
-                        console.error('[SetupWizard] msalInstance not available for re-authentication');
-                        toast({
-                          title: "Authentication failed",
-                          description: "Microsoft authentication service not available.",
-                          variant: "destructive",
-                          duration: 3000
-                        });
-                      }
-                    } catch (error) {
-                      console.error('[SetupWizard] Error during re-authentication:', error);
-                      toast({
-                        title: "Authentication error",
-                        description: `Error refreshing authentication: ${error.message}`,
-                        variant: "destructive",
-                        duration: 3000
-                      });
-                    }
-                  }}
-                >
-                  Refresh Authentication
-                </Button>
-              </div>
-              <SimplifiedOneDriveSetup onComplete={handlePathSelect} />
-            </>
-          );
-        } else if (selectedSetupType === 'csv') {
-          return (
-            <div className="space-y-6">
-              <div className="text-center space-y-2">
-                <h3 className="text-lg font-semibold">Upload CSV Files</h3>
-                <p className="text-sm text-muted-foreground">
-                  Upload CSV files containing your unit data
-                </p>
-              </div>
-              <Card className="p-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="p-2 rounded-lg bg-green-100 text-green-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                  </div>
-                  <Button>
-                    Select CSV Files
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Supported format: .csv
-                  </p>
-                </div>
-              </Card>
-              <Button
-                onClick={handleNext}
-                className="w-full"
-              >
-                Continue
-              </Button>
-            </div>
-          );
-        } else if (selectedSetupType === 'demo') {
-          return (
-            <div className="space-y-6">
-              <div className="text-center space-y-2">
-                <h3 className="text-lg font-semibold">Demo Data</h3>
-                <p className="text-sm text-muted-foreground">
-                  Load sample data to explore the application
-                </p>
-              </div>
-              <Card className="p-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-                  </div>
-                  <p className="text-center">
-                    This will load sample data for all tabs including tasks, projects, risks, and KRAs.
-                  </p>
-                </div>
-              </Card>
-              <Button
-                onClick={handleNext}
-                className="w-full"
-              >
-                Load Demo Data
-              </Button>
-            </div>
-          );
-        }
-        break;
+        return <SetupMethod onSelect={handleSetupTypeSelect} />;
       case 2:
         return (
           <ObjectivesSetup
+            initialObjectives={objectivesProp || []}
             onComplete={handleObjectivesComplete}
           />
         );
       case 3:
-        return (
-          <KRASetup
-            objectives={tempObjectives}
-            onComplete={handleKRAComplete}
-          />
-        );
+        return <KRASetup onComplete={handleKRAComplete} />;
       case 4:
-        return (
-          <KPISetup
-            onComplete={handleKPIComplete}
-          />
-        );
+        return <KPISetup onComplete={handleKPIComplete} />;
       case 5:
         return (
           <SetupSummary
-            oneDriveConfig={oneDriveConfig}
             objectives={tempObjectives}
             kras={tempKRAs}
             kpis={tempKPIs}
             onComplete={handleSummaryComplete}
             onBack={handleBack}
+            oneDriveConfig={oneDriveConfig}
           />
         );
       default:
@@ -608,18 +503,21 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
     }
   }, [
     currentStep,
-    selectedSetupType,
+    setupMethodProp,
     handleSetupTypeSelect,
-    handlePathSelect,
     handleObjectivesComplete,
     handleKRAComplete,
     handleKPIComplete,
     handleSummaryComplete,
-    handleBack,
+    handlePathSelect,
+    useLocalStorage,
+    isProcessing,
     tempObjectives,
     tempKRAs,
     tempKPIs,
-    oneDriveConfig
+    oneDriveConfig,
+    objectivesProp,
+    handleBack
   ]);
 
   // Extract navigation button rendering to a separate memoized function
