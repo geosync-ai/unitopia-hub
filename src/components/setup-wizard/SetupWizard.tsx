@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import { PublicClientApplication } from '@azure/msal-browser';
 
 // Import step components
 import { SetupMethod } from './steps/SetupMethod';
@@ -23,18 +24,15 @@ import { SetupSummary } from './steps/SetupSummary';
 import ProgressSteps from './components/ProgressSteps';
 import LocalStorageFallbackNotice from './components/LocalStorageFallbackNotice';
 import SimplifiedOneDriveSetup from './components/SimplifiedOneDriveSetup';
-import EnhancedOneDriveIntegration from './components/EnhancedOneDriveIntegration';
 
 // Import utilities and types
 import { SetupWizardProps, WizardStep, CsvConfig } from './types';
 import { addGlobalFolderHighlightStyle } from './utils';
 import { useSetupWizard } from './hooks/useSetupWizard';
+import microsoftAuthConfig from '@/config/microsoft-auth';
 
 // Import ErrorBoundary
 import { ErrorBoundary } from './components/ErrorBoundary';
-
-// Re-export the same interface for better type safety
-export { Steps } from '@/types';
 
 // Add global style for folder highlighting
 addGlobalFolderHighlightStyle();
@@ -43,6 +41,11 @@ addGlobalFolderHighlightStyle();
 export interface ExtendedSetupWizardProps extends SetupWizardProps {
   setCsvConfig: (config: CsvConfig | null) => void; 
 }
+
+// MSAL Login scopes for OneDrive operations
+const loginRequest = {
+  scopes: ["User.Read", "Files.ReadWrite.All"]
+};
 
 export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
   isOpen,
@@ -70,6 +73,8 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSetupType, setSelectedSetupType] = useState<string | null>(null);
   const [oneDriveFailures, setOneDriveFailures] = useState(0); // Track OneDrive failures
+  const [directUploadInProgress, setDirectUploadInProgress] = useState(false);
+  const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
 
   // Use our custom hook to manage wizard state
   const {
@@ -97,6 +102,37 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
     handleSetupCompleteFromHook,
     isSetupComplete
   });
+
+  // Initialize MSAL for direct uploads if not using local storage
+  useEffect(() => {
+    if (!isUsingLocalStorage && oneDriveConfig && !msalInstance) {
+      const msalConfig = {
+        auth: {
+          clientId: microsoftAuthConfig.clientId,
+          authority: microsoftAuthConfig.authorityUrl,
+          redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app",
+        },
+        cache: {
+          cacheLocation: 'sessionStorage',
+          storeAuthStateInCookie: false,
+        }
+      };
+      
+      const msalInstanceCreate = new PublicClientApplication(msalConfig);
+      
+      // Handle redirect to avoid unhandled promise rejection
+      msalInstanceCreate.handleRedirectPromise()
+        .catch(err => {
+          console.error("Redirect promise error:", err);
+        });
+      
+      msalInstanceCreate.initialize().then(() => {
+        setMsalInstance(msalInstanceCreate);
+      }).catch(err => {
+        console.error(`Failed to initialize MSAL: ${err.message}`);
+      });
+    }
+  }, [isUsingLocalStorage, oneDriveConfig]);
 
   // Define steps for the wizard
   const steps = useMemo<WizardStep[]>(() => [
@@ -129,6 +165,94 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
       setIsInitialized(false);
     }
   }, [isOpen]);
+
+  // Function to upload data directly to OneDrive
+  const uploadDirectToOneDrive = async (fileName: string, content: string): Promise<boolean> => {
+    if (!msalInstance || !oneDriveConfig || !oneDriveConfig.folderId) {
+      console.error('Cannot upload to OneDrive: Missing MSAL instance or folder ID');
+      return false;
+    }
+
+    try {
+      setDirectUploadInProgress(true);
+      
+      // Get current account
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length === 0) {
+        throw new Error('No authenticated account found');
+      }
+      
+      const currentAccount = accounts[0];
+      
+      // Get access token
+      const tokenResponse = await msalInstance.acquireTokenSilent({
+        ...loginRequest,
+        account: currentAccount
+      });
+
+      // Create file blob
+      const file = new Blob([content], { type: 'text/csv' });
+      
+      // Upload file to the selected folder
+      const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${oneDriveConfig.folderId}:/${fileName}:/content`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${tokenResponse.accessToken}`,
+          'Content-Type': 'text/csv'
+        },
+        body: file
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Error uploading file: ${uploadResponse.statusText}`);
+      }
+
+      console.log(`File ${fileName} uploaded successfully`);
+      return true;
+      
+    } catch (err) {
+      console.error(`Failed to upload ${fileName}:`, err);
+      
+      // Try interactive auth if silent fails
+      if (err.name === "InteractionRequiredAuthError" && msalInstance) {
+        try {
+          const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
+          
+          // Create file blob
+          const file = new Blob([content], { type: 'text/csv' });
+          
+          // Upload file to the selected folder
+          const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${oneDriveConfig.folderId}:/${fileName}:/content`;
+          
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${tokenResponse.accessToken}`,
+              'Content-Type': 'text/csv'
+            },
+            body: file
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(`Error uploading file: ${uploadResponse.statusText}`);
+          }
+
+          console.log(`File ${fileName} uploaded successfully (after interactive auth)`);
+          return true;
+          
+        } catch (interactiveErr) {
+          console.error('Interactive auth failed:', interactiveErr);
+          return false;
+        }
+      }
+      
+      return false;
+    } finally {
+      setDirectUploadInProgress(false);
+    }
+  };
 
   // Function to handle OneDrive failures and switch to local storage if needed
   const handleOneDriveFailure = useCallback((error: any) => {
@@ -255,7 +379,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
     setCurrentStep(5); // Move to Summary step
   }, [setTempKPIs]);
 
-  const handleSummaryComplete = useCallback(() => {
+  const handleSummaryComplete = useCallback(async () => {
     console.log("Starting setup completion process...");
     // Set the objectives, KRAs, and KPIs in the parent component
     if (setObjectives) {
@@ -295,8 +419,77 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
       
       return;
     }
+
+    // Try direct OneDrive upload first if we have all the requirements
+    if (oneDriveConfig && msalInstance && !isUsingLocalStorage) {
+      setIsProcessing(true);
+      
+      try {
+        // Convert data to CSV format
+        const objectivesCsv = convertToCsv(tempObjectives, ['id', 'name', 'description', 'startDate', 'endDate']);
+        const krasCsv = convertToCsv(tempKRAs, ['id', 'objectiveId', 'name', 'description', 'startDate', 'endDate']);
+        const kpisCsv = convertToCsv(tempKPIs, ['id', 'kraId', 'name', 'description', 'target', 'unit', 'frequency']);
+        
+        // Upload each file to OneDrive
+        const objectivesSuccess = await uploadDirectToOneDrive('objectives.csv', objectivesCsv);
+        const krasSuccess = await uploadDirectToOneDrive('kras.csv', krasCsv);
+        const kpisSuccess = await uploadDirectToOneDrive('kpis.csv', kpisCsv);
+        
+        if (objectivesSuccess && krasSuccess && kpisSuccess) {
+          console.log('All files successfully uploaded to OneDrive');
+          
+          // Update CSV config with file info
+          if (setCsvConfig && oneDriveConfig) {
+            const updatedCsvConfig = {
+              folderId: oneDriveConfig.folderId,
+              folderName: oneDriveConfig.folderName,
+              fileNames: {
+                objectives: "objectives.csv",
+                kras: "kras.csv",
+                kpis: "kpis.csv"
+              },
+              fileIds: {
+                // We don't have the file IDs from the response, but that's okay
+                // The useCsvSync hook will find them by name if needed
+              },
+              data: {
+                objectives: { headers: Object.keys(tempObjectives[0] || {}), rows: tempObjectives },
+                kras: { headers: Object.keys(tempKRAs[0] || {}), rows: tempKRAs },
+                kpis: { headers: Object.keys(tempKPIs[0] || {}), rows: tempKPIs }
+              }
+            };
+            setCsvConfig(updatedCsvConfig);
+          }
+          
+          toast({
+            title: "Setup completed successfully",
+            description: "Your data has been saved to OneDrive.",
+            duration: 3000
+          });
+          
+          if (handleSetupCompleteFromHook) {
+            handleSetupCompleteFromHook();
+          }
+          
+          // Close the dialog after successful completion
+          setTimeout(onComplete, 500); // Call parent's onComplete
+          setTimeout(onClose, 500);    // Call parent's onClose
+          
+          return;
+        } else {
+          console.error('Failed to upload all files directly to OneDrive');
+          // Fall through to the regular save approach
+        }
+      } catch (error) {
+        console.error('Error during direct upload to OneDrive:', error);
+        // Fall through to the regular save approach
+      } finally {
+        setIsProcessing(false);
+      }
+    }
     
-    // Start the setup completion process without prompting
+    // If direct upload failed or isn't available, try the regular approach
+    setIsProcessing(true);
     handleComplete()
       .then((success) => {
         if (success) {
@@ -323,6 +516,9 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         } else {
           setSetupError(`Setup failed: ${error?.message || 'Unknown error'}`);
         }
+      })
+      .finally(() => {
+        setIsProcessing(false);
       });
   }, [
     tempObjectives, 
@@ -339,8 +535,38 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
     oneDriveFailures,
     isUsingLocalStorage,
     handleSetupCompleteFromHook,
-    toast
+    toast,
+    msalInstance,
+    oneDriveConfig,
+    setCsvConfig,
+    setIsProcessing
   ]);
+
+  // Helper function to convert data to CSV
+  const convertToCsv = (data: any[], headers: string[]): string => {
+    if (!data || data.length === 0) {
+      return headers.join(',') + '\n';
+    }
+    
+    const csvRows = [headers.join(',')];
+    
+    for (const item of data) {
+      const values = headers.map(header => {
+        const value = item[header];
+        
+        // Handle values that might need quotes
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        
+        return value === null || value === undefined ? '' : String(value);
+      });
+      
+      csvRows.push(values.join(','));
+    }
+    
+    return csvRows.join('\n');
+  };
 
   // Update handlePathSelect in step 1 to initialize csvConfig
   const handlePathSelect = useCallback((config: any) => {
@@ -468,7 +694,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
               Skip and use local storage
             </Button>
           </div>
-          <EnhancedOneDriveIntegration onComplete={handlePathSelect} />
+          <SimplifiedOneDriveSetup onComplete={handlePathSelect} />
         </>
       );
     }
@@ -552,12 +778,12 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
                 handleSummaryComplete();
               }}
               className="bg-green-600 hover:bg-green-700 text-white"
-              disabled={isProcessing}
+              disabled={isProcessing || directUploadInProgress}
             >
-              {isProcessing ? (
+              {isProcessing || directUploadInProgress ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Completing...
+                  {directUploadInProgress ? 'Uploading to OneDrive...' : 'Completing...'}
                 </>
               ) : (
                 "Complete Setup"
@@ -574,7 +800,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         </div>
       </div>
     );
-  }, [currentStep, isProcessing, handleBack, onClose, handleNext, handleSummaryComplete]);
+  }, [currentStep, isProcessing, directUploadInProgress, handleBack, onClose, handleNext, handleSummaryComplete]);
 
   // Extract step content container for better performance
   const renderStepContent = useMemo(() => {
@@ -585,7 +811,9 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-center">Setting up your unit data...</p>
             <p className="text-sm text-muted-foreground text-center">
-              This may take a moment as we configure your data.
+              {directUploadInProgress 
+                ? "Uploading your data directly to OneDrive..." 
+                : "This may take a moment as we configure your data."}
             </p>
             {oneDriveFailures > 0 && (
               <div className="text-sm text-amber-600 mt-2 max-w-md text-center">
@@ -603,7 +831,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         )}
       </div>
     );
-  }, [isProcessing, renderStep, oneDriveFailures]);
+  }, [isProcessing, directUploadInProgress, renderStep, oneDriveFailures]);
 
   // Dialog structure with updated UI
   return (
