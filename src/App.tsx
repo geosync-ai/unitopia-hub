@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PublicClientApplication } from "@azure/msal-browser";
+import { PublicClientApplication, EventType } from "@azure/msal-browser";
 import { createClient } from "@supabase/supabase-js";
 
 // MSAL config
@@ -11,20 +11,55 @@ const msalConfig = {
   },
 };
 
-const msalInstance = new PublicClientApplication(msalConfig);
-
 // Supabase config
 const supabaseUrl = "https://dmasclpgspatxncspcvt.supabase.co";
 const supabaseAnonKey = "YOUR_SUPABASE_ANON_KEY";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
+  const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
   const [user, setUser] = useState<any>(null);
   const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize MSAL
+  useEffect(() => {
+    const msalInstanceTemp = new PublicClientApplication(msalConfig);
+    
+    msalInstanceTemp.initialize().then(() => {
+      // Set event callbacks
+      msalInstanceTemp.addEventCallback((event) => {
+        if (event.eventType === EventType.LOGIN_SUCCESS) {
+          const account = msalInstanceTemp.getAllAccounts()[0];
+          if (account) {
+            setUser(account);
+            fetchNotes(account.username);
+          }
+        }
+      });
+      
+      // Check if user is already signed in
+      const accounts = msalInstanceTemp.getAllAccounts();
+      if (accounts.length > 0) {
+        setUser(accounts[0]);
+        fetchNotes(accounts[0].username);
+      }
+      
+      setMsalInstance(msalInstanceTemp);
+      setIsInitialized(true);
+    }).catch(error => {
+      console.error("MSAL initialization failed", error);
+    });
+  }, []);
 
   // Login with Microsoft
   const login = async () => {
+    if (!msalInstance || !isInitialized) {
+      console.error("MSAL is not initialized yet");
+      return;
+    }
+    
     try {
       const response = await msalInstance.loginPopup({
         scopes: ["user.read"],
@@ -39,6 +74,8 @@ export default function App() {
 
   // Logout
   const logout = () => {
+    if (!msalInstance) return;
+    
     msalInstance.logoutPopup();
     setUser(null);
     setNotes([]);
@@ -51,7 +88,7 @@ export default function App() {
       .select("*")
       .eq("user_email", email);
     if (error) console.error("Fetch error:", error);
-    else setNotes(data);
+    else setNotes(data || []);
   };
 
   // Create a new note
@@ -67,7 +104,8 @@ export default function App() {
 
     if (error) console.error("Insert error:", error);
     else {
-      setNotes([...notes, ...data]);
+      // Refresh notes after adding
+      fetchNotes(user.username);
       setNewNote("");
     }
   };
@@ -77,7 +115,9 @@ export default function App() {
       <h1>📝 Microsoft Auth + Supabase CRUD</h1>
 
       {!user ? (
-        <button onClick={login}>Login with Microsoft</button>
+        <button onClick={login} disabled={!isInitialized}>
+          {isInitialized ? "Login with Microsoft" : "Initializing..."}
+        </button>
       ) : (
         <div>
           <p>Welcome, {user.name || user.username}!</p>
@@ -85,19 +125,37 @@ export default function App() {
 
           <div style={{ marginTop: 20 }}>
             <h2>Your Notes</h2>
-            <input
-              type="text"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="Write a note..."
-            />
-            <button onClick={addNote}>Add</button>
+            <div style={{ display: "flex", marginBottom: 10 }}>
+              <input
+                type="text"
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Write a note..."
+                style={{ flexGrow: 1, marginRight: 8, padding: 8 }}
+              />
+              <button onClick={addNote}>Add</button>
+            </div>
 
-            <ul>
-              {notes.map((note) => (
-                <li key={note.id}>{note.content}</li>
-              ))}
-            </ul>
+            {notes.length === 0 ? (
+              <p>No notes yet. Add your first note!</p>
+            ) : (
+              <ul style={{ listStyleType: "none", padding: 0 }}>
+                {notes.map((note) => (
+                  <li 
+                    key={note.id} 
+                    style={{ 
+                      padding: 12, 
+                      marginBottom: 8, 
+                      backgroundColor: "#f9f9f9",
+                      borderRadius: 4,
+                      border: "1px solid #eee"
+                    }}
+                  >
+                    {note.content}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
