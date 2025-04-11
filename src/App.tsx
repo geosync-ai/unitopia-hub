@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // Replace with your actual Supabase URL and anon public key
 const supabase = createClient(
-  'https://dmasclpgspatxncspcvt.supabase.co', // Your Supabase Project URL
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '', // Your Supabase Project URL
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtYXNjbHBnc3BhdHhuY3NwY3Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5OTY1MDksImV4cCI6MjA1OTU3MjUwOX0.xDoSiZKsCkCwHVqtSS16Jc2awIZDCvCtIqxqlMUcuAM' // Your Anon Public Key
 )
 
@@ -44,7 +44,7 @@ const App: React.FC = () => {
     await supabase.auth.signInWithOAuth({
       provider: 'azure',
       options: {
-        redirectTo: 'https://unitopia-hub.vercel.app/' // Your frontend URL
+        redirectTo: 'https://dmasclpgspatxncspcvt.supabase.co/auth/v1/callback' // Your frontend URL
       }
     })
   }
