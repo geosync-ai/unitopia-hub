@@ -24,11 +24,21 @@ interface TestResult {
 }
 
 interface MicrosoftAPIConfigProps {
-  availablePermissions: string[];
+  availablePermissions?: { value: string; label: string }[];
 }
 
 const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
-  availablePermissions
+  availablePermissions = [
+    { value: 'User.Read', label: 'User Profile (User.Read)' },
+    { value: 'Files.Read.All', label: 'Read All Files (Files.Read.All)' },
+    { value: 'Files.ReadWrite.All', label: 'Read/Write All Files (Files.ReadWrite.All)' },
+    { value: 'Sites.Read.All', label: 'Read All Sites (Sites.Read.All)' },
+    { value: 'Sites.ReadWrite.All', label: 'Read/Write All Sites (Sites.ReadWrite.All)' },
+    { value: 'Mail.Read', label: 'Read Mail (Mail.Read)' },
+    { value: 'Calendars.Read', label: 'Read Calendar (Calendars.Read)' },
+    { value: 'People.Read', label: 'Read People (People.Read)' },
+    { value: 'Directory.Read.All', label: 'Read Directory (Directory.Read.All)' }
+  ]
 }) => {
   const [msConfig, setMsConfig] = useState<MicrosoftAPIConfig>({
     clientId: '',
@@ -222,16 +232,16 @@ const MicrosoftAPIConfig: React.FC<MicrosoftAPIConfigProps> = ({
               <Label>API Permissions</Label>
               <div className="grid grid-cols-2 gap-2">
                 {availablePermissions.map(permission => (
-                  <div key={permission} className="flex items-center space-x-2">
+                  <div key={permission.value} className="flex items-center space-x-2">
                     <input
                       type="checkbox"
-                      id={`permission-${permission}`}
-                      checked={msConfig.permissions.includes(permission)}
-                      onChange={() => handleMicrosoftPermissionToggle(permission)}
+                      id={`permission-${permission.value}`}
+                      checked={msConfig.permissions.includes(permission.value)}
+                      onChange={() => handleMicrosoftPermissionToggle(permission.value)}
                       className="rounded border-gray-300"
                     />
-                    <label htmlFor={`permission-${permission}`} className="text-sm">
-                      {permission}
+                    <label htmlFor={`permission-${permission.value}`} className="text-sm">
+                      {permission.label}
                     </label>
                   </div>
                 ))}

@@ -71,6 +71,13 @@ import { SetupWizard } from '@/components/setup-wizard/SetupWizard';
 import { useAuth } from "@/hooks/useAuth";
 import { OneDriveConfig, CsvConfig } from '@/components/setup-wizard/types';
 import { useCsvEntityData } from '@/hooks/useCsvEntityData';
+import { 
+  useTasksData, 
+  useProjectsData, 
+  useRisksData, 
+  useAssetsData, 
+  useKRAsData 
+} from '@/hooks/useSupabaseData';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -492,34 +499,11 @@ const Unit = () => {
     kraState: null
   });
 
-  // Load data from CSV or localStorage for each entity type
-  const taskState = useCsvEntityData<Task>(
-    'tasks',
-    setupWizard.csvConfig,
-    setupWizard.setCsvConfig,
-    setupWizard.isSetupComplete
-  );
-  
-  const projectState = useCsvEntityData<Project>(
-    'projects',
-    setupWizard.csvConfig,
-    setupWizard.setCsvConfig,
-    setupWizard.isSetupComplete
-  );
-  
-  const riskState = useCsvEntityData<Risk>(
-    'risks',
-    setupWizard.csvConfig,
-    setupWizard.setCsvConfig,
-    setupWizard.isSetupComplete
-  );
-  
-  const assetState = useCsvEntityData<UserAsset>(
-    'assets',
-    setupWizard.csvConfig,
-    setupWizard.setCsvConfig,
-    setupWizard.isSetupComplete
-  );
+  // Use Supabase data hooks for tasks, projects, risks, and assets
+  const taskState = useTasksData();
+  const projectState = useProjectsData();
+  const riskState = useRisksData();
+  const assetState = useAssetsData();
   
   // Keep the existing KRA state for now, could be migrated later
   const kraState = useKraState();
@@ -531,7 +515,7 @@ const Unit = () => {
            (setupWizard.setupMethod === 'onedrive' && !setupWizard.oneDriveConfig);
   }, [setupWizard]);
 
-  // Fetch data when authenticated
+  // Fetch data when authenticated - only get mock data if setup is not complete
   useEffect(() => {
     const fetchData = async () => {
       if (!isAuthenticated || !user) return;
@@ -558,8 +542,6 @@ const Unit = () => {
           localStorage.setItem('unitopia_projects', JSON.stringify(userProjects));
           localStorage.setItem('unitopia_risks', JSON.stringify(userRisks));
           localStorage.setItem('unitopia_assets', JSON.stringify(userAssets));
-        } else {
-          console.log("Setup complete, should be loading from CSV or localStorage");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -770,8 +752,10 @@ const Unit = () => {
     );
   }
 
-  // If loading or error, show appropriate message
-  if (isLoading) {
+  // If loading, show appropriate message - combine Supabase loading states
+  const isDataLoading = taskState.loading || projectState.loading || riskState.loading || assetState.loading;
+  
+  if (isLoading || isDataLoading) {
     return (
       <PageLayout>
         <div className="p-6 flex justify-center items-center h-[70vh]">
@@ -784,13 +768,16 @@ const Unit = () => {
     );
   }
 
-  if (error) {
+  // If error in any of the Supabase data hooks
+  const dataError = taskState.error || projectState.error || riskState.error || assetState.error;
+  if (error || dataError) {
+    const errorMessage = error || (dataError ? dataError.message : null);
     return (
       <PageLayout>
         <div className="p-6 flex justify-center items-center h-[70vh]">
           <div className="text-center">
             <h2 className="text-2xl font-semibold mb-2 text-red-600">Error Loading Dashboard</h2>
-            <p className="text-muted-foreground mb-4">{error}</p>
+            <p className="text-muted-foreground mb-4">{errorMessage}</p>
             <Button onClick={() => window.location.reload()}>
               Reload Page
             </Button>
@@ -852,7 +839,7 @@ const Unit = () => {
               <TasksTab 
                 tasks={taskState.data} 
                 addTask={taskState.add}
-                editTask={taskState.edit}
+                editTask={taskState.update}
                 deleteTask={taskState.remove}
               />
             </TabsContent>
@@ -873,7 +860,7 @@ const Unit = () => {
               <ProjectsTab 
                 projects={projectState.data}
                 addProject={projectState.add}
-                editProject={projectState.edit}
+                editProject={projectState.update}
                 deleteProject={projectState.remove}
               />
             </TabsContent>
@@ -883,7 +870,7 @@ const Unit = () => {
               <RisksTab 
                 risks={riskState.data}
                 addRisk={riskState.add}
-                editRisk={riskState.edit}
+                editRisk={riskState.update}
                 deleteRisk={riskState.remove}
               />
             </TabsContent>
@@ -893,7 +880,7 @@ const Unit = () => {
               <AssetsTab 
                 assets={assetState.data}
                 addAsset={assetState.add}
-                editAsset={assetState.edit}
+                editAsset={assetState.update}
               />
             </TabsContent>
           </Tabs>

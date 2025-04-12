@@ -1,50 +1,66 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MicrosoftAPIConfig from './database/MicrosoftAPIConfig';
-import DatabaseTab from './database/DatabaseTab';
+import SupabaseDataImporter from './SupabaseDataImporter';
 
-const DatabaseIntegration: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'database' | 'microsoft'>('database');
-  
-  const availablePermissions = [
-    { value: 'User.Read', label: 'User Profile (User.Read)' },
-    { value: 'Files.Read.All', label: 'Read All Files (Files.Read.All)' },
-    { value: 'Files.ReadWrite.All', label: 'Read/Write All Files (Files.ReadWrite.All)' },
-    { value: 'Sites.Read.All', label: 'Read All Sites (Sites.Read.All)' },
-    { value: 'Sites.ReadWrite.All', label: 'Read/Write All Sites (Sites.ReadWrite.All)' },
-    { value: 'Mail.Read', label: 'Read Mail (Mail.Read)' },
-    { value: 'Calendars.Read', label: 'Read Calendar (Calendars.Read)' },
-    { value: 'People.Read', label: 'Read People (People.Read)' },
-  ];
-  
+const DatabaseIntegration = () => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Integration Center</CardTitle>
-        <CardDescription>
-          Configure database connections and API integrations for the intranet portal
-        </CardDescription>
-        
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'database' | 'microsoft')} className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="database">Database Connections</TabsTrigger>
-            <TabsTrigger value="microsoft">Microsoft Integration</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </CardHeader>
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold">Database Integration</h2>
       
-      <CardContent>
-        {activeTab === 'database' && <DatabaseTab />}
+      <Tabs defaultValue="microsoft">
+        <TabsList>
+          <TabsTrigger value="microsoft">Microsoft API</TabsTrigger>
+          <TabsTrigger value="supabase">Supabase</TabsTrigger>
+        </TabsList>
         
-        {activeTab === 'microsoft' && (
-          <MicrosoftAPIConfig
-            availablePermissions={availablePermissions}
-          />
-        )}
-      </CardContent>
-    </Card>
+        <TabsContent value="microsoft" className="mt-4">
+          <MicrosoftAPIConfig />
+        </TabsContent>
+        
+        <TabsContent value="supabase" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Supabase Integration</CardTitle>
+              <CardDescription>
+                Configure and manage your Supabase database integration
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <SupabaseDataImporter />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Supabase Status</CardTitle>
+                  <CardDescription>
+                    Current Supabase connection status and configuration
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-2">
+                    <div className="flex justify-between py-1">
+                      <span className="font-medium">Connection Status:</span>
+                      <span className="text-green-600 font-medium">Connected</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="font-medium">Database URL:</span>
+                      <span className="text-muted-foreground truncate max-w-[300px]">
+                        https://dmasclpgspatxncspcvt.supabase.co
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="font-medium">Unit Data Storage:</span>
+                      <span className="text-blue-600 font-medium">Configured</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

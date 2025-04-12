@@ -2,8 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/integrations/microsoft/msalConfig';
-import { login as msalLogin, getAccount, getUserProfile, loginWithMicrosoft as loginWithMicrosoftService } from '@/integrations/microsoft/msalService';
+import { getAccount, getUserProfile, loginWithMicrosoft as loginWithMicrosoftService } from '@/integrations/microsoft/msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
+import { getSupabaseClient, notesService } from '@/integrations/supabase/supabaseClient';
 
 export type UserRole = 'admin' | 'manager' | 'user';
 
@@ -16,6 +17,7 @@ export interface User {
   unitName?: string;
   accessToken?: string; // For Microsoft Graph API
   profilePicture?: string; // URL to profile picture
+  notes?: any[]; // User's notes from Supabase
 }
 
 interface AuthContextType {
@@ -31,6 +33,8 @@ interface AuthContextType {
   setSelectedUnit: (unitId: string | null) => void;
   msGraphConfig: MsGraphConfig | null;
   setUser: (user: User | null) => void;
+  fetchUserNotes: () => Promise<any[]>;
+  addUserNote: (content: string) => Promise<any>;
 }
 
 interface MsGraphConfig {
@@ -121,6 +125,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkExistingSession();
   }, []);
 
+  // Update user object with notes if user exists
+  useEffect(() => {
+    const loadUserNotes = async () => {
+      if (user?.email) {
+        try {
+          const notes = await notesService.getNotes(user.email);
+          setUser({
+            ...user,
+            notes
+          });
+        } catch (error) {
+          console.error('Error loading user notes:', error);
+        }
+      }
+    };
+
+    if (user) {
+      loadUserNotes();
+    }
+  }, [user?.email]);
+
   const login = async (email: string, password: string) => {
     // Special case for the default admin (demo only)
     if (email.toLowerCase() === 'admin@app.com' && password === 'admin') {
@@ -166,6 +191,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // New method to fetch user notes
+  const fetchUserNotes = async (): Promise<any[]> => {
+    if (!user?.email) {
+      console.error('Cannot fetch notes: No user is logged in');
+      return [];
+    }
+    
+    try {
+      const notes = await notesService.getNotes(user.email);
+      // Update the user object with the notes
+      setUser({
+        ...user,
+        notes
+      });
+      return notes;
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+      toast.error('Failed to load your notes');
+      return [];
+    }
+  };
+  
+  // New method to add a user note
+  const addUserNote = async (content: string) => {
+    if (!user?.email) {
+      console.error('Cannot add note: No user is logged in');
+      toast.error('You must be logged in to add notes');
+      return null;
+    }
+    
+    try {
+      const result = await notesService.addNote(user.email, content);
+      // Refresh notes after adding
+      await fetchUserNotes();
+      toast.success('Note added successfully');
+      return result;
+    } catch (error) {
+      console.error('Error adding note:', error);
+      toast.error('Failed to add note');
+      return null;
+    }
+  };
+
   const logout = async () => {
     try {
       // Clear user data
@@ -200,7 +268,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectedUnit,
         setSelectedUnit,
         msGraphConfig,
-        setUser
+        setUser,
+        fetchUserNotes,
+        addUserNote
       }}
     >
       {children}
