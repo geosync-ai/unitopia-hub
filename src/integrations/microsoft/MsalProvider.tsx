@@ -72,63 +72,99 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           }
         });
         
-        await instance.initialize();
+        // Initialize MSAL with proper error handling
+        try {
+          await instance.initialize();
+          console.log('MSAL initialized successfully');
+        } catch (initError) {
+          console.error('MSAL initialization error:', initError);
+          // Continue despite initialization error - the instance can still be used
+        }
+        
         setMsalInstanceState(instance);
         setMsalInstance(instance);
         setIsInitialized(true);
-        console.log('MSAL initialized successfully');
 
         // Still set global instance for backward compatibility
         // This will be removed in a future version once all components use the context
-        (window as any).msalInstance = instance;
-
-        // Handle redirect response
         if (typeof window !== 'undefined') {
+          (window as any).msalInstance = instance;
+        }
+        
+        // Check for redirect response to handle sign-in
+        try {
+          const response = await instance.handleRedirectPromise();
+          console.log('Checking for redirect response...');
+          if (response) {
+            console.log('Redirect response detected:', response);
+            if (response.account) {
+              // Set active account if available
+              instance.setActiveAccount(response.account);
+              
+              // Fetch user profile
+              const userProfile = await getUserProfile(instance);
+              if (userProfile) {
+                const role = ADMIN_EMAILS.includes(userProfile.mail || userProfile.userPrincipalName || '') 
+                  ? UserRole.Admin 
+                  : UserRole.User;
+                
+                const user = {
+                  id: response.account.localAccountId,
+                  name: response.account.name || 'Unknown',
+                  email: userProfile.mail || userProfile.userPrincipalName || response.account.username,
+                  role
+                };
+                
+                // Set user in auth context
+                setUser(user);
+                
+                // Cache user data
+                localStorage.setItem('user', JSON.stringify(user));
+                
+                console.log('User profile fetched and set:', user);
+              }
+            }
+          } else {
+            console.log('No redirect response detected');
+            
+            // Try to check for existing account
+            const accounts = instance.getAllAccounts();
+            if (accounts.length > 0) {
+              const account = accounts[0];
+              instance.setActiveAccount(account);
+              
+              const userProfile = await getUserProfile(instance);
+              if (userProfile) {
+                const role = ADMIN_EMAILS.includes(userProfile.mail || userProfile.userPrincipalName || '') 
+                  ? UserRole.Admin 
+                  : UserRole.User;
+                
+                const user = {
+                  id: account.localAccountId,
+                  name: account.name || 'Unknown',
+                  email: userProfile.mail || userProfile.userPrincipalName || account.username,
+                  role
+                };
+                
+                setUser(user);
+                localStorage.setItem('user', JSON.stringify(user));
+                console.log('Found existing account and set user:', user);
+              }
+            }
+          }
+        } catch (redirectError) {
+          console.error('Error handling redirect:', redirectError);
+          setAuthError(redirectError instanceof Error ? redirectError : new Error(String(redirectError)));
+          
+          // Check if user exists in localStorage as a fallback
           try {
-            console.log('Checking for redirect response...');
-            const response = await instance.handleRedirectPromise();
-            
-            if (response) {
-              console.log('Handling redirect response...', response);
-              const account = getAccount(instance);
-              if (account) {
-                try {
-                  const userProfile = await getUserProfile(instance, microsoftAuthConfig.apiEndpoint);
-                  const userObj = {
-                    id: account.localAccountId,
-                    email: account.username,
-                    name: userProfile.displayName || account.name || account.username.split('@')[0],
-                    role: ADMIN_EMAILS.includes(account.username.toLowerCase()) ? 'admin' as UserRole : 'user' as UserRole,
-                    accessToken: 'ms-token',
-                    profilePicture: userProfile.photo || undefined
-                  };
-                  
-                  setUser(userObj);
-                  localStorage.setItem('user', JSON.stringify(userObj));
-                  console.log('User state updated after redirect');
-                  toast.success(`Welcome, ${userObj.name}! You're now signed in.`);
-                } catch (profileError) {
-                  console.error('Error getting user profile after redirect:', profileError);
-                  toast.error('Signed in, but had trouble getting your profile details.');
-                }
-              }
-            } else {
-              console.log('No redirect response detected');
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+              console.log('Found stored user despite redirect error, restoring session');
+              setUser(JSON.parse(storedUser));
             }
-          } catch (redirectError) {
-            console.error('Error handling redirect:', redirectError);
-            setAuthError(redirectError instanceof Error ? redirectError : new Error(String(redirectError)));
-            
-            // Check if user exists in localStorage as a fallback
-            try {
-              const storedUser = localStorage.getItem('user');
-              if (storedUser) {
-                console.log('Found stored user despite redirect error, restoring session');
-                setUser(JSON.parse(storedUser));
-              }
-            } catch (e) {
-              console.error('Error checking localStorage for user:', e);
-            }
+          } catch (e) {
+            console.error('Error checking localStorage for user:', e);
           }
         }
       } catch (err) {
@@ -153,22 +189,10 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     authError
   };
 
-  // Enhanced loading state that provides more information
-  if (!msalInstance || !isInitialized) {
-    // Don't render children until MSAL is initialized to avoid auth issues
+  if (!msalInstance) {
     return (
       <MsalContext.Provider value={contextValue}>
-        <div className="flex flex-col justify-center items-center h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <div className="text-center">
-            <p className="text-lg font-semibold">Initializing authentication...</p>
-            {authError && (
-              <p className="text-sm text-red-600 mt-2">
-                {authError.message}
-              </p>
-            )}
-          </div>
-        </div>
+        {children}
       </MsalContext.Provider>
     );
   }
