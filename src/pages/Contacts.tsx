@@ -97,6 +97,16 @@ const Contacts = () => {
     return isDivisionContact && matchesDivision;
   });
 
+  // Group contacts by their divisionId
+  const contactsByDivision = divisionContacts.reduce((acc, contact) => {
+    const divisionId = (contact as any).divisionId || 'other';
+    if (!acc[divisionId]) {
+      acc[divisionId] = [];
+    }
+    acc[divisionId].push(contact);
+    return acc;
+  }, {} as Record<string, MicrosoftContact[]>);
+
   // Filter contacts that are users (have userPrincipalName)
   const userContacts = allContacts.filter(contact => {
     const isUserContact = contact.userPrincipalName && contact.userPrincipalName.includes('@');
@@ -223,6 +233,87 @@ const Contacts = () => {
     </div>
   );
 
+  // Render contacts organized by divisions
+  const renderDivisionContactsSection = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Card key={index} className="overflow-hidden">
+              <div className="h-12 bg-gradient-to-r from-intranet-primary to-intranet-secondary"></div>
+              <CardContent className="p-6 pt-0 relative">
+                <div className="flex justify-center">
+                  <Skeleton className="w-20 h-20 rounded-full -mt-10" />
+                </div>
+                <div className="text-center mt-2">
+                  <Skeleton className="h-6 w-32 mx-auto mb-2" />
+                  <Skeleton className="h-4 w-24 mx-auto" />
+                </div>
+                <div className="mt-4 space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    if (Object.keys(contactsByDivision).length === 0) {
+      return (
+        <div className="col-span-full text-center py-8 text-gray-500">
+          No divisional contacts found
+        </div>
+      );
+    }
+
+    const divisionOrder = [
+      "executive-division",
+      "corporate-services-division",
+      "licensing-market-supervision-division",
+      "legal-services-division",
+      "research-publication-division",
+      "secretariat-unit",
+      "other"
+    ];
+
+    // Sort division IDs based on the predefined order, with any unknown divisions at the end
+    const orderedDivisionIds = Object.keys(contactsByDivision).sort((a, b) => {
+      const indexA = divisionOrder.indexOf(a);
+      const indexB = divisionOrder.indexOf(b);
+      
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+
+    return (
+      <div className="space-y-8">
+        {orderedDivisionIds.map(divisionId => {
+          const contacts = contactsByDivision[divisionId];
+          if (!contacts || contacts.length === 0) return null;
+          
+          // Format division name for display
+          const divisionName = divisionId === 'other' 
+            ? 'Other Contacts' 
+            : divisionId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          
+          return (
+            <div key={divisionId} className="animate-fade-in">
+              <h2 className="text-xl font-semibold mb-4 px-4 py-2 bg-secondary rounded-lg">{divisionName}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {contacts.map((contact, index) => renderContactCard(contact, index))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
@@ -319,8 +410,35 @@ const Contacts = () => {
         </TabsContent>
         
         <TabsContent value="division">
-          {/* Division Contacts Tab */}
-          {renderContactsGrid(divisionContacts)}
+          {/* Division Contacts Tab - Now organized by divisions */}
+          <div className="flex flex-row gap-4 mb-6">
+            <div className="relative flex-grow animate-fade-in">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search division contacts..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Button 
+              className="whitespace-nowrap animate-fade-in btn-hover-effect" 
+              style={{ animationDelay: '0.2s' }}
+              onClick={refetch}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+          
+          {renderDivisionContactsSection()}
         </TabsContent>
         
         <TabsContent value="users">
