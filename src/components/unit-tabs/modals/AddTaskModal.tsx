@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ChecklistSection from '@/components/ChecklistSection';
 import { Task } from '@/types';
 import { toast } from "@/components/ui/use-toast";
+import { useStaffByDivision } from '@/hooks/useStaffByDivision';
 
 interface AddTaskModalProps {
   open: boolean;
@@ -27,6 +28,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onOpenChange,
   onSubmit
 }) => {
+  const { staffMembers, isLoading } = useStaffByDivision();
+  
   const [newTask, setNewTask] = useState<Omit<Task, 'id'>>({
     title: '',
     description: '',
@@ -118,12 +121,27 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="task-assignee">Assignee</Label>
-              <Input 
-                id="task-assignee" 
-                placeholder="Assignee" 
-                value={newTask.assignee} 
-                onChange={(e) => setNewTask({...newTask, assignee: e.target.value})}
-              />
+              <Select 
+                value={newTask.assignee}
+                onValueChange={(value) => setNewTask({...newTask, assignee: value})}
+              >
+                <SelectTrigger id="task-assignee" className={isLoading ? "opacity-50" : ""}>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoading ? (
+                    <SelectItem value="" disabled>Loading staff members...</SelectItem>
+                  ) : staffMembers && staffMembers.length > 0 ? (
+                    staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.name}>
+                        {staff.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>No staff members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="task-status">Status</Label>
