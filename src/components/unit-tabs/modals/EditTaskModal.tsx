@@ -157,10 +157,13 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 <Input 
                   id="task-percentage" 
                   type="number"
-                  min="0"
+                  min="1"
                   max="100"
-                  value={editedTask.completionPercentage || 0} 
-                  onChange={(e) => setEditedTask({...editedTask, completionPercentage: parseInt(e.target.value, 10)})}
+                  value={editedTask.completionPercentage || 1} 
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    setEditedTask({...editedTask, completionPercentage: value < 1 ? 1 : value});
+                  }}
                 />
                 <span>%</span>
               </div>

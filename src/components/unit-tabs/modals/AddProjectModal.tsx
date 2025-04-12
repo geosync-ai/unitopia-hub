@@ -183,10 +183,13 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                 <Input 
                   id="project-progress" 
                   type="number"
-                  min="0"
+                  min="1"
                   max="100"
-                  value={projectData.progress || 0} 
-                  onChange={(e) => handleChange('progress', Number(e.target.value))}
+                  value={projectData.progress || 1} 
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    handleChange('progress', value < 1 ? 1 : value);
+                  }}
                 />
                 <span>%</span>
               </div>

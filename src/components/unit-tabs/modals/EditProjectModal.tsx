@@ -160,6 +160,23 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
               onChange={(e) => handleChange('budget', e.target.value ? Number(e.target.value) : undefined)}
             />
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor="project-progress">Progress (%)</Label>
+            <div className="flex items-center gap-2">
+              <Input 
+                id="project-progress" 
+                type="number"
+                min="1"
+                max="100"
+                value={project.progress || 1} 
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  handleChange('progress', value < 1 ? 1 : value);
+                }}
+              />
+              <span>%</span>
+            </div>
+          </div>
         </div>
         
         <div className="border-t pt-4 mt-2">
