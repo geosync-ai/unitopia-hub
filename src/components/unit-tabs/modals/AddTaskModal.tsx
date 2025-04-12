@@ -28,7 +28,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onOpenChange,
   onSubmit
 }) => {
-  const { staffMembers, isLoading } = useStaffByDivision();
+  const { staffMembers, loading } = useStaffByDivision();
   
   const [newTask, setNewTask] = useState<Omit<Task, 'id'>>({
     title: '',
@@ -125,20 +125,20 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 value={newTask.assignee}
                 onValueChange={(value) => setNewTask({...newTask, assignee: value})}
               >
-                <SelectTrigger id="task-assignee" className={isLoading ? "opacity-50" : ""}>
+                <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {isLoading ? (
-                    <SelectItem value="" disabled>Loading staff members...</SelectItem>
+                  {loading ? (
+                    <SelectItem value="_loading">Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.name}>
-                        {staff.name}
+                      <SelectItem key={staff.id} value={staff.email}>
+                        {staff.name} ({staff.job_title})
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="" disabled>No staff members found</SelectItem>
+                    <SelectItem value="_no_staff">No staff members found</SelectItem>
                   )}
                 </SelectContent>
               </Select>
