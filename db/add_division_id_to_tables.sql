@@ -93,8 +93,7 @@ BEGIN
     RETURN QUERY
     SELECT dm.division_id
     FROM division_memberships dm
-    JOIN staff_members sm ON dm.staff_member_id = sm.id
-    WHERE sm.email = p_user_email;
+    WHERE dm.user_id = p_user_email;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -150,4 +149,70 @@ CREATE POLICY unit_kras_division_policy ON unit_kras
 CREATE POLICY unit_kpis_division_policy ON unit_kpis
     USING (
         division_id IN (SELECT get_user_division_ids(auth.jwt() ->> 'email'))
+    );
+
+-- Add admin bypass policy for each table
+-- This allows database administrators to access all data regardless of division
+
+-- For tasks
+CREATE POLICY admin_unit_tasks_policy ON unit_tasks
+    USING (
+        auth.jwt() ->> 'role' = 'admin'
+    );
+
+-- For projects
+CREATE POLICY admin_unit_projects_policy ON unit_projects
+    USING (
+        auth.jwt() ->> 'role' = 'admin'
+    );
+
+-- For risks
+CREATE POLICY admin_unit_risks_policy ON unit_risks
+    USING (
+        auth.jwt() ->> 'role' = 'admin'
+    );
+
+-- For assets
+CREATE POLICY admin_unit_assets_policy ON unit_assets
+    USING (
+        auth.jwt() ->> 'role' = 'admin'
+    );
+
+-- For KRAs
+CREATE POLICY admin_unit_kras_policy ON unit_kras
+    USING (
+        auth.jwt() ->> 'role' = 'admin'
+    );
+
+-- For KPIs
+CREATE POLICY admin_unit_kpis_policy ON unit_kpis
+    USING (
+        auth.jwt() ->> 'role' = 'admin'
+    );
+
+-- Add fallback policies for personal data access
+-- These policies allow users to access their own data even if not assigned to any division
+
+-- For tasks (by assignee)
+CREATE POLICY personal_unit_tasks_policy ON unit_tasks
+    USING (
+        assignee = auth.jwt() ->> 'email'
+    );
+
+-- For projects (by manager)
+CREATE POLICY personal_unit_projects_policy ON unit_projects
+    USING (
+        manager = auth.jwt() ->> 'email'
+    );
+
+-- For risks (by owner)
+CREATE POLICY personal_unit_risks_policy ON unit_risks
+    USING (
+        owner = auth.jwt() ->> 'email'
+    );
+
+-- For assets (by assignedTo)
+CREATE POLICY personal_unit_assets_policy ON unit_assets
+    USING (
+        assigned_to = auth.jwt() ->> 'email'
     );
