@@ -30,26 +30,28 @@ const microsoftAuthConfig = {
 // Log configuration information
 if (typeof window !== 'undefined') {
   console.log('Microsoft Auth Config loaded');
+  
+  // IMPORTANT: ALWAYS use window.location.origin for redirect URI to prevent inconsistencies
+  const originUri = window.location.origin;
+  microsoftAuthConfig.redirectUri = originUri;
+  
   console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
   console.log('Current window origin:', window.location.origin);
   
-  // Automatically use the current window's origin to support both production and development
-  microsoftAuthConfig.redirectUri = window.location.origin;
-  
   // Ensure the current origin is in the approved list
-  if (!microsoftAuthConfig.approvedRedirectUris.includes(window.location.origin)) {
-    microsoftAuthConfig.approvedRedirectUris.push(window.location.origin);
-    console.log('Added current origin to approved URIs:', window.location.origin);
+  if (!microsoftAuthConfig.approvedRedirectUris.includes(originUri)) {
+    microsoftAuthConfig.approvedRedirectUris.push(originUri);
+    console.log('Added current origin to approved URIs:', originUri);
   }
   
   console.log('Updating MSAL config with:', microsoftAuthConfig);
   
   // Check if current origin is in the list of approved URIs
-  const isApprovedUri = microsoftAuthConfig.approvedRedirectUris.includes(window.location.origin);
+  const isApprovedUri = microsoftAuthConfig.approvedRedirectUris.includes(originUri);
   
   if (!isApprovedUri) {
     console.error('⚠️ AUTHENTICATION ERROR RISK:');
-    console.error(`Current origin "${window.location.origin}" is not in the list of approved redirect URIs.`);
+    console.error(`Current origin "${originUri}" is not in the list of approved redirect URIs.`);
     console.error('This URL must be registered in Azure Portal to avoid authentication errors.');
     console.error('Approved URIs:', microsoftAuthConfig.approvedRedirectUris);
     console.error('Add this URL to both:');
@@ -57,7 +59,7 @@ if (typeof window !== 'undefined') {
     console.error('2. The Azure Portal app registration redirect URIs list');
   } else {
     // If it's an approved URI, provide confirmation
-    console.log('Current origin is approved for authentication:', window.location.origin);
+    console.log('Current origin is approved for authentication:', originUri);
   }
   
   // Log the final MSAL config that will be used
@@ -71,7 +73,7 @@ if (typeof window !== 'undefined') {
   // Show warning if running in development
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     console.warn('⚠️ Running in development mode:');
-    console.warn('- Using current origin as redirect URI:', window.location.origin);
+    console.warn('- Using current origin as redirect URI:', originUri);
     console.warn('- Make sure this URI is registered in Azure Portal');
     console.warn('- AND "https://unitopia-hub.vercel.app" is registered for production');
   }

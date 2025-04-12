@@ -26,6 +26,7 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       if (!msalInstance) {
         toast.error('Microsoft authentication service is not available.');
         console.error('MSAL instance not found on window object');
+        setIsLoggingIn(false);
         return;
       }
       
@@ -44,7 +45,19 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       // Clear any existing accounts to force a clean login
       msalInstance.clearCache();
       
-      // Force a clean login with explicit parameters
+      // First, make sure there's no pending redirect by handling any existing promise
+      try {
+        await msalInstance.handleRedirectPromise().catch(err => {
+          console.log('Pre-login redirect cleanup:', err);
+          // We can ignore errors here as we're just cleaning up
+        });
+      } catch (e) {
+        console.log('Error during pre-login cleanup:', e);
+        // Continue anyway
+      }
+      
+      // Force a clean login with explicit parameters using window.location.origin 
+      // for consistent redirect URI
       await msalInstance.loginRedirect({
         scopes: ['User.Read'],
         redirectUri: window.location.origin,

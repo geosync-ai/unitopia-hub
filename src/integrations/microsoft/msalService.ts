@@ -303,8 +303,8 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
     // Make sure we have a clean state for this attempt
     localStorage.removeItem('msalLoginAttempts');
     
-    // Ensure we're using the exact redirect URI from config
-    const exactRedirectUri = microsoftAuthConfig.redirectUri;
+    // ALWAYS use window.location.origin for redirectUri to ensure consistency
+    const exactRedirectUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
     console.log('[DEBUG - MSAL] Using exact redirect URI:', exactRedirectUri);
     
     console.log('[DEBUG - MSAL] Authentication parameters:', {
@@ -321,6 +321,17 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
       throw new Error('MSAL instance not initialized');
     }
     
+    // First, handle any existing redirect promises to clear the state
+    try {
+      await instance.handleRedirectPromise().catch(err => {
+        console.log('[DEBUG - MSAL] Pre-login redirect cleanup:', err);
+        // Ignore errors during cleanup
+      });
+    } catch (e) {
+      console.log('[DEBUG - MSAL] Error during pre-login cleanup:', e);
+      // Continue with login process despite errors
+    }
+    
     // Check for existing accounts
     const accounts = instance.getAllAccounts();
     console.log('[DEBUG - MSAL] Existing accounts:', accounts.length ? accounts.map(a => ({ username: a.username, name: a.name })) : 'None');
@@ -334,7 +345,8 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
     // Create a customized login request with the exact redirect URI
     const customizedLoginRequest = {
       ...loginRequest,
-      redirectUri: exactRedirectUri
+      redirectUri: exactRedirectUri,
+      prompt: 'select_account' // Force account selection to prevent authentication issues
     };
     
     // Add an attempt counter to localStorage to track redirect loop issues
@@ -348,6 +360,14 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
       console.error('[DEBUG - MSAL] Detected potential redirect loop. Stopping login process to prevent infinite redirects.');
       localStorage.removeItem(attemptKey);
       throw new Error('Potential redirect loop detected');
+    }
+    
+    // Clear any MSAL state that might interfere with the login
+    if (typeof window !== 'undefined') {
+      // Clear all MSAL-related entries from session storage
+      Object.keys(sessionStorage)
+        .filter(key => key.startsWith('msal.'))
+        .forEach(key => sessionStorage.removeItem(key));
     }
     
     console.log('[DEBUG - MSAL] Attempting to initiate redirect login with customized request');
@@ -376,10 +396,6 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
       console.error('[DEBUG - MSAL] 1. https://unitopia-hub.vercel.app');
       console.error('[DEBUG - MSAL] 2. ' + (typeof window !== 'undefined' ? window.location.origin : 'unknown'));
     }
-    
-    // Reset attempt counter on error
-    localStorage.removeItem('msalLoginAttempts');
-    
     throw error;
   }
 };

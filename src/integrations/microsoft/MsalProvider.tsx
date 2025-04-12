@@ -138,7 +138,23 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           
           console.log('Auth in progress status:', isAuthInProgress);
                                   
-          // Add a bit of timeout to ensure browser has fully loaded and state is settled
+          // First, immediately try to handle the redirect without any delay
+          try {
+            const response = await instance.handleRedirectPromise();
+            if (response) {
+              console.log('Successfully processed redirect response:', response);
+              // Handle the successful login
+              if (response.account) {
+                instance.setActiveAccount(response.account);
+              }
+            } else {
+              console.log('No redirect response found during initial check');
+            }
+          } catch (redirectError) {
+            console.error('Error during initial redirect handling:', redirectError);
+          }
+          
+          // Add a bit of timeout as a fallback to ensure browser has fully loaded
           setTimeout(async () => {
             try {
               // Force clear any stale interaction status
@@ -158,23 +174,28 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                 }
               }
               
-              const response = await instance.handleRedirectPromise();
-              console.log('Checking for redirect response...');
-              if (response) {
-                console.log('Redirect response detected:', response);
-                if (response.account) {
+              // Try again after cleaning up the session
+              console.log('Checking for redirect response after cleanup...');
+              const secondResponse = await instance.handleRedirectPromise().catch(err => {
+                console.error('Error handling redirect after cleanup:', err);
+                return null;
+              });
+              
+              if (secondResponse) {
+                console.log('Redirect response detected:', secondResponse);
+                if (secondResponse.account) {
                   // Set active account if available
-                  instance.setActiveAccount(response.account);
+                  instance.setActiveAccount(secondResponse.account);
                   
                   // Fetch user profile
                   const userProfile = await getUserProfile(instance);
                   if (userProfile) {
-                    const userEmail = userProfile.mail || userProfile.userPrincipalName || response.account.username;
+                    const userEmail = userProfile.mail || userProfile.userPrincipalName || secondResponse.account.username;
                     
                     // Create a properly typed user object
                     const userData = {
-                      id: response.account.localAccountId,
-                      name: response.account.name || 'Unknown',
+                      id: secondResponse.account.localAccountId,
+                      name: secondResponse.account.name || 'Unknown',
                       email: userEmail,
                       role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
                       isAdmin: ADMIN_EMAILS.includes(userEmail),
@@ -351,7 +372,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                   Object.keys(sessionStorage)
                     .filter(key => key.startsWith('msal.'))
                     .forEach(key => sessionStorage.removeItem(key));
-                  
+                    
                   localStorage.removeItem('msalLoginAttempts');
                 }
                 
