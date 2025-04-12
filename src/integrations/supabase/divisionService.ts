@@ -1,7 +1,23 @@
 import { getSupabaseClient } from './supabaseClient';
 import supabaseConfig from '@/config/supabase';
-import { Division, DivisionMembership, DivisionRole } from '@/types';
+import { DivisionRole } from '@/types';
 import { divisions as mockDivisions, staffMembers as mockStaffMembers } from '@/data/divisions';
+
+// Interface for division data
+export interface Division {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+}
+
+// Interface for division membership
+export interface DivisionMembership {
+  id?: string;
+  staff_id: string;
+  division_id: string;
+  role: 'director' | 'manager' | 'officer' | 'staff';
+}
 
 // Service for handling division operations
 export const divisionService = {
@@ -172,13 +188,37 @@ export const divisionService = {
         return;
       }
       
+      // Default colors for divisions
+      const divisionColors = {
+        'executive-division': '#4F46E5',
+        'corporate-services-division': '#10B981', 
+        'licensing-market-supervision-division': '#F59E0B',
+        'legal-services-division': '#EF4444',
+        'research-publication-division': '#8B5CF6',
+        'secretariat-unit': '#EC4899'
+      };
+      
       // Insert divisions
-      const { error: divisionsError } = await supabase
+      const { data: existingDivisions, error: existingDivisionsError } = await supabase
         .from(supabaseConfig.tables.divisions)
-        .insert(mockDivisions);
-        
-      if (divisionsError) {
-        console.error('Error initializing divisions:', divisionsError);
+        .select('*');
+      
+      if (existingDivisionsError) {
+        console.error('Error checking existing divisions:', existingDivisionsError);
+        return;
+      }
+      
+      const divisionsWithColors = existingDivisions.map(division => ({
+        ...division,
+        color: divisionColors[division.id as keyof typeof divisionColors] || '#64748b'
+      }));
+      
+      const { error: insertError } = await supabase
+        .from(supabaseConfig.tables.divisions)
+        .insert(divisionsWithColors);
+      
+      if (insertError) {
+        console.error('Error initializing divisions data:', insertError);
         return;
       }
       

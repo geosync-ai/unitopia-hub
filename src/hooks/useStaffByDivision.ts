@@ -2,20 +2,16 @@ import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/integrations/supabase/supabaseClient';
 import DivisionStaffMap from '@/utils/divisionStaffMap';
 import { useDivisionContext } from './useDivisionContext';
+import { StaffMember } from '@/types/staff';
 
-export interface StaffMember {
-  id: string;
-  name: string;
-  email: string;
-  job_title: string;
-  department: string;
-  mobile: string;
-  business_phone: string;
-  office_location: string;
-  division_id: string;
+export interface UseStaffByDivisionOptions {
+  divisionId?: string;
+  searchQuery?: string;
+  includeAllDivisions?: boolean;
 }
 
-const useStaffByDivision = (divisionId?: string) => {
+const useStaffByDivision = (options: UseStaffByDivisionOptions = {}) => {
+  const { divisionId, searchQuery, includeAllDivisions = false } = options;
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -36,14 +32,16 @@ const useStaffByDivision = (divisionId?: string) => {
         
         if (error) throw error;
 
+        let staffData: StaffMember[] = [];
+        
         if (data && data.length > 0) {
-          setStaff(data as StaffMember[]);
+          staffData = data as StaffMember[];
         } else {
           // Fallback to static data if no results or specified division
-          let staffData: StaffMember[];
-          
           if (divisionId) {
             staffData = DivisionStaffMap.getStaffByDivision(divisionId);
+          } else if (includeAllDivisions) {
+            staffData = DivisionStaffMap.getAllStaff();
           } else if (userDivisions && userDivisions.length > 0) {
             // If no division specified but user has divisions, get staff for user's divisions
             // Use the division ID from the first division in userDivisions
@@ -52,9 +50,21 @@ const useStaffByDivision = (divisionId?: string) => {
             // Get all staff as a last resort
             staffData = DivisionStaffMap.getAllStaff();
           }
-          
-          setStaff(staffData);
         }
+        
+        // Apply search filtering if a query is provided
+        if (searchQuery && searchQuery.trim() !== '') {
+          const query = searchQuery.toLowerCase().trim();
+          staffData = staffData.filter(
+            staff => 
+              staff.name.toLowerCase().includes(query) ||
+              staff.email.toLowerCase().includes(query) ||
+              staff.job_title.toLowerCase().includes(query) ||
+              staff.department.toLowerCase().includes(query)
+          );
+        }
+        
+        setStaff(staffData);
       } catch (err) {
         console.error('Error fetching staff:', err);
         setError(err instanceof Error ? err : new Error(String(err)));
@@ -64,8 +74,22 @@ const useStaffByDivision = (divisionId?: string) => {
         
         if (divisionId) {
           staffData = DivisionStaffMap.getStaffByDivision(divisionId);
+        } else if (includeAllDivisions) {
+          staffData = DivisionStaffMap.getAllStaff();
         } else {
           staffData = DivisionStaffMap.getAllStaff();
+        }
+        
+        // Apply search filtering on error case too
+        if (searchQuery && searchQuery.trim() !== '') {
+          const query = searchQuery.toLowerCase().trim();
+          staffData = staffData.filter(
+            staff => 
+              staff.name.toLowerCase().includes(query) ||
+              staff.email.toLowerCase().includes(query) ||
+              staff.job_title.toLowerCase().includes(query) ||
+              staff.department.toLowerCase().includes(query)
+          );
         }
         
         setStaff(staffData);
@@ -75,9 +99,14 @@ const useStaffByDivision = (divisionId?: string) => {
     };
 
     fetchStaff();
-  }, [divisionId, supabase, userDivisions]);
+  }, [divisionId, searchQuery, includeAllDivisions, supabase, userDivisions]);
 
-  return { staff, loading, error };
+  return {
+    staffMembers: staff,
+    loading,
+    error,
+    isEmpty: staff.length === 0 && !loading
+  };
 };
 
 export default useStaffByDivision; 

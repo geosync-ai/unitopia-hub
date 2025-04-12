@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import useStaffByDivision from '@/hooks/useStaffByDivision';
-import { Input, Select, Spinner, Box, Heading, Text, VStack, HStack, Avatar, Flex, Badge } from '@chakra-ui/react';
 import { useDivisionContext } from '@/hooks/useDivisionContext';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface StaffByDivisionListProps {
   initialDivisionId?: string;
@@ -19,76 +23,80 @@ export const StaffByDivisionList: React.FC<StaffByDivisionListProps> = ({ initia
     includeAllDivisions,
   });
 
-  const handleDivisionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
+  const handleDivisionChange = (value: string) => {
     setDivisionId(value === 'all' ? undefined : value);
     setIncludeAllDivisions(value === 'all');
   };
 
   return (
-    <Box p={4} borderWidth="1px" borderRadius="lg" boxShadow="md" bg="white">
-      <Heading size="md" mb={4}>Staff Directory</Heading>
+    <div className="p-4 border rounded-lg shadow-md bg-white">
+      <h2 className="text-xl font-bold mb-4">Staff Directory</h2>
       
-      <VStack spacing={4} align="stretch" mb={6}>
-        <HStack>
+      <div className="flex flex-col space-y-4 mb-6">
+        <div className="flex space-x-2">
           <Select 
-            placeholder="Select Division" 
             value={divisionId || (includeAllDivisions ? 'all' : '')}
-            onChange={handleDivisionChange}
+            onValueChange={handleDivisionChange}
           >
-            <option value="all">All Divisions</option>
-            {userDivisions.map(division => (
-              <option key={division.id} value={division.id}>
-                {division.name}
-              </option>
-            ))}
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Division" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Divisions</SelectItem>
+              {userDivisions.map(division => (
+                <SelectItem key={division.id} value={division.id}>
+                  {division.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
           
           <Input
             placeholder="Search staff..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
           />
-        </HStack>
-      </VStack>
+        </div>
+      </div>
 
       {loading ? (
-        <Flex justify="center" my={8}>
-          <Spinner size="xl" />
-        </Flex>
+        <div className="flex justify-center my-8">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        </div>
       ) : error ? (
-        <Text color="red.500" textAlign="center">{error}</Text>
+        <p className="text-red-500 text-center">{String(error)}</p>
       ) : isEmpty ? (
-        <Text textAlign="center">No staff members found</Text>
+        <p className="text-center">No staff members found</p>
       ) : (
-        <VStack spacing={3} align="stretch">
+        <div className="space-y-3">
           {staffMembers.map(staff => (
-            <Box 
+            <Card 
               key={staff.email} 
-              p={3} 
-              borderWidth="1px" 
-              borderRadius="md"
-              _hover={{ bg: 'gray.50' }}
+              className="p-3 hover:bg-gray-50"
             >
-              <HStack spacing={4}>
-                <Avatar name={staff.name} size="md" />
-                <VStack align="start" spacing={1} flex={1}>
-                  <Heading size="sm">{staff.name}</Heading>
-                  <Text fontSize="sm" color="gray.600">{staff.job_title}</Text>
-                  <Text fontSize="sm">{staff.email}</Text>
-                  <HStack>
-                    <Badge colorScheme="blue">{staff.department}</Badge>
-                    {staff.division && (
-                      <Badge colorScheme="purple">{staff.division}</Badge>
-                    )}
-                  </HStack>
-                </VStack>
-              </HStack>
-            </Box>
+              <div className="flex space-x-4">
+                <Avatar>
+                  <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(staff.name)}`} />
+                  <AvatarFallback>{staff.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col space-y-1 flex-1">
+                  <h3 className="text-sm font-semibold">{staff.name}</h3>
+                  <p className="text-sm text-gray-600">{staff.job_title}</p>
+                  <p className="text-sm">{staff.email}</p>
+                  <div className="flex space-x-2">
+                    <Badge variant="outline">{staff.department}</Badge>
+                    <Badge variant="secondary">
+                      {staff.division_id.replace(/-/g, ' ')}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </Card>
           ))}
-        </VStack>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 

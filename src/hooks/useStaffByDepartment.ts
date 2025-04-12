@@ -1,18 +1,7 @@
 import { useState, useEffect } from 'react';
-import { DivisionStaffMap } from '@/utils/divisionStaffMap';
+import DivisionStaffMap from '@/utils/divisionStaffMap';
 import { useAuth } from './useAuth';
-
-export interface StaffMember {
-  id: string;
-  name: string;
-  email: string;
-  job_title: string;
-  department: string;
-  mobile: string; 
-  business_phone: string;
-  office_location: string;
-  division_id: string;
-}
+import { StaffMember } from '@/types/staff';
 
 export function useStaffByDepartment() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -62,7 +51,8 @@ export function useStaffByDepartment() {
     error,
     currentUserDepartment: staffMembers.length > 0 && user?.email 
       ? DivisionStaffMap.getStaffByEmail(user.email)?.department 
-      : null
+      : null,
+    isEmpty: staffMembers.length === 0 && !loading
   };
 }
 
