@@ -12,9 +12,9 @@ const Apps = () => {
 
   const msalConfig = {
     auth: {
-      clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f', // Your app client ID
-      authority: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab', // Your tenant ID
-      redirectUri: 'https://unitopia-hub.vercel.app/', // Your redirect URI
+      clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f',
+      authority: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab',
+      redirectUri: 'https://unitopia-hub.vercel.app/',
     },
     cache: {
       cacheLocation: 'sessionStorage',
@@ -91,7 +91,7 @@ const Apps = () => {
         account,
       });
 
-      const graphResponse = await fetch('https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName,jobTitle,mobilePhone,officeLocation', {
+      const graphResponse = await fetch('https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName,jobTitle,mobilePhone,officeLocation,department,businessPhones', {
         headers: {
           Authorization: `Bearer ${response.accessToken}`,
         },
@@ -123,8 +123,10 @@ const Apps = () => {
                   <p><strong>Name:</strong> {user.displayName}</p>
                   <p><strong>Email:</strong> {user.mail || user.userPrincipalName}</p>
                   <p><strong>Job Title:</strong> {user.jobTitle || 'N/A'}</p>
+                  <p><strong>Department:</strong> {user.department || 'N/A'}</p>
                   <p><strong>Mobile:</strong> {user.mobilePhone || 'N/A'}</p>
-                  <p><strong>Office:</strong> {user.officeLocation || 'N/A'}</p>
+                  <p><strong>Business Phone:</strong> {user.businessPhones?.[0] || 'N/A'}</p>
+                  <p><strong>Office Location:</strong> {user.officeLocation || 'N/A'}</p>
                 </div>
               ))}
             </div>
