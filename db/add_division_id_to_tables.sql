@@ -50,7 +50,7 @@ BEGIN
     RETURN QUERY
     SELECT dm.division_id
     FROM division_memberships dm
-    JOIN staff_members sm ON dm.staff_id = sm.id
+    JOIN staff_members sm ON dm.staff_member_id = sm.id
     WHERE sm.email = p_user_email;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
