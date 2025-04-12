@@ -11,6 +11,58 @@ const TABLES = {
   KPIS: 'unit_kpis'
 };
 
+// Utility to convert camelCase to snake_case
+const camelToSnakeCase = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(camelToSnakeCase);
+  }
+
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => {
+      // Convert camelCase to snake_case
+      const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+      
+      // Handle nested objects
+      if (key !== 'checklist' && value !== null && typeof value === 'object') {
+        // Don't convert the checklist JSONB since it's stored as-is
+        value = camelToSnakeCase(value);
+      }
+      
+      return [snakeKey, value];
+    })
+  );
+};
+
+// Utility to convert snake_case to camelCase
+const snakeToCamelCase = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(snakeToCamelCase);
+  }
+
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => {
+      // Convert snake_case to camelCase
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      
+      // Handle nested objects
+      if (key !== 'checklist' && value !== null && typeof value === 'object') {
+        // Don't convert the checklist JSONB since it's stored as-is
+        value = snakeToCamelCase(value);
+      }
+      
+      return [camelKey, value];
+    })
+  );
+};
+
 // Task operations
 export const tasksService = {
   // Get all tasks
@@ -32,16 +84,20 @@ export const tasksService = {
       throw error;
     }
     
-    return data || [];
+    // Convert snake_case to camelCase for frontend
+    return (data || []).map(snakeToCamelCase);
   },
   
   // Add a new task
   addTask: async (task: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseTask = camelToSnakeCase(task);
+    
     // Ensure task has created_at and updated_at
     const taskWithTimestamps = {
-      ...task,
+      ...snakeCaseTask,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -56,16 +112,20 @@ export const tasksService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Update a task
   updateTask: async (id: string, task: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseTask = camelToSnakeCase(task);
+    
     // Add updated_at timestamp
     const taskWithTimestamp = {
-      ...task,
+      ...snakeCaseTask,
       updated_at: new Date().toISOString()
     };
     
@@ -80,7 +140,8 @@ export const tasksService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Delete a task
@@ -121,16 +182,20 @@ export const projectsService = {
       throw error;
     }
     
-    return data || [];
+    // Convert snake_case to camelCase for frontend
+    return (data || []).map(snakeToCamelCase);
   },
   
   // Add a new project
   addProject: async (project: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseProject = camelToSnakeCase(project);
+    
     // Ensure project has created_at and updated_at
     const projectWithTimestamps = {
-      ...project,
+      ...snakeCaseProject,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -145,16 +210,20 @@ export const projectsService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Update a project
   updateProject: async (id: string, project: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseProject = camelToSnakeCase(project);
+    
     // Add updated_at timestamp
     const projectWithTimestamp = {
-      ...project,
+      ...snakeCaseProject,
       updated_at: new Date().toISOString()
     };
     
@@ -169,7 +238,8 @@ export const projectsService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Delete a project
@@ -210,16 +280,20 @@ export const risksService = {
       throw error;
     }
     
-    return data || [];
+    // Convert snake_case to camelCase for frontend
+    return (data || []).map(snakeToCamelCase);
   },
   
   // Add a new risk
   addRisk: async (risk: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseRisk = camelToSnakeCase(risk);
+    
     // Ensure risk has created_at and updated_at
     const riskWithTimestamps = {
-      ...risk,
+      ...snakeCaseRisk,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -234,16 +308,20 @@ export const risksService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Update a risk
   updateRisk: async (id: string, risk: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseRisk = camelToSnakeCase(risk);
+    
     // Add updated_at timestamp
     const riskWithTimestamp = {
-      ...risk,
+      ...snakeCaseRisk,
       updated_at: new Date().toISOString()
     };
     
@@ -258,7 +336,8 @@ export const risksService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Delete a risk
@@ -300,23 +379,8 @@ export const assetsService = {
         throw error;
       }
       
-      // Convert snake_case to camelCase for frontend use
-      const formattedData = (data || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        serialNumber: item.serial_number,
-        assignedTo: item.assigned_to,
-        department: item.department,
-        purchaseDate: item.purchase_date,
-        warrantyExpiry: item.warranty_expiry,
-        status: item.status,
-        notes: item.notes,
-        createdAt: item.created_at,
-        updatedAt: item.updated_at
-      }));
-      
-      return formattedData;
+      // Convert snake_case to camelCase for frontend
+      return (data || []).map(snakeToCamelCase);
     } catch (err) {
       console.error('Error fetching assets:', err);
       // Still return empty array to allow UI to render
@@ -328,17 +392,12 @@ export const assetsService = {
   addAsset: async (asset: any) => {
     const supabase = getSupabaseClient();
     
-    // Convert camelCase to snake_case for database storage
-    const assetData = {
-      name: asset.name,
-      type: asset.type,
-      serial_number: asset.serialNumber,
-      assigned_to: asset.assignedTo,
-      department: asset.department,
-      purchase_date: asset.purchaseDate,
-      warranty_expiry: asset.warrantyExpiry,
-      status: asset.status,
-      notes: asset.notes,
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseAsset = camelToSnakeCase(asset);
+    
+    // Ensure asset has created_at and updated_at
+    const assetWithTimestamps = {
+      ...snakeCaseAsset,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -346,7 +405,7 @@ export const assetsService = {
     try {
       const { data, error } = await supabase
         .from(TABLES.ASSETS)
-        .insert([assetData])
+        .insert([assetWithTimestamps])
         .select();
       
       if (error) {
@@ -354,26 +413,8 @@ export const assetsService = {
         throw error;
       }
       
-      // Convert snake_case to camelCase for frontend
-      if (data && data[0]) {
-        const newAsset = data[0];
-        return {
-          id: newAsset.id,
-          name: newAsset.name,
-          type: newAsset.type,
-          serialNumber: newAsset.serial_number,
-          assignedTo: newAsset.assigned_to,
-          department: newAsset.department,
-          purchaseDate: newAsset.purchase_date,
-          warrantyExpiry: newAsset.warranty_expiry,
-          status: newAsset.status,
-          notes: newAsset.notes,
-          createdAt: newAsset.created_at,
-          updatedAt: newAsset.updated_at
-        };
-      }
-      
-      return null;
+      // Convert back to camelCase for frontend
+      return data?.[0] ? snakeToCamelCase(data[0]) : null;
     } catch (error) {
       console.error('Error adding asset:', error);
       throw error;
@@ -384,25 +425,19 @@ export const assetsService = {
   updateAsset: async (id: string, asset: any) => {
     const supabase = getSupabaseClient();
     
-    // Convert camelCase to snake_case for update
-    const updateData: any = {};
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseAsset = camelToSnakeCase(asset);
     
-    if (asset.name !== undefined) updateData.name = asset.name;
-    if (asset.type !== undefined) updateData.type = asset.type;
-    if (asset.serialNumber !== undefined) updateData.serial_number = asset.serialNumber;
-    if (asset.assignedTo !== undefined) updateData.assigned_to = asset.assignedTo;
-    if (asset.department !== undefined) updateData.department = asset.department;
-    if (asset.purchaseDate !== undefined) updateData.purchase_date = asset.purchaseDate;
-    if (asset.warrantyExpiry !== undefined) updateData.warranty_expiry = asset.warrantyExpiry;
-    if (asset.status !== undefined) updateData.status = asset.status;
-    if (asset.notes !== undefined) updateData.notes = asset.notes;
-    
-    updateData.updated_at = new Date().toISOString();
+    // Add updated_at timestamp
+    const assetWithTimestamp = {
+      ...snakeCaseAsset,
+      updated_at: new Date().toISOString()
+    };
     
     try {
       const { data, error } = await supabase
         .from(TABLES.ASSETS)
-        .update(updateData)
+        .update(assetWithTimestamp)
         .eq('id', id)
         .select();
       
@@ -411,26 +446,8 @@ export const assetsService = {
         throw error;
       }
       
-      // Convert snake_case to camelCase for frontend
-      if (data && data[0]) {
-        const updatedAsset = data[0];
-        return {
-          id: updatedAsset.id,
-          name: updatedAsset.name,
-          type: updatedAsset.type,
-          serialNumber: updatedAsset.serial_number,
-          assignedTo: updatedAsset.assigned_to,
-          department: updatedAsset.department,
-          purchaseDate: updatedAsset.purchase_date,
-          warrantyExpiry: updatedAsset.warranty_expiry,
-          status: updatedAsset.status,
-          notes: updatedAsset.notes,
-          createdAt: updatedAsset.created_at,
-          updatedAt: updatedAsset.updated_at
-        };
-      }
-      
-      return null;
+      // Convert back to camelCase for frontend
+      return data?.[0] ? snakeToCamelCase(data[0]) : null;
     } catch (error) {
       console.error('Error updating asset:', error);
       throw error;
@@ -475,16 +492,20 @@ export const krasService = {
       throw error;
     }
     
-    return data || [];
+    // Convert snake_case to camelCase for frontend
+    return (data || []).map(snakeToCamelCase);
   },
   
   // Add a new KRA
   addKRA: async (kra: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseKra = camelToSnakeCase(kra);
+    
     // Ensure KRA has created_at and updated_at
     const kraWithTimestamps = {
-      ...kra,
+      ...snakeCaseKra,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -499,16 +520,20 @@ export const krasService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Update a KRA
   updateKRA: async (id: string, kra: any) => {
     const supabase = getSupabaseClient();
     
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseKra = camelToSnakeCase(kra);
+    
     // Add updated_at timestamp
     const kraWithTimestamp = {
-      ...kra,
+      ...snakeCaseKra,
       updated_at: new Date().toISOString()
     };
     
@@ -523,7 +548,8 @@ export const krasService = {
       throw error;
     }
     
-    return data?.[0] || null;
+    // Convert back to camelCase for frontend
+    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Delete a KRA
