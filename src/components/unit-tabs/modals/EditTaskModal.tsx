@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ChecklistSection from '@/components/ChecklistSection';
 import { Task } from '@/types';
 import { toast } from "@/components/ui/use-toast";
-import { useDivisionStaff } from '@/hooks/useDivisionStaff';
+import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 
 interface EditTaskModalProps {
   open: boolean;
@@ -30,7 +30,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   task,
   onSave
 }) => {
-  const { staffMembers, loading } = useDivisionStaff();
+  const { staffMembers, loading, currentUserDepartment } = useStaffByDepartment();
   const [editedTask, setEditedTask] = useState<Task>({...task});
 
   const handleUpdateTask = () => {
@@ -98,7 +98,9 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="task-assignee">Assignee</Label>
+              <Label htmlFor="task-assignee">
+                Assignee {currentUserDepartment && <span className="text-sm text-muted-foreground">({currentUserDepartment})</span>}
+              </Label>
               <Select 
                 value={editedTask.assignee || ''}
                 onValueChange={(value) => setEditedTask({...editedTask, assignee: value})}
@@ -111,8 +113,8 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                     <SelectItem value="_loading">Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.email}>
-                        {staff.name} ({staff.jobTitle})
+                      <SelectItem key={staff.id} value={staff.name}>
+                        {staff.name} ({staff.job_title})
                       </SelectItem>
                     ))
                   ) : (
