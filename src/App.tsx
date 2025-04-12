@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { PublicClientApplication, EventType } from "@azure/msal-browser";
 import { createClient } from "@supabase/supabase-js";
 
-// MSAL Config
+// MSAL Configuration
 const msalConfig = {
   auth: {
     clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
@@ -11,12 +11,12 @@ const msalConfig = {
   },
 };
 
-// Supabase Config
+// Supabase Configuration
 const supabaseUrl = "https://dmasclpgspatxncspcvt.supabase.co";
-const supabaseAnonKey = "YOUR_SUPABASE_ANON_KEY"; // Use your actual key
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtYXNjbHBnc3BhdHhuY3NwY3Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5OTY1MDksImV4cCI6MjA1OTU3MjUwOX0.xDoSiZKsCkCwHVqtSS16Jc2awIZDCvCtIqxqlMUcuAM";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export default function App() {
+function App() {
   const [msalInstance, setMsalInstance] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -117,7 +117,7 @@ export default function App() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>📝 Microsoft Auth + Supabase + Profile Info</h1>
+      <h1>📝 Microsoft Auth + Supabase Notes</h1>
 
       {!user ? (
         <button onClick={login} disabled={!isInitialized}>
@@ -178,3 +178,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;
