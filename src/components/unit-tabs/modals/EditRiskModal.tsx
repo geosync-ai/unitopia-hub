@@ -133,29 +133,19 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
   };
 
   const handleChecklistChange = (key: string, checked: boolean) => {
-    // Find if we have a checklist item with this id already
-    const existingItemIndex = formState.checklist.findIndex(item => item.id === key);
-    let updatedChecklist = [...formState.checklist];
-    
-    if (existingItemIndex >= 0) {
-      // Update existing item
-      updatedChecklist[existingItemIndex] = {
-        ...updatedChecklist[existingItemIndex],
-        checked
-      };
-    } else if (checked) {
-      // Add new item if it's being checked
-      updatedChecklist.push({
+    if (checked) {
+      // For radio buttons, we should clear all other selections first
+      const newChecklist = [{
         id: key,
         text: getChecklistText(key),
-        checked
-      });
+        checked: true
+      }];
+      
+      setFormState(prev => ({ 
+        ...prev, 
+        checklist: newChecklist 
+      }));
     }
-    
-    setFormState(prev => ({ 
-      ...prev, 
-      checklist: updatedChecklist 
-    }));
   };
   
   // Helper function to get text based on checklist key
@@ -392,34 +382,46 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
               <h3 className="font-medium mb-2">Checklist</h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Checkbox 
+                  <input 
+                    type="radio" 
                     id="riskAssessment" 
+                    name="riskChecklist"
                     checked={isChecklistItemChecked('riskAssessment')}
-                    onCheckedChange={(checked) => handleChecklistChange('riskAssessment', checked as boolean)}
+                    onChange={(e) => handleChecklistChange('riskAssessment', e.target.checked)}
+                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                   />
                   <Label htmlFor="riskAssessment">Risk assessment completed</Label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox 
+                  <input 
+                    type="radio" 
                     id="stakeholderReview" 
+                    name="riskChecklist"
                     checked={isChecklistItemChecked('stakeholderReview')}
-                    onCheckedChange={(checked) => handleChecklistChange('stakeholderReview', checked as boolean)}
+                    onChange={(e) => handleChecklistChange('stakeholderReview', e.target.checked)}
+                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                   />
                   <Label htmlFor="stakeholderReview">Stakeholder review conducted</Label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox 
+                  <input 
+                    type="radio" 
                     id="mitigationStrategy" 
+                    name="riskChecklist"
                     checked={isChecklistItemChecked('mitigationStrategy')}
-                    onCheckedChange={(checked) => handleChecklistChange('mitigationStrategy', checked as boolean)}
+                    onChange={(e) => handleChecklistChange('mitigationStrategy', e.target.checked)}
+                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                   />
                   <Label htmlFor="mitigationStrategy">Mitigation strategy defined</Label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox 
+                  <input 
+                    type="radio" 
                     id="contingencyPlan" 
+                    name="riskChecklist"
                     checked={isChecklistItemChecked('contingencyPlan')}
-                    onCheckedChange={(checked) => handleChecklistChange('contingencyPlan', checked as boolean)}
+                    onChange={(e) => handleChecklistChange('contingencyPlan', e.target.checked)}
+                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
                   />
                   <Label htmlFor="contingencyPlan">Contingency plan established</Label>
                 </div>
