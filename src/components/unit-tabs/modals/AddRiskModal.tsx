@@ -59,7 +59,7 @@ const defaultFormState: RiskFormState = {
   category: '',
   status: 'identified',
   impact: 'medium',
-  likelihood: 'possible',
+  likelihood: 'unlikely',
   identificationDate: new Date().toISOString(),
   mitigationPlan: '',
   createdAt: new Date().toISOString(),
@@ -165,6 +165,13 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
     
     if (!formState.category?.trim()) {
       newErrors.category = 'Category is required';
+    }
+    
+    // Validate likelihood to ensure it meets the database constraint
+    if (!['unlikely', 'possible', 'likely', 'certain'].includes(formState.likelihood)) {
+      newErrors.likelihood = 'Invalid likelihood value';
+      // Fallback to a safe value
+      setFormState(prev => ({ ...prev, likelihood: 'unlikely' }));
     }
     
     setErrors(newErrors);
