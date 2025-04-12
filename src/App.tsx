@@ -1,92 +1,180 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "next-themes";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import MsalAuthProvider from "@/integrations/microsoft/MsalProvider";
-import Index from "./pages/Index";
-import News from "./pages/News";
-import AIHub from "./pages/AIHub";
-import Admin from "./pages/Admin";
-import Settings from "./pages/Settings";
-import Documents from "./pages/Documents";
-import Contacts from "./pages/Contacts";
-import Organization from "./pages/Organization";
-import Unit from "./pages/Unit";
-import Calendar from "./pages/Calendar";
-import Gallery from "./pages/Gallery";
-import Login from "./pages/Login";
-import NotFound from "./pages/NotFound";
-import Notes from "./pages/Notes";
+import React, { useEffect, useState } from "react";
+import { PublicClientApplication, EventType } from "@azure/msal-browser";
+import { createClient } from "@supabase/supabase-js";
 
-const queryClient = new QueryClient();
-
-// Protected route wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
+// MSAL Config
+const msalConfig = {
+  auth: {
+    clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
+    authority: "https://login.microsoftonline.com/common",
+    redirectUri: "https://unitopia-hub.vercel.app/",
+  },
 };
 
-const AppRoutes = () => {
+// Supabase Config
+const supabaseUrl = "https://dmasclpgspatxncspcvt.supabase.co";
+const supabaseAnonKey = "YOUR_SUPABASE_ANON_KEY"; // Use your actual key
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export default function App() {
+  const [msalInstance, setMsalInstance] = useState(null);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    const instance = new PublicClientApplication(msalConfig);
+
+    instance.initialize().then(() => {
+      instance.addEventCallback((event) => {
+        if (event.eventType === EventType.LOGIN_SUCCESS) {
+          const account = instance.getAllAccounts()[0];
+          if (account) {
+            setUser(account);
+            fetchNotes(account.username);
+          }
+        }
+      });
+
+      const accounts = instance.getAllAccounts();
+      if (accounts.length > 0) {
+        setUser(accounts[0]);
+        fetchNotes(accounts[0].username);
+      }
+
+      setMsalInstance(instance);
+      setIsInitialized(true);
+    });
+  }, []);
+
+  const fetchMicrosoftUserProfile = async (accessToken) => {
+    try {
+      const response = await fetch("https://graph.microsoft.com/v1.0/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const profileData = await response.json();
+      setProfile(profileData);
+      console.log("Microsoft profile:", profileData);
+    } catch (err) {
+      console.error("Error fetching Microsoft profile:", err);
+    }
+  };
+
+  const login = async () => {
+    if (!msalInstance || !isInitialized) return;
+
+    try {
+      const response = await msalInstance.loginPopup({
+        scopes: ["User.Read", "User.ReadBasic.All"],
+      });
+      const account = response.account;
+      setUser(account);
+      fetchNotes(account.username);
+      await fetchMicrosoftUserProfile(response.accessToken);
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+  };
+
+  const logout = () => {
+    if (!msalInstance) return;
+
+    msalInstance.logoutPopup();
+    setUser(null);
+    setProfile(null);
+    setNotes([]);
+  };
+
+  const fetchNotes = async (email) => {
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("user_email", email);
+    if (error) console.error("Fetch error:", error);
+    else setNotes(data || []);
+  };
+
+  const addNote = async () => {
+    if (!newNote || !user) return;
+
+    const { error } = await supabase.from("notes").insert([
+      {
+        content: newNote,
+        user_email: user.username,
+      },
+    ]);
+
+    if (error) console.error("Insert error:", error);
+    else {
+      fetchNotes(user.username);
+      setNewNote("");
+    }
+  };
+
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/news" element={<ProtectedRoute><News /></ProtectedRoute>} />
-      <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
-      <Route path="/ai-hub" element={<ProtectedRoute><AIHub /></ProtectedRoute>} />
-      <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
-      <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
-      <Route path="/unit" element={<ProtectedRoute><Unit /></ProtectedRoute>} />
-      <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-      <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <Index />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <div style={{ padding: 20 }}>
+      <h1>📝 Microsoft Auth + Supabase + Profile Info</h1>
+
+      {!user ? (
+        <button onClick={login} disabled={!isInitialized}>
+          {isInitialized ? "Login with Microsoft" : "Initializing..."}
+        </button>
+      ) : (
+        <div>
+          <p>Welcome, {user.name || user.username}!</p>
+          <button onClick={logout}>Logout</button>
+
+          {profile && (
+            <div style={{ marginTop: 20 }}>
+              <h3>👤 Microsoft Profile</h3>
+              <p><strong>Name:</strong> {profile.displayName}</p>
+              <p><strong>Email:</strong> {profile.mail || profile.userPrincipalName}</p>
+              <p><strong>Job Title:</strong> {profile.jobTitle || "N/A"}</p>
+              <p><strong>Phone:</strong> {profile.mobilePhone || profile.businessPhones?.[0] || "N/A"}</p>
+              <p><strong>Office:</strong> {profile.officeLocation || "N/A"}</p>
+            </div>
+          )}
+
+          <div style={{ marginTop: 20 }}>
+            <h2>Your Notes</h2>
+            <div style={{ display: "flex", marginBottom: 10 }}>
+              <input
+                type="text"
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Write a note..."
+                style={{ flexGrow: 1, marginRight: 8, padding: 8 }}
+              />
+              <button onClick={addNote}>Add</button>
+            </div>
+
+            {notes.length === 0 ? (
+              <p>No notes yet. Add your first note!</p>
+            ) : (
+              <ul style={{ listStyleType: "none", padding: 0 }}>
+                {notes.map((note) => (
+                  <li
+                    key={note.id}
+                    style={{
+                      padding: 12,
+                      marginBottom: 8,
+                      backgroundColor: "#f9f9f9",
+                      borderRadius: 4,
+                      border: "1px solid #eee"
+                    }}
+                  >
+                    {note.content}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
-};
-
-// Expose the MSAL instance globally for the auth hook to use
-// This is a workaround - in a production app you'd use React context properly
-// This will be set by the MsalAuthProvider when it initializes
-declare global {
-  interface Window {
-    msalInstance: any;
-  }
 }
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light">
-      <TooltipProvider>
-        <AuthProvider>
-          <MsalAuthProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </MsalAuthProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
-
-export default App;
