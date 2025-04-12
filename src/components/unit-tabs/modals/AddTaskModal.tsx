@@ -19,18 +19,15 @@ import { toast } from "@/components/ui/use-toast";
 interface AddTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTask: (task: Task) => void;
-  allTasks: Task[];
+  onSubmit: (task: Omit<Task, 'id'>) => void;
 }
 
 const AddTaskModal: React.FC<AddTaskModalProps> = ({
   open,
   onOpenChange,
-  onAddTask,
-  allTasks
+  onSubmit
 }) => {
-  const [newTask, setNewTask] = useState<Task>({
-    id: `task-${Date.now()}`,
+  const [newTask, setNewTask] = useState<Omit<Task, 'id'>>({
     title: '',
     description: '',
     assignee: '',
@@ -52,11 +49,10 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     }
 
     // Add the task
-    onAddTask(newTask);
+    onSubmit(newTask);
     
     // Reset form and close modal
     setNewTask({
-      id: `task-${Date.now()}`,
       title: '',
       description: '',
       assignee: '',
