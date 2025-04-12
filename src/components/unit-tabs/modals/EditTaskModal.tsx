@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -15,28 +15,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ChecklistSection from '@/components/ChecklistSection';
 import { Task } from '@/types';
 import { toast } from "@/components/ui/use-toast";
+import { useDivisionStaff } from '@/hooks/useDivisionStaff';
 
 interface EditTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task;
-  onSubmit: (updatedTask: Partial<Task>) => void;
+  onSave: (updatedTask: Task) => void;
 }
 
 const EditTaskModal: React.FC<EditTaskModalProps> = ({
   open,
   onOpenChange,
   task,
-  onSubmit
+  onSave
 }) => {
-  const [editedTask, setEditedTask] = useState<Task>(task);
+  const { staffMembers, loading } = useDivisionStaff();
+  const [editedTask, setEditedTask] = useState<Task>({...task});
 
-  // Update local state when the task prop changes
-  useEffect(() => {
-    setEditedTask(task);
-  }, [task]);
-
-  const handleSaveTask = () => {
+  const handleUpdateTask = () => {
+    // Basic validation
     if (!editedTask.title) {
       toast({
         title: "Error",
@@ -45,8 +43,8 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       return;
     }
     
-    // Create a copy with properly formatted dates
-    const taskToSubmit = {
+    // Format dates properly
+    const taskToSave = {
       ...editedTask,
       // Ensure dueDate is a string
       dueDate: typeof editedTask.dueDate === 'string' 
@@ -61,10 +59,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           : null
     };
     
-    // Save the task with the checklist included
-    onSubmit(taskToSubmit);
-    
-    // Close the modal
+    onSave(taskToSave);
     onOpenChange(false);
     
     toast({
@@ -79,7 +74,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
           <DialogDescription>
-            Make changes to the task details
+            Update the task details below
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -104,12 +99,27 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="task-assignee">Assignee</Label>
-              <Input 
-                id="task-assignee" 
-                placeholder="Assignee" 
-                value={editedTask.assignee || ''} 
-                onChange={(e) => setEditedTask({...editedTask, assignee: e.target.value})}
-              />
+              <Select 
+                value={editedTask.assignee || ''}
+                onValueChange={(value) => setEditedTask({...editedTask, assignee: value})}
+              >
+                <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="_loading">Loading staff members...</SelectItem>
+                  ) : staffMembers && staffMembers.length > 0 ? (
+                    staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.email}>
+                        {staff.name} ({staff.jobTitle})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_staff">No staff members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="task-status">Status</Label>
@@ -200,7 +210,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSaveTask}>Save Changes</Button>
+          <Button onClick={handleUpdateTask}>Save Changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

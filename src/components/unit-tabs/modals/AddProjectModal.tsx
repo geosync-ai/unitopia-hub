@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -16,6 +16,7 @@ import ChecklistSection from '@/components/ChecklistSection';
 import { Project } from '@/types';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
+import { useDivisionStaff } from '@/hooks/useDivisionStaff';
 
 interface AddProjectModalProps {
   open: boolean;
@@ -34,6 +35,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
   onProjectChange,
   onSave
 }) => {
+  const { staffMembers, loading } = useDivisionStaff();
   const defaultProject: Partial<Project> = {
     id: `project-${Date.now()}`,
     name: '',
@@ -52,7 +54,16 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
 
   const projectData = project || defaultProject;
   
-  const handleAddProject = () => {
+  const handleChange = (field: string, value: any) => {
+    if (onProjectChange && project) {
+      onProjectChange({
+        ...project,
+        [field]: value
+      });
+    }
+  };
+
+  const handleSubmit = () => {
     if (!projectData.name) {
       toast({
         title: "Error",
@@ -77,15 +88,11 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     }
     
     onOpenChange(false);
-  };
-
-  const handleChange = (field: string, value: any) => {
-    if (onProjectChange && project) {
-      onProjectChange({
-        ...project,
-        [field]: value
-      });
-    }
+    
+    toast({
+      title: "Project Added",
+      description: "The project has been successfully added",
+    });
   };
 
   return (
@@ -119,12 +126,27 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-manager">Project Manager <span className="text-destructive">*</span></Label>
-              <Input 
-                id="project-manager" 
-                placeholder="Project Manager" 
-                value={projectData.manager || ''} 
-                onChange={(e) => handleChange('manager', e.target.value)}
-              />
+              <Select 
+                value={projectData.manager || ''}
+                onValueChange={(value) => handleChange('manager', value)}
+              >
+                <SelectTrigger id="project-manager" className={loading ? "opacity-50" : ""}>
+                  <SelectValue placeholder="Select project manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="_loading">Loading staff members...</SelectItem>
+                  ) : staffMembers && staffMembers.length > 0 ? (
+                    staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.email}>
+                        {staff.name} ({staff.jobTitle})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_staff">No staff members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-status">Status</Label>
@@ -206,7 +228,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleAddProject}>Add Project</Button>
+          <Button onClick={handleSubmit}>Add Project</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ChecklistSection from '@/components/ChecklistSection';
 import { Task } from '@/types';
 import { toast } from "@/components/ui/use-toast";
-import { useStaffByDivision } from '@/hooks/useStaffByDivision';
+import { useDivisionStaff } from '@/hooks/useDivisionStaff';
 
 interface AddTaskModalProps {
   open: boolean;
@@ -28,7 +28,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onOpenChange,
   onSubmit
 }) => {
-  const { staffMembers, loading } = useStaffByDivision();
+  const { staffMembers, loading } = useDivisionStaff();
   
   const [newTask, setNewTask] = useState<Omit<Task, 'id'>>({
     title: '',
@@ -134,7 +134,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
                       <SelectItem key={staff.id} value={staff.email}>
-                        {staff.name} ({staff.job_title})
+                        {staff.name} ({staff.jobTitle})
                       </SelectItem>
                     ))
                   ) : (
