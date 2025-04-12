@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import MsalAuthProvider from "@/integrations/microsoft/MsalProvider";
+import DivisionProtectedRoute from "@/components/DivisionProtectedRoute";
 import Index from "./pages/Index";
 import News from "./pages/News";
 import AIHub from "./pages/AIHub";
@@ -19,7 +20,10 @@ import Calendar from "./pages/Calendar";
 import Gallery from "./pages/Gallery";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Unauthorized from "./pages/Unauthorized";
 import Notes from "./pages/Notes";
+import { useEffect } from "react";
+import divisionService from "./integrations/supabase/divisionService";
 
 const queryClient = new QueryClient();
 
@@ -34,21 +38,83 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Admin-only route wrapper
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
 const AppRoutes = () => {
+  const { user } = useAuth();
+  
+  // Initialize division data when app loads
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        await divisionService.initializeDivisionsData();
+      } catch (error) {
+        console.error('Error initializing division data:', error);
+      }
+    };
+    
+    initData();
+  }, []);
+  
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
       
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/news" element={<ProtectedRoute><News /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       <Route path="/ai-hub" element={<ProtectedRoute><AIHub /></ProtectedRoute>} />
-      <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
-      <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
-      <Route path="/unit" element={<ProtectedRoute><Unit /></ProtectedRoute>} />
-      <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-      <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+      
+      {/* Routes with division-based protection */}
+      <Route path="/contacts" element={
+        <DivisionProtectedRoute>
+          <Contacts />
+        </DivisionProtectedRoute>
+      } />
+      
+      <Route path="/organization" element={
+        <DivisionProtectedRoute>
+          <Organization />
+        </DivisionProtectedRoute>
+      } />
+      
+      <Route path="/unit" element={
+        <DivisionProtectedRoute>
+          <Unit />
+        </DivisionProtectedRoute>
+      } />
+      
+      {/* Executive Division Only Routes */}
+      <Route path="/calendar" element={
+        <DivisionProtectedRoute requiredDivisionId="executive-division">
+          <Calendar />
+        </DivisionProtectedRoute>
+      } />
+      
+      {/* Routes for directors and managers only */}
+      <Route path="/gallery" element={
+        <DivisionProtectedRoute requiredRoles={['director', 'manager']}>
+          <Gallery />
+        </DivisionProtectedRoute>
+      } />
+      
+      {/* Admin-only route */}
+      <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+      
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
       <Route path="/dashboard" element={

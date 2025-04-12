@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
@@ -6,9 +5,11 @@ import { loginRequest } from '@/integrations/microsoft/msalConfig';
 import { getAccount, getUserProfile, loginWithMicrosoft as loginWithMicrosoftService } from '@/integrations/microsoft/msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
 import { getSupabaseClient, notesService } from '@/integrations/supabase/supabaseClient';
-import { OrganizationUnit, UserProfile } from '@/types';
+import { OrganizationUnit, UserProfile, Division } from '@/types';
+import supabaseConfig from '@/config/supabase';
 
 export type UserRole = 'admin' | 'manager' | 'user';
+export type DivisionRole = 'director' | 'manager' | 'officer' | 'staff';
 
 export interface User {
   id: string;
@@ -17,6 +18,10 @@ export interface User {
   role: UserRole;
   unitId?: string;
   unitName?: string;
+  divisionId?: string;  // ID of the user's primary division
+  divisionName?: string; // Name of the user's primary division
+  divisionRole?: DivisionRole; // Role within the division
+  divisionMemberships?: { divisionId: string, role: DivisionRole }[]; // All division memberships
   accessToken?: string; // For Microsoft Graph API
   profilePicture?: string; // URL to profile picture
   notes?: any[]; // User's notes from Supabase
@@ -28,18 +33,24 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isManager: boolean;
+  isDirector: boolean; // Whether the user is a director in any division
   login: (email: string, password: string) => Promise<void>;
   loginWithMicrosoft: () => Promise<void>;
   logout: () => void;
   businessUnits: OrganizationUnit[];
   selectedUnit: string | null;
   setSelectedUnit: (unitId: string | null) => void;
+  selectedDivision: string | null;
+  setSelectedDivision: (divisionId: string | null) => void;
+  userDivisions: Division[];
   msGraphConfig: MsGraphConfig | null;
   setUser: (user: User | null) => void;
   fetchUserNotes: () => Promise<any[]>;
   addUserNote: (content: string) => Promise<any>;
   fetchUserUnits: () => Promise<OrganizationUnit[]>;
+  fetchUserDivisions: () => Promise<Division[]>;
   userProfile: UserProfile | null;
+  hasAccessToDivision: (divisionId: string) => boolean;
 }
 
 interface MsGraphConfig {
@@ -72,7 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [businessUnits, setBusinessUnits] = useState<OrganizationUnit[]>([]);
+  const [userDivisions, setUserDivisions] = useState<Division[]>([]);
   const [msGraphConfig, setMsGraphConfig] = useState<MsGraphConfig | null>(null);
   const [msalInitialized, setMsalInitialized] = useState(false);
   
@@ -308,6 +321,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // New method to fetch user's divisions
+  const fetchUserDivisions = async (): Promise<Division[]> => {
+    if (!user?.id) {
+      console.error('Cannot fetch divisions: No user is logged in');
+      return [];
+    }
+    
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Fetch division memberships for the user
+      const { data: memberships, error: membershipError } = await supabase
+        .from(supabaseConfig.tables.division_memberships)
+        .select('*')
+        .eq('userId', user.id);
+        
+      if (membershipError) {
+        console.error('Error fetching division memberships:', membershipError);
+        return [];
+      }
+      
+      if (!memberships || memberships.length === 0) {
+        return [];
+      }
+      
+      // Extract division IDs from memberships
+      const divisionIds = memberships.map(m => m.divisionId);
+      
+      // Fetch divisions using those IDs
+      const { data: divisions, error: divisionsError } = await supabase
+        .from(supabaseConfig.tables.divisions)
+        .select('*')
+        .in('id', divisionIds);
+        
+      if (divisionsError) {
+        console.error('Error fetching divisions:', divisionsError);
+        return [];
+      }
+      
+      // Update user's division memberships
+      setUser({
+        ...user,
+        divisionMemberships: memberships.map(m => ({
+          divisionId: m.divisionId,
+          role: m.role
+        }))
+      });
+      
+      // Update state with fetched divisions
+      setUserDivisions(divisions || []);
+      
+      // If no division is selected yet, select the first one
+      if (divisions && divisions.length > 0 && !selectedDivision) {
+        setSelectedDivision(divisions[0].id);
+        localStorage.setItem('selectedDivision', divisions[0].id);
+      }
+      
+      return divisions || [];
+    } catch (error) {
+      console.error('Error in fetchUserDivisions:', error);
+      return [];
+    }
+  };
+  
+  // Helper function to check if user has access to a division
+  const hasAccessToDivision = (divisionId: string): boolean => {
+    if (!user) return false;
+    
+    // Admins have access to all divisions
+    if (user.isAdmin) return true;
+    
+    // Check if user is a member of the division
+    return user.divisionMemberships?.some(m => m.divisionId === divisionId) || false;
+  };
+
   const logout = async () => {
     try {
       // Clear user data
@@ -335,6 +423,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user;
   const isAdmin = user?.role === 'admin' || !!user?.isAdmin;
   const isManager = user?.role === 'manager';
+  const isDirector = user?.divisionRole === 'director';
 
   return (
     <AuthContext.Provider
@@ -343,18 +432,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated,
         isAdmin,
         isManager,
+        isDirector,
         login,
         loginWithMicrosoft,
         logout,
         businessUnits,
         selectedUnit,
         setSelectedUnit,
+        selectedDivision,
+        setSelectedDivision,
+        userDivisions,
         msGraphConfig,
         setUser,
         fetchUserNotes,
         addUserNote,
         fetchUserUnits,
-        userProfile
+        fetchUserDivisions,
+        userProfile,
+        hasAccessToDivision
       }}
     >
       {children}

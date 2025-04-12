@@ -1,4 +1,3 @@
-
 // Import the ChecklistItem interface
 import { ChecklistItem } from '@/components/ChecklistSection';
 
@@ -112,6 +111,16 @@ export interface OrganizationUnit {
   updatedAt: Date;
 }
 
+export interface Division {
+  id: string;
+  name: string;
+  description?: string;
+  code: string;
+  manager?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface UserProfile {
   id: string;
   firstName?: string;
@@ -120,6 +129,8 @@ export interface UserProfile {
   position?: string;
   department?: string;
   isAdmin: boolean;
+  divisionId?: string;
+  divisionRole?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -131,6 +142,16 @@ export interface UnitMembership {
   role: string;
   createdAt: Date;
 }
+
+export interface DivisionMembership {
+  id: string;
+  userId: string;
+  divisionId: string;
+  role: 'director' | 'manager' | 'officer' | 'staff';
+  createdAt: Date;
+}
+
+export type DivisionRole = 'director' | 'manager' | 'officer' | 'staff';
 
 export type StatusType = 
   | 'todo' | 'in-progress' | 'review' | 'done'

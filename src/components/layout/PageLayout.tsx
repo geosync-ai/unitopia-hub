@@ -6,6 +6,7 @@ import ThemeToggle from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import DivisionSelector from '@/components/DivisionSelector';
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -59,6 +60,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
           </div>
           
           <div className="flex items-center gap-4">
+            <DivisionSelector />
             <ThemeToggle />
             
             <button 
@@ -72,11 +74,18 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
               <div className="flex items-center">
                 <div className="text-sm font-medium mr-3 hidden sm:block text-white">
                   <div>{user.name || user.email}</div>
-                  {user.role && (
-                    <span className="bg-white/20 text-white text-xs py-0.5 px-2 rounded-full">
-                      {user.role}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {user.role && (
+                      <span className="bg-white/20 text-white text-xs py-0.5 px-2 rounded-full">
+                        {user.role}
+                      </span>
+                    )}
+                    {user.divisionName && (
+                      <span className="bg-white/20 text-white text-xs py-0.5 px-2 rounded-full">
+                        {user.divisionName}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {user.profilePicture ? (
                   <img 

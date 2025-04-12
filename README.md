@@ -1,73 +1,105 @@
-# Welcome to your Lovable project
+# SCPNG Intranet - Division-Based Access Control
 
-## Project info
+This document provides instructions for setting up and using the division-based access control system in the SCPNG Intranet application.
 
-**URL**: https://lovable.dev/projects/3816f188-bb84-4c3d-963d-5a30c86f087c
+## Overview
 
-## How can I edit this code?
+The SCPNG Intranet application implements a role-based access control system that restricts user access based on:
+1. The division(s) a user belongs to
+2. The role(s) they have within each division
 
-There are several ways of editing your application.
+## Database Setup
 
-**Use Lovable**
+To set up the database tables and initial data, follow these steps:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3816f188-bb84-4c3d-963d-5a30c86f087c) and start prompting.
+1. Run the database setup script to create the necessary tables:
+   ```bash
+   psql -U your_username -d your_database -f db/setup_division_tables.sql
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+2. Import all staff members data:
+   ```bash
+   psql -U your_username -d your_database -f db/seed_all_staff.sql
+   ```
 
-**Use your preferred IDE**
+3. Assign users to their respective divisions with appropriate roles:
+   ```bash
+   psql -U your_username -d your_database -f db/assign_users_to_divisions.sql
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Database Schema
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The system uses three main tables:
 
-Follow these steps:
+1. **divisions** - Contains information about each division
+2. **staff_members** - Contains details about each staff member
+3. **division_memberships** - Links staff members to divisions with specific roles
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Role Hierarchy
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Roles are arranged in a hierarchy (from highest to lowest authority):
+1. **admin** - Can access and modify everything
+2. **director** - Can access all division content and manage division settings
+3. **manager** - Can access most division content and manage certain aspects
+4. **officer** - Has standard access to division content
+5. **staff** - Has basic access to division content
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Components Used
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+The division-based access control system uses the following key components:
+
+1. **DivisionProtectedRoute** - A higher-order component that wraps routes requiring division-based access control
+2. **DivisionSelector** - A component that allows users to switch between their authorized divisions
+3. **useAuth** - A custom hook that provides user authentication and division membership information
+
+## Protected Routes
+
+In `src/App.tsx`, routes that require division-based access are wrapped with `DivisionProtectedRoute`. For example:
+
+```jsx
+<Route
+  path="/contacts"
+  element={
+    <DivisionProtectedRoute>
+      <Contacts />
+    </DivisionProtectedRoute>
+  }
+/>
 ```
 
-**Edit a file directly in GitHub**
+## Checking Access Programmatically
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+You can check if a user has access based on their division and role:
 
-**Use GitHub Codespaces**
+```jsx
+import { useAuth } from "../hooks/useAuth";
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+function MyComponent() {
+  const { userHasRole, currentDivisionId } = useAuth();
+  
+  // Check if user is at least a manager in the current division
+  const canEditContent = userHasRole(["admin", "director", "manager"], currentDivisionId);
+  
+  // Check if user is a director in the executive division
+  const canApprovePolicy = userHasRole(["admin", "director"], "executive-division");
+  
+  return (
+    <div>
+      {canEditContent && <button>Edit Content</button>}
+      {canApprovePolicy && <button>Approve Policy</button>}
+    </div>
+  );
+}
+```
 
-## What technologies are used for this project?
+## Documentation
 
-This project is built with .
+For more detailed information about the division-based access control system, refer to:
+- [Division-Based Access Control Documentation](docs/division-based-access.md)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Troubleshooting
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/3816f188-bb84-4c3d-963d-5a30c86f087c) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+If users experience access issues:
+1. Verify their email address is correctly entered in the `staff_members` table
+2. Check that they have appropriate entries in the `division_memberships` table
+3. Review the role assigned to ensure it matches their job requirements

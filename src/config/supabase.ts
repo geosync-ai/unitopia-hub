@@ -7,6 +7,10 @@ const supabaseConfig = {
   tables: {
     notes: "notes",
     users: "users",
+    // Division related tables
+    divisions: "divisions",
+    division_memberships: "division_memberships",
+    staff_members: "staff_members",
     // Unit tables
     unit_tasks: "unit_tasks",
     unit_projects: "unit_projects",
