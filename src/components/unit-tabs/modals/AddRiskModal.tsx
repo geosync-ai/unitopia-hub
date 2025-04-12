@@ -4,7 +4,8 @@ import {
   DialogContent, 
   DialogFooter, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,6 +232,9 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Add New Risk</DialogTitle>
+          <DialogDescription>
+            Enter the details to create a new risk entry.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">

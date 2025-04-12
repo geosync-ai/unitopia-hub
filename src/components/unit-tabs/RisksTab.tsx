@@ -7,21 +7,7 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 import AddRiskModal from './modals/AddRiskModal';
 import EditRiskModal from './modals/EditRiskModal';
 import DeleteRiskModal from './modals/DeleteRiskModal';
-
-interface Risk {
-  id: string;
-  title: string;
-  description: string;
-  impact: 'low' | 'medium' | 'high' | 'critical';
-  likelihood: 'low' | 'medium' | 'high' | 'very-high';
-  status: 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'resolved';
-  category: string;
-  projectId: string;
-  projectName: string;
-  owner: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Risk } from '@/types';
 
 interface Project {
   id: string;
@@ -31,7 +17,7 @@ interface Project {
 interface RisksTabProps {
   risks: Risk[];
   projects?: Project[];
-  addRisk: (risk: Omit<Risk, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addRisk: (risk: Risk) => void;
   editRisk: (id: string, risk: Partial<Risk>) => void;
   deleteRisk: (id: string) => void;
   error?: Error | null;
@@ -79,14 +65,14 @@ export const RisksTab: React.FC<RisksTabProps> = ({
 
   const getLikelihoodBadge = (likelihood: string) => {
     switch (likelihood) {
-      case 'low':
-        return <Badge className="bg-green-100 text-green-800">Low</Badge>;
-      case 'medium':
-        return <Badge className="bg-yellow-100 text-yellow-800">Medium</Badge>;
-      case 'high':
-        return <Badge className="bg-orange-100 text-orange-800">High</Badge>;
-      case 'very-high':
-        return <Badge className="bg-red-100 text-red-800">Very High</Badge>;
+      case 'unlikely':
+        return <Badge className="bg-green-100 text-green-800">Unlikely</Badge>;
+      case 'possible':
+        return <Badge className="bg-yellow-100 text-yellow-800">Possible</Badge>;
+      case 'likely':
+        return <Badge className="bg-orange-100 text-orange-800">Likely</Badge>;
+      case 'certain':
+        return <Badge className="bg-red-100 text-red-800">Certain</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">{likelihood}</Badge>;
     }
@@ -148,7 +134,7 @@ export const RisksTab: React.FC<RisksTabProps> = ({
                 risks.map((risk) => (
                   <TableRow key={risk.id}>
                     <TableCell className="font-medium">{risk.title}</TableCell>
-                    <TableCell>{risk.projectName}</TableCell>
+                    <TableCell>{risk.category}</TableCell>
                     <TableCell>{getImpactBadge(risk.impact)}</TableCell>
                     <TableCell>{getLikelihoodBadge(risk.likelihood)}</TableCell>
                     <TableCell>{getStatusBadge(risk.status)}</TableCell>
@@ -175,7 +161,6 @@ export const RisksTab: React.FC<RisksTabProps> = ({
         <AddRiskModal
           open={showAddModal}
           onOpenChange={setShowAddModal}
-          projects={projects}
           onAdd={addRisk}
         />
       )}
