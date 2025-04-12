@@ -8,17 +8,17 @@ const defaultConfig = {
     authority: microsoftAuthConfig.authorityUrl,
     redirectUri: microsoftAuthConfig.redirectUri,
     postLogoutRedirectUri: microsoftAuthConfig.redirectUri,
-    navigateToLoginRequestUrl: true
+    navigateToLoginRequestUrl: false // Set to false to avoid redirect loops
   },
   cache: {
-    cacheLocation: 'sessionStorage',
+    cacheLocation: 'localStorage', // Use localStorage instead of sessionStorage
     storeAuthStateInCookie: true // Enable cookies as backup for storage
   },
   system: {
     allowRedirectInIframe: true, // Allow redirects in iframes
-    windowHashTimeout: 10000, // Increase timeout for hash processing
-    iframeHashTimeout: 10000,
-    loadFrameTimeout: 10000,
+    windowHashTimeout: 60000, // Increase timeout for hash processing (1 minute)
+    iframeHashTimeout: 60000,
+    loadFrameTimeout: 60000,
     loggerOptions: {
       loggerCallback: (level: any, message: string, containsPii: boolean) => {
         if (containsPii) {

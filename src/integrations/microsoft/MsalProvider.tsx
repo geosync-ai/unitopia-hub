@@ -42,6 +42,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [authError, setAuthError] = useState<Error | null>(null);
+  const [forceSignIn, setForceSignIn] = useState(false);
   
   // Safely try to use the auth context if available, but don't error if it's not
   let authContextValue: { setUser?: any, msGraphConfig?: any } = {};
@@ -59,6 +60,26 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
       
       try {
         setIsInitializing(true);
+        
+        // Clear any stale MSAL state on initialization
+        if (typeof window !== 'undefined') {
+          // Try to clean session storage
+          try {
+            // Clear any MSAL-related entries
+            Object.keys(sessionStorage)
+              .filter(key => key.startsWith('msal.'))
+              .forEach(key => sessionStorage.removeItem(key));
+              
+            // Clear interaction state specifically
+            sessionStorage.removeItem('msal.interaction.status');
+            sessionStorage.removeItem('msal.interaction.error');
+          } catch (e) {
+            console.warn('Unable to clean session storage:', e);
+          }
+          
+          // Clean local storage
+          localStorage.removeItem('msalLoginAttempts');
+        }
         
         // Update config with the current window location as redirectUri if running in browser
         const configToUse = typeof window !== 'undefined' 
@@ -262,6 +283,9 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             timestamp: new Date().toISOString()
           });
           
+          // Set a flag to display the manual login option
+          setForceSignIn(true);
+          
           // Check if user exists in localStorage as a fallback
           try {
             const storedUser = localStorage.getItem('user');
@@ -309,9 +333,55 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     );
   }
 
+  // Add fallback UI for when authentication fails
+  const renderFallbackContent = () => {
+    if (authError || forceSignIn) {
+      return (
+        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Authentication Issue Detected</h2>
+            <p className="mb-4">
+              We're having trouble logging you in automatically. Please try clicking the button below.
+            </p>
+            <button
+              onClick={() => {
+                // Clear any existing data
+                if (typeof window !== 'undefined') {
+                  // Clear MSAL data
+                  Object.keys(sessionStorage)
+                    .filter(key => key.startsWith('msal.'))
+                    .forEach(key => sessionStorage.removeItem(key));
+                  
+                  localStorage.removeItem('msalLoginAttempts');
+                }
+                
+                // Force a clean login
+                try {
+                  msalInstance.loginRedirect({
+                    scopes: microsoftAuthConfig.permissions || [],
+                    redirectUri: window.location.origin,
+                    prompt: 'select_account' // Force a fresh login experience
+                  });
+                } catch (error) {
+                  console.error('Manual login redirect failed:', error);
+                  alert('Login failed. Please refresh the page and try again.');
+                }
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+            >
+              Sign in with Microsoft
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <MsalContext.Provider value={contextValue}>
       <MsalReactProvider instance={msalInstance}>
+        {renderFallbackContent()}
         {children}
       </MsalReactProvider>
     </MsalContext.Provider>

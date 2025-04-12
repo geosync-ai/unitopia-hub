@@ -36,6 +36,12 @@ if (typeof window !== 'undefined') {
   // Automatically use the current window's origin to support both production and development
   microsoftAuthConfig.redirectUri = window.location.origin;
   
+  // Ensure the current origin is in the approved list
+  if (!microsoftAuthConfig.approvedRedirectUris.includes(window.location.origin)) {
+    microsoftAuthConfig.approvedRedirectUris.push(window.location.origin);
+    console.log('Added current origin to approved URIs:', window.location.origin);
+  }
+  
   console.log('Updating MSAL config with:', microsoftAuthConfig);
   
   // Check if current origin is in the list of approved URIs

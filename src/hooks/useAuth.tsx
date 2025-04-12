@@ -228,29 +228,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Initiating Microsoft login...');
       
-      // Set a login attempt tracking flag
+      // Clean up any previous login state
       if (typeof window !== 'undefined') {
+        // Clear all MSAL-related entries from session storage
+        Object.keys(sessionStorage)
+          .filter(key => key.startsWith('msal.'))
+          .forEach(key => sessionStorage.removeItem(key));
+          
+        // Clear local storage MSAL data
+        localStorage.removeItem('msalLoginAttempts');
+        localStorage.removeItem('msalLoginTimestamp');
+        
+        // Set a new login attempt marker
         localStorage.setItem('msalLoginAttempts', '1');
-        
-        // Force clear any existing interaction status to ensure clean slate
-        sessionStorage.removeItem('msal.interaction.status');
-        
-        // Store current timestamp to detect potential loops
-        localStorage.setItem('msalLoginTimestamp', Date.now().toString());
       }
       
       // Clear any existing accounts to force a clean login attempt
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) {
-        console.log('Existing accounts found. Logging out first to ensure clean login...');
-        // Instead of logout which causes a redirect, just clear the accounts
-        msalInstance.clearCache();
-      }
+      msalInstance.clearCache();
       
-      // Use the config from the latest configuration to ensure consistency
+      // Create a very specific login request with the correct redirect URI
       const loginRedirectRequest = {
         scopes: msGraphConfig.permissions || ['User.Read'],
-        redirectUri: msGraphConfig.redirectUri,
+        redirectUri: window.location.origin, // Explicitly use origin for consistency
+        prompt: 'select_account', // Force account selection UI to appear
         redirectStartPage: window.location.href
       };
       
@@ -270,6 +270,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.error('Error during Microsoft login:', error);
       toast.error('Failed to login with Microsoft');
+      
+      // Display more specific error messages depending on the error
+      if (error instanceof Error) {
+        if (error.message.includes('redirect_uri_mismatch')) {
+          toast.error('Authentication failed: Redirect URI mismatch. Please contact your administrator.');
+        } else if (error.message.includes('consent_required')) {
+          toast.error('Authentication failed: Consent required. Please try again and accept permissions.');
+        } else if (error.message.includes('interaction_in_progress')) {
+          // Try to clear the interaction state
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('msal.interaction.status');
+            toast.error('Authentication in progress. Please try again.');
+          }
+        }
+      }
     }
   };
 
