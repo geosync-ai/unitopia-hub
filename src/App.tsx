@@ -104,6 +104,12 @@ const Apps = () => {
     }
   };
 
+  // Function to get the best available office value
+  const getOfficeValue = (user) => {
+    // First try officeLocation, then physicalDeliveryOfficeName, then default to N/A
+    return user.officeLocation || user.physicalDeliveryOfficeName || 'N/A';
+  };
+
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Staff Directory</h1>
@@ -127,7 +133,7 @@ const Apps = () => {
                   <p><strong>Mobile:</strong> {user.mobilePhone || 'N/A'}</p>
                   <p><strong>Business Phone:</strong> {user.businessPhones?.[0] || 'N/A'}</p>
                   <p><strong>Office Location:</strong> {user.officeLocation || 'N/A'}</p>
-                  <p><strong>Office:</strong> {user.physicalDeliveryOfficeName || 'N/A'}</p>
+                  <p><strong>Office:</strong> {getOfficeValue(user)}</p>
                 </div>
               ))}
             </div>
