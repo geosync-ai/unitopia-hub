@@ -9,11 +9,12 @@ import {
 } from '@azure/msal-browser';
 import { MsalProvider as MsalReactProvider } from '@azure/msal-react';
 import msalConfig, { updateMsalConfig } from './msalConfig';
-import { useAuth, UserRole } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
 
+// Define admin emails that match the ones in useAuth.tsx
 const ADMIN_EMAILS = ['geosyncsurvey@gmail.com', 'admin@scpng.com'];
 
 // Create a context for the MSAL instance
@@ -104,24 +105,27 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
               // Fetch user profile
               const userProfile = await getUserProfile(instance);
               if (userProfile) {
-                const role = ADMIN_EMAILS.includes(userProfile.mail || userProfile.userPrincipalName || '') 
-                  ? UserRole.Admin 
-                  : UserRole.User;
+                const userEmail = userProfile.mail || userProfile.userPrincipalName || response.account.username;
                 
-                const user = {
+                // Create a properly typed user object
+                setUser({
                   id: response.account.localAccountId,
                   name: response.account.name || 'Unknown',
-                  email: userProfile.mail || userProfile.userPrincipalName || response.account.username,
-                  role
-                };
+                  email: userEmail,
+                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                  isAdmin: ADMIN_EMAILS.includes(userEmail),
+                });
                 
-                // Set user in auth context
-                setUser(user);
+                // For localStorage, we can use a simplified version
+                localStorage.setItem('user', JSON.stringify({
+                  id: response.account.localAccountId,
+                  name: response.account.name || 'Unknown',
+                  email: userEmail,
+                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                  isAdmin: ADMIN_EMAILS.includes(userEmail),
+                }));
                 
-                // Cache user data
-                localStorage.setItem('user', JSON.stringify(user));
-                
-                console.log('User profile fetched and set:', user);
+                console.log('User profile fetched and set');
               }
             }
           } else {
@@ -135,20 +139,27 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
               
               const userProfile = await getUserProfile(instance);
               if (userProfile) {
-                const role = ADMIN_EMAILS.includes(userProfile.mail || userProfile.userPrincipalName || '') 
-                  ? UserRole.Admin 
-                  : UserRole.User;
+                const userEmail = userProfile.mail || userProfile.userPrincipalName || account.username;
                 
-                const user = {
+                // Create a properly typed user object
+                setUser({
                   id: account.localAccountId,
                   name: account.name || 'Unknown',
-                  email: userProfile.mail || userProfile.userPrincipalName || account.username,
-                  role
-                };
+                  email: userEmail,
+                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                  isAdmin: ADMIN_EMAILS.includes(userEmail),
+                });
                 
-                setUser(user);
-                localStorage.setItem('user', JSON.stringify(user));
-                console.log('Found existing account and set user:', user);
+                // For localStorage, we can use the same format
+                localStorage.setItem('user', JSON.stringify({
+                  id: account.localAccountId,
+                  name: account.name || 'Unknown',
+                  email: userEmail,
+                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                  isAdmin: ADMIN_EMAILS.includes(userEmail),
+                }));
+                
+                console.log('Found existing account and set user');
               }
             }
           }
