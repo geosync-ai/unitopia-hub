@@ -107,13 +107,19 @@ const snakeToCamelCase = (obj: any): any => {
 // Task operations
 export const tasksService = {
   // Get all tasks
-  getTasks: async (userEmail?: string) => {
+  getTasks: async (userEmail?: string, divisionId?: string) => {
     const supabase = getSupabaseClient();
     
     let query = supabase
       .from(TABLES.TASKS)
       .select('*');
     
+    // If division ID is provided, filter by that specific division
+    if (divisionId) {
+      query = query.eq('division_id', divisionId);
+    }
+    
+    // Still keep email filtering for backward compatibility
     if (userEmail) {
       query = query.eq('assignee', userEmail);
     }
@@ -132,6 +138,15 @@ export const tasksService = {
   // Add a new task
   addTask: async (task: any) => {
     const supabase = getSupabaseClient();
+    
+    // Ensure task has division_id - use current division from context if available
+    if (!task.divisionId) {
+      // Get current division ID from localStorage or context
+      const currentDivisionId = localStorage.getItem('current_division_id');
+      if (currentDivisionId) {
+        task.divisionId = currentDivisionId;
+      }
+    }
     
     // Convert camelCase properties to snake_case for DB
     const snakeCaseTask = camelToSnakeCase(task);
@@ -205,13 +220,19 @@ export const tasksService = {
 // Project operations
 export const projectsService = {
   // Get all projects
-  getProjects: async (userEmail?: string) => {
+  getProjects: async (userEmail?: string, divisionId?: string) => {
     const supabase = getSupabaseClient();
     
     let query = supabase
       .from(TABLES.PROJECTS)
       .select('*');
     
+    // If division ID is provided, filter by that specific division
+    if (divisionId) {
+      query = query.eq('division_id', divisionId);
+    }
+    
+    // Still keep email filtering for backward compatibility
     if (userEmail) {
       query = query.eq('manager', userEmail);
     }
@@ -230,6 +251,15 @@ export const projectsService = {
   // Add a new project
   addProject: async (project: any) => {
     const supabase = getSupabaseClient();
+    
+    // Ensure project has division_id - use current division from context if available
+    if (!project.divisionId) {
+      // Get current division ID from localStorage or context
+      const currentDivisionId = localStorage.getItem('current_division_id');
+      if (currentDivisionId) {
+        project.divisionId = currentDivisionId;
+      }
+    }
     
     // Convert camelCase properties to snake_case for DB
     const snakeCaseProject = camelToSnakeCase(project);

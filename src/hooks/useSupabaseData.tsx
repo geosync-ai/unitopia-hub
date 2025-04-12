@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { toast } from 'sonner';
-import unitService from '@/integrations/supabase/unitService';
+import { toast } from '@/components/ui/use-toast';
 import { 
   tasksService, 
   projectsService, 
@@ -9,9 +8,10 @@ import {
   assetsService, 
   krasService 
 } from '@/integrations/supabase/unitService';
+import { useDivisionContext } from './useDivisionContext';
 
 // Define types for the different service methods
-type FetchFunction = (userEmail?: string) => Promise<any[]>;
+type FetchFunction = (userEmail?: string, divisionId?: string) => Promise<any[]>;
 type AddFunction = (item: any) => Promise<any>;
 type UpdateFunction = (id: string, item: any) => Promise<any>;
 type DeleteFunction = (id: string) => Promise<boolean>;
@@ -25,6 +25,7 @@ export function useSupabaseData<T extends { id?: string }>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
+  const { currentDivisionId } = useDivisionContext();
 
   // Get the appropriate fetch method based on entity type
   const getFetchMethod = useCallback((): FetchFunction => {
@@ -105,7 +106,7 @@ export function useSupabaseData<T extends { id?: string }>(
     setLoading(true);
     try {
       const fetchMethod = getFetchMethod();
-      const fetchedData = await fetchMethod(user.email);
+      const fetchedData = await fetchMethod(user.email, currentDivisionId || undefined);
       setData(fetchedData as T[]);
       setError(null);
     } catch (err) {
@@ -130,28 +131,44 @@ export function useSupabaseData<T extends { id?: string }>(
     } finally {
       setLoading(false);
     }
-  }, [user?.email, entityType, getFetchMethod]);
+  }, [user?.email, entityType, getFetchMethod, currentDivisionId]);
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {
     if (!user?.email) {
-      toast.error('You must be logged in to add items');
+      toast({
+        title: "Error",
+        description: "You must be logged in to add items"
+      });
       return null;
     }
     
     try {
+      // Add division ID to the item if not already present
+      const itemWithDivision = {
+        ...item,
+        divisionId: item.divisionId || currentDivisionId
+      };
+      
       const addMethod = getAddMethod();
-      const newItem = await addMethod(item);
+      const newItem = await addMethod(itemWithDivision);
       
       if (newItem) {
         setData(prev => [...prev, newItem as unknown as T]);
-        toast.success(`${entityType.slice(0, -1)} added successfully`);
+        toast({
+          title: "Success",
+          description: `${entityType.slice(0, -1)} added successfully`
+        });
       }
       
       return newItem;
     } catch (err) {
       console.error(`Error adding ${entityType.slice(0, -1)}:`, err);
-      toast.error(`Failed to add ${entityType.slice(0, -1)}`);
+      toast({
+        title: "Error",
+        description: `Failed to add ${entityType.slice(0, -1)}`,
+        variant: "destructive"
+      });
       
       // Log the specific error to console for debugging
       if (err && typeof err === 'object' && 'code' in err) {
@@ -160,12 +177,15 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return null;
     }
-  }, [user?.email, entityType, getAddMethod]);
+  }, [user?.email, entityType, getAddMethod, currentDivisionId]);
 
   // Update an item
   const update = useCallback(async (id: string, updateData: Partial<T>) => {
     if (!user?.email) {
-      toast.error('You must be logged in to update items');
+      toast({
+        title: "Error",
+        description: "You must be logged in to update items"
+      });
       return null;
     }
     
@@ -177,13 +197,20 @@ export function useSupabaseData<T extends { id?: string }>(
         setData(prev => prev.map(item => 
           item.id === id ? { ...item, ...updatedItem } as T : item
         ));
-        toast.success(`${entityType.slice(0, -1)} updated successfully`);
+        toast({
+          title: "Success",
+          description: `${entityType.slice(0, -1)} updated successfully`
+        });
       }
       
       return updatedItem;
     } catch (err) {
       console.error(`Error updating ${entityType.slice(0, -1)}:`, err);
-      toast.error(`Failed to update ${entityType.slice(0, -1)}`);
+      toast({
+        title: "Error",
+        description: `Failed to update ${entityType.slice(0, -1)}`,
+        variant: "destructive"
+      });
       return null;
     }
   }, [user?.email, entityType, getUpdateMethod]);
@@ -191,7 +218,10 @@ export function useSupabaseData<T extends { id?: string }>(
   // Delete an item
   const remove = useCallback(async (id: string) => {
     if (!user?.email) {
-      toast.error('You must be logged in to delete items');
+      toast({
+        title: "Error",
+        description: "You must be logged in to delete items"
+      });
       return false;
     }
     
@@ -200,17 +230,24 @@ export function useSupabaseData<T extends { id?: string }>(
       await deleteMethod(id);
       
       setData(prev => prev.filter(item => item.id !== id));
-      toast.success(`${entityType.slice(0, -1)} deleted successfully`);
+      toast({
+        title: "Success",
+        description: `${entityType.slice(0, -1)} deleted successfully`
+      });
       
       return true;
     } catch (err) {
       console.error(`Error deleting ${entityType.slice(0, -1)}:`, err);
-      toast.error(`Failed to delete ${entityType.slice(0, -1)}`);
+      toast({
+        title: "Error",
+        description: `Failed to delete ${entityType.slice(0, -1)}`,
+        variant: "destructive"
+      });
       return false;
     }
   }, [user?.email, entityType, getDeleteMethod]);
 
-  // Load data on mount and when user changes
+  // Load data on mount and when user or division changes
   useEffect(() => {
     if (user?.email) {
       fetchData();
@@ -218,7 +255,7 @@ export function useSupabaseData<T extends { id?: string }>(
       setData([]);
       setLoading(false);
     }
-  }, [user?.email, fetchData]);
+  }, [user?.email, fetchData, currentDivisionId]);
 
   return {
     data,

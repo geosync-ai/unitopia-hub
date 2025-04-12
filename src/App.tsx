@@ -24,6 +24,7 @@ import Unauthorized from "./pages/Unauthorized";
 import Notes from "./pages/Notes";
 import { useEffect } from "react";
 import divisionService from "./integrations/supabase/divisionService";
+import { DivisionProvider } from './hooks/useDivisionContext';
 
 const queryClient = new QueryClient();
 
@@ -142,13 +143,15 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
         <AuthProvider>
-          <MsalAuthProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </MsalAuthProvider>
+          <DivisionProvider>
+            <MsalAuthProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </MsalAuthProvider>
+          </DivisionProvider>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
