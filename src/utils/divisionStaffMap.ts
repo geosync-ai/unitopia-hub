@@ -2,255 +2,532 @@ interface StaffMember {
   id: string;
   name: string;
   email: string;
-  jobTitle: string;
+  job_title: string;
   department: string;
-  divisionId: string;
+  mobile: string; 
+  business_phone: string;
+  office_location: string;
+  division_id: string;
 }
 
-// Staff organized by division
+// Staff organized by division (mapping from database values in screenshot)
 const staffByDivision: Record<string, StaffMember[]> = {
   'executive-division': [
     {
-      id: "1",
+      id: "6",
       name: "Andy Ambulu",
       email: "aambulu@scpng.gov.pg",
-      jobTitle: "General Counsel",
+      job_title: "General Counsel",
       department: "Secretariat Unit",
-      divisionId: "executive-division"
+      mobile: "+675 74235369",
+      business_phone: "+675 321 2223",
+      office_location: "Executive Division",
+      division_id: "executive-division"
     },
     {
-      id: "9",
+      id: "7",
       name: "James Joshua",
       email: "jjoshua@scpng.gov.pg",
-      jobTitle: "Acting Chief Executive Officer",
+      job_title: "Acting Chief Executive Officer",
       department: "Executive Division",
-      divisionId: "executive-division"
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Office of the Chairman",
+      division_id: "executive-division"
     },
     {
-      id: "25",
+      id: "8",
       name: "Robert Salmon Minak",
       email: "rminak@scpng.gov.pg",
-      jobTitle: "Acting Executive Chairman",
+      job_title: "Acting Executive Chairman",
       department: "Executive Unit",
-      divisionId: "executive-division"
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Securities Commission of Papua New Guinea",
+      division_id: "executive-division"
     }
   ],
   'corporate-services-division': [
     {
-      id: "2",
+      id: "9",
       name: "Anita Kosnga",
       email: "akosnga@scpng.gov.pg",
-      jobTitle: "Finance Officer",
+      job_title: "Finance Officer",
       department: "Finance Unit",
-      divisionId: "corporate-services-division"
+      mobile: "+675 79632655",
+      business_phone: "+675 3212223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     },
     {
-      id: "3",
+      id: "10",
       name: "Anderson Yambe",
       email: "ayambe@scpng.gov.pg",
-      jobTitle: "Senior Finance Officer",
+      job_title: "Senior Finance Officer",
       department: "Finance Unit",
-      divisionId: "corporate-services-division"
+      mobile: "70980208/81528285",
+      business_phone: "321 2223",
+      office_location: "Corporate Service Division",
+      division_id: "corporate-services-division"
     },
     {
-      id: "5",
+      id: "11",
       name: "Eric Kipongi",
       email: "ekipongi@scpng.gov.pg",
-      jobTitle: "Manager Information Technology",
+      job_title: "Manager Information Technology",
       department: "IT Unit",
-      divisionId: "corporate-services-division"
+      mobile: "+675 75652192",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Service Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "12",
+      name: "John Sarwom",
+      email: "jsarwom@scpng.gov.pg",
+      job_title: "Senior IT Database Officer",
+      department: "IT Unit",
+      mobile: "+675 77508555",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     },
     {
       id: "13",
-      name: "John Sarwom",
-      email: "jsarwom@scpng.gov.pg",
-      jobTitle: "Senior IT Database Officer",
-      department: "IT Unit",
-      divisionId: "corporate-services-division"
+      name: "Joel Johnny Waiya",
+      email: "jwaiya@scpng.gov.pg",
+      job_title: "Senior Human Resource Officer",
+      department: "Human Resources Unit",
+      mobile: "+675 71882467",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "14",
+      name: "Jerome Rema",
+      email: "imbailagu@scpng.gov.pg",
+      job_title: "Administrative Driver",
+      department: "Corporate Services Unit",
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     },
     {
       id: "15",
-      name: "Joel Johnny Waiya",
-      email: "jwaiya@scpng.gov.pg",
-      jobTitle: "Senior Human Resource Officer",
+      name: "Monica Heni",
+      email: "mmackolyn@scpng.gov.pg",
+      job_title: "Senior Payroll Officer",
+      department: "Human Resource Unit",
+      mobile: "+675 73497301/78100860",
+      business_phone: "+675 3212223",
+      office_location: "Coporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "16",
+      name: "Monica Abudu",
+      email: "mapulin@scpng.gov.pg",
+      job_title: "Senior Systems Analyst Consultant",
+      department: "Information Technology",
+      mobile: "+675 81620231",
+      business_phone: "N/A",
+      office_location: "Securities Commission of Papua New Guinea",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "17",
+      name: "Mark Timea",
+      email: "mtimea@scpng.gov.pg",
+      job_title: "Admin Officer",
       department: "Human Resources Unit",
-      divisionId: "corporate-services-division"
+      mobile: "+675 71233953",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Service Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "18",
+      name: "Mercy Tipitap",
+      email: "mtipitap@scpng.gov.pg",
+      job_title: "Senior Finance Officer",
+      department: "Finance Unit",
+      mobile: "+675 72103762",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "19",
+      name: "Sisia Asigau",
+      email: "sasigau@scpng.gov.pg",
+      job_title: "Receptionist",
+      department: "Corporate Service Division",
+      mobile: "+675 71823186",
+      business_phone: "321 2223",
+      office_location: "MRD Building Level 3",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "20",
+      name: "Sulluh Kamitu",
+      email: "skamitu@scpng.gov.pg",
+      job_title: "Senior HR Officer",
+      department: "HR Department",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "N/A",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "21",
+      name: "Sophia Marai",
+      email: "smarai@scpng.gov.pg",
+      job_title: "Receptionist",
+      department: "Human Resources Unit",
+      mobile: "+675 70118699",
+      business_phone: "Corporate Services Division",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     },
     {
       id: "22",
-      name: "Mark Timea",
-      email: "mtimea@scpng.gov.pg",
-      jobTitle: "Admin Officer",
-      department: "Human Resources Unit",
-      divisionId: "corporate-services-division"
+      name: "Sam Taki",
+      email: "staki@scpng.gov.pg",
+      job_title: "Acting Director Corporate Service",
+      department: "Finance Unit",
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     },
     {
       id: "23",
-      name: "Mercy Tipitap",
-      email: "mtipitap@scpng.gov.pg",
-      jobTitle: "Senior Finance Officer",
-      department: "Finance Unit",
-      divisionId: "corporate-services-division"
-    },
-    {
-      id: "27",
-      name: "Sisia Asigau",
-      email: "sasigau@scpng.gov.pg",
-      jobTitle: "Receptionist",
-      department: "Corporate Service Division",
-      divisionId: "corporate-services-division"
-    },
-    {
-      id: "28",
-      name: "Sulluh Kamitu",
-      email: "skamitu@scpng.gov.pg",
-      jobTitle: "Senior HR Officer",
-      department: "HR Department",
-      divisionId: "corporate-services-division"
-    },
-    {
-      id: "29",
-      name: "Sophia Marai",
-      email: "smarai@scpng.gov.pg",
-      jobTitle: "Receptionist",
+      name: "Thomas Mondaya",
+      email: "tmondaya@scpng.gov.pg",
+      job_title: "Senior Payroll Officer",
       department: "Human Resources Unit",
-      divisionId: "corporate-services-division"
+      mobile: "+675 71208950",
+      business_phone: "+675 3212223",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     },
     {
-      id: "30",
-      name: "Sam Taki",
-      email: "staki@scpng.gov.pg",
-      jobTitle: "Acting Director Corporate Service",
-      department: "Finance Unit",
-      divisionId: "corporate-services-division"
+      id: "41",
+      name: "Admin (System)",
+      email: "admin@scpng.gov.pg",
+      job_title: "System Administrator",
+      department: "IT Unit",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "42",
+      name: "Admin (System)",
+      email: "admin8@scpng.gov.pg",
+      job_title: "System Administrator",
+      department: "IT Unit",
+      mobile: "N/A",
+      business_phone: "675 72287868",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "44",
+      name: "SCPNG Boardroom",
+      email: "boardroom@scpng.gov.pg",
+      job_title: "Facility",
+      department: "Corporate Services Division",
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Level 2 MRDC Haus, Downtown",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "45",
+      name: "Duncan Hardia",
+      email: "dhardia@scpng.gov.pg",
+      job_title: "IT Support",
+      department: "IT Unit",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "46",
+      name: "Ian Kanapari",
+      email: "ikanapari@scpng.gov.pg",
+      job_title: "Support Staff",
+      department: "Administrative Services",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "47",
+      name: "Jacob Pakuatop",
+      email: "jpakuatop@scpng.gov.pg",
+      job_title: "Support Staff",
+      department: "Administrative Services",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "50",
+      name: "Shirley Too",
+      email: "stoongapa@scpng.gov.pg",
+      job_title: "Support Staff",
+      department: "Administrative Services",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
+    },
+    {
+      id: "51",
+      name: "SCPNG Office",
+      email: "SCPNGOffice@scpng.gov.pg",
+      job_title: "Service Account",
+      department: "Administrative Services",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Corporate Services Division",
+      division_id: "corporate-services-division"
     }
   ],
   'licensing-market-supervision-division': [
     {
-      id: "4",
+      id: "24",
       name: "Esther Alia",
       email: "ealia@scpng.gov.pg",
-      jobTitle: "Market Data Officer",
+      job_title: "Market Data Officer",
       department: "Market Data Unit",
-      divisionId: "licensing-market-supervision-division"
+      mobile: "+675 74410228",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
     },
     {
-      id: "10",
+      id: "25",
       name: "Jacob Kom",
       email: "jkom@scpng.gov.pg",
-      jobTitle: "Senior Investigations Officer",
+      job_title: "Senior Investigations Officer",
       department: "Investigations Unit",
-      divisionId: "licensing-market-supervision-division"
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
     },
     {
       id: "26",
+      name: "Leeroy Wari",
+      email: "lwari@scpng.gov.pg",
+      job_title: "Senior Licensing Officer",
+      department: "Licensing Unit",
+      mobile: "+675 70287992",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
+    },
+    {
+      id: "27",
+      name: "Mac Siwi",
+      email: "msiwi@scpng.gov.pg",
+      job_title: "Investigation Officer",
+      department: "Investigations Unit",
+      mobile: "+675 75640288",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
+    },
+    {
+      id: "28",
       name: "Regina Wai",
       email: "rwai@scpng.gov.pg",
-      jobTitle: "Senior Supervision Officer",
+      job_title: "Senior Supervision Officer",
       department: "Supervision Unit",
-      divisionId: "licensing-market-supervision-division"
+      mobile: "+675 72818920/75709357",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
     },
     {
-      id: "31",
+      id: "29",
       name: "Titus Angu",
       email: "tangu@scpng.gov.pg",
-      jobTitle: "Supervision Officer",
+      job_title: "Supervision Officer",
       department: "Supervision Unit",
-      divisionId: "licensing-market-supervision-division"
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
     },
     {
-      id: "35",
+      id: "30",
       name: "Zomay Apini",
       email: "zapini@scpng.gov.pg",
-      jobTitle: "Market Data Manager",
+      job_title: "Market Data Manager",
       department: "Market Data Unit",
-      divisionId: "licensing-market-supervision-division"
+      mobile: "+675 70553451",
+      business_phone: "+675 321 2223",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
+    },
+    {
+      id: "48",
+      name: "Licenses Group",
+      email: "license@scpng.gov.pg",
+      job_title: "Information Service",
+      department: "Licensing Unit",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Licensing Market & Supervision Division",
+      division_id: "licensing-market-supervision-division"
     }
   ],
   'legal-services-division': [
     {
-      id: "7",
+      id: "31",
       name: "Isaac Mel",
       email: "imel@scpng.gov.pg",
-      jobTitle: "Senior Legal Officer Enforcement & Compliance",
+      job_title: "Senior Legal Officer Enforcement & Compliance",
       department: "Legal Advisory Unit",
-      divisionId: "legal-services-division"
-    },
-    {
-      id: "8",
-      name: "Immanuel Minoga",
-      email: "iminoga@scpng.gov.pg",
-      jobTitle: "Legal Officer",
-      department: "Legal Advisory Unit",
-      divisionId: "legal-services-division"
-    },
-    {
-      id: "14",
-      name: "Johnson Tengere",
-      email: "jtengere@scpng.gov.pg",
-      jobTitle: "Legal Clark",
-      department: "Legal Advisory Unit",
-      divisionId: "legal-services-division"
+      mobile: "+675 74301320",
+      business_phone: "+675 321 2223",
+      office_location: "Legal Services Division",
+      division_id: "legal-services-division"
     },
     {
       id: "32",
-      name: "Tony Kawas",
-      email: "tkawas@scpng.gov.pg",
-      jobTitle: "Senior Legal Officer",
+      name: "Immanuel Minoga",
+      email: "iminoga@scpng.gov.pg",
+      job_title: "Legal Officer",
       department: "Legal Advisory Unit",
-      divisionId: "legal-services-division"
+      mobile: "+675 71105474",
+      business_phone: "+675 321 2223",
+      office_location: "Legal Services Division",
+      division_id: "legal-services-division"
+    },
+    {
+      id: "33",
+      name: "Johnson Tengere",
+      email: "jtengere@scpng.gov.pg",
+      job_title: "Legal Clark",
+      department: "Legal Advisory Unit",
+      mobile: "+675 72417196",
+      business_phone: "+675 321 2223",
+      office_location: "Legal Division",
+      division_id: "legal-services-division"
     },
     {
       id: "34",
+      name: "Tony Kawas",
+      email: "tkawas@scpng.gov.pg",
+      job_title: "Senior Legal Officer",
+      department: "Legal Advisory Unit",
+      mobile: "N/A",
+      business_phone: "+675 321 2223",
+      office_location: "Legal Services Division",
+      division_id: "legal-services-division"
+    },
+    {
+      id: "35",
       name: "Tyson Yapao",
       email: "tyapao@scpng.gov.pg",
-      jobTitle: "Legal Manager - Compliance & Enforcement",
+      job_title: "Legal Manager - Compliance & Enforcement",
       department: "Legal Advisory Unit",
-      divisionId: "legal-services-division"
+      mobile: "+675 78314741",
+      business_phone: "+675 321 2223",
+      office_location: "Legal Advisory Division",
+      division_id: "legal-services-division"
     }
   ],
   'research-publication-division': [
     {
-      id: "6",
+      id: "36",
       name: "Howard Bando",
       email: "hbando@scpng.gov.pg",
-      jobTitle: "Publication Officer",
+      job_title: "Publication Officer",
       department: "Media & Publication Unit",
-      divisionId: "research-publication-division"
+      mobile: "+675 72017516",
+      business_phone: "+675 321 2223",
+      office_location: "Research & Publication Division",
+      division_id: "research-publication-division"
     },
     {
-      id: "11",
+      id: "37",
       name: "Joy Komba",
       email: "jkomba@scpng.gov.pg",
-      jobTitle: "Director Research & Publication",
+      job_title: "Director Research & Publication",
       department: "Research & Publication",
-      divisionId: "research-publication-division"
+      mobile: "+675 78158586/71183624",
+      business_phone: "+675 321 2223",
+      office_location: "Research & Publication",
+      division_id: "research-publication-division"
     },
     {
-      id: "24",
+      id: "38",
       name: "Newman Tandawai",
       email: "ntandawai@scpng.gov.pg",
-      jobTitle: "Research Officer",
+      job_title: "Research Officer",
       department: "Research Unit",
-      divisionId: "research-publication-division"
+      mobile: "+675 73721873",
+      business_phone: "+675 321 2223",
+      office_location: "Research & Publication Division",
+      division_id: "research-publication-division"
     }
   ],
   'secretariat-unit': [
     {
-      id: "12",
+      id: "39",
       name: "Joyce Nii",
       email: "jnii@scpng.gov.pg",
-      jobTitle: "Executive Secretary",
+      job_title: "Executive Secretary",
       department: "Secretariat Unit",
-      divisionId: "secretariat-unit"
+      mobile: "+675 72326848",
+      business_phone: "+675 321 2223",
+      office_location: "Office of the Chairaman",
+      division_id: "secretariat-unit"
     },
     {
-      id: "16",
+      id: "40",
       name: "Lovelyn Karlyo",
       email: "lkarlyo@scpng.gov.pg",
-      jobTitle: "Divisional Secretary",
+      job_title: "Divisional Secretary",
       department: "Secretariat Unit",
-      divisionId: "secretariat-unit"
+      mobile: "+675 71723255",
+      business_phone: "+675 321 2223",
+      office_location: "Office of the Chairman",
+      division_id: "secretariat-unit"
+    },
+    {
+      id: "43",
+      name: "General Enquiries",
+      email: "ask@scpng.gov.pg",
+      job_title: "Information Service",
+      department: "Public Relations",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Secretariat Unit",
+      division_id: "secretariat-unit"
+    },
+    {
+      id: "49",
+      name: "Client/Investor Enquiries",
+      email: "queries@scpng.gov.pg",
+      job_title: "Information Service",
+      department: "Public Relations",
+      mobile: "N/A",
+      business_phone: "N/A",
+      office_location: "Secretariat Unit",
+      division_id: "secretariat-unit"
     }
   ]
 };
@@ -273,12 +550,19 @@ export class DivisionStaffMap {
     );
   }
 
+  // Get staff member by name
+  static getStaffByName(name: string): StaffMember | undefined {
+    return this.getAllStaff().find(
+      staff => staff.name.toLowerCase() === name.toLowerCase()
+    );
+  }
+
   // Get staff members for the current user's division
   static getStaffForUserDivision(userEmail: string): StaffMember[] {
     const userStaff = this.getStaffByEmail(userEmail);
     if (!userStaff) return [];
     
-    return this.getStaffByDivision(userStaff.divisionId);
+    return this.getStaffByDivision(userStaff.division_id);
   }
 }
 
