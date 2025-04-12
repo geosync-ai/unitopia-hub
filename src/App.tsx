@@ -4,7 +4,7 @@ import { PublicClientApplication } from '@azure/msal-browser';
 const Apps = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
-  const [contactInfo, setContactInfo] = useState(null);
+  const [contactInfo, setContactInfo] = useState([]);
   const [msalInstance, setMsalInstance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,9 +12,9 @@ const Apps = () => {
 
   const msalConfig = {
     auth: {
-      clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f',
-      authority: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab',
-      redirectUri: 'https://unitopia-hub.vercel.app/',
+      clientId: '648a96d7-e3f5-4e13-8084-ba0b74dbb56f', // Your app client ID
+      authority: 'https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab', // Your tenant ID
+      redirectUri: 'https://unitopia-hub.vercel.app/', // Your redirect URI
     },
     cache: {
       cacheLocation: 'sessionStorage',
@@ -23,7 +23,7 @@ const Apps = () => {
   };
 
   const loginRequest = {
-    scopes: ['user.read'],
+    scopes: ['User.Read.All'],
   };
 
   useEffect(() => {
@@ -39,7 +39,7 @@ const Apps = () => {
       if (accounts.length > 0) {
         setIsAuthenticated(true);
         setUser(accounts[0]);
-        fetchContactInfo(accounts[0], instance);
+        fetchAllUsers(accounts[0], instance);
       }
     }).catch((err) => {
       setError(`Failed to initialize MSAL: ${err.message}`);
@@ -66,7 +66,7 @@ const Apps = () => {
       if (loginResponse) {
         setIsAuthenticated(true);
         setUser(loginResponse.account);
-        fetchContactInfo(loginResponse.account, msalInstance);
+        fetchAllUsers(loginResponse.account, msalInstance);
       }
     } catch (err) {
       setError(`Authentication failed: ${err.message}`);
@@ -81,38 +81,32 @@ const Apps = () => {
     msalInstance.logoutPopup();
     setIsAuthenticated(false);
     setUser(null);
-    setContactInfo(null);
+    setContactInfo([]);
   };
 
-  const fetchContactInfo = async (account, instance) => {
+  const fetchAllUsers = async (account, instance) => {
     try {
       const response = await instance.acquireTokenSilent({
         ...loginRequest,
         account,
       });
 
-      const graphResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+      const graphResponse = await fetch('https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName,jobTitle,mobilePhone,officeLocation', {
         headers: {
           Authorization: `Bearer ${response.accessToken}`,
         },
       });
 
       const data = await graphResponse.json();
-      setContactInfo({
-        name: data.displayName,
-        email: data.mail || data.userPrincipalName,
-        jobTitle: data.jobTitle,
-        mobilePhone: data.mobilePhone,
-        officeLocation: data.officeLocation,
-      });
+      setContactInfo(data.value); // Array of users
     } catch (err) {
-      setError(`Failed to fetch contact info: ${err.message}`);
+      setError(`Failed to fetch users: ${err.message}`);
     }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Microsoft Account Info</h1>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1>Staff Directory</h1>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {!isAuthenticated ? (
         <button onClick={handleSignIn} disabled={loading}>
@@ -120,15 +114,22 @@ const Apps = () => {
         </button>
       ) : (
         <>
-          <button onClick={handleSignOut}>Sign Out</button>
-          {contactInfo && (
-            <div style={{ marginTop: '20px' }}>
-              <p><strong>Name:</strong> {contactInfo.name}</p>
-              <p><strong>Email:</strong> {contactInfo.email}</p>
-              <p><strong>Job Title:</strong> {contactInfo.jobTitle || 'N/A'}</p>
-              <p><strong>Mobile:</strong> {contactInfo.mobilePhone || 'N/A'}</p>
-              <p><strong>Office:</strong> {contactInfo.officeLocation || 'N/A'}</p>
+          <button onClick={handleSignOut} style={{ marginBottom: '20px' }}>Sign Out</button>
+          {contactInfo.length > 0 ? (
+            <div>
+              <h3>All Staff Contacts</h3>
+              {contactInfo.map((user, index) => (
+                <div key={index} style={{ padding: '10px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '8px' }}>
+                  <p><strong>Name:</strong> {user.displayName}</p>
+                  <p><strong>Email:</strong> {user.mail || user.userPrincipalName}</p>
+                  <p><strong>Job Title:</strong> {user.jobTitle || 'N/A'}</p>
+                  <p><strong>Mobile:</strong> {user.mobilePhone || 'N/A'}</p>
+                  <p><strong>Office:</strong> {user.officeLocation || 'N/A'}</p>
+                </div>
+              ))}
             </div>
+          ) : (
+            <p>Loading staff info...</p>
           )}
         </>
       )}
