@@ -80,6 +80,7 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
 }) => {
   const [formState, setFormState] = useState<RiskFormState>({ ...emptyFormState });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [newChecklistItem, setNewChecklistItem] = useState('');
 
   // Update the form state when the risk prop changes
   useEffect(() => {
@@ -135,11 +136,19 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
   const handleChecklistChange = (key: string, checked: boolean) => {
     if (checked) {
       // For radio buttons, we should clear all other selections first
-      const newChecklist = [{
-        id: key,
-        text: getChecklistText(key),
-        checked: true
-      }];
+      const predefinedKeys = ['riskAssessment', 'stakeholderReview', 'mitigationStrategy', 'contingencyPlan'];
+      
+      // Keep any custom checklist items
+      const customItems = formState.checklist.filter(item => !predefinedKeys.includes(item.id));
+      
+      const newChecklist = [
+        {
+          id: key,
+          text: getChecklistText(key),
+          checked: true
+        },
+        ...customItems
+      ];
       
       setFormState(prev => ({ 
         ...prev, 
@@ -212,6 +221,23 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
     });
     
     onOpenChange(false);
+  };
+
+  const handleAddChecklistItem = () => {
+    if (newChecklistItem.trim() === '') return;
+
+    const newItem: ChecklistItem = {
+      id: crypto.randomUUID(),
+      text: newChecklistItem,
+      checked: false
+    };
+
+    setFormState(prev => ({
+      ...prev,
+      checklist: [...prev.checklist, newItem]
+    }));
+
+    setNewChecklistItem('');
   };
 
   // Don't render anything if no risk is provided
@@ -379,52 +405,114 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
             </div>
             
             <div className="col-span-2">
-              <h3 className="font-medium mb-2">Checklist</h3>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="radio" 
-                    id="riskAssessment" 
-                    name="riskChecklist"
-                    checked={isChecklistItemChecked('riskAssessment')}
-                    onChange={(e) => handleChecklistChange('riskAssessment', e.target.checked)}
-                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <Label htmlFor="riskAssessment">Risk assessment completed</Label>
+              <div className="border-t pt-4 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium">Checklist</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {formState.checklist.filter(item => item.checked).length > 0 
+                      ? `${Math.round((formState.checklist.filter(item => item.checked).length / formState.checklist.length) * 100)}% complete` 
+                      : '0% complete'}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="radio" 
-                    id="stakeholderReview" 
-                    name="riskChecklist"
-                    checked={isChecklistItemChecked('stakeholderReview')}
-                    onChange={(e) => handleChecklistChange('stakeholderReview', e.target.checked)}
-                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <Label htmlFor="stakeholderReview">Stakeholder review conducted</Label>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
+                  <div 
+                    className="bg-primary h-1.5 rounded-full" 
+                    style={{ 
+                      width: formState.checklist.filter(item => item.checked).length > 0 
+                        ? `${Math.round((formState.checklist.filter(item => item.checked).length / formState.checklist.length) * 100)}%` 
+                        : '0%' 
+                    }}
+                  ></div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="radio" 
-                    id="mitigationStrategy" 
-                    name="riskChecklist"
-                    checked={isChecklistItemChecked('mitigationStrategy')}
-                    onChange={(e) => handleChecklistChange('mitigationStrategy', e.target.checked)}
-                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <Label htmlFor="mitigationStrategy">Mitigation strategy defined</Label>
+              
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="riskAssessment" 
+                      name="riskChecklist"
+                      checked={isChecklistItemChecked('riskAssessment')}
+                      onChange={(e) => handleChecklistChange('riskAssessment', e.target.checked)}
+                      className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <Label htmlFor="riskAssessment">Risk assessment completed</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="stakeholderReview" 
+                      name="riskChecklist"
+                      checked={isChecklistItemChecked('stakeholderReview')}
+                      onChange={(e) => handleChecklistChange('stakeholderReview', e.target.checked)}
+                      className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <Label htmlFor="stakeholderReview">Stakeholder review conducted</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="mitigationStrategy" 
+                      name="riskChecklist"
+                      checked={isChecklistItemChecked('mitigationStrategy')}
+                      onChange={(e) => handleChecklistChange('mitigationStrategy', e.target.checked)}
+                      className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <Label htmlFor="mitigationStrategy">Mitigation strategy defined</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="contingencyPlan" 
+                      name="riskChecklist"
+                      checked={isChecklistItemChecked('contingencyPlan')}
+                      onChange={(e) => handleChecklistChange('contingencyPlan', e.target.checked)}
+                      className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <Label htmlFor="contingencyPlan">Contingency plan established</Label>
+                  </div>
                 </div>
+
                 <div className="flex items-center gap-2">
-                  <input 
-                    type="radio" 
-                    id="contingencyPlan" 
-                    name="riskChecklist"
-                    checked={isChecklistItemChecked('contingencyPlan')}
-                    onChange={(e) => handleChecklistChange('contingencyPlan', e.target.checked)}
-                    className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
+                  <Input 
+                    placeholder="Add new checklist item" 
+                    className="flex-1"
+                    id="new-checklist-item"
+                    value={newChecklistItem}
+                    onChange={(e) => setNewChecklistItem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddChecklistItem();
+                      }
+                    }}
                   />
-                  <Label htmlFor="contingencyPlan">Contingency plan established</Label>
+                  <Button 
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAddChecklistItem}
+                  >
+                    Add
+                  </Button>
                 </div>
+
+                {formState.checklist.filter(item => !['riskAssessment', 'stakeholderReview', 'mitigationStrategy', 'contingencyPlan'].includes(item.id)).length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {formState.checklist.filter(item => !['riskAssessment', 'stakeholderReview', 'mitigationStrategy', 'contingencyPlan'].includes(item.id)).map(item => (
+                      <div key={item.id} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={item.id} 
+                          checked={item.checked}
+                          onCheckedChange={(checked) => {
+                            const updatedChecklist = formState.checklist.map(i => 
+                              i.id === item.id ? { ...i, checked: checked as boolean } : i
+                            );
+                            setFormState(prev => ({ ...prev, checklist: updatedChecklist }));
+                          }}
+                        />
+                        <Label htmlFor={item.id}>{item.text}</Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
