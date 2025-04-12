@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter } from 'lucide-react';
 import AddRiskModal from './modals/AddRiskModal';
 import EditRiskModal from './modals/EditRiskModal';
 import DeleteRiskModal from './modals/DeleteRiskModal';
 import { Risk } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
 
 interface Project {
   id: string;
@@ -33,10 +42,30 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   error, 
   onRetry 
 }) => {
+  const { selectedUnit, businessUnits } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
+  const [filteredRisks, setFilteredRisks] = useState<Risk[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Filter risks by selected unit and status
+  useEffect(() => {
+    let filtered = [...risks];
+    
+    // Filter by selected unit if one is selected
+    if (selectedUnit) {
+      filtered = filtered.filter(risk => risk.unit_id === selectedUnit);
+    }
+    
+    // Apply status filter if not 'all'
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(risk => risk.status === statusFilter);
+    }
+    
+    setFilteredRisks(filtered);
+  }, [risks, selectedUnit, statusFilter]);
 
   const handleEdit = (risk: Risk) => {
     setSelectedRisk(risk);
@@ -46,6 +75,15 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   const handleDelete = (risk: Risk) => {
     setSelectedRisk(risk);
     setShowDeleteModal(true);
+  };
+
+  const handleAddRisk = (risk: Risk) => {
+    // Add current unit ID to new risk
+    const riskWithUnitId = {
+      ...risk,
+      unit_id: selectedUnit || undefined
+    };
+    addRisk(riskWithUnitId);
   };
 
   const getImpactBadge = (impact: string) => {
@@ -90,6 +128,8 @@ export const RisksTab: React.FC<RisksTabProps> = ({
         return <Badge className="bg-teal-100 text-teal-800">Monitoring</Badge>;
       case 'resolved':
         return <Badge className="bg-green-100 text-green-800">Resolved</Badge>;
+      case 'accepted':
+        return <Badge className="bg-blue-100 text-blue-800">Accepted</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
     }
@@ -99,22 +139,46 @@ export const RisksTab: React.FC<RisksTabProps> = ({
     return new Date(date).toLocaleDateString();
   };
 
+  // Get unique status values for the filter
+  const statusOptions = [...new Set(risks.map(risk => risk.status))];
+
   return (
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Risks</CardTitle>
-          <Button variant="outline" onClick={() => setShowAddModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Risk
-          </Button>
+          <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              <Select
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {statusOptions.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" onClick={() => setShowAddModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Risk
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
-                <TableHead>Project</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Impact</TableHead>
                 <TableHead>Likelihood</TableHead>
                 <TableHead>Status</TableHead>
@@ -124,14 +188,14 @@ export const RisksTab: React.FC<RisksTabProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {risks.length === 0 ? (
+              {filteredRisks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No risks found. Create your first risk by clicking "Add Risk".
                   </TableCell>
                 </TableRow>
               ) : (
-                risks.map((risk) => (
+                filteredRisks.map((risk) => (
                   <TableRow key={risk.id}>
                     <TableCell className="font-medium">{risk.title}</TableCell>
                     <TableCell>{risk.category}</TableCell>
@@ -161,7 +225,7 @@ export const RisksTab: React.FC<RisksTabProps> = ({
         <AddRiskModal
           open={showAddModal}
           onOpenChange={setShowAddModal}
-          onAdd={addRisk}
+          onAdd={handleAddRisk}
         />
       )}
       

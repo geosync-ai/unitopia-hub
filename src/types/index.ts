@@ -1,3 +1,4 @@
+
 // Import the ChecklistItem interface
 import { ChecklistItem } from '@/components/ChecklistSection';
 
@@ -16,6 +17,7 @@ export interface Risk {
   createdAt: Date;
   updatedAt: Date;
   checklist?: ChecklistItem[];
+  unit_id?: string;
 }
 
 export interface KPI {
@@ -29,6 +31,7 @@ export interface KPI {
   description: string;
   notes: string;
   checklist?: ChecklistItem[];
+  unit_id?: string;
 }
 
 export interface KRA {
@@ -46,6 +49,7 @@ export interface KRA {
   createdAt: string;
   updatedAt: string;
   checklist?: ChecklistItem[];
+  unit_id?: string;
 }
 
 export interface Task {
@@ -62,6 +66,7 @@ export interface Task {
   projectName?: string;
   completionPercentage?: number;
   checklist?: ChecklistItem[];
+  unit_id?: string;
 }
 
 export interface Project {
@@ -78,6 +83,7 @@ export interface Project {
   risks: Risk[];
   tasks: Task[];
   checklist?: ChecklistItem[];
+  unit_id?: string;
 }
 
 export interface UserAsset {
@@ -93,12 +99,42 @@ export interface UserAsset {
   notes: string;
   imageUrl?: string;
   checklist?: ChecklistItem[];
+  unit_id?: string;
+}
+
+export interface OrganizationUnit {
+  id: string;
+  name: string;
+  description?: string;
+  code?: string;
+  manager?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserProfile {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  position?: string;
+  department?: string;
+  isAdmin: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UnitMembership {
+  id: string;
+  userId: string;
+  unitId: string;
+  role: string;
+  createdAt: Date;
 }
 
 export type StatusType = 
   | 'todo' | 'in-progress' | 'review' | 'done'
-  | 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'resolved'
-  | 'planned' | 'in-progress' | 'completed' | 'on-hold';
+  | 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'resolved' | 'accepted';
 
 export type KraItem = {
   kra: KRA;
