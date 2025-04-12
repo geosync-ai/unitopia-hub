@@ -77,6 +77,15 @@ const AddRiskModal = ({
   const [formState, setFormState] = useState<RiskFormState>({ ...defaultFormState });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  
+  // Calculate checklist completion percentage
+  const calculateCompletionPercentage = (): number => {
+    if (formState.checklist.length === 0) return 0;
+    const checkedItems = formState.checklist.filter(item => item.checked).length;
+    return Math.round((checkedItems / formState.checklist.length) * 100);
+  };
+  
+  const completionPercentage = calculateCompletionPercentage();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -431,13 +440,13 @@ const AddRiskModal = ({
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-medium">Checklist</h3>
                   <span className="text-sm text-muted-foreground">
-                    0% complete
+                    {completionPercentage}% complete
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
                   <div 
                     className="bg-primary h-1.5 rounded-full" 
-                    style={{ width: '0%' }}
+                    style={{ width: `${completionPercentage}%` }}
                   ></div>
                 </div>
 
