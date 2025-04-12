@@ -44,7 +44,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     manager: '',
     budget: 0,
     budgetSpent: 0,
-    progress: 0,
+    progress: 1,
     risks: [],
     tasks: [],
     checklist: []

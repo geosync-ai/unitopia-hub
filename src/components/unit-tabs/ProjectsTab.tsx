@@ -40,7 +40,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
     manager: '',
     budget: 0,
     budgetSpent: 0,
-    progress: 0
+    progress: 1
   });
 
   const handleEdit = (project: Project) => {
@@ -63,7 +63,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
       manager: '',
       budget: 0,
       budgetSpent: 0,
-      progress: 0
+      progress: 1
     });
     setShowAddModal(true);
   };
