@@ -8,7 +8,7 @@ export interface Risk {
   description: string;
   status: 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'resolved' | 'accepted';
   impact: 'low' | 'medium' | 'high' | 'critical';
-  likelihood: 'unlikely' | 'possible' | 'likely' | 'certain';
+  likelihood: 'low' | 'medium' | 'high' | 'very-high';
   category: string;
   owner: string;
   identificationDate: Date;

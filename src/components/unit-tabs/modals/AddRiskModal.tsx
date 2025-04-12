@@ -61,7 +61,7 @@ const defaultFormState: RiskFormState = {
   category: '',
   status: 'identified',
   impact: 'medium',
-  likelihood: 'unlikely',
+  likelihood: 'low',
   identificationDate: new Date().toISOString(),
   mitigationPlan: '',
   createdAt: new Date().toISOString(),
@@ -179,11 +179,11 @@ const AddRiskModal = ({
     }
     
     // Validate likelihood to ensure it meets the database constraint
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
     if (!validLikelihoods.includes(formState.likelihood)) {
       newErrors.likelihood = 'Invalid likelihood value';
       // Fallback to a safe value
-      setFormState(prev => ({ ...prev, likelihood: 'unlikely' }));
+      setFormState(prev => ({ ...prev, likelihood: 'low' }));
     }
     
     setErrors(newErrors);
@@ -201,10 +201,10 @@ const AddRiskModal = ({
     }
     
     // Ensure likelihood is one of the allowed values
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
     const safelikelihood = validLikelihoods.includes(formState.likelihood) 
       ? formState.likelihood 
-      : 'unlikely';
+      : 'low';
       
     // Create a well-formed risk object with explicit type casting to ensure database compatibility
     const riskToAdd: Risk = {
@@ -215,7 +215,7 @@ const AddRiskModal = ({
       category: formState.category.trim(),
       status: formState.status as Risk['status'],
       impact: formState.impact as Risk['impact'],
-      likelihood: safelikelihood as 'unlikely' | 'possible' | 'likely' | 'certain',
+      likelihood: safelikelihood as 'low' | 'medium' | 'high' | 'very-high',
       identificationDate: new Date(formState.identificationDate),
       mitigationPlan: formState.mitigationPlan || '',
       createdAt: new Date(formState.createdAt),
@@ -416,10 +416,10 @@ const AddRiskModal = ({
                   <SelectValue placeholder="Select likelihood" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unlikely">Unlikely</SelectItem>
-                  <SelectItem value="possible">Possible</SelectItem>
-                  <SelectItem value="likely">Likely</SelectItem>
-                  <SelectItem value="certain">Certain</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="very-high">Very High</SelectItem>
                 </SelectContent>
               </Select>
             </div>

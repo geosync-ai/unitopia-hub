@@ -65,14 +65,14 @@ export const RisksTab: React.FC<RisksTabProps> = ({
 
   const getLikelihoodBadge = (likelihood: string) => {
     switch (likelihood) {
-      case 'unlikely':
-        return <Badge className="bg-green-100 text-green-800">Unlikely</Badge>;
-      case 'possible':
-        return <Badge className="bg-yellow-100 text-yellow-800">Possible</Badge>;
-      case 'likely':
-        return <Badge className="bg-orange-100 text-orange-800">Likely</Badge>;
-      case 'certain':
-        return <Badge className="bg-red-100 text-red-800">Certain</Badge>;
+      case 'low':
+        return <Badge className="bg-green-100 text-green-800">Low</Badge>;
+      case 'medium':
+        return <Badge className="bg-yellow-100 text-yellow-800">Medium</Badge>;
+      case 'high':
+        return <Badge className="bg-orange-100 text-orange-800">High</Badge>;
+      case 'very-high':
+        return <Badge className="bg-red-100 text-red-800">Very High</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">{likelihood}</Badge>;
     }

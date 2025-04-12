@@ -62,7 +62,7 @@ const emptyFormState: RiskFormState = {
   category: '',
   status: 'identified',
   impact: 'medium',
-  likelihood: 'unlikely',
+  likelihood: 'low',
   identificationDate: new Date().toISOString(),
   mitigationPlan: '',
   createdAt: new Date().toISOString(),
@@ -102,7 +102,7 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
         category: risk.category || '',
         status: risk.status || 'identified',
         impact: risk.impact || 'medium',
-        likelihood: risk.likelihood || 'unlikely',
+        likelihood: risk.likelihood || 'low',
         identificationDate: risk.identificationDate ? risk.identificationDate.toISOString() : new Date().toISOString(),
         mitigationPlan: risk.mitigationPlan || '',
         createdAt: risk.createdAt ? risk.createdAt.toISOString() : new Date().toISOString(),
@@ -203,11 +203,11 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
     }
     
     // Validate likelihood to ensure it meets the database constraint
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
     if (!validLikelihoods.includes(formState.likelihood)) {
       newErrors.likelihood = 'Invalid likelihood value';
       // Fallback to a safe value
-      setFormState(prev => ({ ...prev, likelihood: 'unlikely' }));
+      setFormState(prev => ({ ...prev, likelihood: 'low' }));
     }
     
     setErrors(newErrors);
@@ -218,10 +218,10 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
     if (!validate()) return;
     
     // Ensure likelihood is one of the allowed values
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
     const safelikelihood = validLikelihoods.includes(formState.likelihood) 
       ? formState.likelihood 
-      : 'unlikely';
+      : 'low';
       
     // Create a well-formed risk object with explicit type casting to ensure database compatibility
     const updatedRisk: Risk = {
@@ -413,17 +413,17 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
             <div>
               <Label htmlFor="likelihood" className="mb-2">Likelihood</Label>
               <Select
-                value={formState.likelihood || ''}
+                value={formState.likelihood}
                 onValueChange={(value) => handleSelectChange('likelihood', value)}
               >
                 <SelectTrigger id="likelihood">
                   <SelectValue placeholder="Select likelihood" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unlikely">Unlikely</SelectItem>
-                  <SelectItem value="possible">Possible</SelectItem>
-                  <SelectItem value="likely">Likely</SelectItem>
-                  <SelectItem value="certain">Certain</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="very-high">Very High</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -23,10 +23,10 @@ const camelToSnakeCase = (obj: any): any => {
 
   // Handle risk likelihood specially to ensure it correctly matches enum type
   if (obj.likelihood) {
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
     if (!validLikelihoods.includes(obj.likelihood)) {
-      console.warn(`Converting invalid likelihood '${obj.likelihood}' to 'unlikely'`);
-      obj.likelihood = 'unlikely';
+      console.warn(`Converting invalid likelihood '${obj.likelihood}' to 'low'`);
+      obj.likelihood = 'low';
     }
   }
 
@@ -34,10 +34,10 @@ const camelToSnakeCase = (obj: any): any => {
     Object.entries(obj).map(([key, value]) => {
       // Special case for likelihood to ensure it matches DB enum
       if (key === 'likelihood') {
-        const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+        const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
         if (!validLikelihoods.includes(value as string)) {
-          console.warn(`Converting invalid likelihood value: "${value}" to "unlikely"`);
-          value = 'unlikely';
+          console.warn(`Converting invalid likelihood value: "${value}" to "low"`);
+          value = 'low';
         }
         return ['likelihood', value];
       }
@@ -366,11 +366,17 @@ export const risksService = {
   addRisk: async (risk: any) => {
     const supabase = getSupabaseClient();
     
-    // Ensure likelihood is one of the allowed values
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
-    const safeLikelihood = validLikelihoods.includes(risk.likelihood) 
-      ? risk.likelihood 
-      : 'unlikely';
+    // Update with potential alternative enum values for likelihood
+    // The database constraint is rejecting 'possible', so let's try with a different set
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
+    
+    // Map old likelihood values to new ones if needed
+    let safeLikelihood = 'low'; // Default fallback
+    if (risk.likelihood === 'unlikely') safeLikelihood = 'low';
+    else if (risk.likelihood === 'possible') safeLikelihood = 'medium';
+    else if (risk.likelihood === 'likely') safeLikelihood = 'high';
+    else if (risk.likelihood === 'certain') safeLikelihood = 'very-high';
+    else if (validLikelihoods.includes(risk.likelihood)) safeLikelihood = risk.likelihood;
     
     // Clone the risk object to avoid modifying the original
     const cleanRisk = { ...risk };
@@ -425,15 +431,22 @@ export const risksService = {
   updateRisk: async (id: string, risk: any) => {
     const supabase = getSupabaseClient();
     
-    // Check and force likelihood to an acceptable value to satisfy DB constraint
-    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
-    if (risk.likelihood && !validLikelihoods.includes(risk.likelihood)) {
-      console.warn(`Invalid likelihood value: "${risk.likelihood}", defaulting to "unlikely"`);
-      risk.likelihood = 'unlikely';
-    }
+    // Use the same updated valid likelihood values
+    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
+    
+    // Map old likelihood values to new ones if needed
+    let safeLikelihood = 'low'; // Default fallback
+    if (risk.likelihood === 'unlikely') safeLikelihood = 'low';
+    else if (risk.likelihood === 'possible') safeLikelihood = 'medium';
+    else if (risk.likelihood === 'likely') safeLikelihood = 'high';
+    else if (risk.likelihood === 'certain') safeLikelihood = 'very-high';
+    else if (validLikelihoods.includes(risk.likelihood)) safeLikelihood = risk.likelihood;
+    
+    // Update the object with the safe likelihood
+    const cleanRisk = { ...risk, likelihood: safeLikelihood };
     
     // Convert camelCase properties to snake_case for DB
-    const snakeCaseRisk = camelToSnakeCase(risk);
+    const snakeCaseRisk = camelToSnakeCase(cleanRisk);
     
     // Add updated_at timestamp
     const riskWithTimestamp = {
@@ -446,6 +459,7 @@ export const risksService = {
       JSON.stringify({
         id,
         originalLikelihood: risk.likelihood,
+        safeLikelihood,
         processedRisk: riskWithTimestamp
       })
     );
