@@ -47,8 +47,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       });
       return;
     }
-
-    // Add the task
+    
+    // Add the task - keep the checklist property now that we're adding it to the database
     onSubmit(newTask);
     
     // Reset form and close modal
