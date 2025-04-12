@@ -78,6 +78,7 @@ import {
   useAssetsData, 
   useKRAsData 
 } from '@/hooks/useSupabaseData';
+import { OrganizationUnit } from '@/types';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -480,14 +481,16 @@ const StatusDropdown: React.FC<{
 
 // Define the main Unit component
 const Unit = () => {
-  const { isAuthenticated, user, login } = useAuth();
+  const { isAuthenticated, user, login, businessUnits, selectedUnit, setSelectedUnit, fetchUserUnits } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showTeamViewSwitcher, setShowTeamViewSwitcher] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
+  const [availableUnits, setAvailableUnits] = useState<OrganizationUnit[]>([]);
   const initializedRef = useRef(false);
+  const wizardShownRef = useRef(false);
   const { toast } = useToast();
 
   // Initialize setup wizard with required state
@@ -508,12 +511,26 @@ const Unit = () => {
   // Keep the existing KRA state for now, could be migrated later
   const kraState = useKraState();
 
+  // Load user's units when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchUserUnits().then(units => {
+        setAvailableUnits(units);
+        
+        // If there's no selected unit but we have units, select the first one
+        if (!selectedUnit && units.length > 0) {
+          setSelectedUnit(units[0].id);
+        }
+      });
+    }
+  }, [isAuthenticated, user, fetchUserUnits]);
+
+  // IMPORTANT: Changed this to only show setup wizard when explicitly requested
   // Memoize the setup check to prevent unnecessary re-renders
   const checkSetupNeeded = useCallback(() => {
-    return !setupWizard.isSetupComplete || 
-           (setupWizard.setupMethod === 'csv' && !setupWizard.csvConfig) ||
-           (setupWizard.setupMethod === 'onedrive' && !setupWizard.oneDriveConfig);
-  }, [setupWizard]);
+    // Only return true if the user has explicitly clicked the setup button
+    return false; // Don't auto-show the wizard
+  }, []);
 
   // Fetch data when authenticated - only get mock data if setup is not complete
   useEffect(() => {
@@ -574,17 +591,9 @@ const Unit = () => {
     initializedRef.current = true;
     
     try {
-      // Check if setup is needed - only show wizard if setup is not complete
-      const needsSetup = !setupWizard.isSetupComplete && checkSetupNeeded();
-      
-      // Only show the wizard if setup is needed
-      if (needsSetup) {
-        // Use a timeout to ensure this runs after initial render
-        setTimeout(() => {
-          setShowSetupWizard(true);
-        }, 100);
-      }
-      
+      // Important: Only show wizard if explicitly requested
+      // Don't auto-show the wizard anymore
+
       setIsLoading(false);
     } catch (err) {
       console.error("Error initializing data:", err);
@@ -793,7 +802,25 @@ const Unit = () => {
         <div className={`flex-1 transition-all duration-300 ${showAiChat ? 'mr-4' : ''}`}>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">Unit Dashboard</h1>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {/* Unit Selector */}
+              {availableUnits.length > 0 && (
+                <Select
+                  value={selectedUnit || undefined}
+                  onValueChange={value => setSelectedUnit(value)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select Unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUnits.map(unit => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -846,9 +873,9 @@ const Unit = () => {
               />
             </TabsContent>
             
-            {/* KRAs Tab - Conditionally Rendered */}
+            {/* KRAs Tab */}
             <TabsContent value="kras" className="space-y-6">
-              {setupWizard.isSetupComplete ? (
+              {setupWizard.isSetupComplete || true ? (
                 <KRAsTab />
               ) : (
                 <div className="text-center text-muted-foreground p-8">
@@ -920,7 +947,7 @@ const Unit = () => {
         )}
       </div>
       
-      {/* Setup Wizard */}
+      {/* Setup Wizard - Only shown when the Setup button is clicked */}
       {showSetupWizard && (
         <SetupWizard
           isOpen={showSetupWizard}
@@ -944,7 +971,7 @@ const Unit = () => {
         />
       )}
       
-      {/* Skip OneDrive Setup Button */}
+      {/* Skip OneDrive Setup Button - Only shown when SetupWizard is visible */}
       {showSetupWizard && (
         <div className="fixed bottom-4 right-4 z-50">
           <Button
@@ -960,4 +987,4 @@ const Unit = () => {
   );
 };
 
-export default Unit; 
+export default Unit;

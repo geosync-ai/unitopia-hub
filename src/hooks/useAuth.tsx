@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
@@ -5,6 +6,7 @@ import { loginRequest } from '@/integrations/microsoft/msalConfig';
 import { getAccount, getUserProfile, loginWithMicrosoft as loginWithMicrosoftService } from '@/integrations/microsoft/msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
 import { getSupabaseClient, notesService } from '@/integrations/supabase/supabaseClient';
+import { OrganizationUnit, UserProfile } from '@/types';
 
 export type UserRole = 'admin' | 'manager' | 'user';
 
@@ -18,6 +20,7 @@ export interface User {
   accessToken?: string; // For Microsoft Graph API
   profilePicture?: string; // URL to profile picture
   notes?: any[]; // User's notes from Supabase
+  isAdmin?: boolean; // Whether the user is an admin
 }
 
 interface AuthContextType {
@@ -28,13 +31,15 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithMicrosoft: () => Promise<void>;
   logout: () => void;
-  businessUnits: {id: string, name: string}[];
+  businessUnits: OrganizationUnit[];
   selectedUnit: string | null;
   setSelectedUnit: (unitId: string | null) => void;
   msGraphConfig: MsGraphConfig | null;
   setUser: (user: User | null) => void;
   fetchUserNotes: () => Promise<any[]>;
   addUserNote: (content: string) => Promise<any>;
+  fetchUserUnits: () => Promise<OrganizationUnit[]>;
+  userProfile: UserProfile | null;
 }
 
 interface MsGraphConfig {
@@ -53,7 +58,8 @@ const defaultAdmin = {
   email: 'admin@app.com',
   name: 'Admin User',
   role: 'admin' as UserRole,
-  unitName: 'IT'
+  unitName: 'IT',
+  isAdmin: true
 };
 
 // List of emails that should receive admin role when authenticating
@@ -62,23 +68,11 @@ const adminEmails = [
   'admin@app.com'
 ];
 
-// Mock business units for SCPNG context
-const mockBusinessUnits = [
-  { id: 'hr', name: 'HR' },
-  { id: 'finance', name: 'Finance' },
-  { id: 'legal', name: 'Legal' },
-  { id: 'research', name: 'Research and Publication' },
-  { id: 'it', name: 'IT' },
-  { id: 'market', name: 'Market Data' },
-  { id: 'licensing', name: 'Licensing' },
-  { id: 'supervision', name: 'Supervision' },
-  { id: 'chairman', name: 'Chairman' },
-  { id: 'administration', name: 'Administration' }
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [businessUnits, setBusinessUnits] = useState<OrganizationUnit[]>([]);
   const [msGraphConfig, setMsGraphConfig] = useState<MsGraphConfig | null>(null);
   const [msalInitialized, setMsalInitialized] = useState(false);
   
@@ -119,10 +113,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
+        
+        // Load user units
+        fetchUserUnits().then(units => {
+          // If user has at least one unit and no unit is selected, select the first one
+          if (units.length > 0 && !selectedUnit) {
+            setSelectedUnit(units[0].id);
+            localStorage.setItem('selectedUnit', units[0].id);
+          }
+        });
       }
     };
     
     checkExistingSession();
+    
+    // Check for saved selected unit in localStorage
+    const savedUnit = localStorage.getItem('selectedUnit');
+    if (savedUnit) {
+      setSelectedUnit(savedUnit);
+    }
   }, []);
 
   // Update user object with notes if user exists
@@ -234,11 +243,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // New method to fetch user's organizational units
+  const fetchUserUnits = async (): Promise<OrganizationUnit[]> => {
+    if (!user?.id) {
+      console.error('Cannot fetch units: No user is logged in');
+      return [];
+    }
+    
+    try {
+      const supabase = getSupabaseClient();
+      
+      // For admin users, fetch all units
+      if (user.isAdmin || user.role === 'admin') {
+        const { data, error } = await supabase
+          .from('organization_units')
+          .select('*');
+          
+        if (error) throw error;
+        
+        const units = data.map(unit => ({
+          ...unit,
+          createdAt: new Date(unit.created_at),
+          updatedAt: new Date(unit.updated_at)
+        }));
+        
+        setBusinessUnits(units);
+        return units;
+      } 
+      // For regular users, fetch only units they are members of
+      else {
+        const { data, error } = await supabase
+          .from('user_unit_memberships')
+          .select(`
+            unit_id,
+            organization_units!inner(*)
+          `)
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        const units = data.map(item => ({
+          ...item.organization_units,
+          id: item.organization_units.id,
+          createdAt: new Date(item.organization_units.created_at),
+          updatedAt: new Date(item.organization_units.updated_at)
+        }));
+        
+        setBusinessUnits(units);
+        return units;
+      }
+    } catch (error) {
+      console.error('Error fetching user units:', error);
+      toast.error('Failed to load your units');
+      
+      // Fall back to mock business units for demo
+      const mockUnits = [
+        { id: 'hr', name: 'HR', description: 'Human Resources', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'finance', name: 'Finance', description: 'Financial Department', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'it', name: 'IT', description: 'Information Technology', createdAt: new Date(), updatedAt: new Date() }
+      ];
+      
+      setBusinessUnits(mockUnits);
+      return mockUnits;
+    }
+  };
+
   const logout = async () => {
     try {
       // Clear user data
       setUser(null);
       localStorage.removeItem('user');
+      localStorage.removeItem('selectedUnit');
       
       // If MSAL is initialized, log out from Microsoft
       if (window.msalInstance) {
@@ -249,9 +324,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // When selected unit changes, save to localStorage
+  useEffect(() => {
+    if (selectedUnit) {
+      localStorage.setItem('selectedUnit', selectedUnit);
+    }
+  }, [selectedUnit]);
+
   // Compute derived values
   const isAuthenticated = !!user;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || !!user?.isAdmin;
   const isManager = user?.role === 'manager';
 
   return (
@@ -264,13 +346,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         loginWithMicrosoft,
         logout,
-        businessUnits: mockBusinessUnits,
+        businessUnits,
         selectedUnit,
         setSelectedUnit,
         msGraphConfig,
         setUser,
         fetchUserNotes,
-        addUserNote
+        addUserNote,
+        fetchUserUnits,
+        userProfile
       }}
     >
       {children}
