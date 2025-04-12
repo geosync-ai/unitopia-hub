@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -19,24 +19,31 @@ import DatePicker from '@/components/DatePicker';
 import FileUpload from '@/components/FileUpload';
 
 interface EditAssetModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  asset: UserAsset | null;
-  onAssetChange: (asset: UserAsset) => void;
-  onSave: (asset: UserAsset) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  asset: UserAsset;
+  onEdit: (editedAsset: Partial<UserAsset>) => void;
+  onDelete?: () => void;
 }
 
 const EditAssetModal: React.FC<EditAssetModalProps> = ({
-  open,
-  onOpenChange,
+  isOpen,
+  onClose,
   asset,
-  onAssetChange,
-  onSave
+  onEdit,
+  onDelete
 }) => {
-  const handleSaveAsset = () => {
-    if (!asset) return;
+  const [editedAsset, setEditedAsset] = useState<UserAsset>(asset);
+  
+  // Update local state when asset prop changes
+  useEffect(() => {
+    setEditedAsset(asset);
+  }, [asset]);
 
-    if (!asset.name) {
+  const handleSaveAsset = () => {
+    if (!editedAsset) return;
+
+    if (!editedAsset.name) {
       toast({
         title: "Error",
         description: "Asset name is required",
@@ -44,7 +51,7 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
       return;
     }
 
-    if (!asset.serialNumber) {
+    if (!editedAsset.serialNumber) {
       toast({
         title: "Error",
         description: "Serial number is required",
@@ -52,7 +59,7 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
       return;
     }
 
-    if (!asset.assignedTo) {
+    if (!editedAsset.assignedTo) {
       toast({
         title: "Error",
         description: "Assigned to field is required",
@@ -60,30 +67,24 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
       return;
     }
 
-    if (!asset.department) {
-      toast({
-        title: "Error",
-        description: "Department field is required",
-      });
-      return;
-    }
-
     // Save the asset
-    onSave(asset);
+    onEdit(editedAsset);
     
     // Close the modal
-    onOpenChange(false);
-    
-    toast({
-      title: "Asset Updated",
-      description: "The asset has been successfully updated",
-    });
+    onClose();
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setEditedAsset(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   if (!asset) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Edit Asset</DialogTitle>
@@ -97,17 +98,17 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
             <Input 
               id="edit-asset-name" 
               placeholder="Asset Name" 
-              value={asset.name || ''} 
-              onChange={(e) => onAssetChange({...asset, name: e.target.value})}
+              value={editedAsset.name || ''} 
+              onChange={(e) => handleChange('name', e.target.value)}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-asset-type">Type</Label>
               <Select 
-                value={asset.type || 'laptop'}
+                value={editedAsset.type || 'laptop'}
                 onValueChange={(value: 'laptop' | 'mobile' | 'tablet' | 'software' | 'other') => 
-                  onAssetChange({...asset, type: value})
+                  handleChange('type', value)
                 }
               >
                 <SelectTrigger id="edit-asset-type">
@@ -125,9 +126,9 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-asset-status">Status</Label>
               <Select 
-                value={asset.status || 'active'}
+                value={editedAsset.status || 'active'}
                 onValueChange={(value: 'active' | 'maintenance' | 'retired') => 
-                  onAssetChange({...asset, status: value})
+                  handleChange('status', value)
                 }
               >
                 <SelectTrigger id="edit-asset-status">
@@ -146,8 +147,8 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
             <Input 
               id="edit-asset-serial" 
               placeholder="Serial Number" 
-              value={asset.serialNumber || ''} 
-              onChange={(e) => onAssetChange({...asset, serialNumber: e.target.value})}
+              value={editedAsset.serialNumber || ''} 
+              onChange={(e) => handleChange('serialNumber', e.target.value)}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -156,17 +157,17 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
               <Input 
                 id="edit-asset-assigned" 
                 placeholder="User Name" 
-                value={asset.assignedTo || ''} 
-                onChange={(e) => onAssetChange({...asset, assignedTo: e.target.value})}
+                value={editedAsset.assignedTo || ''} 
+                onChange={(e) => handleChange('assignedTo', e.target.value)}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-asset-department">Department <span className="text-destructive">*</span></Label>
+              <Label htmlFor="edit-asset-department">Department</Label>
               <Input 
                 id="edit-asset-department" 
                 placeholder="Department" 
-                value={asset.department || ''} 
-                onChange={(e) => onAssetChange({...asset, department: e.target.value})}
+                value={editedAsset.department || ''} 
+                onChange={(e) => handleChange('department', e.target.value)}
               />
             </div>
           </div>
@@ -174,45 +175,36 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-asset-purchase-date">Purchase Date</Label>
               <DatePicker 
-                date={asset.purchaseDate} 
-                setDate={(date) => onAssetChange({...asset, purchaseDate: date})} 
+                date={editedAsset.purchaseDate} 
+                setDate={(date) => handleChange('purchaseDate', date)} 
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-asset-warranty">Warranty Expiry</Label>
               <DatePicker 
-                date={asset.warrantyExpiry} 
-                setDate={(date) => onAssetChange({...asset, warrantyExpiry: date})} 
+                date={editedAsset.warrantyExpiry} 
+                setDate={(date) => handleChange('warrantyExpiry', date)} 
               />
             </div>
-          </div>
-          <div className="grid gap-2">
-            <FileUpload 
-              onFileUpload={(base64) => onAssetChange({...asset, imageUrl: base64})}
-              currentImage={asset.imageUrl}
-              label="Asset Image"
-            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="edit-asset-notes">Notes</Label>
             <Textarea 
               id="edit-asset-notes" 
               placeholder="Additional notes about the asset" 
-              value={asset.notes || ''} 
-              onChange={(e) => onAssetChange({...asset, notes: e.target.value})}
+              value={editedAsset.notes || ''} 
+              onChange={(e) => handleChange('notes', e.target.value)}
             />
           </div>
         </div>
         
-        <div className="border-t pt-4 mt-2">
-          <ChecklistSection 
-            items={asset.checklist || []}
-            onChange={(items) => onAssetChange({...asset, checklist: items})}
-          />
-        </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+        <DialogFooter className="space-x-2">
+          {onDelete && (
+            <Button variant="destructive" onClick={onDelete} className="mr-auto">
+              Delete Asset
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSaveAsset}>Save Changes</Button>
         </DialogFooter>
       </DialogContent>

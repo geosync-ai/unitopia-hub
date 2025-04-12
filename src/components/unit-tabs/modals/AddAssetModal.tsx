@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -19,22 +19,17 @@ import DatePicker from '@/components/DatePicker';
 import FileUpload from '@/components/FileUpload';
 
 interface AddAssetModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  asset?: Partial<UserAsset>;
-  onAssetChange?: (asset: Partial<UserAsset>) => void;
-  onSave?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (asset: Omit<UserAsset, 'id'>) => void;
 }
 
 const AddAssetModal: React.FC<AddAssetModalProps> = ({
-  open,
-  onOpenChange,
-  asset,
-  onAssetChange,
-  onSave
+  isOpen,
+  onClose,
+  onAdd
 }) => {
-  const defaultAsset: Partial<UserAsset> = {
-    id: `asset-${Date.now()}`,
+  const [newAsset, setNewAsset] = useState<Omit<UserAsset, 'id'>>({
     name: '',
     type: 'laptop',
     serialNumber: '',
@@ -45,12 +40,10 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
     status: 'active',
     notes: '',
     checklist: []
-  };
-
-  const assetData = asset || defaultAsset;
+  });
   
   const handleAddAsset = () => {
-    if (!assetData.name) {
+    if (!newAsset.name) {
       toast({
         title: "Error",
         description: "Asset name is required",
@@ -58,7 +51,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
       return;
     }
 
-    if (!assetData.serialNumber) {
+    if (!newAsset.serialNumber) {
       toast({
         title: "Error",
         description: "Serial number is required",
@@ -66,7 +59,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
       return;
     }
 
-    if (!assetData.assignedTo) {
+    if (!newAsset.assignedTo) {
       toast({
         title: "Error",
         description: "Assigned to field is required",
@@ -74,7 +67,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
       return;
     }
 
-    if (!assetData.department) {
+    if (!newAsset.department) {
       toast({
         title: "Error",
         description: "Department field is required",
@@ -82,25 +75,35 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
       return;
     }
 
-    // Use the onSave callback
-    if (onSave) {
-      onSave();
-    }
+    // Add the asset
+    onAdd(newAsset);
     
-    onOpenChange(false);
+    // Reset form and close
+    setNewAsset({
+      name: '',
+      type: 'laptop',
+      serialNumber: '',
+      assignedTo: '',
+      department: '',
+      purchaseDate: new Date(),
+      warrantyExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      status: 'active',
+      notes: '',
+      checklist: []
+    });
+    
+    onClose();
   };
 
   const handleChange = (field: string, value: any) => {
-    if (onAssetChange && asset) {
-      onAssetChange({
-        ...asset,
-        [field]: value
-      });
-    }
+    setNewAsset(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Add New Asset</DialogTitle>
@@ -114,7 +117,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <Input 
               id="asset-name" 
               placeholder="Asset Name" 
-              value={assetData.name || ''} 
+              value={newAsset.name || ''} 
               onChange={(e) => handleChange('name', e.target.value)}
             />
           </div>
@@ -122,7 +125,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="asset-type">Type</Label>
               <Select 
-                value={assetData.type || 'laptop'}
+                value={newAsset.type || 'laptop'}
                 onValueChange={(value: 'laptop' | 'mobile' | 'tablet' | 'software' | 'other') => 
                   handleChange('type', value)
                 }
@@ -142,7 +145,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="asset-status">Status</Label>
               <Select 
-                value={assetData.status || 'active'}
+                value={newAsset.status || 'active'}
                 onValueChange={(value: 'active' | 'maintenance' | 'retired') => 
                   handleChange('status', value)
                 }
@@ -163,7 +166,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <Input 
               id="asset-serial" 
               placeholder="Serial Number" 
-              value={assetData.serialNumber || ''} 
+              value={newAsset.serialNumber || ''} 
               onChange={(e) => handleChange('serialNumber', e.target.value)}
             />
           </div>
@@ -173,7 +176,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
               <Input 
                 id="asset-assigned" 
                 placeholder="User Name" 
-                value={assetData.assignedTo || ''} 
+                value={newAsset.assignedTo || ''} 
                 onChange={(e) => handleChange('assignedTo', e.target.value)}
               />
             </div>
@@ -182,7 +185,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
               <Input 
                 id="asset-department" 
                 placeholder="Department" 
-                value={assetData.department || ''} 
+                value={newAsset.department || ''} 
                 onChange={(e) => handleChange('department', e.target.value)}
               />
             </div>
@@ -191,14 +194,14 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="asset-purchase-date">Purchase Date</Label>
               <DatePicker 
-                date={assetData.purchaseDate} 
+                date={newAsset.purchaseDate} 
                 setDate={(date) => handleChange('purchaseDate', date)} 
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="asset-warranty">Warranty Expiry</Label>
               <DatePicker 
-                date={assetData.warrantyExpiry} 
+                date={newAsset.warrantyExpiry} 
                 setDate={(date) => handleChange('warrantyExpiry', date)} 
               />
             </div>
@@ -206,7 +209,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
           <div className="grid gap-2">
             <FileUpload 
               onFileUpload={(base64) => handleChange('imageUrl', base64)}
-              currentImage={assetData.imageUrl}
+              currentImage={newAsset.imageUrl}
               label="Asset Image"
             />
           </div>
@@ -215,7 +218,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <Textarea 
               id="asset-notes" 
               placeholder="Additional notes about the asset" 
-              value={assetData.notes || ''} 
+              value={newAsset.notes || ''} 
               onChange={(e) => handleChange('notes', e.target.value)}
             />
           </div>
@@ -223,13 +226,13 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
         
         <div className="border-t pt-4 mt-2">
           <ChecklistSection 
-            items={assetData.checklist || []}
+            items={newAsset.checklist || []}
             onChange={(items) => handleChange('checklist', items)}
           />
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleAddAsset}>Add Asset</Button>
         </DialogFooter>
       </DialogContent>

@@ -34,6 +34,8 @@ interface RisksTabProps {
   addRisk: (risk: Omit<Risk, 'id' | 'createdAt' | 'updatedAt'>) => void;
   editRisk: (id: string, risk: Partial<Risk>) => void;
   deleteRisk: (id: string) => void;
+  error?: Error | null;
+  onRetry?: () => void;
 }
 
 export const RisksTab: React.FC<RisksTabProps> = ({ 
@@ -41,7 +43,9 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   projects = [], 
   addRisk, 
   editRisk, 
-  deleteRisk 
+  deleteRisk, 
+  error, 
+  onRetry 
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);

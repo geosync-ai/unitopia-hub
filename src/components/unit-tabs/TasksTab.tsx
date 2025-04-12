@@ -28,6 +28,8 @@ interface TasksTabProps {
   addTask: (task: Omit<Task, 'id'>) => void;
   editTask: (id: string, task: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+  error?: Error | null;
+  onRetry?: () => void;
 }
 
 export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, deleteTask }) => {

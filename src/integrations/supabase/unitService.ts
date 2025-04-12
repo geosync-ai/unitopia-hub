@@ -289,65 +289,152 @@ export const assetsService = {
       .select('*');
     
     if (userEmail) {
-      query = query.eq('assignedTo', userEmail);
+      query = query.eq('assigned_to', userEmail);
     }
     
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Error fetching assets:', error);
-      throw error;
+    try {
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching assets:', error);
+        throw error;
+      }
+      
+      // Convert snake_case to camelCase for frontend use
+      const formattedData = (data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        serialNumber: item.serial_number,
+        assignedTo: item.assigned_to,
+        department: item.department,
+        purchaseDate: item.purchase_date,
+        warrantyExpiry: item.warranty_expiry,
+        status: item.status,
+        notes: item.notes,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
+      }));
+      
+      return formattedData;
+    } catch (err) {
+      console.error('Error fetching assets:', err);
+      // Still return empty array to allow UI to render
+      return [];
     }
-    
-    return data || [];
   },
   
   // Add a new asset
   addAsset: async (asset: any) => {
     const supabase = getSupabaseClient();
     
-    // Ensure asset has created_at and updated_at
-    const assetWithTimestamps = {
-      ...asset,
+    // Convert camelCase to snake_case for database storage
+    const assetData = {
+      name: asset.name,
+      type: asset.type,
+      serial_number: asset.serialNumber,
+      assigned_to: asset.assignedTo,
+      department: asset.department,
+      purchase_date: asset.purchaseDate,
+      warranty_expiry: asset.warrantyExpiry,
+      status: asset.status,
+      notes: asset.notes,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     
-    const { data, error } = await supabase
-      .from(TABLES.ASSETS)
-      .insert([assetWithTimestamps])
-      .select();
-    
-    if (error) {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.ASSETS)
+        .insert([assetData])
+        .select();
+      
+      if (error) {
+        console.error('Error adding asset:', error);
+        throw error;
+      }
+      
+      // Convert snake_case to camelCase for frontend
+      if (data && data[0]) {
+        const newAsset = data[0];
+        return {
+          id: newAsset.id,
+          name: newAsset.name,
+          type: newAsset.type,
+          serialNumber: newAsset.serial_number,
+          assignedTo: newAsset.assigned_to,
+          department: newAsset.department,
+          purchaseDate: newAsset.purchase_date,
+          warrantyExpiry: newAsset.warranty_expiry,
+          status: newAsset.status,
+          notes: newAsset.notes,
+          createdAt: newAsset.created_at,
+          updatedAt: newAsset.updated_at
+        };
+      }
+      
+      return null;
+    } catch (error) {
       console.error('Error adding asset:', error);
       throw error;
     }
-    
-    return data?.[0] || null;
   },
   
   // Update an asset
   updateAsset: async (id: string, asset: any) => {
     const supabase = getSupabaseClient();
     
-    // Add updated_at timestamp
-    const assetWithTimestamp = {
-      ...asset,
-      updated_at: new Date().toISOString()
-    };
+    // Convert camelCase to snake_case for update
+    const updateData: any = {};
     
-    const { data, error } = await supabase
-      .from(TABLES.ASSETS)
-      .update(assetWithTimestamp)
-      .eq('id', id)
-      .select();
+    if (asset.name !== undefined) updateData.name = asset.name;
+    if (asset.type !== undefined) updateData.type = asset.type;
+    if (asset.serialNumber !== undefined) updateData.serial_number = asset.serialNumber;
+    if (asset.assignedTo !== undefined) updateData.assigned_to = asset.assignedTo;
+    if (asset.department !== undefined) updateData.department = asset.department;
+    if (asset.purchaseDate !== undefined) updateData.purchase_date = asset.purchaseDate;
+    if (asset.warrantyExpiry !== undefined) updateData.warranty_expiry = asset.warrantyExpiry;
+    if (asset.status !== undefined) updateData.status = asset.status;
+    if (asset.notes !== undefined) updateData.notes = asset.notes;
     
-    if (error) {
+    updateData.updated_at = new Date().toISOString();
+    
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.ASSETS)
+        .update(updateData)
+        .eq('id', id)
+        .select();
+      
+      if (error) {
+        console.error('Error updating asset:', error);
+        throw error;
+      }
+      
+      // Convert snake_case to camelCase for frontend
+      if (data && data[0]) {
+        const updatedAsset = data[0];
+        return {
+          id: updatedAsset.id,
+          name: updatedAsset.name,
+          type: updatedAsset.type,
+          serialNumber: updatedAsset.serial_number,
+          assignedTo: updatedAsset.assigned_to,
+          department: updatedAsset.department,
+          purchaseDate: updatedAsset.purchase_date,
+          warrantyExpiry: updatedAsset.warranty_expiry,
+          status: updatedAsset.status,
+          notes: updatedAsset.notes,
+          createdAt: updatedAsset.created_at,
+          updatedAt: updatedAsset.updated_at
+        };
+      }
+      
+      return null;
+    } catch (error) {
       console.error('Error updating asset:', error);
       throw error;
     }
-    
-    return data?.[0] || null;
   },
   
   // Delete an asset

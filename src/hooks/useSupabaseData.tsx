@@ -111,7 +111,22 @@ export function useSupabaseData<T extends { id?: string }>(
     } catch (err) {
       console.error(`Error fetching ${entityType}:`, err);
       setError(err instanceof Error ? err : new Error(String(err)));
-      toast.error(`Failed to load ${entityType}`);
+      
+      // Don't show toast error as it can be disruptive
+      // Still set empty data array so UI can render
+      setData([]);
+      
+      // Log the specific error to console for debugging
+      if (err && typeof err === 'object' && 'code' in err) {
+        console.log(`Database error [${(err as any).code}]: ${(err as any).message}`);
+        
+        // Special handling for common errors
+        if ((err as any).code === '42703') { // Column does not exist
+          console.log('Column name mismatch. Check camelCase vs snake_case in queries.');
+        } else if ((err as any).code === '42P01') { // Table does not exist 
+          console.log('Table does not exist. Ensure you\'ve created the required tables in Supabase.');
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -137,6 +152,12 @@ export function useSupabaseData<T extends { id?: string }>(
     } catch (err) {
       console.error(`Error adding ${entityType.slice(0, -1)}:`, err);
       toast.error(`Failed to add ${entityType.slice(0, -1)}`);
+      
+      // Log the specific error to console for debugging
+      if (err && typeof err === 'object' && 'code' in err) {
+        console.log(`Database error [${(err as any).code}]: ${(err as any).message}`);
+      }
+      
       return null;
     }
   }, [user?.email, entityType, getAddMethod]);

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Eye } from 'lucide-react';
 import AddAssetModal from './modals/AddAssetModal';
 import EditAssetModal from './modals/EditAssetModal';
+import TableErrorMessage from '@/components/TableErrorMessage';
 
 interface UserAsset {
   id: string;
@@ -24,12 +25,18 @@ interface AssetsTabProps {
   assets: UserAsset[];
   addAsset: (asset: Omit<UserAsset, 'id'>) => void;
   editAsset: (id: string, asset: Partial<UserAsset>) => void;
+  deleteAsset?: (id: string) => void;
+  error?: Error | null;
+  onRetry?: () => void;
 }
 
 export const AssetsTab: React.FC<AssetsTabProps> = ({ 
   assets, 
   addAsset, 
-  editAsset 
+  editAsset,
+  deleteAsset,
+  error,
+  onRetry
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -71,11 +78,21 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
   };
 
   const formatDate = (date: Date) => {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString();
   };
 
   return (
     <>
+      {/* Show error message if there is an error */}
+      {error && (
+        <TableErrorMessage 
+          error={error} 
+          entityName="Assets" 
+          onRetry={onRetry}
+        />
+      )}
+      
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>User Assets</CardTitle>
@@ -91,34 +108,36 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Assigned To</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Serial Number</TableHead>
-                <TableHead>Purchase Date</TableHead>
-                <TableHead>Warranty</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Purchase Date</TableHead>
+                <TableHead>Warranty Expiry</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {assets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    No assets found. Create your first asset by clicking "Add Asset".
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {error 
+                      ? "Unable to load assets from the database. Showing offline mode." 
+                      : "No assets found. Add your first asset by clicking 'Add Asset'."}
                   </TableCell>
                 </TableRow>
               ) : (
                 assets.map((asset) => (
                   <TableRow key={asset.id}>
-                    <TableCell className="font-medium">{asset.name}</TableCell>
+                    <TableCell>{asset.name}</TableCell>
                     <TableCell>{getTypeBadge(asset.type)}</TableCell>
                     <TableCell>{asset.assignedTo}</TableCell>
-                    <TableCell>{asset.department}</TableCell>
-                    <TableCell>{asset.serialNumber}</TableCell>
+                    <TableCell>{getStatusBadge(asset.status)}</TableCell>
                     <TableCell>{formatDate(asset.purchaseDate)}</TableCell>
                     <TableCell>{formatDate(asset.warrantyExpiry)}</TableCell>
-                    <TableCell>{getStatusBadge(asset.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(asset)}>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleEdit(asset)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -130,21 +149,29 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Modals */}
-      {showAddModal && (
-        <AddAssetModal
-          open={showAddModal}
-          onOpenChange={setShowAddModal}
-          onAddAsset={addAsset}
-        />
-      )}
-      
-      {showEditModal && selectedAsset && (
-        <EditAssetModal
-          open={showEditModal}
-          onOpenChange={setShowEditModal}
+      {/* Add Asset Modal */}
+      <AddAssetModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        onAdd={addAsset}
+      />
+
+      {/* Edit Asset Modal */}
+      {selectedAsset && (
+        <EditAssetModal 
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
           asset={selectedAsset}
-          onEditAsset={(updatedAsset) => editAsset(selectedAsset.id, updatedAsset)}
+          onEdit={(editedAsset) => {
+            editAsset(selectedAsset.id, editedAsset);
+            setShowEditModal(false);
+          }}
+          onDelete={deleteAsset ? () => {
+            if (deleteAsset) {
+              deleteAsset(selectedAsset.id);
+              setShowEditModal(false);
+            }
+          } : undefined}
         />
       )}
     </>

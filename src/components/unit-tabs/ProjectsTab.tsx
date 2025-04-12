@@ -54,13 +54,17 @@ interface ProjectsTabProps {
   addProject: (project: Omit<Project, 'id' | 'risks' | 'tasks'>) => void;
   editProject: (id: string, project: Partial<Project>) => void;
   deleteProject: (id: string) => void;
+  error?: Error | null;
+  onRetry?: () => void;
 }
 
 export const ProjectsTab: React.FC<ProjectsTabProps> = ({ 
   projects, 
   addProject, 
   editProject, 
-  deleteProject 
+  deleteProject, 
+  error, 
+  onRetry 
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);

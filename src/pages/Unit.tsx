@@ -841,6 +841,8 @@ const Unit = () => {
                 addTask={taskState.add}
                 editTask={taskState.update}
                 deleteTask={taskState.remove}
+                error={taskState.error}
+                onRetry={taskState.refresh}
               />
             </TabsContent>
             
@@ -862,6 +864,8 @@ const Unit = () => {
                 addProject={projectState.add}
                 editProject={projectState.update}
                 deleteProject={projectState.remove}
+                error={projectState.error}
+                onRetry={projectState.refresh}
               />
             </TabsContent>
             
@@ -872,6 +876,8 @@ const Unit = () => {
                 addRisk={riskState.add}
                 editRisk={riskState.update}
                 deleteRisk={riskState.remove}
+                error={riskState.error}
+                onRetry={riskState.refresh}
               />
             </TabsContent>
             
@@ -881,6 +887,9 @@ const Unit = () => {
                 assets={assetState.data}
                 addAsset={assetState.add}
                 editAsset={assetState.update}
+                deleteAsset={assetState.remove}
+                error={assetState.error}
+                onRetry={assetState.refresh}
               />
             </TabsContent>
           </Tabs>
