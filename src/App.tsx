@@ -5,15 +5,15 @@ import { createClient } from "@supabase/supabase-js";
 // MSAL config
 const msalConfig = {
   auth: {
-    clientId: "YOUR_MICROSOFT_CLIENT_ID",
-    authority: "https://login.microsoftonline.com/YOUR_TENANT_ID",
-    redirectUri: "http://localhost:3000",
+    clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
+    authority: "b173aac7-6781-4d49-a037-d874bd4a09ab",
+    redirectUri: "https://dmasclpgspatxncspcvt.supabase.co/auth/v1/callback",
   },
 };
 
 // Supabase config
 const supabaseUrl = "https://dmasclpgspatxncspcvt.supabase.co";
-const supabaseAnonKey = "YOUR_SUPABASE_ANON_KEY";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtYXNjbHBnc3BhdHhuY3NwY3Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5OTY1MDksImV4cCI6MjA1OTU3MjUwOX0.xDoSiZKsCkCwHVqtSS16Jc2awIZDCvCtIqxqlMUcuAM";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
