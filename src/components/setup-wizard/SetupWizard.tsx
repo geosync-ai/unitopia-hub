@@ -733,19 +733,6 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
     if (currentStep === 1 && setupMethodProp === 'standard') {
       return (
         <>
-          <div className="pb-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                useLocalStorage(true);
-                setCurrentStep(2);
-              }}
-              disabled={isProcessing}
-            >
-              Skip and use local storage
-            </Button>
-          </div>
           <SimplifiedOneDriveSetup onComplete={handlePathSelect} />
         </>
       );
