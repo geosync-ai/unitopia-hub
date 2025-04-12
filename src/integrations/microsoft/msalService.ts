@@ -231,6 +231,49 @@ export const getUserProfile = async (
   }
 };
 
+/**
+ * Explicitly handle redirect responses from Microsoft authentication
+ * This can be called from components that know a redirect is happening
+ */
+export const handleRedirectResponse = async (
+  msalInstance?: IPublicClientApplication
+): Promise<AuthenticationResult | null> => {
+  const instance = msalInstance || getMsalInstance();
+  if (!instance) {
+    console.error('MSAL instance not available for handling redirect');
+    return null;
+  }
+  
+  try {
+    console.log('[MSAL] Explicitly handling redirect response...');
+    const response = await instance.handleRedirectPromise();
+    
+    if (response) {
+      console.log('[MSAL] Successfully processed redirect response:', response);
+      
+      // Set the active account from the response
+      if (response.account) {
+        instance.setActiveAccount(response.account);
+      }
+      
+      return response;
+    } else {
+      console.log('[MSAL] No redirect response found during explicit handling');
+      return null;
+    }
+  } catch (error) {
+    console.error('[MSAL] Error handling redirect response:', error);
+    // Detailed error logging
+    console.error('[MSAL] Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    throw error;
+  }
+};
+
 // Login with Microsoft
 export const loginWithMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
   try {
@@ -328,5 +371,6 @@ export default {
   loginRedirect,
   logout,
   callMsGraphApi,
-  getUserProfile
+  getUserProfile,
+  handleRedirectResponse
 }; 

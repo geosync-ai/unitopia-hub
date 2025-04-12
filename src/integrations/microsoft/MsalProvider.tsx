@@ -94,78 +94,99 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         
         // Check for redirect response to handle sign-in
         try {
-          const response = await instance.handleRedirectPromise();
-          console.log('Checking for redirect response...');
-          if (response) {
-            console.log('Redirect response detected:', response);
-            if (response.account) {
-              // Set active account if available
-              instance.setActiveAccount(response.account);
-              
-              // Fetch user profile
-              const userProfile = await getUserProfile(instance);
-              if (userProfile) {
-                const userEmail = userProfile.mail || userProfile.userPrincipalName || response.account.username;
+          console.log('Attempting to handle redirect promise...');
+          // Add a bit of timeout to ensure browser has fully loaded and state is settled
+          setTimeout(async () => {
+            try {
+              const response = await instance.handleRedirectPromise();
+              console.log('Checking for redirect response...');
+              if (response) {
+                console.log('Redirect response detected:', response);
+                if (response.account) {
+                  // Set active account if available
+                  instance.setActiveAccount(response.account);
+                  
+                  // Fetch user profile
+                  const userProfile = await getUserProfile(instance);
+                  if (userProfile) {
+                    const userEmail = userProfile.mail || userProfile.userPrincipalName || response.account.username;
+                    
+                    // Create a properly typed user object
+                    setUser({
+                      id: response.account.localAccountId,
+                      name: response.account.name || 'Unknown',
+                      email: userEmail,
+                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                      isAdmin: ADMIN_EMAILS.includes(userEmail),
+                    });
+                    
+                    // For localStorage, we can use a simplified version
+                    localStorage.setItem('user', JSON.stringify({
+                      id: response.account.localAccountId,
+                      name: response.account.name || 'Unknown',
+                      email: userEmail,
+                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                      isAdmin: ADMIN_EMAILS.includes(userEmail),
+                    }));
+                    
+                    console.log('User profile fetched and set');
+
+                    // Force navigation to home page after successful auth
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/';
+                    }
+                  }
+                }
+              } else {
+                console.log('No redirect response detected');
                 
-                // Create a properly typed user object
-                setUser({
-                  id: response.account.localAccountId,
-                  name: response.account.name || 'Unknown',
-                  email: userEmail,
-                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                  isAdmin: ADMIN_EMAILS.includes(userEmail),
-                });
-                
-                // For localStorage, we can use a simplified version
-                localStorage.setItem('user', JSON.stringify({
-                  id: response.account.localAccountId,
-                  name: response.account.name || 'Unknown',
-                  email: userEmail,
-                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                  isAdmin: ADMIN_EMAILS.includes(userEmail),
-                }));
-                
-                console.log('User profile fetched and set');
+                // Try to check for existing account
+                const accounts = instance.getAllAccounts();
+                if (accounts.length > 0) {
+                  const account = accounts[0];
+                  instance.setActiveAccount(account);
+                  
+                  const userProfile = await getUserProfile(instance);
+                  if (userProfile) {
+                    const userEmail = userProfile.mail || userProfile.userPrincipalName || account.username;
+                    
+                    // Create a properly typed user object
+                    setUser({
+                      id: account.localAccountId,
+                      name: account.name || 'Unknown',
+                      email: userEmail,
+                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                      isAdmin: ADMIN_EMAILS.includes(userEmail),
+                    });
+                    
+                    // For localStorage, we can use the same format
+                    localStorage.setItem('user', JSON.stringify({
+                      id: account.localAccountId,
+                      name: account.name || 'Unknown',
+                      email: userEmail,
+                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
+                      isAdmin: ADMIN_EMAILS.includes(userEmail),
+                    }));
+                    
+                    console.log('Found existing account and set user');
+                  }
+                }
               }
+            } catch (timeoutError) {
+              console.error('Error in setTimeout handler:', timeoutError);
             }
-          } else {
-            console.log('No redirect response detected');
-            
-            // Try to check for existing account
-            const accounts = instance.getAllAccounts();
-            if (accounts.length > 0) {
-              const account = accounts[0];
-              instance.setActiveAccount(account);
-              
-              const userProfile = await getUserProfile(instance);
-              if (userProfile) {
-                const userEmail = userProfile.mail || userProfile.userPrincipalName || account.username;
-                
-                // Create a properly typed user object
-                setUser({
-                  id: account.localAccountId,
-                  name: account.name || 'Unknown',
-                  email: userEmail,
-                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                  isAdmin: ADMIN_EMAILS.includes(userEmail),
-                });
-                
-                // For localStorage, we can use the same format
-                localStorage.setItem('user', JSON.stringify({
-                  id: account.localAccountId,
-                  name: account.name || 'Unknown',
-                  email: userEmail,
-                  role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                  isAdmin: ADMIN_EMAILS.includes(userEmail),
-                }));
-                
-                console.log('Found existing account and set user');
-              }
-            }
-          }
+          }, 500); // Small delay to ensure browser is ready
         } catch (redirectError) {
           console.error('Error handling redirect:', redirectError);
           setAuthError(redirectError instanceof Error ? redirectError : new Error(String(redirectError)));
+          
+          // Add more detailed logging for redirect errors
+          console.error('Detailed redirect error:', {
+            message: redirectError.message,
+            name: redirectError.name,
+            stack: redirectError.stack,
+            timestamp: new Date().toISOString()
+          });
           
           // Check if user exists in localStorage as a fallback
           try {

@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
+import { handleRedirectResponse } from '@/integrations/microsoft/msalService';
+import { useMsalContext } from '@/integrations/microsoft/MsalProvider';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,41 +15,84 @@ export default function Login() {
   const { user, isAuthenticated, loginWithMicrosoft, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isProcessingRedirect, setIsProcessingRedirect] = useState(false);
+  const { msalInstance } = useMsalContext();
 
   useEffect(() => {
-    // Check if user is already authenticated
-    if (isAuthenticated && user) {
-      console.log('User is already authenticated, redirecting to home...');
-      try {
-        navigate('/');
-      } catch (error) {
-        console.error('Navigation error:', error);
-        // Fallback - force a page reload to the home page
-        window.location.href = '/';
+    // Handle redirect process more robustly
+    const handleInitialRedirect = async () => {
+      // Check if we have a hash or search params (indicating a redirect from Microsoft)
+      if (location.hash || location.search) {
+        console.log('Detected hash or search params in URL, handling redirect...', {
+          hash: location.hash,
+          search: location.search
+        });
+        
+        setIsProcessingRedirect(true);
+        
+        // Explicitly try to handle the redirect response with our helper
+        if (msalInstance) {
+          try {
+            const response = await handleRedirectResponse(msalInstance);
+            if (response) {
+              console.log('Successfully handled redirect response, navigating home');
+              navigate('/');
+              return;
+            } else {
+              console.log('No redirect response despite URL parameters');
+            }
+          } catch (error) {
+            console.error('Error handling redirect explicitly:', error);
+          }
+        }
+        
+        // We'll show processing state and let MSAL provider handle the redirect
+        // The timeout ensures we don't get stuck if something goes wrong
+        setTimeout(() => {
+          // If we're still on the login page after timeout, redirect to home
+          // as a recovery mechanism
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            console.log('Redirect processing timed out but found stored user, forcing navigation');
+            navigate('/');
+          } else {
+            setIsProcessingRedirect(false);
+          }
+        }, 3000);
+        
+        return;
       }
-      return;
-    }
-
-    // Check if we're returning from Microsoft login
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      console.log('Found stored user, redirecting to home...');
-      try {
-        navigate('/');
-      } catch (error) {
-        console.error('Navigation error from stored user:', error);
-        // Fallback - force a page reload to the home page
-        window.location.href = '/';
+      
+      // Normal flow: Check if user is already authenticated
+      if (isAuthenticated && user) {
+        console.log('User is already authenticated, redirecting to home...');
+        try {
+          navigate('/');
+        } catch (error) {
+          console.error('Navigation error:', error);
+          // Fallback - force a page reload to the home page
+          window.location.href = '/';
+        }
+        return;
       }
-      return;
-    }
+  
+      // Check if we're returning from Microsoft login with stored user
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        console.log('Found stored user, redirecting to home...');
+        try {
+          navigate('/');
+        } catch (error) {
+          console.error('Navigation error from stored user:', error);
+          // Fallback - force a page reload to the home page
+          window.location.href = '/';
+        }
+        return;
+      }
+    };
 
-    // Check if we have a hash in the URL (indicating a redirect from Microsoft)
-    if (location.hash) {
-      console.log('Detected hash in URL, waiting for MSAL to handle redirect...');
-      // MSAL will handle this automatically
-    }
-  }, [isAuthenticated, user, navigate, location]);
+    handleInitialRedirect();
+  }, [isAuthenticated, user, navigate, location, msalInstance]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,15 +106,8 @@ export default function Login() {
   };
 
   const handleMicrosoftLogin = async () => {
-    try {
-      console.log('Initiating Microsoft login...');
-      await loginWithMicrosoft();
-      console.log('Microsoft login initiated successfully');
-      // The page will redirect to Microsoft login
-    } catch (error) {
-      console.error('Error during Microsoft login:', error);
-      toast.error('Failed to login with Microsoft');
-    }
+    console.log('Initiating Microsoft login from button click');
+    await loginWithMicrosoft();
   };
 
   return (
@@ -98,23 +136,36 @@ export default function Login() {
               onClick={handleMicrosoftLogin}
               className="w-full bg-white hover:bg-gray-50 text-black border border-gray-200"
               type="button"
+              disabled={isProcessingRedirect}
             >
-              <svg
-                className="mr-2 h-5 w-5"
-                aria-hidden="true"
-                focusable="false"
-                data-prefix="fab"
-                data-icon="microsoft"
-                role="img"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 448 512"
-              >
-                <path
-                  fill="currentColor"
-                  d="M0 256h214.6v214.6H0V256zm233.8 0H448v214.6H233.8V256zM0 0h214.6v214.6H0V0zm233.8 0H448v214.6H233.8V0z"
-                ></path>
-              </svg>
-              Microsoft
+              {isProcessingRedirect ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="mr-2 h-5 w-5"
+                    aria-hidden="true"
+                    focusable="false"
+                    data-prefix="fab"
+                    data-icon="microsoft"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 448 512"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M0 256h214.6v214.6H0V256zm233.8 0H448v214.6H233.8V256zM0 0h214.6v214.6H0V0zm233.8 0H448v214.6H233.8V0z"
+                    ></path>
+                  </svg>
+                  Microsoft
+                </>
+              )}
             </Button>
           </div>
 
