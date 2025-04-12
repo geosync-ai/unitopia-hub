@@ -26,9 +26,31 @@ const camelToSnakeCase = (obj: any): any => {
       // Convert camelCase to snake_case
       const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
       
-      // Handle nested objects
-      if (key !== 'checklist' && value !== null && typeof value === 'object') {
-        // Don't convert the checklist JSONB since it's stored as-is
+      // Special handling for date values
+      if (value instanceof Date) {
+        // Convert Date objects to ISO strings for PostgreSQL
+        value = value.toISOString();
+      } else if (key === 'startDate' || key === 'dueDate' || key === 'endDate' || 
+                key === 'purchaseDate' || key === 'warrantyExpiry' || 
+                key === 'identificationDate' || key === 'createdAt' || key === 'updatedAt') {
+        // For date fields that might be objects or already strings
+        if (value && typeof value === 'object' && !(value instanceof Date)) {
+          // Handle complex objects that should be dates
+          if ('toISOString' in value && typeof value.toISOString === 'function') {
+            value = value.toISOString();
+          } else {
+            // If it's an object but not a valid date, convert to null
+            value = null;
+          }
+        } else if (value === '') {
+          // Empty strings should be null for date fields
+          value = null;
+        }
+        // Strings that are valid ISO dates can be passed through
+      }
+      
+      // Handle nested objects (except for checklist which is stored as JSONB)
+      else if (key !== 'checklist' && value !== null && typeof value === 'object') {
         value = camelToSnakeCase(value);
       }
       

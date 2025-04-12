@@ -48,8 +48,24 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       return;
     }
     
+    // Create a copy with properly formatted dates
+    const taskToSubmit = {
+      ...newTask,
+      // Ensure dueDate is a string
+      dueDate: typeof newTask.dueDate === 'string' 
+        ? newTask.dueDate 
+        : (newTask.dueDate as Date)?.toISOString?.()?.split('T')[0] || null,
+      
+      // Ensure startDate is a proper date object or null
+      startDate: newTask.startDate instanceof Date 
+        ? newTask.startDate 
+        : typeof newTask.startDate === 'string' && newTask.startDate 
+          ? new Date(newTask.startDate) 
+          : null
+    };
+    
     // Add the task - keep the checklist property now that we're adding it to the database
-    onSubmit(newTask);
+    onSubmit(taskToSubmit);
     
     // Reset form and close modal
     setNewTask({

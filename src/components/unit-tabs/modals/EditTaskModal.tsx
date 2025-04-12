@@ -45,8 +45,24 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       return;
     }
     
+    // Create a copy with properly formatted dates
+    const taskToSubmit = {
+      ...editedTask,
+      // Ensure dueDate is a string
+      dueDate: typeof editedTask.dueDate === 'string' 
+        ? editedTask.dueDate 
+        : (editedTask.dueDate as Date)?.toISOString?.()?.split('T')[0] || null,
+      
+      // Ensure startDate is a proper date object or null
+      startDate: editedTask.startDate instanceof Date 
+        ? editedTask.startDate 
+        : typeof editedTask.startDate === 'string' && editedTask.startDate 
+          ? new Date(editedTask.startDate) 
+          : null
+    };
+    
     // Save the task with the checklist included
-    onSubmit(editedTask);
+    onSubmit(taskToSubmit);
     
     // Close the modal
     onOpenChange(false);
