@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 const msalConfig = {
   auth: {
     clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
-    authority: "b173aac7-6781-4d49-a037-d874bd4a09ab",
+    authority: "https://login.microsoftonline.com/common",
     redirectUri: "https://dmasclpgspatxncspcvt.supabase.co/auth/v1/callback",
   },
 };
