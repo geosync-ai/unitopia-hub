@@ -142,8 +142,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
-        <MsalAuthProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <MsalAuthProvider>
             <DivisionProvider>
               <Toaster />
               <Sonner />
@@ -151,8 +151,8 @@ const App = () => (
                 <AppRoutes />
               </BrowserRouter>
             </DivisionProvider>
-          </AuthProvider>
-        </MsalAuthProvider>
+          </MsalAuthProvider>
+        </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>

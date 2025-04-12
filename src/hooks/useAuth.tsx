@@ -196,15 +196,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (!window.msalInstance) {
-      console.error('MSAL instance not found');
-      toast.error('Authentication service is not ready. Please try again later.');
+    // Get the MSAL instance from window or context
+    const msalInstance = (typeof window !== 'undefined' && window.msalInstance) 
+      ? window.msalInstance 
+      : null;
+
+    if (!msalInstance) {
+      console.error('MSAL instance not found. Retrying after a short delay...');
+      
+      // Wait a moment and retry once
+      setTimeout(() => {
+        const retryInstance = (typeof window !== 'undefined' && window.msalInstance) 
+          ? window.msalInstance 
+          : null;
+          
+        if (retryInstance) {
+          console.log('MSAL instance found on retry');
+          loginWithMicrosoftService(retryInstance).catch(error => {
+            console.error('Microsoft login retry failed:', error);
+            toast.error('Failed to login with Microsoft');
+          });
+        } else {
+          console.error('MSAL instance still not available after retry');
+          toast.error('Authentication service is not ready. Please refresh the page and try again.');
+        }
+      }, 1000);
+      
       return;
     }
 
     try {
       console.log('Initiating Microsoft login...');
-      await loginWithMicrosoftService(window.msalInstance);
+      await loginWithMicrosoftService(msalInstance);
       console.log('Microsoft login initiated successfully');
       // The page will redirect to Microsoft login
     } catch (error) {

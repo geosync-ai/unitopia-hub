@@ -12,11 +12,28 @@ import { useMsalContext } from '@/integrations/microsoft/MsalProvider';
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, loginWithMicrosoft, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isProcessingRedirect, setIsProcessingRedirect] = useState(false);
-  const { msalInstance } = useMsalContext();
+  
+  // Safely try to use contexts, handle errors gracefully
+  let auth: any = {};
+  let msalInstance = null;
+  
+  try {
+    auth = useAuth();
+  } catch (error) {
+    console.error('Auth context not available:', error);
+  }
+  
+  try {
+    const msalContext = useMsalContext();
+    msalInstance = msalContext.msalInstance;
+  } catch (error) {
+    console.error('MSAL context not available:', error);
+  }
+  
+  const { user, isAuthenticated, loginWithMicrosoft, login } = auth;
 
   useEffect(() => {
     // Handle redirect process more robustly
@@ -44,6 +61,8 @@ export default function Login() {
           } catch (error) {
             console.error('Error handling redirect explicitly:', error);
           }
+        } else {
+          console.log('MSAL instance not available for redirect handling');
         }
         
         // We'll show processing state and let MSAL provider handle the redirect
@@ -96,6 +115,11 @@ export default function Login() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!login) {
+      toast.error('Login is not available right now. Try Microsoft login instead.');
+      return;
+    }
+    
     try {
       await login(email, password);
       navigate('/');
@@ -106,6 +130,11 @@ export default function Login() {
   };
 
   const handleMicrosoftLogin = async () => {
+    if (!loginWithMicrosoft) {
+      toast.error('Microsoft login is not available right now. Please try again later.');
+      return;
+    }
+    
     console.log('Initiating Microsoft login from button click');
     await loginWithMicrosoft();
   };

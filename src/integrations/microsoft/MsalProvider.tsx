@@ -42,7 +42,16 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [authError, setAuthError] = useState<Error | null>(null);
-  const { setUser, msGraphConfig } = useAuth();
+  
+  // Safely try to use the auth context if available, but don't error if it's not
+  let authContextValue: { setUser?: any, msGraphConfig?: any } = {};
+  try {
+    authContextValue = useAuth();
+  } catch (error) {
+    console.warn('Auth context not available yet in MsalAuthProvider. This is okay if AuthProvider comes after MsalAuthProvider.');
+  }
+  
+  const { setUser, msGraphConfig } = authContextValue;
 
   useEffect(() => {
     const initializeMsal = async () => {
@@ -112,24 +121,25 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                     const userEmail = userProfile.mail || userProfile.userPrincipalName || response.account.username;
                     
                     // Create a properly typed user object
-                    setUser({
+                    const userData = {
                       id: response.account.localAccountId,
                       name: response.account.name || 'Unknown',
                       email: userEmail,
                       role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
                       isAdmin: ADMIN_EMAILS.includes(userEmail),
-                    });
+                    };
                     
                     // For localStorage, we can use a simplified version
-                    localStorage.setItem('user', JSON.stringify({
-                      id: response.account.localAccountId,
-                      name: response.account.name || 'Unknown',
-                      email: userEmail,
-                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                      isAdmin: ADMIN_EMAILS.includes(userEmail),
-                    }));
+                    localStorage.setItem('user', JSON.stringify(userData));
+                    console.log('User profile fetched and stored in localStorage');
                     
-                    console.log('User profile fetched and set');
+                    // Only call setUser if it's available (auth context exists)
+                    if (setUser) {
+                      setUser(userData);
+                      console.log('User profile set in auth context');
+                    } else {
+                      console.log('Auth context not available, user is stored in localStorage only');
+                    }
 
                     // Force navigation to home page after successful auth
                     if (typeof window !== 'undefined') {
@@ -151,24 +161,24 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                     const userEmail = userProfile.mail || userProfile.userPrincipalName || account.username;
                     
                     // Create a properly typed user object
-                    setUser({
+                    const userData = {
                       id: account.localAccountId,
                       name: account.name || 'Unknown',
                       email: userEmail,
                       role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
                       isAdmin: ADMIN_EMAILS.includes(userEmail),
-                    });
+                    };
                     
                     // For localStorage, we can use the same format
-                    localStorage.setItem('user', JSON.stringify({
-                      id: account.localAccountId,
-                      name: account.name || 'Unknown',
-                      email: userEmail,
-                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                      isAdmin: ADMIN_EMAILS.includes(userEmail),
-                    }));
+                    localStorage.setItem('user', JSON.stringify(userData));
                     
-                    console.log('Found existing account and set user');
+                    // Only call setUser if it's available (auth context exists)
+                    if (setUser) {
+                      setUser(userData);
+                      console.log('Existing user account set in auth context');
+                    } else {
+                      console.log('Auth context not available, existing user is stored in localStorage only');
+                    }
                   }
                 }
               }
@@ -193,7 +203,13 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
               console.log('Found stored user despite redirect error, restoring session');
-              setUser(JSON.parse(storedUser));
+              
+              // Only call setUser if it's available (auth context exists)
+              if (setUser) {
+                setUser(JSON.parse(storedUser));
+              } else {
+                console.log('Auth context not available, cannot restore user from localStorage to context');
+              }
             }
           } catch (e) {
             console.error('Error checking localStorage for user:', e);
