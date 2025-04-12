@@ -12,9 +12,13 @@ const defaultConfig = {
   },
   cache: {
     cacheLocation: 'sessionStorage',
-    storeAuthStateInCookie: false
+    storeAuthStateInCookie: true // Enable cookies as backup for storage
   },
   system: {
+    allowRedirectInIframe: true, // Allow redirects in iframes
+    windowHashTimeout: 10000, // Increase timeout for hash processing
+    iframeHashTimeout: 10000,
+    loadFrameTimeout: 10000,
     loggerOptions: {
       loggerCallback: (level: any, message: string, containsPii: boolean) => {
         if (containsPii) {
@@ -44,7 +48,8 @@ const defaultConfig = {
             console.log(message);
             return;
         }
-      }
+      },
+      piiLoggingEnabled: false
     }
   }
 };

@@ -36,6 +36,8 @@ if (typeof window !== 'undefined') {
   // Automatically use the current window's origin to support both production and development
   microsoftAuthConfig.redirectUri = window.location.origin;
   
+  console.log('Updating MSAL config with:', microsoftAuthConfig);
+  
   // Check if current origin is in the list of approved URIs
   const isApprovedUri = microsoftAuthConfig.approvedRedirectUris.includes(window.location.origin);
   
@@ -47,7 +49,18 @@ if (typeof window !== 'undefined') {
     console.error('Add this URL to both:');
     console.error('1. The approvedRedirectUris array in this file');
     console.error('2. The Azure Portal app registration redirect URIs list');
+  } else {
+    // If it's an approved URI, provide confirmation
+    console.log('Current origin is approved for authentication:', window.location.origin);
   }
+  
+  // Log the final MSAL config that will be used
+  console.log('Updated MSAL config:', {
+    clientId: microsoftAuthConfig.clientId,
+    authority: microsoftAuthConfig.authorityUrl,
+    redirectUri: microsoftAuthConfig.redirectUri, 
+    postLogoutRedirectUri: microsoftAuthConfig.redirectUri
+  });
   
   // Show warning if running in development
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {

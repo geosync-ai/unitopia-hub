@@ -119,12 +119,33 @@ export const loginRedirect = async (msalInstance?: IPublicClientApplication): Pr
   }
   
   try {
+    // Ensure consistent redirect URI
+    const redirectUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
+    console.log(`Using redirectUri: ${redirectUri}`);
+    
+    // Clear any existing state that might interfere with new login attempt
+    if (typeof window !== 'undefined') {
+      // Clear any stale interaction status
+      sessionStorage.removeItem('msal.interaction.status');
+      sessionStorage.removeItem('msal.interaction.error');
+      // Remove counter for login attempts if exists
+      localStorage.removeItem('msalLoginAttempts');
+    }
+    
     await instance.loginRedirect({
       scopes: microsoftAuthConfig.permissions || [],
-      redirectUri: typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri
+      redirectUri: redirectUri 
     });
   } catch (error) {
     console.error('Login redirect failed:', error);
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+    }
     throw error;
   }
 };

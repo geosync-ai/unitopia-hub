@@ -79,6 +79,12 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             if (result && result.account) {
               instance.setActiveAccount(result.account);
             }
+          } else if (event.eventType === EventType.LOGIN_FAILURE) {
+            console.error('Login failure event detected:', event.error);
+          } else if (event.eventType === EventType.HANDLE_REDIRECT_START) {
+            console.log('Starting redirect handling...');
+          } else if (event.eventType === EventType.HANDLE_REDIRECT_END) {
+            console.log('Finished redirect handling');
           }
         });
         
@@ -116,9 +122,18 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             try {
               // Force clear any stale interaction status
               if (typeof window !== 'undefined') {
-                if (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect') {
-                  console.log('Clearing stale interaction status');
+                // More thorough cleaning of MSAL cache to prevent redirect issues
+                if (sessionStorage.getItem('msal.interaction.status')) {
+                  console.log('Clearing interaction status');
                   sessionStorage.removeItem('msal.interaction.status');
+                }
+                // Clear any interaction errors that might be preventing completion
+                sessionStorage.removeItem('msal.interaction.error');
+                // Clean up other potential stale MSAL entries
+                const msalKeys = Object.keys(sessionStorage).filter(key => key.startsWith('msal.'));
+                if (msalKeys.length > 0) {
+                  console.log('Cleaning stale MSAL session entries:', msalKeys);
+                  msalKeys.forEach(key => sessionStorage.removeItem(key));
                 }
               }
               
