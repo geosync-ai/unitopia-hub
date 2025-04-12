@@ -28,6 +28,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import ChecklistSection from '@/components/ChecklistSection';
+import { risksService } from '@/integrations/supabase/unitService';
 
 interface AddRiskModalProps {
   open: boolean;
@@ -68,11 +69,11 @@ const defaultFormState: RiskFormState = {
   checklist: []
 };
 
-const AddRiskModal: React.FC<AddRiskModalProps> = ({
+const AddRiskModal = ({
   open,
   onOpenChange,
   onAdd
-}) => {
+}: AddRiskModalProps) => {
   const [formState, setFormState] = useState<RiskFormState>({ ...defaultFormState });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newChecklistItem, setNewChecklistItem] = useState('');
@@ -180,8 +181,15 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!validate()) return;
+    
+    // Check database schema to debug likelihood constraint
+    try {
+      await risksService.checkRiskTableSchema();
+    } catch (err) {
+      console.error('Failed to check schema:', err);
+    }
     
     // Ensure likelihood is one of the allowed values
     const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
@@ -198,7 +206,7 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
       category: formState.category.trim(),
       status: formState.status as Risk['status'],
       impact: formState.impact as Risk['impact'],
-      likelihood: safelikelihood as Risk['likelihood'],
+      likelihood: safelikelihood as 'unlikely' | 'possible' | 'likely' | 'certain',
       identificationDate: new Date(formState.identificationDate),
       mitigationPlan: formState.mitigationPlan || '',
       createdAt: new Date(formState.createdAt),
@@ -206,18 +214,34 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
       checklist: formState.checklist || []
     };
     
-    // Log the risk object for debugging
-    console.log('Risk being added:', JSON.stringify(riskToAdd));
+    // Log the risk object for debugging in-depth
+    console.log('Risk being added with likelihood:', 
+      JSON.stringify({
+        likelihoodType: typeof riskToAdd.likelihood,
+        likelihoodValue: riskToAdd.likelihood,
+        validationType: validLikelihoods.includes(riskToAdd.likelihood) ? 'valid' : 'invalid',
+        fullObject: riskToAdd
+      }, null, 2)
+    );
     
-    onAdd(riskToAdd);
-    
-    toast({
-      title: "Success",
-      description: "Risk added successfully",
-    });
-    
-    resetForm();
-    onOpenChange(false);
+    try {
+      onAdd(riskToAdd);
+      
+      toast({
+        title: "Success",
+        description: "Risk added successfully",
+      });
+      
+      resetForm();
+      onOpenChange(false);
+    } catch (err) {
+      console.error('Error adding risk:', err);
+      toast({
+        title: "Error",
+        description: "Failed to add risk. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAddChecklistItem = () => {

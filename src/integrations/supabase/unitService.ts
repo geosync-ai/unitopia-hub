@@ -21,8 +21,27 @@ const camelToSnakeCase = (obj: any): any => {
     return obj.map(camelToSnakeCase);
   }
 
+  // Handle risk likelihood specially to ensure it correctly matches enum type
+  if (obj.likelihood) {
+    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    if (!validLikelihoods.includes(obj.likelihood)) {
+      console.warn(`Converting invalid likelihood '${obj.likelihood}' to 'unlikely'`);
+      obj.likelihood = 'unlikely';
+    }
+  }
+
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {
+      // Special case for likelihood to ensure it matches DB enum
+      if (key === 'likelihood') {
+        const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+        if (!validLikelihoods.includes(value as string)) {
+          console.warn(`Converting invalid likelihood value: "${value}" to "unlikely"`);
+          value = 'unlikely';
+        }
+        return ['likelihood', value];
+      }
+      
       // Convert camelCase to snake_case
       const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
       
@@ -283,6 +302,43 @@ export const projectsService = {
 
 // Risk operations
 export const risksService = {
+  // Debug function to check the table schema
+  checkRiskTableSchema: async () => {
+    const supabase = getSupabaseClient();
+    
+    try {
+      // Query the constraint information
+      const { data: checkConstraints, error: constraintError } = await supabase
+        .from('information_schema.check_constraints')
+        .select('constraint_name, check_clause')
+        .like('constraint_name', '%unit_risks_likelihood%');
+      
+      if (constraintError) {
+        console.error('Error fetching constraint info:', constraintError);
+      } else {
+        console.log('Risk likelihood constraints:', checkConstraints);
+      }
+      
+      // Query column information
+      const { data: columnInfo, error: columnError } = await supabase
+        .from('information_schema.columns')
+        .select('column_name, data_type, udt_name, is_nullable, column_default')
+        .eq('table_name', 'unit_risks')
+        .eq('column_name', 'likelihood');
+      
+      if (columnError) {
+        console.error('Error fetching column info:', columnError);
+      } else {
+        console.log('Risk likelihood column info:', columnInfo);
+      }
+      
+      return { checkConstraints, columnInfo };
+    } catch (err) {
+      console.error('Error checking schema:', err);
+      return null;
+    }
+  },
+  
   // Get all risks
   getRisks: async (userEmail?: string) => {
     const supabase = getSupabaseClient();
@@ -310,15 +366,20 @@ export const risksService = {
   addRisk: async (risk: any) => {
     const supabase = getSupabaseClient();
     
-    // Check and force likelihood to an acceptable value to satisfy DB constraint
+    // Ensure likelihood is one of the allowed values
     const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
-    if (!validLikelihoods.includes(risk.likelihood)) {
-      console.warn(`Invalid likelihood value: "${risk.likelihood}", defaulting to "unlikely"`);
-      risk.likelihood = 'unlikely';
-    }
+    const safeLikelihood = validLikelihoods.includes(risk.likelihood) 
+      ? risk.likelihood 
+      : 'unlikely';
+    
+    // Clone the risk object to avoid modifying the original
+    const cleanRisk = { ...risk };
+    
+    // Explicitly set likelihood to a safe value
+    cleanRisk.likelihood = safeLikelihood;
     
     // Convert camelCase properties to snake_case for DB
-    const snakeCaseRisk = camelToSnakeCase(risk);
+    const snakeCaseRisk = camelToSnakeCase(cleanRisk);
     
     // Ensure risk has created_at and updated_at
     const riskWithTimestamps = {
@@ -331,22 +392,33 @@ export const risksService = {
     console.log('Processed risk data being sent to Supabase:', 
       JSON.stringify({
         originalLikelihood: risk.likelihood,
+        safeLikelihood,
         processedRisk: riskWithTimestamps
-      })
+      }, null, 2)
     );
     
-    const { data, error } = await supabase
-      .from(TABLES.RISKS)
-      .insert([riskWithTimestamps])
-      .select();
-    
-    if (error) {
-      console.error('Error adding risk:', error);
-      throw error;
+    try {
+      // Try a simpler, direct approach
+      const { data, error } = await supabase
+        .from(TABLES.RISKS)
+        .insert([riskWithTimestamps])
+        .select();
+      
+      if (error) {
+        console.error('Error adding risk:', error);
+        console.error('Failed SQL constraint:', error.code);
+        console.error('Error details:', error.details);
+        console.error('Error message:', error.message);
+        console.error('Error hint:', error.hint);
+        throw error;
+      }
+      
+      // Convert back to camelCase for frontend
+      return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    } catch (err) {
+      console.error('Unexpected error in addRisk:', err);
+      throw err;
     }
-    
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
   },
   
   // Update a risk
