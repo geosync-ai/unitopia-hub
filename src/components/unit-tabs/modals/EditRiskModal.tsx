@@ -208,14 +208,31 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
   const handleSave = () => {
     if (!validate()) return;
     
-    // Convert string dates to Date objects for the Risk object
+    // Ensure likelihood is one of the allowed values
+    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const safelikelihood = validLikelihoods.includes(formState.likelihood) 
+      ? formState.likelihood 
+      : 'unlikely';
+      
+    // Create a well-formed risk object with explicit type casting to ensure database compatibility
     const updatedRisk: Risk = {
-      ...formState,
-      likelihood: formState.likelihood || 'unlikely',
+      id: formState.id,
+      title: formState.title.trim(),
+      description: formState.description || '',
+      owner: formState.owner.trim(),
+      category: formState.category.trim(),
+      status: formState.status as Risk['status'],
+      impact: formState.impact as Risk['impact'],
+      likelihood: safelikelihood as Risk['likelihood'],
       identificationDate: new Date(formState.identificationDate),
+      mitigationPlan: formState.mitigationPlan || '',
       createdAt: new Date(formState.createdAt),
-      updatedAt: new Date(formState.updatedAt)
+      updatedAt: new Date(formState.updatedAt),
+      checklist: formState.checklist || []
     };
+    
+    // Log the risk object for debugging
+    console.log('Risk being updated:', JSON.stringify(updatedRisk));
     
     // Call the appropriate callback
     if (onEdit) {

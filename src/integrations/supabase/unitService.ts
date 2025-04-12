@@ -310,6 +310,13 @@ export const risksService = {
   addRisk: async (risk: any) => {
     const supabase = getSupabaseClient();
     
+    // Check and force likelihood to an acceptable value to satisfy DB constraint
+    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    if (!validLikelihoods.includes(risk.likelihood)) {
+      console.warn(`Invalid likelihood value: "${risk.likelihood}", defaulting to "unlikely"`);
+      risk.likelihood = 'unlikely';
+    }
+    
     // Convert camelCase properties to snake_case for DB
     const snakeCaseRisk = camelToSnakeCase(risk);
     
@@ -319,6 +326,14 @@ export const risksService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    
+    // Log the processed data
+    console.log('Processed risk data being sent to Supabase:', 
+      JSON.stringify({
+        originalLikelihood: risk.likelihood,
+        processedRisk: riskWithTimestamps
+      })
+    );
     
     const { data, error } = await supabase
       .from(TABLES.RISKS)
@@ -338,6 +353,13 @@ export const risksService = {
   updateRisk: async (id: string, risk: any) => {
     const supabase = getSupabaseClient();
     
+    // Check and force likelihood to an acceptable value to satisfy DB constraint
+    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    if (risk.likelihood && !validLikelihoods.includes(risk.likelihood)) {
+      console.warn(`Invalid likelihood value: "${risk.likelihood}", defaulting to "unlikely"`);
+      risk.likelihood = 'unlikely';
+    }
+    
     // Convert camelCase properties to snake_case for DB
     const snakeCaseRisk = camelToSnakeCase(risk);
     
@@ -346,6 +368,15 @@ export const risksService = {
       ...snakeCaseRisk,
       updated_at: new Date().toISOString()
     };
+    
+    // Log the processed data
+    console.log('Processed risk data being sent to Supabase for update:', 
+      JSON.stringify({
+        id,
+        originalLikelihood: risk.likelihood,
+        processedRisk: riskWithTimestamp
+      })
+    );
     
     const { data, error } = await supabase
       .from(TABLES.RISKS)

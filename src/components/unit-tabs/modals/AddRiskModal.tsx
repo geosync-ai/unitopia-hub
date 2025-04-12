@@ -183,15 +183,31 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
   const handleAdd = () => {
     if (!validate()) return;
     
-    // Convert string dates to Date objects for the Risk object
+    // Ensure likelihood is one of the allowed values
+    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    const safelikelihood = validLikelihoods.includes(formState.likelihood) 
+      ? formState.likelihood 
+      : 'unlikely';
+      
+    // Create a well-formed risk object with explicit type casting to ensure database compatibility
     const riskToAdd: Risk = {
-      ...formState,
       id: formState.id || crypto.randomUUID(),
-      likelihood: formState.likelihood || 'unlikely',
+      title: formState.title.trim(),
+      description: formState.description || '',
+      owner: formState.owner.trim(),
+      category: formState.category.trim(),
+      status: formState.status as Risk['status'],
+      impact: formState.impact as Risk['impact'],
+      likelihood: safelikelihood as Risk['likelihood'],
       identificationDate: new Date(formState.identificationDate),
+      mitigationPlan: formState.mitigationPlan || '',
       createdAt: new Date(formState.createdAt),
-      updatedAt: new Date(formState.updatedAt)
+      updatedAt: new Date(formState.updatedAt),
+      checklist: formState.checklist || []
     };
+    
+    // Log the risk object for debugging
+    console.log('Risk being added:', JSON.stringify(riskToAdd));
     
     onAdd(riskToAdd);
     
