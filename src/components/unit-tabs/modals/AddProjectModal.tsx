@@ -72,8 +72,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     // Use either the onSave callback or the onAddProject callback
     if (onSave) {
       onSave();
-    } else if (onAddProject && project) {
-      onAddProject(project as Project);
+    } else if (onAddProject) {
+      onAddProject(projectData as Project);
     }
     
     onOpenChange(false);

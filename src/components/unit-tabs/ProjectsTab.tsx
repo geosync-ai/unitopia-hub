@@ -8,46 +8,7 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 import AddProjectModal from './modals/AddProjectModal';
 import EditProjectModal from './modals/EditProjectModal';
 import DeleteModal from './modals/DeleteModal';
-
-interface Risk {
-  id: string;
-  title: string;
-  description: string;
-  impact: 'low' | 'medium' | 'high' | 'critical';
-  likelihood: 'low' | 'medium' | 'high' | 'very-high';
-  status: 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'resolved';
-  category: string;
-  projectId: string;
-  projectName: string;
-  owner: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'review' | 'done';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  assignee: string;
-  dueDate: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  status: 'planned' | 'in-progress' | 'completed' | 'on-hold';
-  startDate: Date;
-  endDate: Date;
-  manager: string;
-  budget: number;
-  budgetSpent: number;
-  progress: number;
-  risks: Risk[];
-  tasks: Task[];
-}
+import { Project, Risk, Task } from '@/types';
 
 interface ProjectsTabProps {
   projects: Project[];
@@ -70,6 +31,17 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [newProject, setNewProject] = useState<Partial<Project>>({
+    name: '',
+    description: '',
+    status: 'planned',
+    startDate: new Date(),
+    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    manager: '',
+    budget: 0,
+    budgetSpent: 0,
+    progress: 0
+  });
 
   const handleEdit = (project: Project) => {
     setSelectedProject(project);
@@ -79,6 +51,21 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const handleDelete = (project: Project) => {
     setSelectedProject(project);
     setShowDeleteModal(true);
+  };
+
+  const handleOpenAddModal = () => {
+    setNewProject({
+      name: '',
+      description: '',
+      status: 'planned',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      manager: '',
+      budget: 0,
+      budgetSpent: 0,
+      progress: 0
+    });
+    setShowAddModal(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -114,7 +101,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Projects</CardTitle>
-          <Button variant="outline" onClick={() => setShowAddModal(true)}>
+          <Button variant="outline" onClick={handleOpenAddModal}>
             <Plus className="h-4 w-4 mr-2" />
             Add Project
           </Button>
@@ -178,7 +165,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
         <AddProjectModal
           open={showAddModal}
           onOpenChange={setShowAddModal}
-          onAdd={addProject}
+          project={newProject}
+          onProjectChange={setNewProject}
+          onAddProject={(project) => {
+            addProject(project);
+            setShowAddModal(false);
+          }}
         />
       )}
       
@@ -187,7 +179,10 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           open={showEditModal}
           onOpenChange={setShowEditModal}
           project={selectedProject}
-          onEdit={(updatedProject) => editProject(selectedProject.id, updatedProject)}
+          onProjectChange={(updatedProject) => setSelectedProject(updatedProject)}
+          onSave={(updatedProject) => {
+            editProject(selectedProject.id, updatedProject);
+          }}
         />
       )}
       
