@@ -8,7 +8,7 @@ import {
   IPublicClientApplication
 } from '@azure/msal-browser';
 import { MsalProvider as MsalReactProvider } from '@azure/msal-react';
-import msalConfig, { updateMsalConfig } from './msalConfig';
+import msalConfig, { updateMsalConfig, loginRequest } from './msalConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
@@ -104,9 +104,24 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         // Check for redirect response to handle sign-in
         try {
           console.log('Attempting to handle redirect promise...');
+          // Check for cached data in browser storage to determine if we're mid-auth
+          const isAuthInProgress = (typeof window !== 'undefined') && 
+                                  (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect' ||
+                                   localStorage.getItem('msalLoginAttempts'));
+          
+          console.log('Auth in progress status:', isAuthInProgress);
+                                  
           // Add a bit of timeout to ensure browser has fully loaded and state is settled
           setTimeout(async () => {
             try {
+              // Force clear any stale interaction status
+              if (typeof window !== 'undefined') {
+                if (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect') {
+                  console.log('Clearing stale interaction status');
+                  sessionStorage.removeItem('msal.interaction.status');
+                }
+              }
+              
               const response = await instance.handleRedirectPromise();
               console.log('Checking for redirect response...');
               if (response) {
@@ -178,6 +193,40 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                       console.log('Existing user account set in auth context');
                     } else {
                       console.log('Auth context not available, existing user is stored in localStorage only');
+                    }
+                  }
+                } else if (isAuthInProgress) {
+                  // We think we should be logged in but have no accounts
+                  console.log('Auth appears to be in progress but no accounts found. Attempting to force login...');
+                  
+                  // Clean up any remnant status
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem('msalLoginAttempts');
+                    sessionStorage.removeItem('msal.interaction.status');
+                  }
+                  
+                  // Check if we have a stored user despite no active account
+                  const storedUser = localStorage.getItem('user');
+                  if (storedUser) {
+                    console.log('Found stored user, attempting to restore session');
+                    if (setUser) {
+                      setUser(JSON.parse(storedUser));
+                      console.log('User restored from localStorage');
+                    }
+                    
+                    // Give the UI a moment to update, then redirect
+                    setTimeout(() => {
+                      if (typeof window !== 'undefined') {
+                        window.location.href = '/';
+                      }
+                    }, 500);
+                  } else {
+                    // As a last resort, try to initiate a login again
+                    console.log('No stored user found, attempting to initiate login again');
+                    try {
+                      await instance.loginRedirect(loginRequest);
+                    } catch (loginError) {
+                      console.error('Failed to initiate login redirect:', loginError);
                     }
                   }
                 }

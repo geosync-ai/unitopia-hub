@@ -38,11 +38,20 @@ export default function Login() {
   useEffect(() => {
     // Handle redirect process more robustly
     const handleInitialRedirect = async () => {
+      // Check if authentication might be in progress based on browser storage
+      const isAuthMaybeInProgress = (typeof window !== 'undefined') && 
+        (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect' ||
+         localStorage.getItem('msalLoginAttempts') ||
+         location.hash || 
+         location.search);
+         
       // Check if we have a hash or search params (indicating a redirect from Microsoft)
-      if (location.hash || location.search) {
-        console.log('Detected hash or search params in URL, handling redirect...', {
+      if (isAuthMaybeInProgress) {
+        console.log('Detected potential auth in progress:', {
           hash: location.hash,
-          search: location.search
+          search: location.search,
+          msalStatus: sessionStorage.getItem('msal.interaction.status'),
+          attemptCount: localStorage.getItem('msalLoginAttempts')
         });
         
         setIsProcessingRedirect(true);
@@ -57,6 +66,20 @@ export default function Login() {
               return;
             } else {
               console.log('No redirect response despite URL parameters');
+              
+              // Check for already logged in account
+              const accounts = msalInstance.getAllAccounts();
+              if (accounts.length > 0) {
+                console.log('Found existing account, user should be logged in');
+                
+                // Force a check for stored user
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                  console.log('Found stored user, navigating home');
+                  navigate('/');
+                  return;
+                }
+              }
             }
           } catch (error) {
             console.error('Error handling redirect explicitly:', error);
@@ -68,13 +91,20 @@ export default function Login() {
         // We'll show processing state and let MSAL provider handle the redirect
         // The timeout ensures we don't get stuck if something goes wrong
         setTimeout(() => {
-          // If we're still on the login page after timeout, redirect to home
-          // as a recovery mechanism
+          // If we're still on the login page after timeout, try one more redirect check
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
             console.log('Redirect processing timed out but found stored user, forcing navigation');
             navigate('/');
           } else {
+            // Clean up any stale auth state
+            if (typeof window !== 'undefined') {
+              if (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect') {
+                console.log('Clearing stale interaction status');
+                sessionStorage.removeItem('msal.interaction.status');
+              }
+              localStorage.removeItem('msalLoginAttempts');
+            }
             setIsProcessingRedirect(false);
           }
         }, 3000);

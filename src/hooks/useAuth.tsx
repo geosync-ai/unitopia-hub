@@ -227,10 +227,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       console.log('Initiating Microsoft login...');
-      await loginWithMicrosoftService(msalInstance);
+      
+      // Set a login attempt tracking flag
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('msalLoginAttempts', '1');
+        
+        // Force clear any existing interaction status to ensure clean slate
+        sessionStorage.removeItem('msal.interaction.status');
+        
+        // Store current timestamp to detect potential loops
+        localStorage.setItem('msalLoginTimestamp', Date.now().toString());
+      }
+      
+      // Clear any existing accounts to force a clean login attempt
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        console.log('Existing accounts found. Logging out first to ensure clean login...');
+        // Instead of logout which causes a redirect, just clear the accounts
+        msalInstance.clearCache();
+      }
+      
+      // Use the config from the latest configuration to ensure consistency
+      const loginRedirectRequest = {
+        scopes: msGraphConfig.permissions || ['User.Read'],
+        redirectUri: msGraphConfig.redirectUri,
+        redirectStartPage: window.location.href
+      };
+      
+      console.log('Login redirect request:', loginRedirectRequest);
+      
+      // Initiate the login with the custom request
+      await msalInstance.loginRedirect(loginRedirectRequest);
+      
       console.log('Microsoft login initiated successfully');
       // The page will redirect to Microsoft login
     } catch (error) {
+      // Clean up tracking state on error
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('msalLoginAttempts');
+        localStorage.removeItem('msalLoginTimestamp');
+      }
+      
       console.error('Error during Microsoft login:', error);
       toast.error('Failed to login with Microsoft');
     }
