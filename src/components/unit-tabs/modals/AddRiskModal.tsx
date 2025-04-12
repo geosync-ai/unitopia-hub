@@ -186,6 +186,7 @@ const AddRiskModal: React.FC<AddRiskModalProps> = ({
     const riskToAdd: Risk = {
       ...formState,
       id: formState.id || crypto.randomUUID(),
+      likelihood: formState.likelihood || 'unlikely',
       identificationDate: new Date(formState.identificationDate),
       createdAt: new Date(formState.createdAt),
       updatedAt: new Date(formState.updatedAt)

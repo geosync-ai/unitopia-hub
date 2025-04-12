@@ -211,6 +211,7 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
     // Convert string dates to Date objects for the Risk object
     const updatedRisk: Risk = {
       ...formState,
+      likelihood: formState.likelihood || 'unlikely',
       identificationDate: new Date(formState.identificationDate),
       createdAt: new Date(formState.createdAt),
       updatedAt: new Date(formState.updatedAt)
