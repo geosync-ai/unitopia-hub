@@ -93,7 +93,7 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
         category: risk.category || '',
         status: risk.status || 'identified',
         impact: risk.impact || 'medium',
-        likelihood: risk.likelihood || 'possible',
+        likelihood: risk.likelihood || 'unlikely',
         identificationDate: risk.identificationDate ? risk.identificationDate.toISOString() : new Date().toISOString(),
         mitigationPlan: risk.mitigationPlan || '',
         createdAt: risk.createdAt ? risk.createdAt.toISOString() : new Date().toISOString(),
@@ -194,7 +194,8 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
     }
     
     // Validate likelihood to ensure it meets the database constraint
-    if (!['unlikely', 'possible', 'likely', 'certain'].includes(formState.likelihood)) {
+    const validLikelihoods = ['unlikely', 'possible', 'likely', 'certain'];
+    if (!validLikelihoods.includes(formState.likelihood)) {
       newErrors.likelihood = 'Invalid likelihood value';
       // Fallback to a safe value
       setFormState(prev => ({ ...prev, likelihood: 'unlikely' }));
@@ -416,19 +417,13 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-medium">Checklist</h3>
                   <span className="text-sm text-muted-foreground">
-                    {formState.checklist.filter(item => item.checked).length > 0 
-                      ? `${Math.round((formState.checklist.filter(item => item.checked).length / formState.checklist.length) * 100)}% complete` 
-                      : '0% complete'}
+                    0% complete
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
                   <div 
                     className="bg-primary h-1.5 rounded-full" 
-                    style={{ 
-                      width: formState.checklist.filter(item => item.checked).length > 0 
-                        ? `${Math.round((formState.checklist.filter(item => item.checked).length / formState.checklist.length) * 100)}%` 
-                        : '0%' 
-                    }}
+                    style={{ width: '0%' }}
                   ></div>
                 </div>
               
@@ -478,48 +473,6 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
                     <Label htmlFor="contingencyPlan">Contingency plan established</Label>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Input 
-                    placeholder="Add new checklist item" 
-                    className="flex-1"
-                    id="new-checklist-item"
-                    value={newChecklistItem}
-                    onChange={(e) => setNewChecklistItem(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleAddChecklistItem();
-                      }
-                    }}
-                  />
-                  <Button 
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleAddChecklistItem}
-                  >
-                    Add
-                  </Button>
-                </div>
-
-                {formState.checklist.filter(item => !['riskAssessment', 'stakeholderReview', 'mitigationStrategy', 'contingencyPlan'].includes(item.id)).length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    {formState.checklist.filter(item => !['riskAssessment', 'stakeholderReview', 'mitigationStrategy', 'contingencyPlan'].includes(item.id)).map(item => (
-                      <div key={item.id} className="flex items-center gap-2">
-                        <Checkbox 
-                          id={item.id} 
-                          checked={item.checked}
-                          onCheckedChange={(checked) => {
-                            const updatedChecklist = formState.checklist.map(i => 
-                              i.id === item.id ? { ...i, checked: checked as boolean } : i
-                            );
-                            setFormState(prev => ({ ...prev, checklist: updatedChecklist }));
-                          }}
-                        />
-                        <Label htmlFor={item.id}>{item.text}</Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
