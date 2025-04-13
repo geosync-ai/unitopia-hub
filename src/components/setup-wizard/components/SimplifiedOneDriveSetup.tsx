@@ -41,7 +41,7 @@ const msalConfig = {
   auth: {
     clientId: microsoftAuthConfig.clientId,
     authority: microsoftAuthConfig.authorityUrl,
-    redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app", // Use dynamic origin
+    redirectUri: typeof window !== 'undefined' ? window.location.origin + '/' : "https://unitopia-hub.vercel.app/", // Use dynamic origin with trailing slash
   },
   cache: {
     cacheLocation: 'sessionStorage', // or 'localStorage'

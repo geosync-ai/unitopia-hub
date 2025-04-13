@@ -110,7 +110,7 @@ export const SetupWizard: React.FC<ExtendedSetupWizardProps> = ({
         auth: {
           clientId: microsoftAuthConfig.clientId,
           authority: microsoftAuthConfig.authorityUrl,
-          redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app",
+          redirectUri: typeof window !== 'undefined' ? window.location.origin + '/' : "https://unitopia-hub.vercel.app/",
         },
         cache: {
           cacheLocation: 'sessionStorage',

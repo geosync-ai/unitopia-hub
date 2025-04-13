@@ -85,7 +85,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         const configToUse = typeof window !== 'undefined' 
           ? updateMsalConfig({
               ...microsoftAuthConfig,
-              redirectUri: window.location.origin
+              redirectUri: window.location.origin + '/'
             })
           : msalConfig;
           

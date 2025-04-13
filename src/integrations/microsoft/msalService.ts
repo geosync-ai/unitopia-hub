@@ -163,9 +163,12 @@ export const logout = async (msalInstance?: IPublicClientApplication): Promise<v
   
   try {
     const account = getAccount(instance);
+    const originUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
+    const redirectUriWithSlash = originUri.endsWith('/') ? originUri : originUri + '/';
+    
     await instance.logoutRedirect({
       account,
-      postLogoutRedirectUri: typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri
+      postLogoutRedirectUri: redirectUriWithSlash
     });
   } catch (error) {
     console.error('Logout failed:', error);
