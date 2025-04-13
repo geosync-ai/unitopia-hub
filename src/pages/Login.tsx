@@ -208,8 +208,31 @@ export default function Login() {
       return;
     }
     
-    console.log('Initiating Microsoft login from button click');
-    await loginWithMicrosoft();
+    console.log('Microsoft login button clicked - initiating login process');
+    
+    // Verify MSAL instance is available
+    if (!msalInstance) {
+      console.error('Microsoft login button - MSAL instance not found');
+      toast.error('Unable to initialize Microsoft login. Please try again later.');
+      return;
+    }
+    
+    console.log('Microsoft login button - MSAL instance found');
+    
+    try {
+      // Use popup login which is working for the user
+      await loginWithMicrosoft();
+      
+      // Check for successful login
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        console.log('Login successful, navigating to home page');
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Microsoft login failed:', error);
+      toast.error('Microsoft login failed. Please try again.');
+    }
   };
 
   // Utility function to force a clean login

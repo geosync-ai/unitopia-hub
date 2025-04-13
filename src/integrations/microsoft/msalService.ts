@@ -459,66 +459,66 @@ export const diagnoseMsalIssues = (): {
  */
 export const loginWithMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
   try {
-    console.log('Starting enhanced Microsoft login process...');
-    
-    // Run diagnostics to check for common issues
-    const { issues, recommendations } = diagnoseMsalIssues();
-    
-    if (issues.length > 0) {
-      console.warn('Potential authentication issues detected:');
-      issues.forEach(issue => console.warn(' - ' + issue));
-      console.info('Recommendations:');
-      recommendations.forEach(rec => console.info(' - ' + rec));
+    // Ensure we have a valid MSAL instance
+    if (!instance) {
+      throw new Error('MSAL instance not available for login');
     }
     
-    // Check for existing accounts
-    const accounts = instance.getAllAccounts();
+    // Try popup login first as it's more reliable
+    console.log('Attempting login with popup');
     
-    if (accounts.length > 0) {
-      console.log('Found existing account, setting as active');
-      instance.setActiveAccount(accounts[0]);
+    // Clear any existing login attempt counters
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('msalLoginAttempts');
+    }
+    
+    // Get all existing accounts first
+    const accounts = instance.getAllAccounts();
+    console.log('Existing accounts:', accounts.length);
+    
+    // Use the proper redirect URI from config
+    const redirectUri = microsoftAuthConfig.redirectUri;
+    console.log('Starting login with redirectUri:', redirectUri);
+    
+    // Try popup login with error handling
+    try {
+      const response = await instance.loginPopup({
+        scopes: microsoftAuthConfig.permissions || ['User.Read'],
+        redirectUri: redirectUri
+      });
       
-      try {
-        console.log('Attempting silent token acquisition...');
-        const response = await instance.acquireTokenSilent({
-          scopes: microsoftAuthConfig.permissions || [],
-          account: accounts[0]
-        });
+      console.log('Login success:', response.account?.username);
+      
+      // Set the account as active
+      if (response.account) {
+        instance.setActiveAccount(response.account);
         
-        console.log('Silent token acquisition successful');
-        return;
-      } catch (error) {
-        if (error instanceof InteractionRequiredAuthError) {
-          console.log('Silent token acquisition failed, interaction required');
-          // Fall through to redirect flow
-        } else {
-          console.error('Error during silent token acquisition:', error);
-          throw error;
+        // Force browser to clear hash to prevent redirect issues on refresh
+        if (window.location.hash && 
+            (window.location.hash.includes('access_token') || 
+             window.location.hash.includes('error') || 
+             window.location.hash.includes('code'))) {
+          window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
         }
       }
+      
+      return;
+    } catch (popupError) {
+      console.error('Popup login failed, attempting redirect:', popupError);
+      
+      // If popup fails, fall back to redirect
+      // This could happen in browsers that block popups
+      
+      // Set a flag to track login attempts
+      localStorage.setItem('msalLoginAttempts', '1');
+      
+      await instance.loginRedirect({
+        scopes: microsoftAuthConfig.permissions || ['User.Read'],
+        redirectUri: redirectUri
+      });
     }
-    
-    // Clear any existing state that might interfere
-    sessionStorage.removeItem('msal.interaction.status');
-    
-    // Use the exact redirect URI from config
-    const redirectUri = microsoftAuthConfig.redirectUri;
-    console.log(`Using redirectUri: ${redirectUri}`);
-    
-    // Generate a unique state for better traceability
-    const state = `login-${Date.now()}`;
-    
-    // Start login with redirect flow
-    await instance.loginRedirect({
-      scopes: microsoftAuthConfig.permissions || [],
-      redirectUri,
-      state,
-      prompt: 'select_account' // Force account selection
-    });
-    
-    console.log('Redirect login initiated');
   } catch (error) {
-    console.error('Enhanced login process failed:', error);
+    console.error('Microsoft login failed:', error);
     throw error;
   }
 };

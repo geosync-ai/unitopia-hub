@@ -16,7 +16,8 @@ const microsoftAuthConfig = {
   // HARDCODED APPROVED URI - this MUST match exactly what's in Azure AD
   redirectUri: "https://unitopia-hub.vercel.app/",
   approvedRedirectUris: [
-    "https://unitopia-hub.vercel.app/"
+    "https://unitopia-hub.vercel.app/",
+    "https://unitopia-hub.vercel.app"
   ],
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,

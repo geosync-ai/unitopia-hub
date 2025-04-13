@@ -228,89 +228,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Initiating Microsoft login...');
       
-      // Clear specific auth state to avoid potential issues
-      if (typeof window !== 'undefined') {
-        // Clear MSAL-related entries from session storage
-        Object.keys(sessionStorage)
-          .filter(key => key.startsWith('msal.'))
-          .forEach(key => sessionStorage.removeItem(key));
+      // Use the MSAL service for login
+      await loginWithMicrosoftService(msalInstance);
+      
+      // After successful login, get the account and profile
+      const account = getAccount(msalInstance);
+      
+      if (!account) {
+        console.error('No account found after Microsoft login');
+        toast.error('Failed to get account after login');
+        return;
       }
       
-      // Run diagnostics to check for potential issues
-      if (typeof diagnoseMsalIssues === 'function') {
-        try {
-          const { issues, recommendations } = diagnoseMsalIssues();
-          
-          if (issues.length > 0) {
-            console.warn('Authentication diagnosis found potential issues:');
-            issues.forEach(issue => console.warn(`- ${issue}`));
-            
-            if (recommendations.length > 0) {
-              console.info('Recommendations:');
-              recommendations.forEach(rec => console.info(`- ${rec}`));
-            }
-            
-            // If there's a critical issue, show it to the user
-            const criticalIssues = issues.filter(issue => 
-              issue.includes('origin') || 
-              issue.includes('redirect') || 
-              issue.includes('MSAL instance')
-            );
-            
-            if (criticalIssues.length > 0) {
-              toast.warning('Authentication setup issue detected. Contact support if login fails.');
-            }
-          }
-        } catch (diagError) {
-          console.error('Error running auth diagnostics:', diagError);
-        }
+      console.log('Microsoft login successful, fetching user profile');
+      
+      // Get user profile from Microsoft Graph
+      const profile = await getUserProfile(msalInstance);
+      
+      if (!profile) {
+        console.error('Failed to fetch user profile');
+        toast.error('Failed to fetch user profile');
+        return;
       }
       
-      // Create a very specific login request with the correct redirect URI
-      const loginRedirectRequest = {
-        scopes: msGraphConfig.permissions,
-        redirectUri: msGraphConfig.redirectUri,
-        prompt: 'select_account',  // Always show account selector
-        state: `login-${Date.now()}`  // Add timestamp to state for tracking
+      // Create user object from profile
+      const email = profile.mail || profile.userPrincipalName || account.username;
+      const isAdmin = adminEmails.includes(email.toLowerCase());
+      
+      const newUser: User = {
+        id: account.localAccountId || account.homeAccountId,
+        email: email,
+        name: profile.displayName || email,
+        role: isAdmin ? 'admin' : 'user',
+        profilePicture: profile.photo || undefined,
+        isAdmin,
+        accessToken: null // Will be fetched when needed
       };
       
-      console.log('Starting login redirect with params:', {
-        redirectUri: loginRedirectRequest.redirectUri,
-        scopes: loginRedirectRequest.scopes.join(', ')
+      // Update user state
+      setUser(newUser);
+      setUserProfile(profile);
+      
+      // Save user to localStorage
+      localStorage.setItem('user', JSON.stringify(newUser));
+      
+      console.log('User successfully logged in and profile saved');
+      
+      // Fetch additional user data from Supabase if needed
+      fetchUserUnits().then(units => {
+        // Select first unit if available
+        if (units.length > 0 && !selectedUnit) {
+          setSelectedUnit(units[0].id);
+          localStorage.setItem('selectedUnit', units[0].id);
+        }
       });
       
-      // Attempt login with better redirect handling
-      await msalInstance.loginRedirect(loginRedirectRequest);
-      
-      // We shouldn't reach here as redirect will navigate away
-      console.log('Login redirect initiated - page should redirect');
+      return;
     } catch (error) {
       console.error('Microsoft login failed:', error);
-      
-      // Enhanced error reporting
-      if (error instanceof Error) {
-        console.error('Login error details:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack?.split('\n').slice(0, 3).join('\n')  // Trim stack trace
-        });
-        
-        // Specific error handling
-        if (error.message.includes('interaction_in_progress')) {
-          toast.error('Another login attempt is already in progress. Please try again in a moment.');
-          
-          // Try to clear the interaction state
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.removeItem('msal.interaction.status');
-          }
-        } else if (error.message.includes('user_cancelled')) {
-          toast.info('Login was cancelled. Please try again if you want to sign in.');
-        } else {
-          toast.error(`Login failed: ${error.message}`);
-        }
-      } else {
-        toast.error('Failed to login with Microsoft. Please try again.');
-      }
+      toast.error('Failed to login with Microsoft');
     }
   };
 
