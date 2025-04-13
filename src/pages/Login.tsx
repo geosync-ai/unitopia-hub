@@ -39,12 +39,54 @@ export default function Login() {
   useEffect(() => {
     // Handle redirect process more robustly
     const handleInitialRedirect = async () => {
+      // ENHANCEMENT: Add detailed logging of current state
+      console.log('Login page - Current URL:', window.location.href);
+      console.log('Login page - URL hash:', window.location.hash);
+      console.log('Login page - URL search params:', window.location.search);
+      
+      // ENHANCEMENT: Check for hash parameters more thoroughly
+      const hasAuthParams = (
+        (location.hash && 
+         (location.hash.includes('access_token') || 
+          location.hash.includes('error') || 
+          location.hash.includes('code'))) ||
+        (location.search && 
+         (location.search.includes('error') || 
+          location.search.includes('code')))
+      );
+      
+      console.log('Login page - Has auth params in URL:', hasAuthParams);
+      
       // Check if authentication might be in progress based on browser storage
       const isAuthMaybeInProgress = (typeof window !== 'undefined') && 
         (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect' ||
          localStorage.getItem('msalLoginAttempts') ||
+         hasAuthParams ||
          location.hash || 
          location.search);
+         
+      // Track login attempts to avoid infinite loops
+      const loginRetryCount = parseInt(localStorage.getItem('loginRetryCount') || '0', 10);
+      console.log('Login page - Current retry count:', loginRetryCount);
+      
+      // If we've tried too many times, force a clean restart
+      if (loginRetryCount > 3) {
+        console.log('Login page - Too many retries, clearing state and forcing reload');
+        // Clear all MSAL data
+        localStorage.removeItem('loginRetryCount');
+        localStorage.removeItem('loginAttempted');
+        localStorage.removeItem('msalLoginAttempts');
+        
+        if (typeof window !== 'undefined') {
+          Object.keys(sessionStorage)
+            .filter(key => key.startsWith('msal.'))
+            .forEach(key => sessionStorage.removeItem(key));
+        }
+        
+        // Force reload the page to get a clean state
+        window.location.href = window.location.origin + '/?forceReload=' + Date.now();
+        return;
+      }
          
       // Check if we have a hash or search params (indicating a redirect from Microsoft)
       if (isAuthMaybeInProgress) {
@@ -55,14 +97,22 @@ export default function Login() {
           attemptCount: localStorage.getItem('msalLoginAttempts')
         });
         
+        // Increment retry counter
+        localStorage.setItem('loginRetryCount', (loginRetryCount + 1).toString());
+        
         setIsProcessingRedirect(true);
         
         // Explicitly try to handle the redirect response with our helper
         if (msalInstance) {
           try {
+            console.log('Login page - Calling handleRedirectResponse');
             const response = await handleRedirectResponse(msalInstance);
+            console.log('Login page - handleRedirectResponse result:', response ? 'Response received' : 'No response');
+            
             if (response) {
               console.log('Successfully handled redirect response, navigating home');
+              // Reset retry counter on success
+              localStorage.removeItem('loginRetryCount'); 
               navigate('/');
               return;
             } else {
@@ -170,6 +220,27 @@ export default function Login() {
     await loginWithMicrosoft();
   };
 
+  // Utility function to force a clean login
+  const forceCleanLogin = () => {
+    // Clear all MSAL and auth-related state
+    localStorage.removeItem('loginRetryCount');
+    localStorage.removeItem('loginAttempted');
+    localStorage.removeItem('msalLoginAttempts');
+    localStorage.removeItem('user');
+        
+    if (typeof window !== 'undefined') {
+      Object.keys(sessionStorage)
+        .filter(key => key.startsWith('msal.'))
+        .forEach(key => sessionStorage.removeItem(key));
+    }
+    
+    // Reset any state
+    setIsProcessingRedirect(false);
+    
+    // Force reload the page
+    window.location.href = window.location.origin + '/?forceReload=' + Date.now();
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#400010]">
       <Card className="w-[400px] bg-white rounded-3xl shadow-xl">
@@ -181,6 +252,26 @@ export default function Login() {
             <h1 className="text-2xl font-bold text-center mb-1">SCPNG Intranet Portal</h1>
             <p className="text-gray-500 text-sm">Sign in to access the portal</p>
           </div>
+
+          {isProcessingRedirect && (
+            <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm text-blue-800 mb-1">Authentication in progress...</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="mr-2 h-3 w-3 rounded-full bg-blue-600 animate-pulse"></div>
+                  <span className="text-xs text-blue-600">Please wait</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={forceCleanLogin}
+                  className="text-xs py-0 h-6"
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4">
             <Button

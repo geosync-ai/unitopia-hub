@@ -16,6 +16,7 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
     if (isLoggingIn) return;
     
     setIsLoggingIn(true);
+    console.log('Microsoft login button clicked - initiating login process');
     
     try {
       // Get the MSAL instance from the window object
@@ -30,8 +31,15 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
         return;
       }
       
+      console.log('Microsoft login button - MSAL instance found');
+      
+      // Reset retry counters for a fresh login
+      localStorage.removeItem('loginRetryCount');
+      localStorage.removeItem('loginAttempted');
+      
       // Clean up any existing authentication state
       if (typeof window !== 'undefined') {
+        console.log('Microsoft login button - Cleaning up session storage');
         // Clear all MSAL-related entries from session storage
         Object.keys(sessionStorage)
           .filter(key => key.startsWith('msal.'))
@@ -43,10 +51,12 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       }
       
       // Clear any existing accounts to force a clean login
+      console.log('Microsoft login button - Clearing MSAL cache');
       msalInstance.clearCache();
       
       // First, make sure there's no pending redirect by handling any existing promise
       try {
+        console.log('Microsoft login button - Handling any existing redirect promises');
         await msalInstance.handleRedirectPromise().catch(err => {
           console.log('Pre-login redirect cleanup:', err);
           // We can ignore errors here as we're just cleaning up
@@ -56,17 +66,35 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
         // Continue anyway
       }
       
-      // Force a clean login with explicit parameters using window.location.origin 
-      // for consistent redirect URI
+      // Store timestamp to detect potential redirect loops
+      localStorage.setItem('msalLoginTimestamp', Date.now().toString());
+      
+      // Construct a fully explicit redirect URI with trailing slash
+      const redirectUri = window.location.origin + '/';
+      console.log('Microsoft login button - Using redirect URI:', redirectUri);
+      
+      // Force a clean login with explicit parameters
+      console.log('Microsoft login button - Initiating login redirect');
       await msalInstance.loginRedirect({
         scopes: ['User.Read'],
-        redirectUri: window.location.origin + '/',
+        redirectUri: redirectUri,
         prompt: 'select_account', // Always force the user to select an account
+        state: `login-${Date.now()}`, // Add timestamp to ensure unique state
       });
       
       console.log('Login redirect initiated successfully');
     } catch (error) {
       console.error('Error during Microsoft login:', error);
+      
+      // Capture detailed error information
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+      
       toast.error('Failed to login with Microsoft. Please try again.');
       setIsLoggingIn(false);
     }

@@ -131,6 +131,18 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         // Check for redirect response to handle sign-in
         try {
           console.log('Attempting to handle redirect promise...');
+          
+          // ENHANCEMENT: Check for URL hash parameters that might indicate an auth response
+          if (typeof window !== 'undefined') {
+            const hasAuthParams = window.location.hash && 
+              (window.location.hash.includes('access_token') || 
+              window.location.hash.includes('error') || 
+              window.location.hash.includes('code'));
+              
+            console.log('URL contains auth parameters:', hasAuthParams);
+            console.log('Current URL hash:', window.location.hash ? '[PRESENT]' : '[EMPTY]');
+          }
+          
           // Check for cached data in browser storage to determine if we're mid-auth
           const isAuthInProgress = (typeof window !== 'undefined') && 
                                   (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect' ||
@@ -140,7 +152,10 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                                   
           // First, immediately try to handle the redirect without any delay
           try {
+            console.log('Calling handleRedirectPromise() to process auth response...');
             const response = await instance.handleRedirectPromise();
+            console.log('handleRedirectPromise result:', response ? 'Response received' : 'No response');
+            
             if (response) {
               console.log('Successfully processed redirect response:', response);
               // Handle the successful login
@@ -149,6 +164,36 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
               }
             } else {
               console.log('No redirect response found during initial check');
+              
+              // ENHANCEMENT: If we don't have a response but accounts exist, then user is already logged in
+              const accounts = instance.getAllAccounts();
+              if (accounts.length > 0) {
+                console.log('Found existing accounts, setting active account:', accounts[0].username);
+                instance.setActiveAccount(accounts[0]);
+              } else {
+                console.log('No accounts found, user may need to login');
+                
+                // ENHANCEMENT: Check if we should initiate a login attempt
+                const shouldAttemptLogin = !isAuthInProgress && !localStorage.getItem('loginAttempted');
+                
+                if (shouldAttemptLogin) {
+                  console.log('Attempting initial login...');
+                  localStorage.setItem('loginAttempted', 'true');
+                  
+                  // Set small timeout to ensure browser is ready
+                  setTimeout(async () => {
+                    try {
+                      await instance.loginRedirect({
+                        scopes: microsoftAuthConfig.permissions || [],
+                        redirectUri: window.location.origin + '/',
+                        prompt: 'select_account'
+                      });
+                    } catch (loginError) {
+                      console.error('Error initiating login:', loginError);
+                    }
+                  }, 1000);
+                }
+              }
             }
           } catch (redirectError) {
             console.error('Error during initial redirect handling:', redirectError);
@@ -157,6 +202,17 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           // Add a bit of timeout as a fallback to ensure browser has fully loaded
           setTimeout(async () => {
             try {
+              // Get URL parameters again in case they've changed
+              if (typeof window !== 'undefined') {
+                const hasAuthParams = window.location.hash && 
+                  (window.location.hash.includes('access_token') || 
+                  window.location.hash.includes('error') || 
+                  window.location.hash.includes('code'));
+                  
+                console.log('TIMEOUT CHECK - URL contains auth parameters:', hasAuthParams);
+                console.log('TIMEOUT CHECK - Current URL hash:', window.location.hash ? '[PRESENT]' : '[EMPTY]');
+              }
+                
               // Force clear any stale interaction status
               if (typeof window !== 'undefined') {
                 // More thorough cleaning of MSAL cache to prevent redirect issues
@@ -176,10 +232,13 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
               
               // Try again after cleaning up the session
               console.log('Checking for redirect response after cleanup...');
+              console.log('Making second handleRedirectPromise() call...');
               const secondResponse = await instance.handleRedirectPromise().catch(err => {
                 console.error('Error handling redirect after cleanup:', err);
                 return null;
               });
+              
+              console.log('Second handleRedirectPromise result:', secondResponse ? 'Response received' : 'No response');
               
               if (secondResponse) {
                 console.log('Redirect response detected:', secondResponse);
