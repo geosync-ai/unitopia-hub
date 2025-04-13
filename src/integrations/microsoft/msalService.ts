@@ -119,9 +119,8 @@ export const loginRedirect = async (msalInstance?: IPublicClientApplication): Pr
   }
   
   try {
-    // Ensure consistent redirect URI with trailing slash to match Azure config
-    const originUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
-    const redirectUri = originUri.endsWith('/') ? originUri : originUri + '/';
+    // Use the exact redirect URI from config that matches what's registered in Azure
+    const redirectUri = microsoftAuthConfig.redirectUri;
     console.log(`Using redirectUri: ${redirectUri}`);
     
     // Clear any existing state that might interfere with new login attempt
@@ -163,12 +162,12 @@ export const logout = async (msalInstance?: IPublicClientApplication): Promise<v
   
   try {
     const account = getAccount(instance);
-    const originUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
-    const redirectUriWithSlash = originUri.endsWith('/') ? originUri : originUri + '/';
+    // Use the exact URI from config
+    const postLogoutUri = microsoftAuthConfig.redirectUri;
     
     await instance.logoutRedirect({
       account,
-      postLogoutRedirectUri: redirectUriWithSlash
+      postLogoutRedirectUri: postLogoutUri
     });
   } catch (error) {
     console.error('Logout failed:', error);
@@ -307,10 +306,8 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
     // Make sure we have a clean state for this attempt
     localStorage.removeItem('msalLoginAttempts');
     
-    // ALWAYS use window.location.origin for redirectUri to ensure consistency
-    // Add trailing slash to match Azure configuration
-    const originUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
-    const exactRedirectUri = originUri.endsWith('/') ? originUri : originUri + '/';
+    // Use the exact redirect URI from config, not window.location.origin
+    const exactRedirectUri = microsoftAuthConfig.redirectUri;
     console.log('[DEBUG - MSAL] Using exact redirect URI:', exactRedirectUri);
     
     console.log('[DEBUG - MSAL] Authentication parameters:', {

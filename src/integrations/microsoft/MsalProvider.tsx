@@ -81,14 +81,11 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           localStorage.removeItem('msalLoginAttempts');
         }
         
-        // Update config with the current window location as redirectUri if running in browser
-        const configToUse = typeof window !== 'undefined' 
-          ? updateMsalConfig({
-              ...microsoftAuthConfig,
-              redirectUri: window.location.origin + '/'
-            })
-          : msalConfig;
-          
+        // Update config with the exact redirect URI from the config, NOT the window location
+        const configToUse = updateMsalConfig({
+          ...microsoftAuthConfig
+        });
+        
         console.log('Initializing MSAL with config:', configToUse);
         const instance = new PublicClientApplication(configToUse);
         
@@ -185,7 +182,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                     try {
                       await instance.loginRedirect({
                         scopes: microsoftAuthConfig.permissions || [],
-                        redirectUri: window.location.origin + '/',
+                        redirectUri: microsoftAuthConfig.redirectUri,
                         prompt: 'select_account'
                       });
                     } catch (loginError) {
@@ -439,7 +436,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                 try {
                   msalInstance.loginRedirect({
                     scopes: microsoftAuthConfig.permissions || [],
-                    redirectUri: window.location.origin + '/',
+                    redirectUri: microsoftAuthConfig.redirectUri,
                     prompt: 'select_account' // Force a fresh login experience
                   });
                 } catch (error) {

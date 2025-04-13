@@ -13,14 +13,11 @@ const microsoftAuthConfig = {
     "Sites.Read.All",
     "Sites.ReadWrite.All"
   ],
-  // Default redirectUri that will be overridden based on environment
-  redirectUri: typeof window !== 'undefined' ? window.location.origin + '/' : "https://unitopia-hub.vercel.app/",
-  // List of all approved redirect URIs that should be registered in Azure Portal
+  // IMPORTANT: Use the exact URI registered in Azure
+  redirectUri: "https://unitopia-hub.vercel.app/",
+  // Only the single approved redirect URI
   approvedRedirectUris: [
-    "https://unitopia-hub.vercel.app/",
-    "https://unitopia-rin2gjvob-zahs-projects-6dd0b7f4.vercel.app/", // Current Vercel preview URL
-    "http://localhost:3000/",
-    "http://localhost:5173/" // Vite dev server
+    "https://unitopia-hub.vercel.app/"
   ],
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,
@@ -31,54 +28,31 @@ const microsoftAuthConfig = {
 if (typeof window !== 'undefined') {
   console.log('Microsoft Auth Config loaded');
   
-  // IMPORTANT: ALWAYS use window.location.origin for redirect URI to prevent inconsistencies
-  const originUri = window.location.origin;
-  const redirectUriWithSlash = originUri.endsWith('/') ? originUri : originUri + '/';
-  microsoftAuthConfig.redirectUri = redirectUriWithSlash;
-  
+  // IMPORTANT: Always use the exact redirectUri configured in Azure
+  // Do NOT dynamically set the redirectUri based on window.location.origin
   console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
   console.log('Current window origin:', window.location.origin);
   
-  // Ensure the current origin is in the approved list
-  const originWithSlash = originUri.endsWith('/') ? originUri : originUri + '/';
-  if (!microsoftAuthConfig.approvedRedirectUris.includes(originWithSlash)) {
-    microsoftAuthConfig.approvedRedirectUris.push(originWithSlash);
-    console.log('Added current origin to approved URIs:', originWithSlash);
-  }
-  
-  console.log('Updating MSAL config with:', microsoftAuthConfig);
-  
-  // Check if current origin is in the list of approved URIs
-  const isApprovedUri = microsoftAuthConfig.approvedRedirectUris.includes(originWithSlash);
+  // Check if current origin matches the approved URI
+  const isApprovedUri = microsoftAuthConfig.redirectUri === window.location.origin + '/';
   
   if (!isApprovedUri) {
     console.error('⚠️ AUTHENTICATION ERROR RISK:');
-    console.error(`Current origin "${originWithSlash}" is not in the list of approved redirect URIs.`);
+    console.error(`Current origin "${window.location.origin}" doesn't match the configured redirect URI: ${microsoftAuthConfig.redirectUri}`);
     console.error('This URL must be registered in Azure Portal to avoid authentication errors.');
-    console.error('Approved URIs:', microsoftAuthConfig.approvedRedirectUris);
-    console.error('Add this URL to both:');
-    console.error('1. The approvedRedirectUris array in this file');
-    console.error('2. The Azure Portal app registration redirect URIs list');
+    console.error('Approved URI:', microsoftAuthConfig.redirectUri);
   } else {
     // If it's an approved URI, provide confirmation
-    console.log('Current origin is approved for authentication:', originWithSlash);
+    console.log('Current origin matches the configured redirect URI');
   }
   
   // Log the final MSAL config that will be used
-  console.log('Updated MSAL config:', {
+  console.log('Using MSAL config:', {
     clientId: microsoftAuthConfig.clientId,
     authority: microsoftAuthConfig.authorityUrl,
     redirectUri: microsoftAuthConfig.redirectUri, 
     postLogoutRedirectUri: microsoftAuthConfig.redirectUri
   });
-  
-  // Show warning if running in development
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.warn('⚠️ Running in development mode:');
-    console.warn('- Using current origin as redirect URI:', originWithSlash);
-    console.warn('- Make sure this URI is registered in Azure Portal');
-    console.warn('- AND "https://unitopia-hub.vercel.app" is registered for production');
-  }
 }
 
 export default microsoftAuthConfig; 

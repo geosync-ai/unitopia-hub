@@ -9,6 +9,7 @@ import { Mail } from 'lucide-react';
 import { handleRedirectResponse } from '@/integrations/microsoft/msalService';
 import { useMsalContext } from '@/integrations/microsoft/MsalProvider';
 import MicrosoftLoginButton from '@/components/auth/MicrosoftLoginButton';
+import microsoftAuthConfig from '@/config/microsoft-auth';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -237,8 +238,12 @@ export default function Login() {
     // Reset any state
     setIsProcessingRedirect(false);
     
-    // Force reload the page
-    window.location.href = window.location.origin + '/?forceReload=' + Date.now();
+    // Force reload using the exact redirect URI from config (without the trailing slash for navigation)
+    const redirectBase = microsoftAuthConfig.redirectUri.endsWith('/') 
+      ? microsoftAuthConfig.redirectUri.slice(0, -1) 
+      : microsoftAuthConfig.redirectUri;
+      
+    window.location.href = `${redirectBase}?forceReload=${Date.now()}`;
   };
 
   return (

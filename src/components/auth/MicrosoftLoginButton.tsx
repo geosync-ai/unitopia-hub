@@ -1,5 +1,6 @@
 import React, { useState, ReactNode } from 'react';
 import { toast } from 'sonner';
+import microsoftAuthConfig from '@/config/microsoft-auth';
 
 interface MicrosoftLoginButtonProps {
   className?: string;
@@ -69,8 +70,8 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       // Store timestamp to detect potential redirect loops
       localStorage.setItem('msalLoginTimestamp', Date.now().toString());
       
-      // Construct a fully explicit redirect URI with trailing slash
-      const redirectUri = window.location.origin + '/';
+      // Use the exact redirect URI from the config
+      const redirectUri = microsoftAuthConfig.redirectUri;
       console.log('Microsoft login button - Using redirect URI:', redirectUri);
       
       // Force a clean login with explicit parameters
