@@ -8,10 +8,10 @@ const defaultConfig = {
     authority: microsoftAuthConfig.authorityUrl,
     redirectUri: microsoftAuthConfig.redirectUri,
     postLogoutRedirectUri: microsoftAuthConfig.redirectUri,
-    navigateToLoginRequestUrl: false // Set to false to avoid redirect loops
+    navigateToLoginRequestUrl: true // Changed to true to ensure proper navigation after login
   },
   cache: {
-    cacheLocation: 'localStorage', // Use localStorage instead of sessionStorage
+    cacheLocation: 'sessionStorage', // Use sessionStorage for better security
     storeAuthStateInCookie: true // Enable cookies as backup for storage
   },
   system: {
@@ -54,6 +54,14 @@ const defaultConfig = {
   }
 };
 
+// Get current origin to compare with configured redirectUri
+const getCurrentOrigin = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
+
 // Function to update the configuration with custom values
 export const updateMsalConfig = (config: any): Configuration => {
   console.log('Updating MSAL config with:', config);
@@ -76,6 +84,14 @@ export const updateMsalConfig = (config: any): Configuration => {
     console.log('Using redirectUri:', config.redirectUri);
     updatedConfig.auth.redirectUri = config.redirectUri;
     updatedConfig.auth.postLogoutRedirectUri = config.redirectUri;
+    
+    // Check for potential URI mismatch issues
+    const currentOrigin = getCurrentOrigin();
+    if (currentOrigin && !config.redirectUri.startsWith(currentOrigin)) {
+      console.warn('⚠️ MSAL CONFIGURATION WARNING ⚠️');
+      console.warn(`Configured redirectUri (${config.redirectUri}) does not match current origin (${currentOrigin})`);
+      console.warn('This may cause authentication failures. Update Azure AD app registration or use the correct URL.');
+    }
   }
   
   // Print the final configuration for debugging
@@ -89,10 +105,26 @@ export const updateMsalConfig = (config: any): Configuration => {
   return updatedConfig;
 };
 
-// Default login request configuration - IMPORTANT: DO NOT include redirectUri here
-// The redirect URI will be added at login time from the config to ensure consistency
+// Helper to create proper popup request
+export const createPopupRequest = (scopes: string[] = microsoftAuthConfig.permissions): PopupRequest => {
+  return {
+    scopes,
+    prompt: 'select_account'
+  };
+};
+
+// Helper to create proper redirect request
+export const createRedirectRequest = (scopes: string[] = microsoftAuthConfig.permissions): RedirectRequest => {
+  return {
+    scopes,
+    redirectUri: microsoftAuthConfig.redirectUri,
+    prompt: 'select_account'
+  };
+};
+
+// Default login request configuration
 export const loginRequest = {
-  scopes: microsoftAuthConfig.permissions
+  scopes: microsoftAuthConfig.permissions || ['User.Read']
 };
 
 // Default configuration

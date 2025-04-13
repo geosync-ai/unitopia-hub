@@ -82,42 +82,66 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       
       console.log('Microsoft login button - MSAL instance found');
       
-      // Ensure clean state before login attempt
+      // Clear any stale interaction state
       sessionStorage.removeItem('msal.interaction.status');
+      sessionStorage.removeItem('msal.interaction.error');
       
-      // Use the exact redirect URI from the config
-      const redirectUri = microsoftAuthConfig.redirectUri;
-      console.log('Microsoft login button - Using redirect URI:', redirectUri);
-      
+      // Get accounts and check if user is already logged in
       const accounts = msalInstance.getAllAccounts();
+      console.log('Existing accounts:', accounts.length);
+      
       if (accounts.length > 0) {
-        console.log('User already has an account, attempting silent token acquisition');
+        console.log('User already has an account, setting active account');
+        msalInstance.setActiveAccount(accounts[0]);
+        
         try {
-          await msalInstance.acquireTokenSilent({
-            account: accounts[0],
+          // Try to silently acquire a token
+          const silentRequest = {
             scopes: ['User.Read'],
-          });
+            account: accounts[0],
+            forceRefresh: true
+          };
           
-          toast.success('Signed in successfully!');
-          console.log('Silent authentication successful');
+          console.log('Attempting silent token acquisition');
+          const response = await msalInstance.acquireTokenSilent(silentRequest);
+          
+          console.log('Silent token acquisition successful');
+          toast.success('Successfully signed in!');
           setIsLoggingIn(false);
           return;
-        } catch (error) {
-          console.log('Silent token acquisition failed, falling back to redirect:', error);
+        } catch (silentError) {
+          console.log('Silent token acquisition failed, falling back to redirect:', silentError);
         }
       }
       
-      // Add state parameter for better tracking
-      const state = `login-${new Date().getTime()}`;
-      
-      // Force a clean login with explicit redirect URI
-      console.log('Microsoft login button - Initiating login redirect');
-      await msalInstance.loginRedirect({
+      // Prepare login request with explicit options
+      const loginRequest = {
         scopes: ['User.Read'],
-        redirectUri: redirectUri,
-        state: state,
-        prompt: 'select_account', // Force account selection
-      });
+        redirectUri: microsoftAuthConfig.redirectUri,
+        redirectStartPage: window.location.href,
+        prompt: 'select_account'
+      };
+      
+      console.log('Starting login with redirectUri:', loginRequest.redirectUri);
+      
+      // Try login with popup first (more reliable in some scenarios)
+      try {
+        console.log('Attempting login with popup');
+        const response = await msalInstance.loginPopup(loginRequest);
+        
+        if (response) {
+          console.log('Popup login successful');
+          toast.success('Successfully signed in!');
+          setIsLoggingIn(false);
+          return;
+        }
+      } catch (popupError) {
+        console.log('Popup login failed, falling back to redirect:', popupError);
+        
+        // Fall back to redirect if popup fails
+        console.log('Initiating redirect login as fallback');
+        await msalInstance.loginRedirect(loginRequest);
+      }
       
       console.log('Login redirect initiated successfully');
     } catch (error) {
