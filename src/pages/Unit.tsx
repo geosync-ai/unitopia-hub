@@ -898,6 +898,7 @@ const Unit = () => {
                 deleteProject={projectState.remove}
                 error={projectState.error}
                 onRetry={projectState.refresh}
+                staffMembers={staffMembers}
               />
             </TabsContent>
             

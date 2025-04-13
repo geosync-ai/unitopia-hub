@@ -9,6 +9,7 @@ import AddProjectModal from './modals/AddProjectModal';
 import EditProjectModal from './modals/EditProjectModal';
 import DeleteModal from './modals/DeleteModal';
 import { Project, Risk, Task } from '@/types';
+import { StaffMember } from '@/types/staff';
 
 interface ProjectsTabProps {
   projects: Project[];
@@ -17,6 +18,7 @@ interface ProjectsTabProps {
   deleteProject: (id: string) => void;
   error?: Error | null;
   onRetry?: () => void;
+  staffMembers: StaffMember[];
 }
 
 export const ProjectsTab: React.FC<ProjectsTabProps> = ({ 
@@ -24,8 +26,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   addProject, 
   editProject, 
   deleteProject, 
-  error, 
-  onRetry 
+  staffMembers
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -96,6 +97,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
     return new Date(date).toLocaleDateString();
   };
 
+  const getManagerName = (email: string) => {
+    if (!staffMembers) return email;
+    const staff = staffMembers.find(s => s.email === email);
+    return staff ? staff.name : email;
+  };
+
   return (
     <>
       <Card>
@@ -131,7 +138,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                   <TableRow key={project.id}>
                     <TableCell className="font-medium">{project.name}</TableCell>
                     <TableCell>{getStatusBadge(project.status)}</TableCell>
-                    <TableCell>{project.manager}</TableCell>
+                    <TableCell>{getManagerName(project.manager)}</TableCell>
                     <TableCell>
                       {formatDate(project.startDate)} - {formatDate(project.endDate)}
                     </TableCell>

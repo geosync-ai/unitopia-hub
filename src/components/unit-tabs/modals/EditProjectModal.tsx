@@ -16,6 +16,7 @@ import ChecklistSection from '@/components/ChecklistSection';
 import { Project } from '@/types';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
+import { useDivisionStaff } from '@/hooks/useDivisionStaff';
 
 interface EditProjectModalProps {
   open: boolean;
@@ -32,6 +33,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
   onProjectChange,
   onSave
 }) => {
+  const { staffMembers, loading: staffLoading } = useDivisionStaff();
   
   // Don't render anything if project is null
   if (!project) {
@@ -106,13 +108,30 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="project-owner">Manager <span className="text-destructive">*</span></Label>
-              <Input 
-                id="project-owner" 
-                placeholder="Project Manager" 
-                value={project.manager || ''} 
-                onChange={(e) => handleChange('manager', e.target.value)}
-              />
+              <Label htmlFor="project-manager">Manager <span className="text-destructive">*</span></Label>
+              <Select 
+                value={project.manager || ''}
+                onValueChange={(value) => handleChange('manager', value)}
+              >
+                <SelectTrigger id="project-manager" className={staffLoading ? "opacity-50" : ""}>
+                  <SelectValue placeholder="Select manager">
+                    {staffMembers.find(staff => staff.email === project.manager)?.name || "Select manager"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {staffLoading ? (
+                    <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
+                  ) : staffMembers && staffMembers.length > 0 ? (
+                    staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.email}> 
+                        {staff.name} ({staff.job_title})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-status">Status</Label>
