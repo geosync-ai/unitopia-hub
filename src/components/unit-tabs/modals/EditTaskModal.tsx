@@ -106,9 +106,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 onValueChange={(value) => setEditedTask({...editedTask, assignee: value})}
               >
                 <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
-                  <SelectValue placeholder="Select assignee">
-                    {staffMembers.find(staff => staff.email === editedTask.assignee)?.name || "Select assignee"}
-                  </SelectValue>
+                  <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
                   {loading ? (

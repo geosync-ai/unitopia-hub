@@ -131,9 +131,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 }}
               >
                 <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
-                  <SelectValue placeholder="Select assignee">
-                    {staffMembers.find(staff => staff.email === newTask.assignee)?.name || "Select assignee"}
-                  </SelectValue>
+                  <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
                   {loading ? (
