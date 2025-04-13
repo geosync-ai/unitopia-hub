@@ -17,6 +17,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isProcessingRedirect, setIsProcessingRedirect] = useState(false);
+  const [isMicrosoftLoginInProgress, setIsMicrosoftLoginInProgress] = useState(false);
   
   // Safely try to use contexts, handle errors gracefully
   let auth: any = {};
@@ -203,35 +204,47 @@ export default function Login() {
   };
 
   const handleMicrosoftLogin = async () => {
+    if (isMicrosoftLoginInProgress) return;
     if (!loginWithMicrosoft) {
       toast.error('Microsoft login is not available right now. Please try again later.');
       return;
     }
     
-    console.log('Microsoft login button clicked - initiating login process');
+    setIsMicrosoftLoginInProgress(true);
+    console.log('Login.tsx - Microsoft login button clicked - initiating login process');
     
     // Verify MSAL instance is available
     if (!msalInstance) {
-      console.error('Microsoft login button - MSAL instance not found');
+      console.error('Login.tsx - Microsoft login button - MSAL instance not found');
       toast.error('Unable to initialize Microsoft login. Please try again later.');
+      setIsMicrosoftLoginInProgress(false);
       return;
     }
     
-    console.log('Microsoft login button - MSAL instance found');
+    console.log('Login.tsx - Microsoft login button - MSAL instance found');
     
     try {
-      // Use popup login which is working for the user
+      // Call the login function from useAuth hook
       await loginWithMicrosoft();
       
-      // Check for successful login
+      // useAuth should now handle setting the user and triggering the useEffect 
+      // that navigates away. We might not need explicit navigation here.
+      // Check if authentication state updated (optional, useEffect should handle it)
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length > 0) {
-        console.log('Login successful, navigating to home page');
-        navigate('/');
+        console.log('Login.tsx - Login successful, useAuth should handle navigation');
+        // The useEffect checking isAuthenticated should navigate us away
+        // navigate('/'); // Maybe remove this line if useEffect handles it
+      } else {
+        // This case shouldn't happen if loginWithMicrosoft succeeded
+        console.warn('Login.tsx - Login finished but no accounts found. Check useAuth logic.');
+        toast.error('Login completed but failed to retrieve account.');
       }
     } catch (error) {
-      console.error('Microsoft login failed:', error);
+      console.error('Login.tsx - Microsoft login failed:', error);
       toast.error('Microsoft login failed. Please try again.');
+    } finally {
+      setIsMicrosoftLoginInProgress(false); // Reset loading state
     }
   };
 
@@ -295,9 +308,12 @@ export default function Login() {
             </Button>
 
             <MicrosoftLoginButton 
+              onClick={handleMicrosoftLogin}
+              disabled={isMicrosoftLoginInProgress || isProcessingRedirect}
               className="w-full bg-white hover:bg-gray-50 text-black border border-gray-200 flex items-center justify-center py-2 px-4 rounded gap-2"
               text={
                 isProcessingRedirect ? "Processing..." : (
+                isMicrosoftLoginInProgress ? "Signing in..." : (
                   <>
                     <svg
                       className="mr-2 h-5 w-5"
@@ -316,7 +332,7 @@ export default function Login() {
                     </svg>
                     Microsoft
                   </>
-                )
+                ))
               }
             />
           </div>

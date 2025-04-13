@@ -6,119 +6,23 @@ import { handleRedirectResponse } from '@/integrations/microsoft/msalService';
 interface MicrosoftLoginButtonProps {
   className?: string;
   text?: string | ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
 }
 
 const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({ 
   className = "w-full bg-[#0078d4] hover:bg-[#106ebe] text-white font-semibold py-3 px-4 rounded flex items-center justify-center gap-2",
-  text = "Sign in with Microsoft"
+  text = "Sign in with Microsoft",
+  onClick,
+  disabled = false
 }) => {
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
-  // Check for redirect response on component mount
-  useEffect(() => {
-    const checkForRedirectResponse = async () => {
-      try {
-        // Get the MSAL instance from the window object
-        const msalInstance = (typeof window !== 'undefined' && (window as any).msalInstance) 
-          ? (window as any).msalInstance 
-          : null;
-        
-        if (!msalInstance) {
-          console.log('No MSAL instance available for redirect check');
-          return;
-        }
-        
-        // Check if we're returning from a redirect
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlHash = window.location.hash;
-        const hasAuthParams = urlParams.has('code') || urlParams.has('error') || 
-                              urlHash.includes('access_token') || urlHash.includes('id_token');
-        
-        if (hasAuthParams) {
-          console.log('Auth parameters detected in URL, processing redirect response');
-          setIsLoggingIn(true);
-          
-          // Handle the redirect response
-          const response = await handleRedirectResponse(msalInstance);
-          
-          if (response) {
-            console.log('Redirect login successful, account:', response.account.username);
-            toast.success('Successfully signed in!');
-          } else {
-            console.log('No response from redirect handling');
-          }
-          
-          setIsLoggingIn(false);
-        } else {
-          console.log('No auth parameters in URL, not processing redirect');
-        }
-      } catch (error) {
-        console.error('Error checking redirect response:', error);
-        setIsLoggingIn(false);
-      }
-    };
-    
-    checkForRedirectResponse();
-  }, []);
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    
-    setIsLoggingIn(true);
-    console.log('Microsoft login button clicked - initiating login process');
-    
-    try {
-      // Get the MSAL instance from the window object
-      const msalInstance = (typeof window !== 'undefined' && (window as any).msalInstance) 
-        ? (window as any).msalInstance 
-        : null;
-      
-      if (!msalInstance) {
-        toast.error('Microsoft authentication service is not available.');
-        console.error('Microsoft login button - MSAL instance not found');
-        setIsLoggingIn(false);
-        return;
-      }
-      
-      console.log('Microsoft login button - MSAL instance found');
-      
-      // Get existing accounts
-      const accounts = msalInstance.getAllAccounts();
-      console.log('Existing accounts:', accounts.length);
-      
-      // Prepare login request with explicit options
-      const loginRequest = {
-        scopes: ['User.Read', ...microsoftAuthConfig.permissions],
-        redirectUri: microsoftAuthConfig.redirectUri,
-      };
-      
-      // Use popup login which is working for the user
-      console.log('Attempting login with popup');
-      const response = await msalInstance.loginPopup(loginRequest);
-      
-      if (response) {
-        console.log('Popup login successful');
-        msalInstance.setActiveAccount(response.account);
-        toast.success('Successfully signed in!');
-      } else {
-        console.error('No response from popup login');
-        toast.error('Login failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error during Microsoft login:', error);
-      toast.error('Failed to login with Microsoft. Please try again.');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   return (
     <button 
-      onClick={handleLogin}
-      disabled={isLoggingIn}
+      onClick={onClick}
+      disabled={disabled}
       className={className}
     >
-      {isLoggingIn ? (
+      {disabled ? (
         <span className="flex items-center gap-2">
           <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
