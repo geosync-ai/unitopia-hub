@@ -71,21 +71,12 @@ export default function Login() {
       console.log('Login page - Current retry count:', loginRetryCount);
       
       // If we've tried too many times, force a clean restart
-      if (loginRetryCount > 3) {
+      if (loginRetryCount > 1) {
         console.log('Login page - Too many retries, clearing state and forcing reload');
-        // Clear all MSAL data
-        localStorage.removeItem('loginRetryCount');
-        localStorage.removeItem('loginAttempted');
-        localStorage.removeItem('msalLoginAttempts');
-        
-        if (typeof window !== 'undefined') {
-          Object.keys(sessionStorage)
-            .filter(key => key.startsWith('msal.'))
-            .forEach(key => sessionStorage.removeItem(key));
-        }
-        
-        // Force reload the page to get a clean state
-        window.location.href = window.location.origin + '/?forceReload=' + Date.now();
+        // Clear all data and just reload the page
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload();
         return;
       }
          
@@ -224,26 +215,18 @@ export default function Login() {
   // Utility function to force a clean login
   const forceCleanLogin = () => {
     // Clear all MSAL and auth-related state
-    localStorage.removeItem('loginRetryCount');
-    localStorage.removeItem('loginAttempted');
-    localStorage.removeItem('msalLoginAttempts');
-    localStorage.removeItem('user');
-        
+    localStorage.clear(); // Clear ALL localStorage (more thorough)
+    
+    // Clear all sessionStorage
     if (typeof window !== 'undefined') {
-      Object.keys(sessionStorage)
-        .filter(key => key.startsWith('msal.'))
-        .forEach(key => sessionStorage.removeItem(key));
+      sessionStorage.clear(); // Clear ALL sessionStorage (more thorough)
     }
     
     // Reset any state
     setIsProcessingRedirect(false);
     
-    // Force reload using the exact redirect URI from config (without the trailing slash for navigation)
-    const redirectBase = microsoftAuthConfig.redirectUri.endsWith('/') 
-      ? microsoftAuthConfig.redirectUri.slice(0, -1) 
-      : microsoftAuthConfig.redirectUri;
-      
-    window.location.href = `${redirectBase}?forceReload=${Date.now()}`;
+    // Simply reload the current page without any redirects
+    window.location.reload();
   };
 
   return (
@@ -348,6 +331,26 @@ export default function Login() {
               Sign in
             </Button>
           </form>
+
+          {/* Emergency Direct Login Button */}
+          <div className="mt-4 border-t pt-4">
+            <p className="text-xs text-gray-500 mb-2">Having login issues? Try direct login:</p>
+            <Button 
+              type="button"
+              variant="outline"
+              className="w-full border-red-200 text-red-700 text-sm"
+              onClick={() => {
+                // Completely clear state
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                // Go directly to Microsoft login
+                window.location.href = `https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab/oauth2/v2.0/authorize?client_id=648a96d7-e3f5-4e13-8084-ba0b74dbb56f&response_type=code&redirect_uri=${encodeURIComponent("https://unitopia-hub.vercel.app/")}&scope=User.Read`;
+              }}
+            >
+              Emergency Direct Login
+            </Button>
+          </div>
 
           <div className="mt-6 text-center text-sm text-gray-500">
             <p>Default admin credentials:</p>

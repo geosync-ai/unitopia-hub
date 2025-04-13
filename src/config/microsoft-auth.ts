@@ -13,9 +13,8 @@ const microsoftAuthConfig = {
     "Sites.Read.All",
     "Sites.ReadWrite.All"
   ],
-  // IMPORTANT: Use the exact URI registered in Azure
+  // HARDCODED APPROVED URI - this MUST match exactly what's in Azure AD
   redirectUri: "https://unitopia-hub.vercel.app/",
-  // Only the single approved redirect URI
   approvedRedirectUris: [
     "https://unitopia-hub.vercel.app/"
   ],
@@ -28,23 +27,9 @@ const microsoftAuthConfig = {
 if (typeof window !== 'undefined') {
   console.log('Microsoft Auth Config loaded');
   
-  // IMPORTANT: Always use the exact redirectUri configured in Azure
-  // Do NOT dynamically set the redirectUri based on window.location.origin
+  // DO NOT MODIFY THE REDIRECT URI - Use exactly what's configured above
   console.log('Using redirect URI:', microsoftAuthConfig.redirectUri);
   console.log('Current window origin:', window.location.origin);
-  
-  // Check if current origin matches the approved URI
-  const isApprovedUri = microsoftAuthConfig.redirectUri === window.location.origin + '/';
-  
-  if (!isApprovedUri) {
-    console.error('⚠️ AUTHENTICATION ERROR RISK:');
-    console.error(`Current origin "${window.location.origin}" doesn't match the configured redirect URI: ${microsoftAuthConfig.redirectUri}`);
-    console.error('This URL must be registered in Azure Portal to avoid authentication errors.');
-    console.error('Approved URI:', microsoftAuthConfig.redirectUri);
-  } else {
-    // If it's an approved URI, provide confirmation
-    console.log('Current origin matches the configured redirect URI');
-  }
   
   // Log the final MSAL config that will be used
   console.log('Using MSAL config:', {

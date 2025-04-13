@@ -170,8 +170,8 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
               } else {
                 console.log('No accounts found, user may need to login');
                 
-                // ENHANCEMENT: Check if we should initiate a login attempt
-                const shouldAttemptLogin = !isAuthInProgress && !localStorage.getItem('loginAttempted');
+                // DISABLE automatic login to prevent loops
+                const shouldAttemptLogin = false;
                 
                 if (shouldAttemptLogin) {
                   console.log('Attempting initial login...');
