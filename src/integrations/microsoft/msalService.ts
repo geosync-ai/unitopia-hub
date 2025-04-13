@@ -119,8 +119,9 @@ export const loginRedirect = async (msalInstance?: IPublicClientApplication): Pr
   }
   
   try {
-    // Ensure consistent redirect URI
-    const redirectUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
+    // Ensure consistent redirect URI with trailing slash to match Azure config
+    const originUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
+    const redirectUri = originUri.endsWith('/') ? originUri : originUri + '/';
     console.log(`Using redirectUri: ${redirectUri}`);
     
     // Clear any existing state that might interfere with new login attempt
@@ -304,7 +305,9 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
     localStorage.removeItem('msalLoginAttempts');
     
     // ALWAYS use window.location.origin for redirectUri to ensure consistency
-    const exactRedirectUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
+    // Add trailing slash to match Azure configuration
+    const originUri = typeof window !== 'undefined' ? window.location.origin : microsoftAuthConfig.redirectUri;
+    const exactRedirectUri = originUri.endsWith('/') ? originUri : originUri + '/';
     console.log('[DEBUG - MSAL] Using exact redirect URI:', exactRedirectUri);
     
     console.log('[DEBUG - MSAL] Authentication parameters:', {

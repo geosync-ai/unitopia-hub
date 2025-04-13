@@ -380,7 +380,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
                 try {
                   msalInstance.loginRedirect({
                     scopes: microsoftAuthConfig.permissions || [],
-                    redirectUri: window.location.origin,
+                    redirectUri: window.location.origin + '/',
                     prompt: 'select_account' // Force a fresh login experience
                   });
                 } catch (error) {

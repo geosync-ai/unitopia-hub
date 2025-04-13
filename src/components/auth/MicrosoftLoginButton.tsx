@@ -60,7 +60,7 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       // for consistent redirect URI
       await msalInstance.loginRedirect({
         scopes: ['User.Read'],
-        redirectUri: window.location.origin,
+        redirectUri: window.location.origin + '/',
         prompt: 'select_account', // Always force the user to select an account
       });
       

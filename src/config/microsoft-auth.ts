@@ -14,13 +14,13 @@ const microsoftAuthConfig = {
     "Sites.ReadWrite.All"
   ],
   // Default redirectUri that will be overridden based on environment
-  redirectUri: typeof window !== 'undefined' ? window.location.origin : "https://unitopia-hub.vercel.app",
+  redirectUri: typeof window !== 'undefined' ? window.location.origin + '/' : "https://unitopia-hub.vercel.app/",
   // List of all approved redirect URIs that should be registered in Azure Portal
   approvedRedirectUris: [
-    "https://unitopia-hub.vercel.app",
-    "https://unitopia-rin2gjvob-zahs-projects-6dd0b7f4.vercel.app", // Current Vercel preview URL
-    "http://localhost:3000",
-    "http://localhost:5173" // Vite dev server
+    "https://unitopia-hub.vercel.app/",
+    "https://unitopia-rin2gjvob-zahs-projects-6dd0b7f4.vercel.app/", // Current Vercel preview URL
+    "http://localhost:3000/",
+    "http://localhost:5173/" // Vite dev server
   ],
   authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
   test_success: true,

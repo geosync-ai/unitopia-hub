@@ -249,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Create a very specific login request with the correct redirect URI
       const loginRedirectRequest = {
         scopes: msGraphConfig.permissions || ['User.Read'],
-        redirectUri: window.location.origin, // Explicitly use origin for consistency
+        redirectUri: window.location.origin + '/', // Add trailing slash to match Azure config
         prompt: 'select_account', // Force account selection UI to appear
         redirectStartPage: window.location.href
       };
