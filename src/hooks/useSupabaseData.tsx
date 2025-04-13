@@ -144,11 +144,18 @@ export function useSupabaseData<T extends { id?: string }>(
     }
     
     try {
-      // Add division ID to the item if not already present
-      const itemWithDivision = {
-        ...item,
-        divisionId: item.divisionId || currentDivisionId
-      };
+      // Conditionally add division ID to the item
+      let itemWithDivision: any = { ...item };
+      if (currentDivisionId) {
+        // Only add divisionId if the context provides one.
+        // We assume the specific service (e.g., projectsService.addProject) 
+        // expects a field named 'divisionId' or handles its absence.
+        itemWithDivision.divisionId = currentDivisionId;
+      }
+
+      console.log(`[useSupabaseData - add ${entityType}] Data before sending:`, 
+        JSON.stringify(itemWithDivision, null, 2)
+      );
       
       const addMethod = getAddMethod();
       const newItem = await addMethod(itemWithDivision);
