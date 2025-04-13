@@ -125,22 +125,27 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               </Label>
               <Select 
                 value={newTask.assignee}
-                onValueChange={(value) => setNewTask({...newTask, assignee: value})}
+                onValueChange={(value) => {
+                  const selectedStaff = staffMembers.find(staff => staff.email === value);
+                  setNewTask({...newTask, assignee: value});
+                }}
               >
                 <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
-                  <SelectValue placeholder="Select assignee" />
+                  <SelectValue placeholder="Select assignee">
+                    {staffMembers.find(staff => staff.email === newTask.assignee)?.name || "Select assignee"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {loading ? (
-                    <SelectItem value="_loading">Loading staff members...</SelectItem>
+                    <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.name}>
+                      <SelectItem key={staff.id} value={staff.email}>
                         {staff.name} ({staff.job_title})
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="_no_staff">No staff members found</SelectItem>
+                    <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
                   )}
                 </SelectContent>
               </Select>

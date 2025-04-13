@@ -79,6 +79,8 @@ import {
   useKRAsData 
 } from '@/hooks/useSupabaseData';
 import { OrganizationUnit } from '@/types';
+import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
+import { StaffMember } from '@/types/staff';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -511,6 +513,8 @@ const Unit = () => {
   // Keep the existing KRA state for now, could be migrated later
   const kraState = useKraState();
 
+  const { staffMembers, loading: staffLoading, error: staffError } = useStaffByDepartment();
+
   // Load user's units when authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -870,6 +874,7 @@ const Unit = () => {
                 deleteTask={taskState.remove}
                 error={taskState.error}
                 onRetry={taskState.refresh}
+                staffMembers={staffMembers}
               />
             </TabsContent>
             

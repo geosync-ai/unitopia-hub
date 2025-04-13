@@ -7,6 +7,7 @@ import { MoreHorizontal, Plus, Edit, Trash2 } from 'lucide-react';
 import AddTaskModal from './modals/AddTaskModal';
 import EditTaskModal from './modals/EditTaskModal';
 import DeleteModal from './modals/DeleteModal';
+import { StaffMember } from '@/types/staff';
 
 interface Task {
   id: string;
@@ -30,9 +31,10 @@ interface TasksTabProps {
   deleteTask: (id: string) => void;
   error?: Error | null;
   onRetry?: () => void;
+  staffMembers: StaffMember[];
 }
 
-export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, deleteTask }) => {
+export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, deleteTask, staffMembers }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -78,6 +80,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
     }
   };
 
+  const getAssigneeName = (email: string) => {
+    const staff = staffMembers.find(s => s.email === email);
+    return staff ? staff.name : email;
+  };
+
   return (
     <>
       <Card>
@@ -114,7 +121,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
                     <TableCell>{task.title}</TableCell>
                     <TableCell>{getStatusBadge(task.status)}</TableCell>
                     <TableCell>{getPriorityBadge(task.priority)}</TableCell>
-                    <TableCell>{task.assignee}</TableCell>
+                    <TableCell>{getAssigneeName(task.assignee)}</TableCell>
                     <TableCell>{task.dueDate}</TableCell>
                     <TableCell>{task.projectName || 'N/A'}</TableCell>
                     <TableCell className="text-right">
@@ -147,7 +154,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
           open={showEditModal}
           onOpenChange={setShowEditModal}
           task={selectedTask}
-          onSubmit={(updatedTask) => editTask(selectedTask.id, updatedTask)}
+          onSave={(updatedTask) => editTask(selectedTask.id, updatedTask)}
         />
       )}
       
@@ -157,9 +164,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
           onOpenChange={setShowDeleteModal}
           title="Delete Task"
           description={`Are you sure you want to delete the task "${selectedTask.title}"? This action cannot be undone.`}
-          onConfirm={() => {
+          onDelete={() => {
             deleteTask(selectedTask.id);
-            setShowDeleteModal(false);
           }}
         />
       )}
