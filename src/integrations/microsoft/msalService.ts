@@ -256,98 +256,269 @@ export const getUserProfile = async (
 };
 
 /**
- * Explicitly handle redirect responses from Microsoft authentication
- * This can be called from components that know a redirect is happening
+ * Handle redirect response after login
  */
 export const handleRedirectResponse = async (
   msalInstance?: IPublicClientApplication
 ): Promise<AuthenticationResult | null> => {
-  const instance = msalInstance || getMsalInstance();
-  if (!instance) {
-    console.error('MSAL instance not available for handling redirect');
-    return null;
-  }
-  
   try {
-    console.log('[MSAL] Explicitly handling redirect response...');
-    const response = await instance.handleRedirectPromise();
+    const instance = msalInstance || getMsalInstance();
+    if (!instance) {
+      console.error('MSAL instance not available during redirect handling');
+      return null;
+    }
+
+    console.log('Starting redirect response handling...');
+    
+    // Check if there are auth parameters in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlHash = window.location.hash;
+    const hasAuthParams = urlParams.has('code') || urlParams.has('error') || 
+                          urlHash.includes('access_token') || urlHash.includes('id_token');
+    
+    console.log('URL contains auth parameters:', hasAuthParams);
+    console.log('Current URL hash:', urlHash ? urlHash : '[EMPTY]');
+    console.log('Current URL search:', window.location.search);
+    
+    // Clear storage state to ensure a clean state
+    if (hasAuthParams) {
+      console.log('Auth parameters detected in URL, clearing any stale state before processing');
+      sessionStorage.removeItem('msal.interaction.status');
+    }
+
+    // Process the redirect with detailed logging
+    console.log('Calling handleRedirectPromise() to process auth response...');
+    
+    // Set a timeout to detect hanging redirect
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        console.log('Redirect handling timed out after 10 seconds');
+        resolve(null);
+      }, 10000); // 10 second timeout
+    });
+    
+    // Race between the redirect handling and timeout
+    const response = await Promise.race([
+      instance.handleRedirectPromise().then(response => {
+        console.log('Redirect handling completed with result:', response ? 'Success' : 'No response');
+        return response;
+      }),
+      timeoutPromise
+    ]);
     
     if (response) {
-      console.log('[MSAL] Successfully processed redirect response:', response);
+      console.log('Authentication successful via redirect');
+      console.log('Account:', response.account.username);
       
-      // Set the active account from the response
-      if (response.account) {
-        instance.setActiveAccount(response.account);
-      }
+      // Set the account as active
+      instance.setActiveAccount(response.account);
       
       return response;
     } else {
-      console.log('[MSAL] No redirect response found during explicit handling');
+      // Check if there are any accounts we can use
+      const accounts = instance.getAllAccounts();
+      if (accounts.length > 0) {
+        console.log('No redirect response, but found existing account:', accounts[0].username);
+        instance.setActiveAccount(accounts[0]);
+      } else {
+        console.log('No accounts found after redirect handling');
+      }
+      
       return null;
     }
   } catch (error) {
-    console.error('[MSAL] Error handling redirect response:', error);
-    // Detailed error logging
-    console.error('[MSAL] Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-    throw error;
+    console.error('Error handling redirect response:', error);
+    
+    // Enhanced error reporting
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      // Check for specific errors that might help diagnose the issue
+      if (error.message.includes('interaction_in_progress')) {
+        console.error('There is already an interaction in progress. Clear browser state and try again.');
+        // Try to clear the interaction state
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem('msal.interaction.status');
+        }
+      }
+    }
+    
+    return null;
   }
 };
 
-// Login with Microsoft
+/**
+ * Diagnose common authentication issues
+ */
+export const diagnoseMsalIssues = (): {
+  issues: string[];
+  recommendations: string[];
+} => {
+  const issues: string[] = [];
+  const recommendations: string[] = [];
+  
+  try {
+    // Check if MSAL instance exists
+    const instance = getMsalInstance();
+    if (!instance) {
+      issues.push('MSAL instance not found');
+      recommendations.push('Make sure MSAL is properly initialized before attempting login');
+      return { issues, recommendations };
+    }
+    
+    // Check environment
+    if (typeof window === 'undefined') {
+      issues.push('Running in server-side environment');
+      recommendations.push('MSAL authentication should be performed client-side only');
+    }
+    
+    // Check current URL vs configured redirect URI
+    const currentOrigin = window.location.origin;
+    const redirectUri = microsoftAuthConfig.redirectUri;
+    
+    console.log('Diagnosis - Current origin:', currentOrigin);
+    console.log('Diagnosis - Configured redirectUri:', redirectUri);
+    
+    if (!redirectUri.startsWith(currentOrigin)) {
+      issues.push(`Current origin (${currentOrigin}) doesn't match redirect URI origin`);
+      recommendations.push(`Update redirect URI to match the current application origin`);
+    }
+    
+    // Check for redirect loop possibility
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error')) {
+      const error = urlParams.get('error');
+      const errorDesc = urlParams.get('error_description');
+      
+      issues.push(`Auth error in URL: ${error}`);
+      if (errorDesc) {
+        issues.push(`Error description: ${errorDesc}`);
+      }
+      
+      if (error === 'redirect_uri_mismatch') {
+        recommendations.push('The redirect URI configured in Azure AD does not match the URI used by the application');
+        recommendations.push(`Ensure the exact URI "${redirectUri}" is added to the Azure portal`);
+      }
+    }
+    
+    // Check configured scopes
+    const scopes = microsoftAuthConfig.permissions || [];
+    if (!scopes.includes('User.Read')) {
+      issues.push('Basic User.Read scope is missing from permissions');
+      recommendations.push('Add User.Read to the permissions list for basic profile access');
+    }
+    
+    // Check existing accounts
+    const accounts = instance.getAllAccounts();
+    console.log('Diagnosis - Accounts in cache:', accounts.length);
+    
+    // Check browser storage
+    let storageIssue = false;
+    try {
+      localStorage.setItem('msal_test', 'test');
+      localStorage.removeItem('msal_test');
+    } catch (e) {
+      storageIssue = true;
+      issues.push('Unable to access localStorage');
+      recommendations.push('Check browser privacy settings or incognito mode');
+    }
+    
+    try {
+      sessionStorage.setItem('msal_test', 'test');
+      sessionStorage.removeItem('msal_test');
+    } catch (e) {
+      storageIssue = true;
+      issues.push('Unable to access sessionStorage');
+      recommendations.push('Check browser privacy settings or incognito mode');
+    }
+    
+    // If no specific issues found but still not working
+    if (issues.length === 0) {
+      recommendations.push('Clear browser cache and cookies, then try again');
+      recommendations.push('Check Azure AD configuration for correct redirect URI');
+      recommendations.push('Ensure the tenant ID and client ID are correct');
+    }
+    
+    return { issues, recommendations };
+  } catch (error) {
+    issues.push('Error running diagnostics');
+    if (error instanceof Error) {
+      issues.push(`Diagnostic error: ${error.message}`);
+    }
+    recommendations.push('Check browser console for detailed error messages');
+    return { issues, recommendations };
+  }
+};
+
+/**
+ * Login with Microsoft using best practices
+ */
 export const loginWithMicrosoft = async (instance: IPublicClientApplication): Promise<void> => {
   try {
-    console.log('[DEBUG - MSAL] Starting Microsoft login process...');
+    console.log('Starting enhanced Microsoft login process...');
     
-    // Clear all state to start fresh
-    localStorage.clear();
-    sessionStorage.clear();
+    // Run diagnostics to check for common issues
+    const { issues, recommendations } = diagnoseMsalIssues();
+    
+    if (issues.length > 0) {
+      console.warn('Potential authentication issues detected:');
+      issues.forEach(issue => console.warn(' - ' + issue));
+      console.info('Recommendations:');
+      recommendations.forEach(rec => console.info(' - ' + rec));
+    }
+    
+    // Check for existing accounts
+    const accounts = instance.getAllAccounts();
+    
+    if (accounts.length > 0) {
+      console.log('Found existing account, setting as active');
+      instance.setActiveAccount(accounts[0]);
+      
+      try {
+        console.log('Attempting silent token acquisition...');
+        const response = await instance.acquireTokenSilent({
+          scopes: microsoftAuthConfig.permissions || [],
+          account: accounts[0]
+        });
+        
+        console.log('Silent token acquisition successful');
+        return;
+      } catch (error) {
+        if (error instanceof InteractionRequiredAuthError) {
+          console.log('Silent token acquisition failed, interaction required');
+          // Fall through to redirect flow
+        } else {
+          console.error('Error during silent token acquisition:', error);
+          throw error;
+        }
+      }
+    }
+    
+    // Clear any existing state that might interfere
+    sessionStorage.removeItem('msal.interaction.status');
     
     // Use the exact redirect URI from config
     const redirectUri = microsoftAuthConfig.redirectUri;
-    console.log('[DEBUG - MSAL] Using redirect URI:', redirectUri);
+    console.log(`Using redirectUri: ${redirectUri}`);
     
-    console.log('[DEBUG - MSAL] Authentication parameters:', {
-      redirectUri,
-      clientId: microsoftAuthConfig.clientId,
-      authority: microsoftAuthConfig.authorityUrl,
-      scopes: microsoftAuthConfig.permissions
-    });
+    // Generate a unique state for better traceability
+    const state = `login-${Date.now()}`;
     
-    // Check if the MSAL instance is properly initialized
-    if (!instance) {
-      console.error('[DEBUG - MSAL] Error: MSAL instance is null or undefined');
-      throw new Error('MSAL instance not initialized');
-    }
-    
-    // Clear any existing accounts to force a clean login
-    instance.clearCache();
-    
-    // Create a simple login request with the exact redirect URI
-    const loginParams = {
+    // Start login with redirect flow
+    await instance.loginRedirect({
       scopes: microsoftAuthConfig.permissions || [],
-      redirectUri
-    };
-    
-    console.log('[DEBUG - MSAL] Attempting to initiate redirect login');
-    await instance.loginRedirect(loginParams);
-    console.log('[DEBUG - MSAL] Login redirect initiated successfully');
-  } catch (error) {
-    console.error('[DEBUG - MSAL] Error during Microsoft login:', error);
-    
-    // Detailed error logging
-    console.error('[DEBUG - MSAL] Error details:', {
-      name: error.name,
-      message: error.message,
-      errorCode: error.errorCode,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+      redirectUri,
+      state,
+      prompt: 'select_account' // Force account selection
     });
     
+    console.log('Redirect login initiated');
+  } catch (error) {
+    console.error('Enhanced login process failed:', error);
     throw error;
   }
 };

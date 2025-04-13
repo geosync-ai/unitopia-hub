@@ -1,6 +1,7 @@
-import React, { useState, ReactNode } from 'react';
+import React, { useState, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 import microsoftAuthConfig from '@/config/microsoft-auth';
+import { handleRedirectResponse } from '@/integrations/microsoft/msalService';
 
 interface MicrosoftLoginButtonProps {
   className?: string;
@@ -12,6 +13,53 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
   text = "Sign in with Microsoft"
 }) => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  // Check for redirect response on component mount
+  useEffect(() => {
+    const checkForRedirectResponse = async () => {
+      try {
+        // Get the MSAL instance from the window object
+        const msalInstance = (typeof window !== 'undefined' && (window as any).msalInstance) 
+          ? (window as any).msalInstance 
+          : null;
+        
+        if (!msalInstance) {
+          console.log('No MSAL instance available for redirect check');
+          return;
+        }
+        
+        // Check if we're returning from a redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlHash = window.location.hash;
+        const hasAuthParams = urlParams.has('code') || urlParams.has('error') || 
+                              urlHash.includes('access_token') || urlHash.includes('id_token');
+        
+        if (hasAuthParams) {
+          console.log('Auth parameters detected in URL, processing redirect response');
+          setIsLoggingIn(true);
+          
+          // Handle the redirect response
+          const response = await handleRedirectResponse(msalInstance);
+          
+          if (response) {
+            console.log('Redirect login successful, account:', response.account.username);
+            toast.success('Successfully signed in!');
+          } else {
+            console.log('No response from redirect handling');
+          }
+          
+          setIsLoggingIn(false);
+        } else {
+          console.log('No auth parameters in URL, not processing redirect');
+        }
+      } catch (error) {
+        console.error('Error checking redirect response:', error);
+        setIsLoggingIn(false);
+      }
+    };
+    
+    checkForRedirectResponse();
+  }, []);
 
   const handleLogin = async () => {
     if (isLoggingIn) return;
@@ -34,22 +82,41 @@ const MicrosoftLoginButton: React.FC<MicrosoftLoginButtonProps> = ({
       
       console.log('Microsoft login button - MSAL instance found');
       
-      // Start fresh by clearing all storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Clear cache to ensure a fresh login attempt
-      msalInstance.clearCache();
+      // Ensure clean state before login attempt
+      sessionStorage.removeItem('msal.interaction.status');
       
       // Use the exact redirect URI from the config
       const redirectUri = microsoftAuthConfig.redirectUri;
       console.log('Microsoft login button - Using redirect URI:', redirectUri);
       
-      // Force a clean login with minimal parameters
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        console.log('User already has an account, attempting silent token acquisition');
+        try {
+          await msalInstance.acquireTokenSilent({
+            account: accounts[0],
+            scopes: ['User.Read'],
+          });
+          
+          toast.success('Signed in successfully!');
+          console.log('Silent authentication successful');
+          setIsLoggingIn(false);
+          return;
+        } catch (error) {
+          console.log('Silent token acquisition failed, falling back to redirect:', error);
+        }
+      }
+      
+      // Add state parameter for better tracking
+      const state = `login-${new Date().getTime()}`;
+      
+      // Force a clean login with explicit redirect URI
       console.log('Microsoft login button - Initiating login redirect');
       await msalInstance.loginRedirect({
         scopes: ['User.Read'],
-        redirectUri: redirectUri
+        redirectUri: redirectUri,
+        state: state,
+        prompt: 'select_account', // Force account selection
       });
       
       console.log('Login redirect initiated successfully');
