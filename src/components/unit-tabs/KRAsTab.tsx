@@ -48,17 +48,17 @@ const mockUsers: User[] = [
 ];
 
 const mockKpis1: Kpi[] = [
-  { id: 'kpi1', name: 'Customer Satisfaction Score', target: 90, actual: 85, status: 'At Risk', comments: 'Survey results pending' },
-  { id: 'kpi2', name: 'Support Response Time', target: 4, actual: 3.5, status: 'On Track' },
+  { id: 'kpi1', name: 'Customer Satisfaction Score', target: 90, actual: 85, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01', comments: 'Survey results pending' },
+  { id: 'kpi2', name: 'Support Response Time', target: 4, actual: 3.5, status: 'On Track', startDate: '2023-01-05', targetDate: '2023-03-31' },
 ];
 
 const mockKpis2: Kpi[] = [
-  { id: 'kpi3', name: 'Market Share Percentage', target: 25, actual: 22, status: 'At Risk' },
+  { id: 'kpi3', name: 'Market Share Percentage', target: 25, actual: 22, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01' },
 ];
 
 const mockKpis3: Kpi[] = [
-  { id: 'kpi4', name: 'New Feature Adoption Rate', target: 60, actual: 65, status: 'Completed' },
-  { id: 'kpi5', name: 'Documentation Accuracy', target: 95, actual: 90, status: 'In Progress' },
+  { id: 'kpi4', name: 'New Feature Adoption Rate', target: 60, actual: 65, status: 'Completed', startDate: '2023-03-15', targetDate: '2023-07-31' },
+  { id: 'kpi5', name: 'Documentation Accuracy', target: 95, actual: 90, status: 'In Progress', startDate: '2023-04-01', targetDate: '2023-09-15' },
 ];
 
 const mockKras: Kra[] = [
@@ -97,12 +97,11 @@ const mockKras: Kra[] = [
 ];
 // --- End Mock Data ---
 
-// Helper function to format dates (replace with a date library like date-fns or moment if available)
-const formatDate = (dateString: string): string => {
+// Helper function to format dates (DD MMM YYYY)
+const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
-    // Format as DD MMM YYYY
     return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   } catch (e) {
     console.error("Error formatting date:", dateString, e);
@@ -110,23 +109,8 @@ const formatDate = (dateString: string): string => {
   }
 };
 
-// Helper to calculate sums
-const sumTargets = (kpis: Kpi[]) => kpis.reduce((sum, kpi) => sum + (Number(kpi.target) || 0), 0);
-const sumActuals = (kpis: Kpi[]) => kpis.reduce((sum, kpi) => sum + (Number(kpi.actual) || 0), 0);
-
-// Helper to determine overall KRA status based on KPIs
-const getKraStatus = (kpis: Kpi[]): Kpi['status'] => {
-  if (!kpis || kpis.length === 0) return 'Not Started';
-  if (kpis.some(kpi => kpi.status === 'At Risk')) return 'At Risk';
-  if (kpis.every(kpi => kpi.status === 'Completed')) return 'Completed';
-   if (kpis.some(kpi => kpi.status === 'On Hold')) return 'On Hold';
-  if (kpis.some(kpi => kpi.status === 'In Progress')) return 'In Progress';
-  if (kpis.some(kpi => kpi.status === 'On Track')) return 'On Track'; // Should be before In Progress if desired
-  return 'Not Started'; // Default
-};
-
-// Map KRA status to Badge variants
-const getStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" => {
+// Map KPI status to Badge variants (can reuse getStatusVariant logic if desired)
+const getKpiStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
     case 'Completed': return 'default';
     case 'At Risk': return 'destructive';
@@ -138,17 +122,24 @@ const getStatusVariant = (status: Kpi['status']): "default" | "secondary" | "des
   }
 };
 
-// Define filters state type
+// Define filters state type (remains the same for now)
 interface KraFiltersState {
-  // kraId: string; // Filtering by KRA ID might be less common here, focus on properties
   department: string;
-  status: string; // Matches Kpi['status'] | 'all'
-  responsible: string; // Assignee name or ID
+  status: string; // This now likely filters by KPI status
+  responsible: string;
+}
+
+// Define structure for the processed rows
+interface ProcessedRow {
+    kra: Kra;
+    kpi: Kpi;
+    isFirstKpiOfKra: boolean;
+    kraRowSpan: number;
 }
 
 export const KRAsTab: React.FC = () => {
-  // Use local state management
-  const [kras, setKras] = useState<Kra[]>(mockKras); // Now kras and setKras are defined here
+  // State management (kras, modal state, filters)
+  const [kras, setKras] = useState<Kra[]>(mockKras);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKra, setEditingKra] = useState<Kra | undefined>(undefined);
   const [filters, setFilters] = useState<KraFiltersState>({
@@ -160,25 +151,18 @@ export const KRAsTab: React.FC = () => {
   // Memoize derived state for filters
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
   const objectives = useMemo(() => Array.from(new Set(kras.map(kra => kra.objective || 'Unknown'))).filter(o => o !== 'Unknown'), [kras]);
-  // units is effectively the same as departments in this data structure
-  const units = departments;
-
+  const units = departments; // Assuming unit is the same as department
   const responsibleUsers = useMemo(() => {
     const usersSet = new Set<string>();
     kras.forEach(kra => {
-      // Check if assignees is an array and not empty before mapping
       if (Array.isArray(kra.assignees)) {
-        kra.assignees.forEach(u => {
-          // Also check if user and user.name exist (optional but safer)
-          if (u && u.name) {
-             usersSet.add(u.name)
-          }
-        });
+        kra.assignees.forEach(u => { if (u && u.name) { usersSet.add(u.name) } });
       }
     });
     return Array.from(usersSet);
-  }, [kras]); // Rerun when kras data changes
-  const statuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
+  }, [kras]);
+  // Filter options for KPI status
+  const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
 
   const handleFilterChange = useCallback((filterName: keyof KraFiltersState, value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -192,16 +176,40 @@ export const KRAsTab: React.FC = () => {
     });
   }, []);
 
-  // Apply filters
-  const filteredKras = useMemo(() => {
-    return kras.filter(kra => {
-      const departmentMatch = filters.department === 'all' || kra.unit === filters.department;
-      const responsibleMatch = filters.responsible === 'all' || kra.assignees.some(u => u.name === filters.responsible); // Match by name
-      const overallStatus = getKraStatus(kra.kpis);
-      const statusMatch = filters.status === 'all' || overallStatus === filters.status;
+  // Pre-process KRAs into rows suitable for rendering the new table structure
+  const processedRows = useMemo((): ProcessedRow[] => {
+    let rows: ProcessedRow[] = [];
+    kras.forEach(kra => {
+      const kraKpis = kra.kpis && kra.kpis.length > 0 ? kra.kpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi]; // Handle KRAs with no KPIs
 
-      return departmentMatch && responsibleMatch && statusMatch;
+      // Apply filters at the KRA level first
+      const departmentMatch = filters.department === 'all' || kra.unit === filters.department;
+      const responsibleMatch = filters.responsible === 'all' || (kra.assignees || []).some(u => u.name === filters.responsible);
+
+      if (!departmentMatch || !responsibleMatch) {
+        return; // Skip this KRA if it doesn't match filters
+      }
+
+      // Filter KPIs within the matched KRA
+      const filteredKpis = kraKpis.filter(kpi =>
+           filters.status === 'all' || kpi.status === filters.status
+      );
+
+      if (filteredKpis.length > 0) {
+          const kraRowSpan = filteredKpis.length;
+          filteredKpis.forEach((kpi, index) => {
+            rows.push({
+              kra: kra,
+              kpi: kpi,
+              isFirstKpiOfKra: index === 0,
+              kraRowSpan: kraRowSpan
+            });
+          });
+      }
+      // If a KRA matches department/responsible but has no matching KPIs after status filter,
+      // we might still want to show it, depending on desired behavior. Currently, it's skipped.
     });
+    return rows;
   }, [kras, filters]);
 
   // Modal Handlers
@@ -211,8 +219,15 @@ export const KRAsTab: React.FC = () => {
   };
 
   const handleOpenEditModal = (kra: Kra) => {
-    setEditingKra(kra);
-    setIsModalOpen(true);
+    // Find the full KRA object to edit, including all its KPIs
+    const kraToEdit = kras.find(k => k.id === kra.id);
+    if (kraToEdit) {
+      setEditingKra(kraToEdit);
+      setIsModalOpen(true);
+    } else {
+       console.error("Could not find KRA data to edit for ID:", kra.id)
+       // Optionally show a user-facing error message
+    }
   };
 
   const handleCloseModal = () => {
@@ -220,16 +235,13 @@ export const KRAsTab: React.FC = () => {
     setEditingKra(undefined);
   };
 
-  // Form Submission (from Modal)
+  // Form Submission / Deletion Handlers (adapt for Supabase later)
   const handleFormSubmit = (formData: Kra) => {
-    // TODO: Add actual API call for saving/updating data
     console.log("Submitting form data:", formData);
     if (editingKra) {
-      // Update existing KRA
       setKras(prevKras => prevKras.map(k => k.id === formData.id ? formData : k));
       console.log("Updated KRA:", formData.id);
     } else {
-      // Add new KRA (ensure temporary ID is assigned if backend doesn't return one immediately)
       const newKraWithId = { ...formData, id: formData.id || `kra_${Date.now()}` };
       setKras(prevKras => [...prevKras, newKraWithId]);
       console.log("Added new KRA:", newKraWithId.id);
@@ -237,13 +249,10 @@ export const KRAsTab: React.FC = () => {
     handleCloseModal();
   };
 
-  // Deletion Handler
   const handleDeleteKra = (kraId: string | number) => {
-      // TODO: Implement confirmation dialog before deleting
-      if (window.confirm(`Are you sure you want to delete KRA ${kraId}? This action cannot be undone.`)) {
-        console.log("Deleting KRA:", kraId); // Replace with actual API call
+      if (window.confirm(`Are you sure you want to delete KRA ${kraId} and all its KPIs? This action cannot be undone.`)) {
+        console.log("Deleting KRA:", kraId);
         setKras(prevKras => prevKras.filter(k => k.id !== kraId));
-        // TODO: Show toast notification on success/failure
       }
   };
 
@@ -270,7 +279,7 @@ export const KRAsTab: React.FC = () => {
           <CardContent>
             <Tabs defaultValue="kpis">
               <TabsList className="mb-4">
-                <TabsTrigger value="kpis">KRAs</TabsTrigger>
+                <TabsTrigger value="kpis">KPIs</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="insights">Insights</TabsTrigger>
               </TabsList>
@@ -298,16 +307,16 @@ export const KRAsTab: React.FC = () => {
                   </div>
                   
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="kra-status-filter">Status</Label>
+                    <Label htmlFor="kpi-status-filter">KPI Status</Label>
                     <Select
                       value={filters.status}
                       onValueChange={(value) => handleFilterChange('status', value)}
                     >
-                      <SelectTrigger id="kra-status-filter">
+                      <SelectTrigger id="kpi-status-filter">
                         <SelectValue placeholder="All Statuses" />
                       </SelectTrigger>
                       <SelectContent>
-                        {statuses.map(status => (
+                        {kpiStatuses.map(status => (
                           <SelectItem key={status} value={status}>
                             {status === 'all' ? 'All Statuses' : status}
                           </SelectItem>
@@ -353,101 +362,85 @@ export const KRAsTab: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[25%]">KRA</TableHead>
-                        <TableHead>KPI(s)</TableHead>
+                        <TableHead className="w-[20%]">KRA</TableHead>
+                        <TableHead className="w-[25%]">KPI</TableHead>
                         <TableHead>Start Date</TableHead>
                         <TableHead>Target Date</TableHead>
                         <TableHead>Target</TableHead>
                         <TableHead>Actual</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Assignees</TableHead>
-                        <TableHead>Comments</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredKras.length === 0 ? (
+                      {processedRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={10} className="h-24 text-center">
-                            No KRAs found matching the current filters.
+                          <TableCell colSpan={9} className="h-24 text-center">
+                            No KPIs found matching the current filters.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredKras.map((kra) => {
-                          const status = getKraStatus(kra.kpis);
-                          const statusVariant = getStatusVariant(status);
+                        processedRows.map(({ kra, kpi, isFirstKpiOfKra, kraRowSpan }, rowIndex) => {
+                          const kpiStatusVariant = getKpiStatusVariant(kpi.status);
                           return (
-                            <TableRow key={kra.id}>
-                              <TableCell className="font-medium align-top">
-                                {kra.title}
-                                <span className="block text-xs text-muted-foreground mt-0.5">{kra.objective}</span>
+                            <TableRow key={`${kra.id}-${kpi.id || rowIndex}`}>
+                              {isFirstKpiOfKra && (
+                                <TableCell className="font-medium align-top border-r" rowSpan={kraRowSpan}>
+                                  {kra.title}
+                                  <span className="block text-xs text-muted-foreground mt-0.5">{kra.objective}</span>
+                                </TableCell>
+                              )}
+                              <TableCell className="align-top text-sm">
+                                {kpi.name !== '-' ? kpi.name : <span className="text-muted-foreground">-</span>}
                               </TableCell>
-                              <TableCell className="align-top text-xs">
-                                {kra.kpis && kra.kpis.length > 0 ? (
-                                  <div className="flex flex-col gap-1">
-                                    {kra.kpis.map((kpi, index) => (
-                                        <span key={kpi.id || index} className="block truncate" title={kpi.name}>
-                                            {kpi.name}
-                                        </span>
+                              <TableCell className="align-top text-sm">{formatDate(kpi.startDate)}</TableCell>
+                              <TableCell className="align-top text-sm">{formatDate(kpi.targetDate)}</TableCell>
+                              <TableCell className="align-top text-sm">{kpi.target ?? '-'}</TableCell>
+                              <TableCell className="align-top text-sm">{kpi.actual ?? '-'}</TableCell>
+                              <TableCell className="align-top">
+                                {kpi.name !== '-' ? (
+                                     <Badge variant={kpiStatusVariant}>{kpi.status}</Badge>
+                                ) : '-'}
+                              </TableCell>
+                              {isFirstKpiOfKra && (
+                                <TableCell className="align-top" rowSpan={kraRowSpan}>
+                                  <div className="flex -space-x-2 overflow-hidden">
+                                    {(kra.assignees || []).map(user => (
+                                      <Tooltip key={user.id}>
+                                        <TooltipTrigger asChild>
+                                          <Avatar className="inline-block h-7 w-7 rounded-full ring-2 ring-background">
+                                            <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                            <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{user.name}</TooltipContent>
+                                      </Tooltip>
                                     ))}
+                                    {(kra.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
                                   </div>
-                                ) : (
-                                  <span className="text-muted-foreground">None</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="align-top">{formatDate(kra.startDate)}</TableCell>
-                              <TableCell className="align-top">{formatDate(kra.targetDate)}</TableCell>
-                              <TableCell className="align-top">{sumTargets(kra.kpis)}</TableCell>
-                              <TableCell className="align-top">{sumActuals(kra.kpis)}</TableCell>
-                              <TableCell className="align-top">
-                                <Badge variant={statusVariant}>{status}</Badge>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                <div className="flex -space-x-2 overflow-hidden">
-                                  {kra.assignees.map(user => (
-                                    <Tooltip key={user.id}>
-                                      <TooltipTrigger asChild>
-                                        <Avatar className="inline-block h-7 w-7 rounded-full ring-2 ring-background">
-                                          <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                          <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                      </TooltipTrigger>
-                                      <TooltipContent>{user.name}</TooltipContent>
-                                    </Tooltip>
-                                  ))}
-                                  {kra.assignees.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
-                                </div>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {kra.comments && (
+                                </TableCell>
+                              )}
+                              {isFirstKpiOfKra && (
+                                <TableCell className="text-right align-top" rowSpan={kraRowSpan}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditModal(kra)}>
+                                        <Edit className="h-4 w-4" />
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent><p className="max-w-xs">{kra.comments}</p></TooltipContent>
+                                    <TooltipContent>Edit KRA & KPIs</TooltipContent>
                                   </Tooltip>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right align-top">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditModal(kra)}>
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Edit KRA</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Delete KRA</TooltipContent>
-                                </Tooltip>
-                              </TableCell>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Delete KRA</TooltipContent>
+                                  </Tooltip>
+                                </TableCell>
+                              )}
                             </TableRow>
                           );
                         })
@@ -458,11 +451,11 @@ export const KRAsTab: React.FC = () => {
               </TabsContent>
               
               <TabsContent value="timeline">
-                <KRATimelineTab kras={filteredKras} />
+                <KRATimelineTab kras={kras} />
               </TabsContent>
               
               <TabsContent value="insights">
-                <KRAInsightsTab kras={filteredKras} />
+                <KRAInsightsTab kras={kras} />
               </TabsContent>
             </Tabs>
           </CardContent>

@@ -7,6 +7,8 @@ export interface Kpi {
   description?: string; // Add description field
   target: number;
   actual?: number;
+  startDate?: string; // Add KPI start date
+  targetDate?: string; // Add KPI target date (or 'dueDate')
   status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'At Risk' | 'On Track';
   comments?: string;
 }

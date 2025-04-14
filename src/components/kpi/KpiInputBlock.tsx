@@ -74,6 +74,29 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
           </div>
         </div>
 
+        {/* KPI Start Date & Target Date (Side by side) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor={`kpi-start-date-${kpiIndex}`}>Start Date</Label>
+            <Input
+              id={`kpi-start-date-${kpiIndex}`}
+              type="date"
+              value={formData.startDate || ''}
+              onChange={(e) => onChange('startDate', e.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`kpi-target-date-${kpiIndex}`}>Target Date</Label>
+            <Input
+              id={`kpi-target-date-${kpiIndex}`}
+              type="date"
+              value={formData.targetDate || ''}
+              onChange={(e) => onChange('targetDate', e.target.value)}
+              min={formData.startDate || ''} // Prevent target date before start date
+            />
+          </div>
+        </div>
+
         {/* Status Dropdown */}
         <div className="grid gap-1.5">
           <Label htmlFor={`kpi-status-${kpiIndex}`}>Status *</Label>
