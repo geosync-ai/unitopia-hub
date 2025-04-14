@@ -345,100 +345,102 @@ export const KRAsTab: React.FC = () => {
               </div>
               
               <TabsContent value="kpis">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[25%]">KRA</TableHead>
-                      <TableHead>KPI(s)</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>Target Date</TableHead>
-                      <TableHead>Target</TableHead>
-                      <TableHead>Actual</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Assignees</TableHead>
-                      <TableHead>Comments</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredKras.length === 0 ? (
+                <div className="overflow-auto border rounded-md">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center">
-                          No KRAs found matching the current filters.
-                        </TableCell>
+                        <TableHead className="w-[25%]">KRA</TableHead>
+                        <TableHead>KPI(s)</TableHead>
+                        <TableHead>Start Date</TableHead>
+                        <TableHead>Target Date</TableHead>
+                        <TableHead>Target</TableHead>
+                        <TableHead>Actual</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Assignees</TableHead>
+                        <TableHead>Comments</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ) : (
-                      filteredKras.map((kra) => {
-                        const status = getKraStatus(kra.kpis);
-                        const statusVariant = getStatusVariant(status);
-                        return (
-                          <TableRow key={kra.id}>
-                            <TableCell className="font-medium align-top">
-                              {kra.title}
-                              <span className="block text-xs text-muted-foreground mt-0.5">{kra.objective}</span>
-                            </TableCell>
-                            <TableCell className="align-top">
-                              <Badge variant="secondary">{kra.kpis.length}</Badge>
-                            </TableCell>
-                            <TableCell className="align-top">{formatDate(kra.startDate)}</TableCell>
-                            <TableCell className="align-top">{formatDate(kra.targetDate)}</TableCell>
-                            <TableCell className="align-top">{sumTargets(kra.kpis)}</TableCell>
-                            <TableCell className="align-top">{sumActuals(kra.kpis)}</TableCell>
-                            <TableCell className="align-top">
-                              <Badge variant={statusVariant}>{status}</Badge>
-                            </TableCell>
-                            <TableCell className="align-top">
-                              <div className="flex -space-x-2 overflow-hidden">
-                                {kra.assignees.map(user => (
-                                  <Tooltip key={user.id}>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredKras.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="h-24 text-center">
+                            No KRAs found matching the current filters.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredKras.map((kra) => {
+                          const status = getKraStatus(kra.kpis);
+                          const statusVariant = getStatusVariant(status);
+                          return (
+                            <TableRow key={kra.id}>
+                              <TableCell className="font-medium align-top">
+                                {kra.title}
+                                <span className="block text-xs text-muted-foreground mt-0.5">{kra.objective}</span>
+                              </TableCell>
+                              <TableCell className="align-top">
+                                <Badge variant="secondary">{kra.kpis.length}</Badge>
+                              </TableCell>
+                              <TableCell className="align-top">{formatDate(kra.startDate)}</TableCell>
+                              <TableCell className="align-top">{formatDate(kra.targetDate)}</TableCell>
+                              <TableCell className="align-top">{sumTargets(kra.kpis)}</TableCell>
+                              <TableCell className="align-top">{sumActuals(kra.kpis)}</TableCell>
+                              <TableCell className="align-top">
+                                <Badge variant={statusVariant}>{status}</Badge>
+                              </TableCell>
+                              <TableCell className="align-top">
+                                <div className="flex -space-x-2 overflow-hidden">
+                                  {kra.assignees.map(user => (
+                                    <Tooltip key={user.id}>
+                                      <TooltipTrigger asChild>
+                                        <Avatar className="inline-block h-7 w-7 rounded-full ring-2 ring-background">
+                                          <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                          <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{user.name}</TooltipContent>
+                                    </Tooltip>
+                                  ))}
+                                  {kra.assignees.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-top">
+                                {kra.comments && (
+                                  <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Avatar className="inline-block h-7 w-7 rounded-full ring-2 ring-background">
-                                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                        <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
-                                      </Avatar>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>{user.name}</TooltipContent>
+                                    <TooltipContent><p className="max-w-xs">{kra.comments}</p></TooltipContent>
                                   </Tooltip>
-                                ))}
-                                {kra.assignees.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
-                              </div>
-                            </TableCell>
-                            <TableCell className="align-top">
-                              {kra.comments && (
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right align-top">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditModal(kra)}>
+                                      <Edit className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent><p className="max-w-xs">{kra.comments}</p></TooltipContent>
+                                  <TooltipContent>Edit KRA</TooltipContent>
                                 </Tooltip>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right align-top">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditModal(kra)}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit KRA</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Delete KRA</TooltipContent>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete KRA</TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </TabsContent>
               
               <TabsContent value="timeline">

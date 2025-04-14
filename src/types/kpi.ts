@@ -1,8 +1,10 @@
 // src/types/kpi.ts
 
 export interface Kpi {
+  tempId?: string; // For React keys before saving
   id: string | number; // Or use UUIDs
   name: string;
+  description?: string; // Add description field
   target: number;
   actual?: number;
   status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'At Risk' | 'On Track';

@@ -39,7 +39,8 @@ const KpiModal: React.FC<KpiModalProps> = ({
       if (kraData) {
         // Editing existing KRA
         setFormData({ ...kraData });
-        setKpiBlocks(kraData.kpis ? [...kraData.kpis] : [{}]); // Start with existing KPIs or one empty block if none
+        // Ensure KPI blocks are initialized correctly, including description and comments
+        setKpiBlocks(kraData.kpis ? kraData.kpis.map(kpi => ({ ...kpi })) : [{}]);
       } else {
         // Adding new KRA - reset to defaults
         setFormData({

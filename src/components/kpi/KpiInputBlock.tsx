@@ -93,6 +93,18 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
           </Select>
         </div>
 
+        {/* KPI Description Textarea */}
+        <div className="grid gap-1.5">
+          <Label htmlFor={`kpi-description-${kpiIndex}`}>Description (Optional)</Label>
+          <Textarea
+            id={`kpi-description-${kpiIndex}`}
+            value={formData.description || ''}
+            onChange={(e) => onChange('description', e.target.value)}
+            placeholder="Describe this KPI..."
+            rows={2}
+          />
+        </div>
+
         {/* Comments Textarea */}
         <div className="grid gap-1.5">
           <Label htmlFor={`kpi-comments-${kpiIndex}`}>Comments (Optional)</Label>
