@@ -227,7 +227,9 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     kras.forEach(kra => {
       const objectiveName = objectivesData.find(o => o.id === kra.objectiveId)?.name || 'N/A';
 
-      const kraKpis = kra.kpis && kra.kpis.length > 0 ? kra.kpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
+      const kraKpis = (kra as any).unitKpis && (kra as any).unitKpis.length > 0 
+                       ? (kra as any).unitKpis 
+                       : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
 
       const departmentMatch = filters.department === 'all' || kra.unit === filters.department;
       if (!departmentMatch) return;
