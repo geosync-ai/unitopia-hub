@@ -22,7 +22,7 @@ export interface Kra {
   id: string | number; // Or use UUIDs
   title: string;
   objectiveId?: string | number; // Add this line
-  unit: string; // Assuming unit is stored as string, could be an ID
+  unit: string; // Assuming unit is stored as string, could be an ID. Let's treat this as unitId for form consistency.
   startDate: string; // ISO date string format recommended (e.g., "YYYY-MM-DD")
   targetDate: string; // ISO date string format recommended
   kpis: Kpi[];
