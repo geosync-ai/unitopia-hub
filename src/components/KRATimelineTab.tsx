@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kra, Kpi } from '@/types/kpi';
 
 interface KRATimelineTabProps {
@@ -61,6 +62,18 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
     if (progress >= 75) return "bg-green-400";
     if (progress >= 50) return "bg-amber-500";
     return "bg-red-500";
+  };
+
+  const getKpiStatusColorClass = (status: Kpi['status']): string => {
+    switch (status) {
+      case 'Completed': return "bg-blue-500";
+      case 'On Track': return "bg-green-500";
+      case 'In Progress': return "bg-green-400";
+      case 'At Risk': return "bg-amber-500";
+      case 'On Hold': return "bg-gray-400";
+      case 'Not Started': return "bg-gray-200";
+      default: return "bg-gray-300";
+    }
   };
 
   return (
@@ -165,38 +178,94 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
               </div>
 
               <div className="relative z-0">
-                {kras.map(kra => {
-                  const startDate = parseDate(kra.startDate);
-                  const targetDate = parseDate(kra.targetDate);
-                  const startPosition = calculatePosition(startDate);
-                  const width = calculateWidth(startDate, targetDate);
-                  const progress = getKraProgress(kra.kpis || []);
+                {kras.map((kra, kraIndex) => {
+                  const kraStartDate = parseDate(kra.startDate);
+                  const kraTargetDate = parseDate(kra.targetDate);
+                  const kraStartPosition = calculatePosition(kraStartDate);
+                  const kraWidth = calculateWidth(kraStartDate, kraTargetDate);
+                  const kraProgress = getKraProgress(kra.kpis || []);
+                  const kpisExist = kra.kpis && kra.kpis.length > 0;
 
                   return (
-                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: '4rem' }}>
+                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: currentViewMode !== 'quarters' && kpisExist ? `${(kra.kpis.length * 2) + 2}rem` : '4rem' }}>
                       <div className="w-48 px-4 py-3 text-sm shrink-0">
-                        <span className="font-medium text-gray-900 block truncate">{kra.objective || 'N/A'}</span>
+                        <span className="font-medium text-gray-900 block truncate">{kra.objectiveId ? `Obj: ${kra.objectiveId}` : 'N/A'}</span>
                       </div>
                       <div className="w-64 px-4 py-3 shrink-0">
                         <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
                         <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
                       </div>
-                      <div className="flex-1 relative h-16">
-                        {startDate && targetDate && width > 0 && (
-                          <div
-                            className="absolute h-6 rounded-md shadow-sm flex items-center overflow-hidden bg-blue-100"
-                            style={{
-                              left: `${startPosition}%`,
-                              width: `${width}%`,
-                              top: '1rem',
-                            }}
-                            title={`${kra.title} (${progress}%)`}
-                          >
-                            <div
-                              className={`h-full rounded-l-md ${getProgressColorClass(progress)} transition-all duration-300`}
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                      <div className={`flex-1 relative ${currentViewMode !== 'quarters' && kpisExist ? 'py-2' : 'h-16'}`}>
+                        {currentViewMode === 'quarters' ? (
+                          <>
+                            {kraStartDate && kraTargetDate && kraWidth > 0 && (
+                              <div
+                                className="absolute h-6 rounded-md shadow-sm flex items-center overflow-hidden bg-blue-100"
+                                style={{
+                                  left: `${kraStartPosition}%`,
+                                  width: `${kraWidth}%`,
+                                  top: '1rem',
+                                }}
+                                title={`${kra.title} (${kraProgress}%)`}
+                              >
+                                <div
+                                  className={`h-full rounded-l-md ${getProgressColorClass(kraProgress)} transition-all duration-300`}
+                                  style={{ width: `${kraProgress}%` }}
+                                />
+                                <span className="absolute left-2 right-2 top-0 bottom-0 flex items-center text-xs text-white font-medium px-1 truncate">
+                                  {/* {kra.title} - {kraProgress}% */}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {kra.kpis && kra.kpis.map((kpi, kpiIndex) => {
+                              const kpiStartDate = parseDate(kpi.startDate);
+                              const kpiTargetDate = parseDate(kpi.targetDate);
+                              const kpiStartPosition = calculatePosition(kpiStartDate);
+                              const kpiWidth = calculateWidth(kpiStartDate, kpiTargetDate);
+                              const kpiColorClass = getKpiStatusColorClass(kpi.status);
+
+                              if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
+                                return <></>;
+                              }
+
+                              return (
+                                <TooltipProvider key={kpi.id || `kpi-${kraIndex}-${kpiIndex}`} delayDuration={100}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        className={`absolute h-6 rounded shadow-sm flex items-center overflow-hidden ${kpiColorClass}`}
+                                        style={{
+                                          left: `${kpiStartPosition}%`,
+                                          width: `${kpiWidth}%`,
+                                          top: `${1 + kpiIndex * 1.75}rem`,
+                                          zIndex: 10 + kpiIndex,
+                                        }}
+                                      >
+                                        <span className="text-xs text-white font-medium px-1.5 truncate">
+                                          {kpi.name}
+                                        </span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" align="center">
+                                      <p>{kpi.name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'}
+                                      </p>
+                                      <p className="text-xs">Status: {kpi.status}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
+                            {(!kra.kpis || kra.kpis.length === 0) && (
+                                <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
+                                    No KPIs defined for this KRA.
+                                </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
