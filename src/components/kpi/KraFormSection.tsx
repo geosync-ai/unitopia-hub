@@ -169,7 +169,7 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
               <CommandInput 
                 placeholder="Search or type new KRA title..." 
                 value={formData.title || ''} 
-                onValueChange={(search) => onChange('title', search)} // Update form data as user types
+                onValueChange={(search) => onChange('title', search.trim())} // Update form data as user types, trimming whitespace
               />
               <CommandList>
                 <CommandEmpty>No existing KRAs found. Type to create new.</CommandEmpty>
@@ -179,7 +179,9 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
                       key={title}
                       value={title}
                       onSelect={(currentValue) => {
-                        onChange('title', currentValue === formData.title ? '' : currentValue)
+                        // Also trim when selecting an existing value to be safe
+                        const trimmedValue = currentValue.trim();
+                        onChange('title', trimmedValue === formData.title ? '' : trimmedValue)
                         // Optionally close popover on select: document.getElementById('kra-title')?.parentElement?.parentElement?.['aria-expanded'] = false;
                       }}
                     >
@@ -228,8 +230,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
         <div className="grid gap-1.5">
           <Label htmlFor="kra-unit">Unit / Department *</Label>
           <Select
-            value={formData.unitId?.toString() || ''}
-            onValueChange={(value) => onChange('unitId', value)}
+            value={formData.unit || ''}
+            onValueChange={(value) => onChange('unit', value)}
             required
           >
             <SelectTrigger id="kra-unit">
