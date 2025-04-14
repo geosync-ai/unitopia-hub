@@ -70,6 +70,7 @@ import { OrganizationUnit } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { Objective, Kra } from '@/types/kpi';
+import { unitService } from '@/integrations/supabase/unitService'; // Import the unitService
 
 // Import tab components
 import { TasksTab } from '@/components/unit-tabs/TasksTab';
@@ -112,17 +113,9 @@ const StatusDropdown: React.FC<{
   );
 };
 
-// --- Mock Data --- Placeholder - Replace with data fetching logic
-const mockObjectives: Objective[] = [
-  { id: 'obj1', name: 'Enhance User Experience', description: 'Improve overall user satisfaction and ease of use.' },
-  { id: 'obj2', name: 'Business Growth', description: 'Increase market share and revenue.' },
-  { id: 'obj3', name: 'Increase Efficiency', description: 'Streamline internal processes.' },
-];
-// --- End Mock Data ---
-
 // Define the main Unit component
 const Unit = () => {
-  const { user } = useAuth(); // Get user from useAuth
+  const { user } = useAuth();
   const { staffMembers } = useStaffByDepartment();
   const { toast } = useToast();
 
@@ -131,51 +124,80 @@ const Unit = () => {
   const projectState = useProjectsData();
   const riskState = useRisksData();
   const assetState = useAssetsData();
-  const kraState = useKRAsData(); // Assuming this hook returns { data: Kra[], loading, error, ... }
+  const kraState = useKRAsData();
 
   // Active Tab State
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // Objective State Management
-  const [objectivesData, setObjectivesData] = useState<Objective[]>(mockObjectives); // Initialize with mock data or fetched data
+  // Objective State Management - Initialize as empty array
+  const [objectivesData, setObjectivesData] = useState<Objective[]>([]); 
+  const [objectivesLoading, setObjectivesLoading] = useState<boolean>(true); // Add loading state
+  const [objectivesError, setObjectivesError] = useState<Error | null>(null); // Add error state
 
-  // Objective Handlers (keep as before)
-  const handleSaveObjective = useCallback((objective: Objective) => {
+  // --- Objective Fetching Logic --- 
+  const fetchObjectives = useCallback(async () => {
+    console.log("[Unit.tsx] Fetching objectives...");
+    setObjectivesLoading(true);
+    setObjectivesError(null);
+    try {
+      const fetchedObjectives = await unitService.getAllObjectives();
+      setObjectivesData(fetchedObjectives);
+      console.log("[Unit.tsx] Objectives fetched successfully:", fetchedObjectives);
+    } catch (error) {
+      console.error("[Unit.tsx] Failed to fetch objectives:", error);
+      setObjectivesError(error instanceof Error ? error : new Error('Failed to load objectives'));
+      toast({ title: "Error Loading Objectives", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+    } finally {
+      setObjectivesLoading(false);
+    }
+  }, [toast]); // Dependency array includes toast
+
+  // --- Modified Objective Handlers --- 
+  const handleSaveObjective = useCallback(async (objective: Objective) => {
+    // This function is now primarily called AFTER a successful save in KRAsTab
+    // We just need to update the local state and potentially re-fetch for consistency
+    console.log("[Unit.tsx] handleSaveObjective triggered. Updating local state and re-fetching.");
+    // Option 1: Optimistically update state (faster UI)
     setObjectivesData(prev => {
       const existingIndex = prev.findIndex(o => o.id === objective.id);
       if (existingIndex > -1) {
-        const updatedObjectives = [...prev];
-        updatedObjectives[existingIndex] = objective;
-        return updatedObjectives;
+        const updated = [...prev];
+        updated[existingIndex] = objective;
+        return updated;
       } else {
-        const newObjective = { ...objective, id: objective.id || `obj-${Date.now()}` };
-        return [...prev, newObjective];
+        return [...prev, objective]; // Add the new objective with the real ID from DB
       }
     });
-    toast({ title: "Objective saved successfully." });
-  }, [toast]);
+    // Option 2: Re-fetch all objectives (ensures consistency)
+    await fetchObjectives(); 
 
-  const handleDeleteObjective = useCallback((objectiveId: string | number) => {
+  }, [fetchObjectives]); // Depend on fetchObjectives
+
+  const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
+    // TODO: Implement Supabase delete logic here or in unitService
+    console.warn(`[Unit.tsx] handleDeleteObjective called for ID: ${objectiveId}. DB delete not implemented yet.`);
+    // For now, just remove from local state and show toast
     setObjectivesData(prev => prev.filter(o => o.id !== objectiveId));
-    toast({ title: "Objective deleted successfully.", variant: "destructive" });
+    toast({ title: "Objective deleted (locally).", variant: "destructive" });
+    // Consider calling fetchObjectives() after implementing DB delete
   }, [toast]);
 
   // Effect to load data on mount
   useEffect(() => {
-     // Ensure refresh functions exist before calling
-     taskState.refresh?.();
-     projectState.refresh?.();
-     riskState.refresh?.();
-     assetState.refresh?.();
-     kraState.refresh?.();
-     // Run only once on mount (and when refresh functions change, if ever)
-  }, [taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]);
+    console.log("[Unit.tsx] Initial data fetch useEffect triggered.");
+    fetchObjectives(); // Fetch objectives on mount
+    taskState.refresh?.();
+    projectState.refresh?.();
+    riskState.refresh?.();
+    assetState.refresh?.();
+    kraState.refresh?.();
+  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]); // Add fetchObjectives to dependencies
 
-  // Determine if data loading is complete - Use '.loading'
-  const isDataLoading = taskState.loading || projectState.loading || riskState.loading || assetState.loading || kraState.loading;
-  const hasDataLoadingError = taskState.error || projectState.error || riskState.error || assetState.error || kraState.error;
+  // Determine if data loading is complete - Include objectivesLoading
+  const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || assetState.loading || kraState.loading;
+  const hasDataLoadingError = objectivesError || taskState.error || projectState.error || riskState.error || assetState.error || kraState.error;
 
-  // Main content rendering directly
+  // Main content rendering
   return (
     <PageLayout>
       {user && (user.unitName || user.divisionName) && (
@@ -196,7 +218,8 @@ const Unit = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Display error messages */}
+            {/* Display error messages - Include objectivesError */}
+            {objectivesError && <p>Objectives Error: {objectivesError.message}</p>}
             {taskState.error && <p>Tasks Error: {taskState.error.message}</p>}
             {projectState.error && <p>Projects Error: {projectState.error.message}</p>}
             {riskState.error && <p>Risks Error: {riskState.error.message}</p>}
@@ -217,18 +240,18 @@ const Unit = () => {
             <TabsTrigger value="assets">User Asset Management</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab - Add objectives prop type in OverviewTab.tsx */}
+          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
             <OverviewTab
               projects={projectState.data}
               tasks={taskState.data}
               risks={riskState.data}
-              kras={kraState.data || []} // Use kraState.data
-              objectives={objectivesData} // Pass objectives
+              kras={kraState.data || []}
+              objectives={objectivesData} // Pass REAL objectivesData
             />
           </TabsContent>
 
-          {/* Tasks/Daily Operations Tab - Add objectives prop type in TasksTab.tsx */}
+          {/* Tasks/Daily Operations Tab */}
           <TabsContent value="tasks" className="space-y-6">
             <TasksTab
               tasks={taskState.data}
@@ -238,15 +261,15 @@ const Unit = () => {
               error={taskState.error}
               onRetry={taskState.refresh}
               staffMembers={staffMembers}
-              objectives={objectivesData} // Pass objectives
+              objectives={objectivesData} // Pass REAL objectivesData
             />
           </TabsContent>
 
-          {/* KRAs Tab - Already updated */}
+          {/* KRAs Tab */}
           <TabsContent value="kras" className="space-y-6">
             <KRAsTab
-              kras={kraState.data || []} // Use kraState.data
-              objectivesData={objectivesData}
+              kras={kraState.data || []} 
+              objectivesData={objectivesData} // Pass REAL objectivesData
               onSaveObjective={handleSaveObjective} 
               onDeleteObjective={handleDeleteObjective}
               // Derive units from KRA data if kraState doesn't provide it
@@ -255,7 +278,7 @@ const Unit = () => {
             />
           </TabsContent>
 
-          {/* Projects Tab - Add objectives prop type in ProjectsTab.tsx */}
+          {/* Projects Tab */}
           <TabsContent value="projects" className="space-y-6">
             <ProjectsTab
               projects={projectState.data}
@@ -265,11 +288,11 @@ const Unit = () => {
               error={projectState.error}
               onRetry={projectState.refresh}
               staffMembers={staffMembers}
-              objectives={objectivesData} // Pass objectives
+              objectives={objectivesData} // Pass REAL objectivesData
             />
           </TabsContent>
 
-          {/* Risks Tab - Add objectives and staffMembers prop types in RisksTab.tsx */}
+          {/* Risks Tab */}
           <TabsContent value="risks" className="space-y-6">
             <RisksTab
               risks={riskState.data}
@@ -280,11 +303,11 @@ const Unit = () => {
               onRetry={riskState.refresh}
               staffMembers={staffMembers} // Pass staffMembers
               projects={projectState.data} 
-              objectives={objectivesData} // Pass objectives
+              objectives={objectivesData} // Pass REAL objectivesData
             />
           </TabsContent>
 
-          {/* Assets Tab - Add staffMembers prop type in AssetsTab.tsx */}
+          {/* Assets Tab */}
           <TabsContent value="assets" className="space-y-6">
             <AssetsTab
               assets={assetState.data}

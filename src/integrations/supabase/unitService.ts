@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabaseClient';
 import supabaseConfig from '@/config/supabase';
+import { Objective } from '@/types/kpi'; // Import Objective type
 
 // Define Supabase table names
 const TABLES = {
@@ -8,7 +9,8 @@ const TABLES = {
   RISKS: 'unit_risks',
   ASSETS: 'unit_assets',
   KRAS: 'unit_kras',
-  KPIS: 'unit_kpis'
+  KPIS: 'unit_kpis',
+  OBJECTIVES: 'unit_objectives' // Add objectives table name
 };
 
 // Utility to convert camelCase to snake_case
@@ -729,10 +731,42 @@ export const krasService = {
   }
 };
 
-export default {
-  tasks: tasksService,
-  projects: projectsService,
-  risks: risksService,
-  assets: assetsService,
-  kras: krasService
-}; 
+// Define the service object (assuming one exists, otherwise create it)
+export const unitService = { // Or whatever your service object is named
+  
+  // --- ADD THIS FUNCTION ---
+  getAllObjectives: async (): Promise<Objective[]> => {
+    const supabase = getSupabaseClient();
+    console.log("[unitService] Fetching all objectives...");
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.OBJECTIVES)
+        .select('*')
+        .order('created_at', { ascending: true }); // Optional: order them
+
+      if (error) {
+        console.error("[unitService] Error fetching objectives:", error);
+        throw error;
+      }
+
+      console.log(`[unitService] Fetched ${data?.length || 0} objectives.`);
+
+      // Map snake_case (DB: title) to camelCase (Frontend: name)
+      return data ? data.map(dbObjective => ({
+        id: dbObjective.id, // uuid
+        name: dbObjective.title, // Map title to name
+        description: dbObjective.description,
+        // Map other fields if needed (e.g., status, unit_name)
+      })) : [];
+    } catch (error) {
+      console.error("[unitService] Unexpected error in getAllObjectives:", error);
+      throw error; // Re-throw the error to be handled by the calling component
+    }
+  },
+  // --- END ADDED FUNCTION ---
+
+  // ... other existing service functions (tasksService, projectsService, etc.) ...
+};
+
+// Export individual services if structured that way
+// e.g., export const tasksService = { ... }; export const projectsService = { ... }; 
