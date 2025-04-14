@@ -398,7 +398,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
         name: kpi.name,
         target: kpi.target || null,
         actual: kpi.actual || null, 
-        status: kpi.status || 'Not Started',
+        status: mapStatusToDbFormat(kpi.status || 'Not Started'),
         start_date: kpi.startDate || null,
         target_date: kpi.targetDate || null,
         assignees: kpi.assignees || [],
