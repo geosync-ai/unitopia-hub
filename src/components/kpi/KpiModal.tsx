@@ -18,7 +18,7 @@ interface KpiModalProps {
   users?: User[];
   staffMembers?: StaffMember[]; // Add staffMembers prop for assignees
   objectives?: Objective[]; // Changed from string[] to Objective[]
-  units?: string[]; // Example: List of units/departments
+  units?: { id: string | number; name: string }[]; // Update units prop type
 }
 
 const KpiModal: React.FC<KpiModalProps> = ({

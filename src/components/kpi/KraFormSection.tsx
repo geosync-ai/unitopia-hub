@@ -23,7 +23,7 @@ interface KraFormSectionProps {
   users?: User[]; // List of users for assignee selection
   staffMembers?: StaffMember[]; // Add staffMembers prop
   objectives?: Objective[]; // List of objectives for dropdown
-  units?: string[]; // List of units for dropdown
+  units?: { id: string | number; name: string }[]; // Update units prop type
 }
 
 // Simple MultiSelectChip component placeholder for Assignees
@@ -179,8 +179,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
         <div className="grid gap-1.5">
           <Label htmlFor="kra-unit">Unit / Department *</Label>
           <Select
-            value={formData.unit || ''}
-            onValueChange={(value) => onChange('unit', value)}
+            value={formData.unitId?.toString() || ''}
+            onValueChange={(value) => onChange('unitId', value)}
             required
           >
             <SelectTrigger id="kra-unit">
@@ -189,7 +189,7 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
             <SelectContent>
               {units.length > 0 ? (
                 units.filter(unit => unit).map((unit) => (
-                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  <SelectItem key={unit.id} value={unit.id.toString()}>{unit.name}</SelectItem>
                 ))
               ) : (
                 <div className="px-2 py-1.5 text-sm text-muted-foreground">No units defined.</div>

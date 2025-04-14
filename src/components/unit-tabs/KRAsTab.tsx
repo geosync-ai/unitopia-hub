@@ -170,13 +170,19 @@ interface ProcessedRow {
     kraRowSpan: number;
 }
 
+// Define structure for unit data (including ID)
+interface UnitData {
+  id: string | number;
+  name: string;
+}
+
 // Define Props for KRAsTab
 interface KRAsTabProps {
   kras: Kra[];
   objectivesData: Objective[];
   onSaveObjective: (objective: Objective) => void;
   onDeleteObjective: (objectiveId: string | number) => void;
-  units: string[];
+  units: UnitData[];
   staffMembers?: StaffMember[];
 }
 
@@ -298,20 +304,15 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     let kraId = editingKra?.id;
     let operationError = false;
 
-    // 1. Prepare KRA Payload (Map frontend fields to DB columns)
-    // Ensure formData fields match your KraFormData type
+    // 1. Prepare KRA Payload (Map ONLY active fields from KraFormSection)
     const kraPayload: any = {
-      title: formData.title,
-      objective_id: formData.objectiveId || null, // Ensure null if undefined
-      unit_name: formData.unit || 'Default Unit', // Map 'unit' to 'unit_name', provide default if needed
-      start_date: formData.startDate || null,
-      target_date: formData.targetDate || null,
-      assignees: formData.assignees || [], // Default to empty array if needed
-      description: formData.description || null,
-      status: mapStatusToDbFormat(formData.status || 'On Track')
+      title: formData.title || null, // Map from title input
+      objective_id: formData.objectiveId || null, // Map from objective select
+      unit_id: formData.unitId || null, // Map from unit select (now storing ID)
+      description: formData.comments || null, // Map description FROM comments textarea
     };
-    
-    // Get current division ID from localStorage
+
+    // Get current division ID from localStorage and add it
     const currentDivisionId = localStorage.getItem('current_division_id');
     if (currentDivisionId) {
       kraPayload.division_id = currentDivisionId;
@@ -607,8 +608,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                            <SelectContent>
                              <SelectItem value="all">All Departments</SelectItem>
                              {units.map(unit => (
-                               <SelectItem key={unit} value={unit}>
-                                 {unit}
+                               <SelectItem key={unit.id} value={unit.id}>
+                                 {unit.name}
                                </SelectItem>
                              ))}
                            </SelectContent>
