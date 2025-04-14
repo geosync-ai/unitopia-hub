@@ -158,7 +158,11 @@ export const KRAsTab: React.FC = () => {
   });
 
   // Memoize derived state for filters
-  const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit))), [kras]);
+  const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
+  const objectives = useMemo(() => Array.from(new Set(kras.map(kra => kra.objective || 'Unknown'))).filter(o => o !== 'Unknown'), [kras]);
+  // units is effectively the same as departments in this data structure
+  const units = departments;
+
   const responsibleUsers = useMemo(() => {
     const usersSet = new Set<string>();
     kras.forEach(kra => {
@@ -459,6 +463,9 @@ export const KRAsTab: React.FC = () => {
           onClose={handleCloseModal}
           kraData={editingKra}
           onSubmit={handleFormSubmit}
+          users={mockUsers}
+          objectives={objectives}
+          units={units}
         />
       </div>
     </TooltipProvider>

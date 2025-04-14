@@ -156,11 +156,11 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, use
             </SelectTrigger>
             <SelectContent>
               {objectives.length > 0 ? (
-                objectives.map((obj) => (
+                objectives.filter(obj => obj).map((obj) => (
                   <SelectItem key={obj} value={obj}>{obj}</SelectItem>
                 ))
               ) : (
-                <SelectItem value="" disabled>No objectives available</SelectItem>
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">No objectives defined.</div>
               )}
             </SelectContent>
           </Select>
@@ -179,12 +179,12 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, use
             </SelectTrigger>
             <SelectContent>
               {units.length > 0 ? (
-                 units.map((unit) => (
-                   <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                 ))
-               ) : (
-                 <SelectItem value="" disabled>No units available</SelectItem>
-               )}
+                units.filter(unit => unit).map((unit) => (
+                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                ))
+              ) : (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">No units defined.</div>
+              )}
             </SelectContent>
           </Select>
         </div>
