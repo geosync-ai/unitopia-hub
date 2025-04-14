@@ -66,19 +66,20 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
 
   const getKpiStatusColorClass = (status: Kpi['status']): string => {
     switch (status) {
-      case 'Completed': return "bg-blue-500";
-      case 'On Track': return "bg-green-500";
-      case 'In Progress': return "bg-green-400";
-      case 'At Risk': return "bg-amber-500";
-      case 'On Hold': return "bg-gray-400";
-      case 'Not Started': return "bg-gray-200";
+      case 'completed': return "bg-blue-500";
+      case 'on-track': return "bg-green-500";
+      case 'in-progress': return "bg-green-400";
+      case 'at-risk': return "bg-amber-500";
+      case 'on-hold': return "bg-gray-400";
+      case 'not-started': return "bg-gray-200";
+      case 'behind': return "bg-red-500";
       default: return "bg-gray-300";
     }
   };
 
   // Helper function to get KPI progress percentage
   const getKpiProgress = (kpi: Kpi): number => {
-    if (kpi.status === 'Completed') return 100;
+    if (kpi.status === 'completed') return 100;
     const target = Number(kpi.target);
     const actual = Number(kpi.actual);
     if (target === 0 || isNaN(target) || isNaN(actual) || actual === undefined || actual === null) return 0;
@@ -193,11 +194,20 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   const kraTargetDate = parseDate(kra.targetDate);
                   const kraStartPosition = calculatePosition(kraStartDate);
                   const kraWidth = calculateWidth(kraStartDate, kraTargetDate);
-                  const kraProgress = getKraProgress(kra.kpis || []);
-                  const kpisExist = kra.kpis && kra.kpis.length > 0;
+                  const kraProgress = getKraProgress(kra.unitKpis || []);
+                  const kpisExist = kra.unitKpis && kra.unitKpis.length > 0;
+
+                  console.log(`[KRATimelineTab] KRA #${kraIndex} (${kra.id}):`, {
+                    kra,
+                    kraStartDate,
+                    kraTargetDate,
+                    kraStartPosition,
+                    kraWidth,
+                    kraProgress,
+                  });
 
                   return (
-                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: currentViewMode !== 'quarters' && kpisExist ? `${(kra.kpis.length * 2) + 2}rem` : '4rem' }}>
+                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: currentViewMode !== 'quarters' && kpisExist ? `${(kra.unitKpis.length * 2) + 2}rem` : '4rem' }}>
                       <div className="w-48 px-4 py-3 text-sm shrink-0">
                         <span className="font-medium text-gray-900 block truncate">{kra.objectiveId ? `Obj: ${kra.objectiveId}` : 'N/A'}</span>
                       </div>
@@ -232,7 +242,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           <>
                             {/* Individual KPI bars for Monthly/Weekly View */}
                             <TooltipProvider> { /* Ensure provider wraps the map */ }
-                              {kra.kpis && kra.kpis.map((kpi, kpiIndex) => {
+                              {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
                                 const kpiStartDate = parseDate(kpi.startDate);
                                 const kpiTargetDate = parseDate(kpi.targetDate);
                                 const kpiStartPosition = calculatePosition(kpiStartDate);
@@ -240,7 +250,17 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                 const kpiColorClass = getKpiStatusColorClass(kpi.status);
                                 const kpiProgress = getKpiProgress(kpi);
 
+                                console.log(`  [KRATimelineTab] KPI #${kpiIndex} (${kpi.id}) for KRA ${kra.id}:`, {
+                                  kpi,
+                                  kpiStartDate,
+                                  kpiTargetDate,
+                                  kpiStartPosition,
+                                  kpiWidth,
+                                  kpiProgress,
+                                });
+
                                 if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
+                                  console.log(`    [KRATimelineTab] Skipping KPI ${kpi.id} due to invalid dates/width.`); // Log skipping
                                   return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; // Use Fragment with key
                                 }
 
@@ -282,7 +302,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                 );
                               })}
                             </TooltipProvider> { /* End provider */ }
-                            {(!kra.kpis || kra.kpis.length === 0) && (
+                            {(!kra.unitKpis || kra.unitKpis.length === 0) && (
                                 <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
                                     No KPIs defined for this KRA.
                                 </div>
