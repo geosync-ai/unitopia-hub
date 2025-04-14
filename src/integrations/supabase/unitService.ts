@@ -651,7 +651,7 @@ export const krasService = {
       throw error;
     }
     
-    console.log("[krasService.getKRAs] Raw data from Supabase:", data);
+    console.log("[krasService.getKRAs] Raw data from Supabase (before conversion):", JSON.stringify(data, null, 2)); // Add log before conversion
 
     // Convert snake_case to camelCase for frontend
     const camelCaseData = (data || []).map(snakeToCamelCase);
