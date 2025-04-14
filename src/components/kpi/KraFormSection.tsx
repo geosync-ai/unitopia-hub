@@ -15,11 +15,13 @@ import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"; // For conditional classes
 import { Badge } from "@/components/ui/badge";
+import { StaffMember } from '@/types/staff'; // Import StaffMember
 
 interface KraFormSectionProps {
   formData: Partial<Kra>;
   onChange: (field: keyof Kra, value: any) => void;
   users?: User[]; // List of users for assignee selection
+  staffMembers?: StaffMember[]; // Add staffMembers prop
   objectives?: Objective[]; // List of objectives for dropdown
   units?: string[]; // List of units for dropdown
 }
@@ -118,7 +120,14 @@ const AssigneeSelector: React.FC<{ users: User[]; selectedUsers: User[]; onChang
 };
 
 
-const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, users = [], objectives = [], units = [] }) => {
+const KraFormSection: React.FC<KraFormSectionProps> = ({
+  formData,
+  onChange,
+  users = [],
+  staffMembers = [], // Add default value
+  objectives = [],
+  units = []
+}) => {
 
   // Helper to handle date input changes (assuming YYYY-MM-DD format)
   const handleDateChange = (field: 'startDate' | 'targetDate', value: string) => {

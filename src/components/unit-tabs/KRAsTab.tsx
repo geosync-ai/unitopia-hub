@@ -411,22 +411,22 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
               )}
 
               <TabsContent value="kpis">
-                <div className="overflow-auto border rounded-md">
-                  <Table>
+                <div className="overflow-x-auto border rounded-md">
+                  <Table className="min-w-full table-fixed md:table-auto">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[15%]">Objective</TableHead>
-                        <TableHead className="w-[20%]">KRA</TableHead>
-                        <TableHead className="w-[20%]">KPI</TableHead>
-                        <TableHead>Start Date</TableHead>
-                        <TableHead>Target Date</TableHead>
-                        <TableHead>Quarter</TableHead>
-                        <TableHead>Target</TableHead>
-                        <TableHead>Actual</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Assignees</TableHead>
-                        <TableHead>Comments</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="w-[15%] min-w-[150px]">Objective</TableHead>
+                        <TableHead className="w-[15%] min-w-[180px]">KRA</TableHead>
+                        <TableHead className="w-[20%] min-w-[200px]">KPI</TableHead>
+                        <TableHead className="min-w-[100px]">Start Date</TableHead>
+                        <TableHead className="min-w-[100px]">Target Date</TableHead>
+                        <TableHead className="min-w-[80px]">Quarter</TableHead>
+                        <TableHead className="min-w-[80px]">Target</TableHead>
+                        <TableHead className="min-w-[80px]">Actual</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[120px]">Assignees</TableHead>
+                        <TableHead className="min-w-[150px]">Comments</TableHead>
+                        <TableHead className="text-right min-w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

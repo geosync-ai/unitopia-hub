@@ -1,6 +1,7 @@
 // src/components/kpi/KpiModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Kra, Kpi, User, Objective } from '@/types/kpi'; // Use the centralized types
+import { StaffMember } from '@/types/staff'; // Import StaffMember type
 import KraFormSection from './KraFormSection';
 import KpiInputBlock from './KpiInputBlock';
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface KpiModalProps {
   onSubmit: (formData: Kra) => void; // Function to handle form submission
   // Props needed for dropdowns/data fetching within the modal:
   users?: User[];
+  staffMembers?: StaffMember[]; // Add staffMembers prop for assignees
   objectives?: Objective[]; // Changed from string[] to Objective[]
   units?: string[]; // Example: List of units/departments
 }
@@ -25,6 +27,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
   kraData,
   onSubmit,
   users = [],
+  staffMembers = [], // Add default value
   objectives = [], // Provide default empty arrays
   units = [], // Provide default empty arrays
 }) => {
@@ -132,6 +135,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
               formData={formData}
               onChange={handleKraChange}
               users={users}
+              staffMembers={staffMembers}
               objectives={objectives}
               units={units}
             />
@@ -150,6 +154,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
                   onRemove={handleRemoveKpi}
                   isOnlyBlock={kpiBlocks.length === 1}
                   users={users}
+                  staffMembers={staffMembers}
                 />
               ))}
               <Button type="button" variant="outline" size="sm" onClick={handleAddKpi} className="mt-2">

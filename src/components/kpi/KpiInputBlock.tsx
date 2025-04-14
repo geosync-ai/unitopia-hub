@@ -14,6 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { StaffMember } from '@/types/staff';
 
 interface KpiInputBlockProps {
   kpiIndex: number;
@@ -22,30 +23,49 @@ interface KpiInputBlockProps {
   onRemove: (index: number) => void;
   isOnlyBlock?: boolean; // Optional: To disable remove on the last block
   users?: User[]; // Add users prop for assignee selection
+  staffMembers?: StaffMember[]; // Add staffMembers prop
 }
 
 // --- Assignee Selector Component (copied/adapted from KraFormSection) ---
-const AssigneeSelector: React.FC<{ users: User[]; selectedUsers: User[]; onChange: (users: User[]) => void }> = ({ users = [], selectedUsers = [], onChange }) => {
+const AssigneeSelector: React.FC<{
+    staffMembers: StaffMember[]; // Use StaffMember
+    selectedAssignees: User[]; // Keep User[] for formData.assignees for now, or update Kpi type
+    onChange: (assignees: User[]) => void;
+}> = ({ staffMembers = [], selectedAssignees = [], onChange }) => {
   const [open, setOpen] = React.useState(false);
 
-  const handleSelect = (user: User) => {
-    if (!selectedUsers.find(u => u.id === user.id)) {
-      onChange([...selectedUsers, user]);
+  // Convert StaffMember to User format if needed for selection/storage
+  // This depends on whether Kpi type's assignees is User[] or StaffMember[]
+  // Assuming Kpi uses User[] for now based on previous code.
+  const handleSelect = (staff: StaffMember) => {
+    // Convert StaffMember to User if necessary before adding
+    const userToAdd: User = { // This conversion might be lossy or need adjustments
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      initials: staff.name.split(' ').map(n => n[0]).join(''), // Basic initials generation
+      // Add other fields if User type requires them and they exist on StaffMember
+    };
+
+    if (!selectedAssignees.find(u => u.id === userToAdd.id)) {
+      onChange([...selectedAssignees, userToAdd]);
     }
     setOpen(false);
   };
 
   const handleRemove = (userId: string | number) => {
-    onChange(selectedUsers.filter(u => u.id !== userId));
+    onChange(selectedAssignees.filter(u => u.id !== userId));
   };
 
   return (
     <div className="space-y-2">
        <div className="flex flex-wrap gap-1">
-        {selectedUsers.map((user) => (
+        {/* Display selected assignees (assuming User type) */}
+        {selectedAssignees.map((user) => (
           <Badge key={user.id} variant="secondary" className="flex items-center gap-1 pr-1 h-6">
             <Avatar className="h-5 w-5 mr-1">
-              <AvatarImage src={user.avatarUrl} alt={user.name} />
+              {/* Use user.avatarUrl if available, else fallback */}
+              <AvatarImage src={(user as any).avatarUrl} alt={user.name} />
               <AvatarFallback>{user.initials || user.name[0]}</AvatarFallback>
             </Avatar>
             <span className="text-xs">{user.name}</span>
@@ -69,33 +89,35 @@ const AssigneeSelector: React.FC<{ users: User[]; selectedUsers: User[]; onChang
             aria-expanded={open}
             className="w-full justify-between h-9 text-xs"
           >
-            {selectedUsers.length > 0 ? `${selectedUsers.length} selected` : "Select Assignees..."}
+            {selectedAssignees.length > 0 ? `${selectedAssignees.length} selected` : "Select Assignees..."}
             <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
           <Command>
-            <CommandInput placeholder="Search user..." className="text-xs" />
+            <CommandInput placeholder="Search staff..." className="text-xs" />
             <CommandList>
-              <CommandEmpty>No user found.</CommandEmpty>
+              <CommandEmpty>No staff found.</CommandEmpty>
               <CommandGroup>
-                {users.map((user) => (
+                {/* List StaffMembers for selection */}
+                {staffMembers.map((staff) => (
                   <CommandItem
-                    key={user.id}
-                    value={user.name}
-                    onSelect={() => handleSelect(user)}
-                    disabled={!!selectedUsers.find(u => u.id === user.id)}
+                    key={staff.id}
+                    value={staff.name}
+                    onSelect={() => handleSelect(staff)}
+                    disabled={!!selectedAssignees.find(u => u.id === staff.id)}
                     className="flex items-center justify-between text-xs"
                   >
                     <div className="flex items-center gap-2">
                        <Avatar className="h-5 w-5">
-                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback>{user.initials || user.name[0]}</AvatarFallback>
+                         {/* Use staff.pictureUrl if available, else fallback */}
+                        <AvatarImage src={staff.pictureUrl} alt={staff.name} />
+                        <AvatarFallback>{staff.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                       </Avatar>
-                      {user.name}
+                      {staff.name} ({staff.title})
                     </div>
                     <Check
-                      className={cn("h-3 w-3", selectedUsers.find(u => u.id === user.id) ? "opacity-100" : "opacity-0")}
+                      className={cn("h-3 w-3", selectedAssignees.find(u => u.id === staff.id) ? "opacity-100" : "opacity-0")}
                     />
                   </CommandItem>
                 ))}
@@ -125,7 +147,7 @@ const getQuarter = (dateString: string | undefined): string => {
   }
 };
 
-const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onChange, onRemove, isOnlyBlock, users = [] }) => {
+const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onChange, onRemove, isOnlyBlock, users = [], staffMembers = [] }) => {
   const statuses: Kpi['status'][] = ['Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
   const [calculatedQuarter, setCalculatedQuarter] = useState<string>(() => getQuarter(formData.targetDate));
 
@@ -241,8 +263,8 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
         <div className="grid gap-1.5">
           <Label htmlFor={`kpi-assignees-${kpiIndex}`}>Assignees</Label>
           <AssigneeSelector
-            users={users} // Pass users list
-            selectedUsers={formData.assignees || []}
+            staffMembers={staffMembers} // Pass staffMembers list
+            selectedAssignees={formData.assignees || []} // Assignees are still User[] in Kpi type for now
             onChange={(selected) => onChange('assignees', selected)}
           />
         </div>
