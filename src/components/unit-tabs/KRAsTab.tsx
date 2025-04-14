@@ -382,8 +382,19 @@ export const KRAsTab: React.FC = () => {
                                 {kra.title}
                                 <span className="block text-xs text-muted-foreground mt-0.5">{kra.objective}</span>
                               </TableCell>
-                              <TableCell className="align-top">
-                                <Badge variant="secondary">{kra.kpis.length}</Badge>
+                              <TableCell className="align-top text-sm">
+                                {kra.kpis && kra.kpis.length > 0 ? (
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-medium truncate" title={kra.kpis[0].name}>{kra.kpis[0].name}</span>
+                                    {kra.kpis.length > 1 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        (+{kra.kpis.length - 1} more)
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">None</span>
+                                )}
                               </TableCell>
                               <TableCell className="align-top">{formatDate(kra.startDate)}</TableCell>
                               <TableCell className="align-top">{formatDate(kra.targetDate)}</TableCell>
