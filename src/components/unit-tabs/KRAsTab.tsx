@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { StaffMember } from '@/types/staff';
 
 // --- Mock Data --- Placeholder - Replace with data fetching logic
 const mockUsers: User[] = [
@@ -74,31 +75,40 @@ const mockKras: Kra[] = [
   {
     id: 'kra1',
     title: 'Improve Customer Satisfaction',
-    objective: 'Enhance User Experience',
+    objectiveId: 'obj1',
     unit: 'Customer Service',
     startDate: '2023-01-01',
     targetDate: '2023-06-01',
     kpis: mockKpis1,
-    comments: 'Initial focus on support improvements.'
+    comments: 'Initial focus on support improvements.',
+    department: 'Customer Service',
+    status: 'on-track',
+    owner: mockUsers[0],
   },
   {
     id: 'kra2',
     title: 'Increase Market Share',
-    objective: 'Business Growth',
+    objectiveId: 'obj2',
     unit: 'Marketing',
     startDate: '2023-01-01',
     targetDate: '2023-06-01',
     kpis: mockKpis2,
+    department: 'Marketing',
+    status: 'at-risk',
+    owner: mockUsers[1],
   },
    {
     id: 'kra3',
     title: 'Product Development Cycle',
-    objective: 'Increase Efficiency',
+    objectiveId: 'obj3',
     unit: 'Engineering',
     startDate: '2023-03-15',
     targetDate: '2023-09-15',
     kpis: mockKpis3,
-    comments: 'Focus on agile practices adoption.'
+    comments: 'Focus on agile practices adoption.',
+    department: 'Engineering',
+    status: 'pending',
+    owner: mockUsers[2],
   },
 ];
 // --- End Mock Data ---
@@ -152,133 +162,136 @@ interface KraFiltersState {
 
 // Define structure for the processed rows
 interface ProcessedRow {
-    kra: Kra;
+    kra: Kra & { objectiveName?: string };
     kpi: Kpi;
     isFirstKpiOfKra: boolean;
     kraRowSpan: number;
 }
 
-export const KRAsTab: React.FC = () => {
-  // State management (kras, modal state, filters)
-  const [kras, setKras] = useState<Kra[]>(mockKras);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+// Define Props for KRAsTab
+interface KRAsTabProps {
+  kras: Kra[];
+  objectivesData: Objective[];
+  onSaveObjective: (objective: Objective) => void;
+  onDeleteObjective: (objectiveId: string | number) => void;
+  units: string[];
+  staffMembers?: StaffMember[];
+}
+
+export const KRAsTab: React.FC<KRAsTabProps> = ({
+  kras: krasFromProps,
+  objectivesData,
+  onSaveObjective,
+  onDeleteObjective,
+  units,
+  staffMembers
+}) => {
+  const kras = krasFromProps; // Use props directly
+  const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
   const [editingKra, setEditingKra] = useState<Kra | undefined>(undefined);
+  const [editingKpiDetails, setEditingKpiDetails] = useState<{ kraId: string; kpi: Kpi } | undefined>(undefined);
   const [filters, setFilters] = useState<KraFiltersState>({
-    department: 'all',
-    status: 'all',
+      department: 'all',
+      status: 'all',
   });
-  const [activeTab, setActiveTab] = useState<string>("kpis"); // State to track active tab
-  // State for Objectives
-  const [objectivesData, setObjectivesData] = useState<Objective[]>(mockObjectives);
+  const [activeTab, setActiveTab] = useState<string>("kpis");
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
   const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ name: '', description: '' });
 
-  // Memoize derived state for filters
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
-  const objectives = useMemo(() => Array.from(new Set(kras.map(kra => kra.objective || 'Unknown'))).filter(o => o !== 'Unknown'), [kras]);
-  const units = departments;
-  // Filter options for KPI status
   const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
 
   const handleFilterChange = useCallback((filterName: 'department' | 'status', value: string) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
+      setFilters(prev => ({ ...prev, [filterName]: value }));
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({
-      department: 'all',
-      status: 'all',
-    });
+      setFilters({
+          department: 'all',
+          status: 'all',
+      });
   }, []);
 
-  // Pre-process KRAs into rows
   const processedRows = useMemo((): ProcessedRow[] => {
     let rows: ProcessedRow[] = [];
     kras.forEach(kra => {
+      const objectiveName = objectivesData.find(o => o.id === kra.objectiveId)?.name || 'N/A';
+
       const kraKpis = kra.kpis && kra.kpis.length > 0 ? kra.kpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
 
-      // Filter only by department at KRA level
       const departmentMatch = filters.department === 'all' || kra.unit === filters.department;
+      if (!departmentMatch) return;
 
-      if (!departmentMatch) {
-        return;
-      }
-
-      // Filter KPIs by status
-      const filteredKpis = kraKpis.filter(kpi =>
-           filters.status === 'all' || kpi.status === filters.status
-      );
+      const filteredKpis = kraKpis.filter(kpi => filters.status === 'all' || kpi.status === filters.status);
 
       if (filteredKpis.length > 0) {
-          const kraRowSpan = filteredKpis.length;
-          filteredKpis.forEach((kpi, index) => {
-            rows.push({
-              kra: kra,
-              kpi: kpi,
-              isFirstKpiOfKra: index === 0,
-              kraRowSpan: kraRowSpan
-            });
+        const kraRowSpan = filteredKpis.length;
+        filteredKpis.forEach((kpi, index) => {
+          rows.push({
+            kra: { ...kra, objectiveName: objectiveName },
+            kpi: kpi,
+            isFirstKpiOfKra: index === 0,
+            kraRowSpan: kraRowSpan
           });
+        });
       }
     });
     return rows;
-  }, [kras, filters.department, filters.status]);
+  }, [kras, filters.department, filters.status, objectivesData]);
 
-  // Modal Handlers
-  const handleOpenAddModal = () => {
+  const handleOpenAddKraModal = () => {
     setEditingKra(undefined);
-    setIsModalOpen(true);
+    setEditingKpiDetails(undefined);
+    setIsKpiModalOpen(true);
   };
 
-  const handleOpenEditModal = (kra: Kra) => {
-    // Find the full KRA object to edit, including all its KPIs
+  const handleOpenEditKraModal = (kra: Kra) => {
     const kraToEdit = kras.find(k => k.id === kra.id);
     if (kraToEdit) {
       setEditingKra(kraToEdit);
-      setIsModalOpen(true);
+      setEditingKpiDetails(undefined);
+      setIsKpiModalOpen(true);
     } else {
-       console.error("Could not find KRA data to edit for ID:", kra.id)
-       // Optionally show a user-facing error message
+      console.error("Could not find KRA data to edit for ID:", kra.id);
     }
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleOpenEditKpiModal = (kraId: string | number, kpi: Kpi) => {
+    const kraToEdit = kras.find(k => k.id === kraId);
+     if (kraToEdit) {
+       setEditingKra(kraToEdit);
+       setEditingKpiDetails({ kraId: String(kraId), kpi });
+       setIsKpiModalOpen(true);
+     } else {
+        console.error("Could not find parent KRA for KPI editing:", kraId);
+     }
+  };
+
+  const handleCloseKpiModal = () => {
+    setIsKpiModalOpen(false);
     setEditingKra(undefined);
+    setEditingKpiDetails(undefined);
   };
 
-  // Form Submission / Deletion Handlers (adapt for Supabase later)
-  const handleFormSubmit = (formData: Kra) => {
-    console.log("Submitting form data:", formData);
-    if (editingKra) {
-      setKras(prevKras => prevKras.map(k => k.id === formData.id ? formData : k));
-      console.log("Updated KRA:", formData.id);
-    } else {
-      const newKraWithId = { ...formData, id: formData.id || `kra_${Date.now()}` };
-      setKras(prevKras => [...prevKras, newKraWithId]);
-      console.log("Added new KRA:", newKraWithId.id);
-    }
-    handleCloseModal();
+  const handleKpiFormSubmit = (formData: Kra) => {
+    console.log("KRA/KPI Form submitted (in KRAsTab):", formData);
+    handleCloseKpiModal();
   };
 
   const handleDeleteKra = (kraId: string | number) => {
-      if (window.confirm(`Are you sure you want to delete KRA ${kraId} and all its KPIs? This action cannot be undone.`)) {
-        console.log("Deleting KRA:", kraId);
-        setKras(prevKras => prevKras.filter(k => k.id !== kraId));
-      }
+    console.log("Delete KRA clicked (in KRAsTab):", kraId);
   };
 
-  // --- Objective Handlers ---
   const handleOpenAddObjectiveModal = () => {
     setEditingObjective(undefined);
-    setNewObjectiveData({ name: '', description: '' }); // Clear form
+    setNewObjectiveData({ name: '', description: '' });
     setIsObjectiveModalOpen(true);
   };
 
   const handleOpenEditObjectiveModal = (objective: Objective) => {
     setEditingObjective(objective);
-    setNewObjectiveData({ name: objective.name, description: objective.description || '' }); // Pre-fill form
+    setNewObjectiveData({ name: objective.name, description: objective.description });
     setIsObjectiveModalOpen(true);
   };
 
@@ -293,40 +306,27 @@ export const KRAsTab: React.FC = () => {
   };
 
   const handleSaveObjective = () => {
-    // TODO: Add validation (e.g., name is required)
-    if (!newObjectiveData.name?.trim()) {
-        alert("Objective name cannot be empty."); // Replace with toast
-        return;
+    if (!newObjectiveData.name) {
+      alert("Objective name is required.");
+      return;
     }
-
-    if (editingObjective) {
-      // Update existing objective
-      setObjectivesData(prev => prev.map(obj =>
-        obj.id === editingObjective.id ? { ...editingObjective, ...newObjectiveData } : obj
-      ));
-      console.log("Updated Objective:", { ...editingObjective, ...newObjectiveData });
-    } else {
-      // Add new objective
-      const newObjective = {
-        id: `obj_${Date.now()}`, // Temporary ID
-        name: newObjectiveData.name.trim(),
-        description: newObjectiveData.description?.trim() || undefined,
-      };
-      setObjectivesData(prev => [...prev, newObjective]);
-      console.log("Added Objective:", newObjective);
-    }
+    const objectiveToSave: Objective = {
+      id: editingObjective ? editingObjective.id : `obj-${Date.now()}`,
+      name: newObjectiveData.name || '',
+      description: newObjectiveData.description || '',
+    };
+    onSaveObjective(objectiveToSave);
     handleCloseObjectiveModal();
   };
 
   const handleDeleteObjective = (objectiveId: string | number) => {
-    if (window.confirm(`Are you sure you want to delete this objective? This may affect existing KRAs linked to it.`)) {
-      // TODO: Add logic to check/handle KRAs linked to this objective before deletion
-      console.log("Deleting Objective:", objectiveId);
-      setObjectivesData(prev => prev.filter(obj => obj.id !== objectiveId));
-      // TODO: Update any KRAs that were using this objective? Or prevent deletion?
+    if (window.confirm("Are you sure you want to delete this objective? This might affect linked KRAs.")) {
+        onDeleteObjective(objectiveId);
     }
   };
-  // --- End Objective Handlers ---
+
+  const addButtonLabel = activeTab === 'objectives' ? 'Add Objective' : 'Add KRA';
+  const handleAddButtonClick = activeTab === 'objectives' ? handleOpenAddObjectiveModal : handleOpenAddKraModal;
 
   return (
     <TooltipProvider>
@@ -335,81 +335,81 @@ export const KRAsTab: React.FC = () => {
           <h2 className="text-2xl font-bold">Key Result Areas</h2>
           <Button
             className="flex items-center gap-2"
-            onClick={activeTab === 'objectives' ? handleOpenAddObjectiveModal : handleOpenAddModal}
+            onClick={handleAddButtonClick}
           >
-            <Plus className="h-4 w-4" /> {activeTab === 'objectives' ? 'Add Objective' : 'Add KRA'}
+            <Plus className="h-4 w-4" /> {addButtonLabel}
           </Button>
         </div>
-        
+
         <Card>
           <CardHeader>
-            <CardTitle>KRAs / KPIs</CardTitle>
+            <CardTitle>KRAs / KPIs / Objectives</CardTitle>
             <CardDescription>
-              Track performance against key metrics
+              Track performance, manage objectives, and view timelines.
             </CardDescription>
           </CardHeader>
+
           <CardContent>
-            <Tabs defaultValue="kpis" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="mb-4">
                 <TabsTrigger value="kpis">KPIs</TabsTrigger>
                 <TabsTrigger value="objectives">Objectives</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="insights">Insights</TabsTrigger>
               </TabsList>
-              
-              <div className="bg-muted/50 p-4 rounded-md mb-6 border">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="kra-department-filter">Department</Label>
-                    <Select
-                      value={filters.department}
-                      onValueChange={(value) => handleFilterChange('department', value)}
-                    >
-                      <SelectTrigger id="kra-department-filter">
-                        <SelectValue placeholder="All Departments" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Departments</SelectItem>
-                        {departments.map(department => (
-                          <SelectItem key={department} value={department}>
-                            {department}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+              {activeTab !== 'timeline' && activeTab !== 'insights' && (
+                <div className="bg-muted/50 p-4 rounded-md mb-6 border">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                    {activeTab === 'kpis' && (
+                       <div className="flex flex-col gap-1.5">
+                         <Label htmlFor="kra-department-filter">Department</Label>
+                         <Select
+                           value={filters.department}
+                           onValueChange={(value) => handleFilterChange('department', value)}
+                         >
+                           <SelectTrigger id="kra-department-filter">
+                             <SelectValue placeholder="All Departments" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="all">All Departments</SelectItem>
+                             {units.map(unit => (
+                               <SelectItem key={unit} value={unit}>
+                                 {unit}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </div>
+                    )}
+
+                    {activeTab === 'kpis' && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="kpi-status-filter">KPI Status</Label>
+                        <Select
+                          value={filters.status}
+                          onValueChange={(value) => handleFilterChange('status', value)}
+                        >
+                          <SelectTrigger id="kpi-status-filter">
+                            <SelectValue placeholder="All Statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {kpiStatuses.map(status => (
+                              <SelectItem key={status} value={status}>
+                                {status === 'all' ? 'All Statuses' : status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="kpi-status-filter">KPI Status</Label>
-                    <Select
-                      value={filters.status}
-                      onValueChange={(value) => handleFilterChange('status', value)}
-                    >
-                      <SelectTrigger id="kpi-status-filter">
-                        <SelectValue placeholder="All Statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {kpiStatuses.map(status => (
-                          <SelectItem key={status} value={status}>
-                            {status === 'all' ? 'All Statuses' : status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
                   </div>
                 </div>
-                
-                <div className="flex justify-end">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={resetFilters}
-                  >
-                    Reset Filters
-                  </Button>
-                </div>
-              </div>
-              
+              )}
+
               <TabsContent value="kpis">
                 <div className="overflow-auto border rounded-md">
                   <Table>
@@ -444,7 +444,7 @@ export const KRAsTab: React.FC = () => {
                             <TableRow key={`${kra.id}-${kpi.id || rowIndex}`}>
                               {isFirstKpiOfKra && (
                                 <TableCell className="align-top border-r text-sm" rowSpan={kraRowSpan}>
-                                  {kra.objective}
+                                  {kra.objectiveName}
                                 </TableCell>
                               )}
                               {isFirstKpiOfKra && (
@@ -461,64 +461,66 @@ export const KRAsTab: React.FC = () => {
                               <TableCell className="align-top text-sm">{kpi.target ?? '-'}</TableCell>
                               <TableCell className="align-top text-sm">{kpi.actual ?? '-'}</TableCell>
                               <TableCell className="align-top">
-                                {kpi.name !== '-' ? (
-                                     <Badge variant={kpiStatusVariant}>{kpi.status}</Badge>
-                                ) : '-'}
+                                {kpi.status ? (
+                                    <StatusBadge status={kpi.status} />
+                                 ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                 )}
                               </TableCell>
                               <TableCell className="align-top">
-                                {kpi.name !== '-' ? (
+                                {kpi.assignees && kpi.assignees.length > 0 ? (
                                   <div className="flex -space-x-2 overflow-hidden">
-                                    {(kpi.assignees || []).map(user => (
-                                      <Tooltip key={user.id}>
+                                    {kpi.assignees.map(assignee => (
+                                      <Tooltip key={assignee.id}>
                                         <TooltipTrigger asChild>
-                                          <Avatar className="inline-block h-6 w-6 rounded-full ring-1 ring-background">
-                                            <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                            <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
+                                          <Avatar className="h-6 w-6 border-2 border-background">
+                                            <AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
+                                            <AvatarFallback>{assignee.initials}</AvatarFallback>
                                           </Avatar>
                                         </TooltipTrigger>
-                                        <TooltipContent>{user.name}</TooltipContent>
+                                        <TooltipContent>
+                                          <p>{assignee.name}</p>
+                                        </TooltipContent>
                                       </Tooltip>
                                     ))}
-                                    {(kpi.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
                                   </div>
-                                ) : '-' }
+                                ) : <span className="text-muted-foreground">-</span>}
                               </TableCell>
-                              <TableCell className="align-top text-center">
-                                {kpi.comments ? (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="inline-flex items-center justify-center h-6 w-6 cursor-help">
-                                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="max-w-xs text-sm">{kpi.comments}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
+                              <TableCell className="align-top text-xs text-muted-foreground">
+                                {kpi.comments || '-'}
+                              </TableCell>
+                              <TableCell className="align-top text-right">
+                                {isFirstKpiOfKra && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKraModal(kra)}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Edit KRA</p></TooltipContent>
+                                    </Tooltip>
+                                )}
+                                {kpi.id && kpi.name !== '-' && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKpiModal(kra.id, kpi)}>
+                                                <MessageSquare className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Edit KPI / Add Comment</p></TooltipContent>
+                                    </Tooltip>
+                                )}
+                                {isFirstKpiOfKra && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Delete KRA</p></TooltipContent>
+                                    </Tooltip>
                                 )}
                               </TableCell>
-                              {isFirstKpiOfKra && (
-                                <TableCell className="text-right align-top" rowSpan={kraRowSpan}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditModal(kra)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Edit KRA & KPIs</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Delete KRA</TooltipContent>
-                                  </Tooltip>
-                                </TableCell>
-                              )}
                             </TableRow>
                           );
                         })
@@ -527,7 +529,7 @@ export const KRAsTab: React.FC = () => {
                   </Table>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="objectives">
                 <div className="overflow-auto border rounded-md">
                   <Table>
@@ -542,7 +544,7 @@ export const KRAsTab: React.FC = () => {
                       {objectivesData.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={3} className="h-24 text-center">
-                            No Objectives defined yet.
+                            No Objectives defined yet. Use the "Add Objective" button.
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -565,25 +567,25 @@ export const KRAsTab: React.FC = () => {
                   </Table>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="timeline">
                 <KRATimelineTab kras={kras} />
               </TabsContent>
-              
+
               <TabsContent value="insights">
                 <KRAInsightsTab kras={kras} />
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
-        
+
         <KpiModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
+          isOpen={isKpiModalOpen}
+          onClose={handleCloseKpiModal}
           kraData={editingKra}
-          onSubmit={handleFormSubmit}
-          users={mockUsers}
-          objectives={objectivesData.map(o => o.name)}
+          onSubmit={handleKpiFormSubmit}
+          staffMembers={staffMembers}
+          objectives={objectivesData}
           units={units}
         />
 
@@ -617,15 +619,14 @@ export const KRAsTab: React.FC = () => {
                   value={newObjectiveData.description || ''}
                   onChange={(e) => handleObjectiveFormChange('description', e.target.value)}
                   className="col-span-3"
-                  placeholder="(Optional) Describe the objective..."
                   rows={3}
                 />
               </div>
             </div>
             <DialogFooter>
-               <DialogClose asChild>
+              <DialogClose asChild>
                  <Button type="button" variant="outline">Cancel</Button>
-               </DialogClose>
+              </DialogClose>
               <Button type="button" onClick={handleSaveObjective}>Save Objective</Button>
             </DialogFooter>
           </DialogContent>

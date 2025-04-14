@@ -82,6 +82,7 @@ import { OrganizationUnit } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { Objective } from '@/types/kpi';
+import { User } from '@/hooks/useAuth';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -454,327 +455,35 @@ const StatusDropdown: React.FC<{
   );
 };
 
+// --- Mock Data --- Placeholder - Replace with data fetching logic
+const mockObjectives: Objective[] = [
+  { id: 'obj1', name: 'Enhance User Experience', description: 'Improve overall user satisfaction and ease of use.' },
+  { id: 'obj2', name: 'Business Growth', description: 'Increase market share and revenue.' },
+  { id: 'obj3', name: 'Increase Efficiency', description: 'Streamline internal processes.' },
+];
+// --- End Mock Data ---
+
 // Define the main Unit component
 const Unit = () => {
-  const { isAuthenticated, user, login, businessUnits, selectedUnit, setSelectedUnit, fetchUserUnits } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showTeamViewSwitcher, setShowTeamViewSwitcher] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showSetupWizard, setShowSetupWizard] = useState(false);
-  const [showAiChat, setShowAiChat] = useState(false);
-  const [availableUnits, setAvailableUnits] = useState<OrganizationUnit[]>([]);
-  const initializedRef = useRef(false);
-  const wizardShownRef = useRef(false);
+  const { user } = useAuth(); // Get user from useAuth
+  const { staffMembers } = useStaffByDepartment(user?.unitId || user?.divisionId || ''); // Use unitId or divisionId
   const { toast } = useToast();
 
-  // Initialize setup wizard with required state
-  const setupWizard = useSetupWizard({
-    projectState: null, // Will be passed as null to use CSV data instead
-    taskState: null,
-    riskState: null,
-    assetState: null,
-    kraState: null
-  });
+  // Setup Wizard State
+  const setupWizard = useSetupWizard(); // Contains isSetupComplete, config, completeSetup etc.
 
-  // Use Supabase data hooks for tasks, projects, risks, and assets
-  const taskState = useTasksData();
-  const projectState = useProjectsData();
-  const riskState = useRisksData();
-  const assetState = useAssetsData();
-  
-  // Keep the existing KRA state for now, could be migrated later
-  const kraState = useKraState();
+  // Data states using Supabase hooks (or local state if not using Supabase yet)
+  const taskState = useTasksData(setupWizard.config?.tasks?.filePath, setupWizard.config?.tasks?.source);
+  const projectState = useProjectsData(setupWizard.config?.projects?.filePath, setupWizard.config?.projects?.source);
+  const riskState = useRisksData(setupWizard.config?.risks?.filePath, setupWizard.config?.risks?.source);
+  const assetState = useAssetsData(setupWizard.config?.assets?.filePath, setupWizard.config?.assets?.source);
+  const kraState = useKRAsData(setupWizard.config?.kras?.filePath, setupWizard.config?.kras?.source); // Assuming this hook exists
 
-  const { staffMembers, loading: staffLoading, error: staffError } = useStaffByDepartment();
-
-  // Load user's units when authenticated
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchUserUnits().then(units => {
-        setAvailableUnits(units);
-        
-        // If there's no selected unit but we have units, select the first one
-        if (!selectedUnit && units.length > 0) {
-          setSelectedUnit(units[0].id);
-        }
-      });
-    }
-  }, [isAuthenticated, user, fetchUserUnits]);
-
-  // IMPORTANT: Changed this to only show setup wizard when explicitly requested
-  // Memoize the setup check to prevent unnecessary re-renders
-  const checkSetupNeeded = useCallback(() => {
-    // Only return true if the user has explicitly clicked the setup button
-    return false; // Don't auto-show the wizard
-  }, []);
-
-  // Fetch data when authenticated - only get mock data if setup is not complete
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!isAuthenticated || !user) return;
-      
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        console.log("Fetching data, setup complete:", setupWizard.isSetupComplete);
-        console.log("Storage type:", localStorage.getItem('unitopia_storage_type'));
-        console.log("CSV Config:", setupWizard.csvConfig);
-
-        // Check if setup is complete - if not, we'll use mock data
-        if (!setupWizard.isSetupComplete) {
-          console.log("Setup not complete, loading mock data");
-          // Filter mock data by user for demo purposes
-          const userTasks = mockTasks.filter(task => task.assignee === user.email);
-          const userProjects = mockProjects.filter(project => project.manager === user.email);
-          const userRisks = mockRisks.filter(risk => risk.owner === user.email);
-          const userAssets = mockAssets.filter(asset => asset.assignedTo === user.email);
-
-          // Set as initial data in localStorage for demo
-          localStorage.setItem('unitopia_tasks', JSON.stringify(userTasks));
-          localStorage.setItem('unitopia_projects', JSON.stringify(userProjects));
-          localStorage.setItem('unitopia_risks', JSON.stringify(userRisks));
-          localStorage.setItem('unitopia_assets', JSON.stringify(userAssets));
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        toast({
-          title: "Error",
-          description: "Failed to load your data. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [isAuthenticated, user, toast, setupWizard.isSetupComplete, setupWizard.csvConfig]);
-
-  // Add effect to log data after it's loaded
-  useEffect(() => {
-    console.log("Task data:", taskState.data);
-    console.log("Project data:", projectState.data);
-    console.log("Risk data:", riskState.data);
-    console.log("Asset data:", assetState.data);
-    console.log("KRA data:", kraState.kras);
-  }, [taskState.data, projectState.data, riskState.data, assetState.data, kraState.kras]);
-
-  // Initialize data from mock data and setup wizard
-  useEffect(() => {
-    // Ensure we only run this once
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-    
-    try {
-      // Important: Only show wizard if explicitly requested
-      // Don't auto-show the wizard anymore
-
-      setIsLoading(false);
-    } catch (err) {
-      console.error("Error initializing data:", err);
-      setError("Failed to initialize dashboard data");
-      setIsLoading(false);
-    }
-  }, []); // Empty dependency array ensures this only runs once
-
-  // Handle setup wizard completion
-  const handleSetupComplete = useCallback(() => {
-    setShowSetupWizard(false);
-    toast({
-      title: "Setup Complete",
-      description: "Your dashboard has been successfully configured.",
-    });
-
-    // Don't force a refresh of the page
-    // window.location.reload();
-  }, [toast]);
-
-  // Handle setup wizard close with confirmation if data has been entered
-  const handleSetupClose = useCallback(() => {
-    // Check if setup is complete - don't show confirmation if setup is completed
-    if (setupWizard.isSetupComplete) {
-      setShowSetupWizard(false);
-      return;
-    }
-    
-    // Only show confirmation dialog if setup is NOT complete and data has been entered
-    const hasSetupData = setupWizard.objectives?.length > 0 || 
-                        setupWizard.oneDriveConfig !== null;
-    
-    if (hasSetupData) {
-      if (window.confirm('Are you sure you want to close the setup? Your progress will be lost.')) {
-        setShowSetupWizard(false);
-      }
-    } else {
-      setShowSetupWizard(false);
-    }
-  }, [setupWizard.objectives, setupWizard.oneDriveConfig, setupWizard.isSetupComplete]);
-  
-  // Improved version of handleSkipOneDriveSetup that provides better user feedback
-  const handleSkipOneDriveSetup = useCallback(() => {
-    // Check if we're already using OneDrive
-    const isUsingOneDrive = setupWizard.oneDriveConfig !== null && !setupWizard.oneDriveConfig.isTemporary;
-    
-    // Set up with local storage instead
-    localStorage.setItem('unitopia_storage_type', 'local');
-    
-    // Create some default objectives and KRAs if there aren't any
-    const hasExistingObjectives = setupWizard.objectives?.length > 0;
-    const hasExistingKRAs = setupWizard.kras?.length > 0;
-    
-    if (!hasExistingObjectives) {
-      const defaultObjectives = [
-        {
-          id: '1',
-          name: 'Default Objective',
-          description: 'This is a default objective created when skipping OneDrive setup',
-          startDate: new Date().toISOString(),
-          endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      // Store in localStorage
-      localStorage.setItem('unitopia_objectives', JSON.stringify(defaultObjectives));
-      
-      // Update state
-      setupWizard.setObjectives(defaultObjectives);
-    }
-    
-    if (!hasExistingKRAs) {
-      const defaultKras = [
-        {
-          id: '1',
-          name: 'Default KRA',
-          objectiveId: '1',
-          objectiveName: 'Default Objective',
-          department: 'IT',
-          responsible: 'Admin User',
-          startDate: new Date().toISOString(),
-          endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-          progress: 0,
-          status: 'open',
-          kpis: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      // Store in localStorage
-      localStorage.setItem('unitopia_kras', JSON.stringify(defaultKras));
-      
-      // Update state
-      setupWizard.setKRAs(defaultKras);
-    }
-    
-    // Always ensure KPIs are initialized
-    if (!localStorage.getItem('unitopia_kpis')) {
-      localStorage.setItem('unitopia_kpis', JSON.stringify([]));
-    }
-    
-    if (!setupWizard.kpis) {
-      setupWizard.setKPIs([]);
-    }
-    
-    // Complete setup
-    setupWizard.handleSetupComplete();
-    
-    // Hide setup wizard
-    setShowSetupWizard(false);
-    
-    // Provide feedback based on previous state
-    if (isUsingOneDrive) {
-      toast({
-        title: "Switched to Local Storage",
-        description: "Your unit is now using local browser storage instead of OneDrive.",
-      });
-    } else {
-      toast({
-        title: "Setup Completed",
-        description: "Your unit has been set up with local storage.",
-      });
-    }
-    
-    // Force a refresh with slight delay to ensure state is updated
-    setTimeout(() => {
-      // window.location.reload();
-    }, 500);
-  }, [setupWizard, toast]);
-
-  // Add authentication check
-  useEffect(() => {
-    if (!isAuthenticated) {
-      login('admin@app.com', 'admin');
-    }
-  }, [isAuthenticated, login]);
-
-  // Add effect to check if the setupWizard is initialized correctly
-  useEffect(() => {
-    console.log("Setup Wizard State:", {
-      isSetupComplete: setupWizard.isSetupComplete,
-      csvConfig: setupWizard.csvConfig ? {
-        folderId: setupWizard.csvConfig.folderId,
-        fileNames: setupWizard.csvConfig.fileNames,
-        fileIds: setupWizard.csvConfig.fileIds
-      } : null,
-      oneDriveConfig: setupWizard.oneDriveConfig
-    });
-  }, [setupWizard]);
-
-  // If not authenticated, show loading state
-  if (!isAuthenticated) {
-    return (
-      <PageLayout>
-        <div className="p-6 flex justify-center items-center h-[70vh]">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">Authenticating...</h2>
-            <p className="text-muted-foreground">Please wait while we verify your credentials</p>
-          </div>
-        </div>
-      </PageLayout>
-    );
-  }
-
-  // If loading, show appropriate message - combine Supabase loading states
-  const isDataLoading = taskState.loading || projectState.loading || riskState.loading || assetState.loading;
-  
-  if (isLoading || isDataLoading) {
-    return (
-      <PageLayout>
-        <div className="p-6 flex justify-center items-center h-[70vh]">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">Loading dashboard...</h2>
-            <p className="text-muted-foreground">Please wait while we prepare your unit data</p>
-          </div>
-        </div>
-      </PageLayout>
-    );
-  }
-
-  // If error in any of the Supabase data hooks
-  const dataError = taskState.error || projectState.error || riskState.error || assetState.error;
-  if (error || dataError) {
-    const errorMessage = error || (dataError ? dataError.message : null);
-    return (
-      <PageLayout>
-        <div className="p-6 flex justify-center items-center h-[70vh]">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2 text-red-600">Error Loading Dashboard</h2>
-            <p className="text-muted-foreground mb-4">{errorMessage}</p>
-            <Button onClick={() => window.location.reload()}>
-              Reload Page
-            </Button>
-          </div>
-        </div>
-      </PageLayout>
-    );
-  }
+  // Active Tab State
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   // Objective State Management
-  const [objectivesData, setObjectivesData] = useState<Objective[]>([]);
+  const [objectivesData, setObjectivesData] = useState<Objective[]>(mockObjectives); // Initialize with mock data or fetched data
 
   const handleSaveObjective = useCallback((objective: Objective) => {
     setObjectivesData(prev => {
@@ -806,41 +515,65 @@ const Unit = () => {
       // Don't load data if setup isn't complete
       return;
     }
-    // Trigger refresh/fetch for all data sources if needed
-    // Example: taskState.refresh(); projectState.refresh(); ...
-  }, [setupWizard.isSetupComplete]); // Add other dependencies like refresh functions if needed
+    // Trigger refresh/fetch for all data sources if needed when setup is complete
+     taskState.refresh();
+     projectState.refresh();
+     riskState.refresh();
+     assetState.refresh();
+     kraState.refresh();
+     // Fetch initial objectives from backend if needed
+     // fetchObjectives().then(setObjectivesData);
+  }, [setupWizard.isSetupComplete, taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]); // Add other dependencies like refresh functions
 
-  if (setupWizard.loading) {
-    return <PageLayout title="Unit Dashboard"><div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> Loading Setup...</div></PageLayout>;
-  }
+  // Determine if data loading is complete (adjust based on actual hooks)
+  const isDataLoading = taskState.isLoading || projectState.isLoading || riskState.isLoading || assetState.isLoading || kraState.isLoading;
+  // Corrected variable name
+  const hasDataLoadingError = taskState.error || projectState.error || riskState.error || assetState.error || kraState.error;
 
-  if (!setupWizard.isSetupComplete && !setupWizard.showWizard) {
-     // This case might mean setup is done but page reloaded, check local storage again
-     // Or handle potential intermediate states
-     return <PageLayout title="Unit Dashboard"><div className="text-center p-8">Checking setup status...</div></PageLayout>;
-  }
+  // Decide what to render based on setup state
+  // Let's assume useSetupWizard provides a way to know if it's loading its own state
+  // if (setupWizard.isInitializing) { // hypothetical property
+  //   return <PageLayout><div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> Loading Setup...</div></PageLayout>;
+  // }
 
-  if (setupWizard.showWizard) {
+  if (!setupWizard.isSetupComplete) {
+    // Render the SetupWizard component if setup is not complete
+    // Pass necessary props based on SetupWizard's definition
     return (
       <SetupWizard
+        // Assuming SetupWizard needs these props based on its definition
+        isOpen={true} // Keep it open until setup is complete
+        onClose={() => { /* Decide if closing is allowed before completion */ }}
+        onComplete={setupWizard.completeSetup} // Function to mark setup as complete
+        // Pass other config/state management props from setupWizard hook as needed
         initialConfig={setupWizard.config}
-        onComplete={setupWizard.completeSetup}
-        onCancel={() => {
-          // Decide what happens on cancel - maybe go back or show a message
-          console.log("Setup cancelled");
-          // Potentially navigate away or show a placeholder
-        }}
+        setSetupMethod={setupWizard.setSetupMethod}
+        setOneDriveConfig={setupWizard.setOneDriveConfig}
+        setCsvConfig={setupWizard.setCsvConfig}
+        updateCsvConfig={setupWizard.updateCsvConfig}
+        csvConfig={setupWizard.csvConfig}
+        oneDriveConfig={setupWizard.oneDriveConfig}
+        setupMethodProp={setupWizard.setupMethod}
+        // ... potentially pass setters for objectives, kras, kpis if setup modifies them directly
       />
     );
   }
 
   // Main content rendering after setup is complete
+  // Use the PageLayout without title/subtitle props, assuming it handles title internally
   return (
-    <PageLayout title="Unit Dashboard" subtitle={user?.department ? `Department: ${user.department}` : ''}>
+    <PageLayout>
+      {/* Display Department/Unit Name somewhere if needed, maybe in a header inside PageLayout */}
+      {user && (user.unitName || user.divisionName) && (
+        <div className="mb-4 text-sm text-muted-foreground">
+          Unit/Division: {user.unitName || user.divisionName}
+        </div>
+      )}
+
       {isDataLoading && (
          <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> Loading Unit Data...</div>
       )}
-      {dataError && (
+      {hasDataLoadingError && (
         <Card className="mb-6 bg-destructive/10 border-destructive">
           <CardHeader>
             <CardTitle className="text-destructive">Data Loading Error</CardTitle>
@@ -860,7 +593,7 @@ const Unit = () => {
         </Card>
       )}
 
-      {!isDataLoading && !dataError && (
+      {!isDataLoading && !hasDataLoadingError && (
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -877,9 +610,9 @@ const Unit = () => {
               projects={projectState.data}
               tasks={taskState.data}
               risks={riskState.data}
-              kras={kraState.kras}
-              setupState={setupWizard}
-              objectives={objectivesData}
+              kras={kraState.kras} // Pass KRAs data (adjust based on hook structure)
+              setupState={setupWizard} // Pass setup state if OverviewTab needs it
+              objectives={objectivesData} // Pass objectives
             />
           </TabsContent>
 
@@ -893,18 +626,21 @@ const Unit = () => {
               error={taskState.error}
               onRetry={taskState.refresh}
               staffMembers={staffMembers}
-              objectives={objectivesData}
+              objectives={objectivesData} // Pass objectives if needed by Task modals/views
             />
           </TabsContent>
 
           {/* KRAs Tab */}
           <TabsContent value="kras" className="space-y-6">
             <KRAsTab
-              kras={kraState.kras}
-              objectivesData={objectivesData}
-              onSaveObjective={handleSaveObjective}
-              onDeleteObjective={handleDeleteObjective}
-              units={kraState.units || []}
+              kras={kraState.kras || []} // Pass KRAs data, ensure it's an array
+              objectivesData={objectivesData} // Pass objectives state
+              onSaveObjective={handleSaveObjective} // Pass save handler
+              onDeleteObjective={handleDeleteObjective} // Pass delete handler
+              // Pass other needed props like users, units, etc. if KRAsTab needs them directly
+              // Example: users={mockUsers} // Replace with actual user data if available
+              units={kraState.units || []} // Pass units derived from KRAs or fetched separately
+              staffMembers={staffMembers} // Pass staff members if needed for assignees
             />
           </TabsContent>
 
@@ -918,7 +654,7 @@ const Unit = () => {
               error={projectState.error}
               onRetry={projectState.refresh}
               staffMembers={staffMembers}
-              objectives={objectivesData}
+              objectives={objectivesData} // Pass objectives if needed by Project modals/views
             />
           </TabsContent>
 
@@ -932,8 +668,8 @@ const Unit = () => {
               error={riskState.error}
               onRetry={riskState.refresh}
               staffMembers={staffMembers}
-              projects={projectState.data}
-              objectives={objectivesData}
+              projects={projectState.data} // Pass projects for linking risks
+              objectives={objectivesData} // Pass objectives if needed by Risk modals/views
             />
           </TabsContent>
 
@@ -947,6 +683,7 @@ const Unit = () => {
               error={assetState.error}
               onRetry={assetState.refresh}
               staffMembers={staffMembers}
+              // Pass objectives if needed by Asset modals/views (less likely)
             />
           </TabsContent>
         </Tabs>

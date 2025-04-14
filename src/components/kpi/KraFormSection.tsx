@@ -1,5 +1,5 @@
 import React from 'react';
-import { Kra, User } from '@/types/kpi';
+import { Kra, User, Objective } from '@/types/kpi';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,7 +20,7 @@ interface KraFormSectionProps {
   formData: Partial<Kra>;
   onChange: (field: keyof Kra, value: any) => void;
   users?: User[]; // List of users for assignee selection
-  objectives?: string[]; // List of objectives for dropdown
+  objectives?: Objective[]; // List of objectives for dropdown
   units?: string[]; // List of units for dropdown
 }
 
@@ -147,8 +147,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, use
         <div className="grid gap-1.5">
           <Label htmlFor="kra-objective">Objective *</Label>
           <Select
-            value={formData.objective || ''}
-            onValueChange={(value) => onChange('objective', value)}
+            value={formData.objectiveId?.toString() || ''}
+            onValueChange={(value) => onChange('objectiveId', value)}
             required
           >
             <SelectTrigger id="kra-objective">
@@ -156,8 +156,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, use
             </SelectTrigger>
             <SelectContent>
               {objectives.length > 0 ? (
-                objectives.filter(obj => obj).map((obj) => (
-                  <SelectItem key={obj} value={obj}>{obj}</SelectItem>
+                objectives.map((obj) => (
+                  <SelectItem key={obj.id} value={obj.id.toString()}>{obj.name}</SelectItem>
                 ))
               ) : (
                 <div className="px-2 py-1.5 text-sm text-muted-foreground">No objectives defined.</div>

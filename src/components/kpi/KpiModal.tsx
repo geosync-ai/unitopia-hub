@@ -1,6 +1,6 @@
 // src/components/kpi/KpiModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Kra, Kpi, User } from '@/types/kpi'; // Use the centralized types
+import { Kra, Kpi, User, Objective } from '@/types/kpi'; // Use the centralized types
 import KraFormSection from './KraFormSection';
 import KpiInputBlock from './KpiInputBlock';
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ interface KpiModalProps {
   onSubmit: (formData: Kra) => void; // Function to handle form submission
   // Props needed for dropdowns/data fetching within the modal:
   users?: User[];
-  objectives?: string[]; // Example: List of objectives
+  objectives?: Objective[]; // Changed from string[] to Objective[]
   units?: string[]; // Example: List of units/departments
 }
 
@@ -44,11 +44,15 @@ const KpiModal: React.FC<KpiModalProps> = ({
         // Adding new KRA - reset to defaults
         setFormData({
           title: '',
-          objective: '',
+          objectiveId: undefined, // Use objectiveId, initialized to undefined
           unit: '',
           startDate: '',
           targetDate: '',
           comments: '',
+          // Initialize other required Kra fields
+          department: '',
+          status: 'pending',
+          owner: undefined,
         });
         // Ensure default KPI block has assignees array
         setKpiBlocks([{ assignees: [] }]);
@@ -85,11 +89,25 @@ const KpiModal: React.FC<KpiModalProps> = ({
   const handleSubmit = (event?: React.FormEvent) => {
     event?.preventDefault();
     // TODO: Add validation logic here
-    const finalKpiBlocks = kpiBlocks.filter(kpi => kpi.name); // Filter out any completely empty blocks if needed
+    const finalKpiBlocks = kpiBlocks.filter(kpi => kpi.name).map(kpi => {
+        // Remove tempId before submission if it exists
+        const { tempId, ...rest } = kpi;
+        return rest;
+    });
     const completeFormData = {
       ...formData,
+      id: kraData?.id || `kra_${Date.now()}`, // Ensure ID exists for new or edited
       kpis: finalKpiBlocks,
-    } as Kra; // Type assertion, ensure all required fields are present before submitting
+      // Ensure all required fields are present, using defaults if necessary
+      title: formData.title || 'Untitled KRA',
+      objectiveId: formData.objectiveId,
+      unit: formData.unit || 'Default Unit',
+      startDate: formData.startDate || new Date().toISOString().split('T')[0],
+      targetDate: formData.targetDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default target 90 days later
+      department: formData.department || formData.unit || 'Default Dept',
+      status: formData.status || 'pending',
+      owner: formData.owner || (users.length > 0 ? users[0] : undefined), // Default to first user or undefined
+    } as Kra;
 
     console.log("Modal Submit:", completeFormData);
     onSubmit(completeFormData);
