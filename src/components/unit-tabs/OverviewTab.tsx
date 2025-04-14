@@ -66,8 +66,8 @@ interface OverviewTabProps {
   tasks: Task[];
   risks: Risk[];
   kras: KRA[];
-  setupState: FullSetupWizardState;
-  objectives?: Objective[]; // Add objectives prop
+  setupState?: FullSetupWizardState;
+  objectives?: Objective[];
 }
 
 // Add a new component for the OneDrive switch dialog
@@ -170,13 +170,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     { name: 'Jun', completed: 15, added: 10 }
   ];
 
-  // Check if we're using local storage mode
-  const isLocalStorage = localStorage.getItem('unitopia_storage_type') === 'local' || 
-    (setupState.csvConfig?.fileIds && Object.values(setupState.csvConfig?.fileIds).some(id => 
-      typeof id === 'string' && String(id).startsWith('local-')
-    ));
+  // Check if we're using local storage mode - Remove dependency on setupState.csvConfig
+  // Assume local storage if explicitly set, otherwise assume not local.
+  const isLocalStorage = localStorage.getItem('unitopia_storage_type') === 'local';
   
-  // Handler for initiating the switch to OneDrive
+  // Handler for initiating the switch to OneDrive - Remove dependency on setupState.csvConfig
   const handleCreateOneDriveFolder = async (folderName) => {
     try {
       // Check if we have the Microsoft Graph hook available
@@ -223,15 +221,18 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       
       const folderData = await result.json();
       
-      // Switch to OneDrive mode
-      const switchResult = await setupState.switchToOneDrive({
-        folderId: folderData.id,
-        folderName: folderData.name
-      });
+      // Switch to OneDrive mode - This function might need removal or refactoring
+      // as setupState is optional/removed
+      // const switchResult = await setupState?.switchToOneDrive({
+      //   folderId: folderData.id,
+      //   folderName: folderData.name
+      // });
       
-      if (switchResult) {
-        toast.success(`Switched to OneDrive folder: ${folderData.name}`);
-      }
+      // if (switchResult) {
+      //   toast.success(`Switched to OneDrive folder: ${folderData.name}`);
+      // }
+       toast.info("OneDrive folder created. Functionality to switch data storage needs review."); // Placeholder message
+
     } catch (error) {
       console.error('Error switching to OneDrive:', error);
       toast.error(`Failed to switch to OneDrive: ${error.message}`);
@@ -240,10 +241,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Setup File Button */}
+      {/* Setup File Button - Functionality might need adjustment */}
       <div className="flex justify-end">
         <Button
-          onClick={() => setupState.setShowSetupWizard(true)}
+          // onClick={() => setupState?.setShowSetupWizard(true)} // Functionality removed/optional
+          onClick={() => toast.info("Setup functionality needs review.")} // Placeholder action
           className="flex items-center gap-2"
         >
           <Settings className="h-4 w-4" />
@@ -251,24 +253,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         </Button>
       </div>
 
-      {/* Setup Wizard Modal */}
-      <SetupWizard
-        isOpen={setupState.showSetupWizard}
-        onClose={() => setupState.setShowSetupWizard(false)}
-        onComplete={() => {
-          setupState.setShowSetupWizard(false);
-          // Here you would typically refresh the data or update the UI
-        }}
-        setSetupMethod={setupState.setSetupMethod}
-        setOneDriveConfig={setupState.setOneDriveConfig}
-        setObjectives={setupState.setObjectives}
-        handleSetupCompleteFromHook={setupState.handleSetupComplete}
-        updateExcelConfig={setupState.updateExcelConfig}
-        excelConfig={setupState.excelConfig}
-        oneDriveConfig={setupState.oneDriveConfig}
-        setupMethodProp={setupState.setupMethod}
-        objectivesProp={setupState.objectives}
-      />
+      {/* Local Storage Notice */}
+      {isLocalStorage && (
+         <LocalStorageFallbackNotice onSwitch={() => setShowSwitchDialog(true)} />
+      )}
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -476,11 +464,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Add the dialog component */}
+      {/* Switch to OneDrive Dialog */}
       <SwitchToOneDriveDialog 
-        isOpen={showSwitchDialog}
-        onClose={() => setShowSwitchDialog(false)}
-        onSwitch={handleCreateOneDriveFolder}
+         isOpen={showSwitchDialog} 
+         onClose={() => setShowSwitchDialog(false)} 
+         onSwitch={handleCreateOneDriveFolder} 
       />
     </div>
   );
