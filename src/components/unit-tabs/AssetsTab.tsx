@@ -7,6 +7,7 @@ import { Plus, Edit, Eye } from 'lucide-react';
 import AddAssetModal from './modals/AddAssetModal';
 import EditAssetModal from './modals/EditAssetModal';
 import TableErrorMessage from '@/components/TableErrorMessage';
+import { StaffMember } from '@/types/staff';
 
 interface UserAsset {
   id: string;
@@ -28,6 +29,7 @@ interface AssetsTabProps {
   deleteAsset?: (id: string) => void;
   error?: Error | null;
   onRetry?: () => void;
+  staffMembers?: StaffMember[];
 }
 
 export const AssetsTab: React.FC<AssetsTabProps> = ({ 
@@ -36,7 +38,8 @@ export const AssetsTab: React.FC<AssetsTabProps> = ({
   editAsset,
   deleteAsset,
   error,
-  onRetry
+  onRetry,
+  staffMembers
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Plus, Edit, Trash2, Filter } from 'lucide-react';
 import AddRiskModal from './modals/AddRiskModal';
 import EditRiskModal from './modals/EditRiskModal';
 import DeleteRiskModal from './modals/DeleteRiskModal';
-import { Risk } from '@/types';
+import { Risk, Project } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   Select,
@@ -17,20 +16,19 @@ import {
   SelectTrigger,
   SelectValue 
 } from "@/components/ui/select";
-
-interface Project {
-  id: string;
-  name: string;
-}
+import { StaffMember } from '@/types/staff';
+import { Objective } from '@/types/kpi';
 
 interface RisksTabProps {
   risks: Risk[];
   projects?: Project[];
-  addRisk: (risk: Risk) => void;
+  addRisk: (risk: Omit<Risk, 'id' | 'createdAt' | 'updatedAt'>) => void;
   editRisk: (id: string, risk: Partial<Risk>) => void;
   deleteRisk: (id: string) => void;
   error?: Error | null;
   onRetry?: () => void;
+  staffMembers?: StaffMember[];
+  objectives?: Objective[];
 }
 
 export const RisksTab: React.FC<RisksTabProps> = ({ 
@@ -40,7 +38,9 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   editRisk, 
   deleteRisk, 
   error, 
-  onRetry 
+  onRetry, 
+  staffMembers,
+  objectives
 }) => {
   const { selectedUnit, businessUnits } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);

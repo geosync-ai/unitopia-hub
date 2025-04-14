@@ -10,6 +10,7 @@ import EditProjectModal from './modals/EditProjectModal';
 import DeleteModal from './modals/DeleteModal';
 import { Project, Risk, Task } from '@/types';
 import { StaffMember } from '@/types/staff';
+import { Objective } from '@/types/kpi';
 
 interface ProjectsTabProps {
   projects: Project[];
@@ -19,6 +20,7 @@ interface ProjectsTabProps {
   error?: Error | null;
   onRetry?: () => void;
   staffMembers: StaffMember[];
+  objectives?: Objective[];
 }
 
 export const ProjectsTab: React.FC<ProjectsTabProps> = ({ 
@@ -26,7 +28,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   addProject, 
   editProject, 
   deleteProject, 
-  staffMembers
+  staffMembers,
+  objectives
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -178,6 +181,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             addProject(project);
             setShowAddModal(false);
           }}
+          // objectives={objectives} // Pass if needed
         />
       )}
       
@@ -190,6 +194,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           onSave={(updatedProject) => {
             editProject(selectedProject.id, updatedProject);
           }}
+          // objectives={objectives} // Pass if needed
         />
       )}
       

@@ -8,6 +8,7 @@ import AddTaskModal from './modals/AddTaskModal';
 import EditTaskModal from './modals/EditTaskModal';
 import DeleteModal from './modals/DeleteModal';
 import { StaffMember } from '@/types/staff';
+import { Objective } from '@/types/kpi';
 
 interface Task {
   id: string;
@@ -32,9 +33,10 @@ interface TasksTabProps {
   error?: Error | null;
   onRetry?: () => void;
   staffMembers: StaffMember[];
+  objectives?: Objective[];
 }
 
-export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, deleteTask, staffMembers }) => {
+export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, deleteTask, staffMembers, objectives }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
