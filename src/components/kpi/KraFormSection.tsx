@@ -265,8 +265,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
         <Label htmlFor="kra-comments">Comments (Optional)</Label>
         <Textarea
           id="kra-comments"
-          value={formData.comments || ''}
-          onChange={(e) => onChange('comments', e.target.value)}
+          value={formData.description || ''}
+          onChange={(e) => onChange('description', e.target.value)}
           placeholder="Add any overall notes for this KRA..."
           rows={3}
         />

@@ -26,8 +26,8 @@ export interface Kra {
   startDate: string; // ISO date string format recommended (e.g., "YYYY-MM-DD")
   targetDate: string; // ISO date string format recommended
   unitKpis: Kpi[];
-  comments?: string; // Optional overall comments for the KRA
-  department: string;
+  description?: string; // Use description to match database column for KRA notes
+  department: string; // Seems redundant if unit represents department? Keep for now.
   status: 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
   owner: User;
   isEditing?: boolean; // Client-side state
