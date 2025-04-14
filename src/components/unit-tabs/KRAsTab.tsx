@@ -162,18 +162,21 @@ interface KraFiltersState {
   status: string; // Filters by KPI status
 }
 
-// Define structure for the processed rows
+// Updated structure for processed rows supporting two-level grouping
 interface ProcessedRow {
-    // Added fields for Objective grouping
+    // Objective Info
     objectiveId: string | number | null; 
     objectiveName: string; 
-    isFirstKpiOfObjective: boolean; 
+    isFirstRowOfObjective: boolean; // Renamed for clarity
     objectiveRowSpan: number; 
-    // Existing fields, slightly modified
-    kra: Kra; // Contains KRA details like title
-    kpi: Kpi; // Contains KPI details
-    isFirstKpiOfKra: boolean;
-    kraRowSpan: number;
+    // KRA Info (grouped by Title)
+    kraTitle: string;
+    isFirstRowOfKraTitleGroup: boolean; // New flag for KRA title grouping
+    kraTitleRowSpan: number; // New span for KRA title cell
+    // KPI Info
+    kpi: Kpi; 
+    // Original KRA object (still needed for actions/details potentially)
+    originalKra: Kra; 
 }
 
 // Define structure for unit data (including ID)
@@ -214,6 +217,12 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ name: '', description: '' });
   const { toast } = useToast();
 
+  // Derive unique KRA titles for the Combobox
+  const existingKraTitles = useMemo(() => {
+    const titles = kras.map(kra => kra.title).filter(title => !!title); // Get all titles, filter out empty/null/undefined
+    return Array.from(new Set(titles)); // Get unique titles
+  }, [kras]);
+
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
   const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
 
@@ -232,9 +241,9 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     let rows: ProcessedRow[] = [];
     const groupedByObjective: Record<string, Kra[]> = {};
 
-    // 1. Group KRAs by Objective ID (handle null/undefined objectiveId)
+    // 1. Group KRAs by Objective ID
     kras.forEach(kra => {
-      const objId = kra.objectiveId || 'no-objective'; // Group KRAs without an objective
+      const objId = kra.objectiveId || 'no-objective';
       if (!groupedByObjective[objId]) {
         groupedByObjective[objId] = [];
       }
@@ -242,71 +251,89 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     });
 
     // 2. Iterate through each objective group
-    Object.keys(groupedByObjective).forEach((objId, objectiveIndex) => {
+    Object.keys(groupedByObjective).forEach(objId => {
       const krasInObjective = groupedByObjective[objId];
       const objectiveName = objectivesData.find(o => o.id === objId)?.name || (objId === 'no-objective' ? 'Unassigned' : 'Unknown Objective');
       
-      // Calculate total rows needed for this objective (objectiveRowSpan)
-      let currentObjectiveRowCount = 0;
+      // Calculate total KPIs for this objective (for objectiveRowSpan)
+      const totalKpisInObjective = krasInObjective.reduce((sum, kra) => {
+          const kpis = (kra as any).unitKpis || [];
+          return sum + Math.max(kpis.length, 1); // Count at least 1 row even if no KPIs
+      }, 0);
+      const objectiveRowSpan = totalKpisInObjective;
+      let isFirstRowOfThisObjective = true;
+
+      // 3. Group KRAs within the current objective by their title
+      const groupedByKraTitle: Record<string, Kra[]> = {};
       krasInObjective.forEach(kra => {
-        const kpis = (kra as any).unitKpis || [];
-        currentObjectiveRowCount += Math.max(kpis.length, 1); // At least one row per KRA
+          const kraTitle = kra.title || 'Untitled KRA'; // Use title for grouping
+          if (!groupedByKraTitle[kraTitle]) {
+              groupedByKraTitle[kraTitle] = [];
+          }
+          // Store all KRAs with the same title together (they might have different IDs but same title)
+          groupedByKraTitle[kraTitle].push(kra); 
       });
-      const objectiveRowSpan = currentObjectiveRowCount;
 
-      let isFirstKpiOfThisObjective = true; // Flag for the first row of the objective group
+      // 4. Iterate through each KRA title group within the current objective
+      Object.keys(groupedByKraTitle).forEach(kraTitle => {
+          const krasWithSameTitle = groupedByKraTitle[kraTitle];
+          
+          // Calculate total KPIs for this KRA title group (for kraTitleRowSpan)
+           const totalKpisInKraTitleGroup = krasWithSameTitle.reduce((sum, kra) => {
+               const kpis = (kra as any).unitKpis || [];
+               return sum + Math.max(kpis.length, 1); // Count at least 1 row per KRA instance
+           }, 0);
+          const kraTitleRowSpan = totalKpisInKraTitleGroup;
+          let isFirstRowOfThisKraTitleGroup = true;
 
-      // 3. Iterate through KRAs within the current objective
-      krasInObjective.forEach((kra, kraIndex) => {
-        
-        const kraKpis = (kra as any).unitKpis && (kra as any).unitKpis.length > 0 
-                         ? (kra as any).unitKpis 
-                         : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi]; // Placeholder KPI if none exist
-        
-        const kraRowSpan = kraKpis.length; // Span for the KRA cell
+          // 5. Iterate through each KRA instance within the title group
+          krasWithSameTitle.forEach(kra => {
+              const kraKpis = (kra as any).unitKpis && (kra as any).unitKpis.length > 0 
+                  ? (kra as any).unitKpis 
+                  : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi]; // Placeholder
 
-        // 4. Iterate through KPIs within the current KRA
-        kraKpis.forEach((kpi, kpiIndex) => {
-          rows.push({
-            // Objective Info
-            objectiveId: objId === 'no-objective' ? null : objId,
-            objectiveName: objectiveName,
-            isFirstKpiOfObjective: isFirstKpiOfThisObjective, // True only for the very first row overall in this objective group
-            objectiveRowSpan: objectiveRowSpan,
-            // KRA Info
-            kra: kra, // Pass the whole KRA object
-            isFirstKpiOfKra: kpiIndex === 0, // True only for the first KPI of this specific KRA
-            kraRowSpan: kraRowSpan,
-            // KPI Info
-            kpi: kpi,
+              // 6. Iterate through KPIs within the current KRA instance
+              kraKpis.forEach((kpi, kpiIndex) => {
+                  rows.push({
+                      // Objective Info
+                      objectiveId: objId === 'no-objective' ? null : objId,
+                      objectiveName: objectiveName,
+                      isFirstRowOfObjective: isFirstRowOfThisObjective, 
+                      objectiveRowSpan: objectiveRowSpan,
+                      // KRA Info
+                      kraTitle: kraTitle,
+                      isFirstRowOfKraTitleGroup: isFirstRowOfThisKraTitleGroup,
+                      kraTitleRowSpan: kraTitleRowSpan,
+                      // KPI Info
+                      kpi: kpi,
+                      // Original KRA
+                      originalKra: kra, // Keep original KRA for actions/details
+                  });
+                  // Set flags to false after the first row of each group
+                  isFirstRowOfThisObjective = false; 
+                  isFirstRowOfThisKraTitleGroup = false;
+              });
           });
-          isFirstKpiOfThisObjective = false; // Set to false after the first row of the objective is added
-        });
       });
     });
 
     // Apply Filters (department and kpi status) AFTER grouping logic
+    // Note: Filtering might break the visual grouping spans calculated earlier.
+    // Consider moving filtering before span calculation if this becomes an issue.
     const filteredRows = rows.filter(row => {
-      const departmentMatch = filters.department === 'all' || row.kra.unit === filters.department;
-      // Handle placeholder KPIs (where kpi.status might be undefined)
-      const statusMatch = filters.status === 'all' || (row.kpi.status && row.kpi.status === filters.status); 
+      const departmentMatch = filters.department === 'all' || row.originalKra.unit === filters.department;
+      const statusMatch = filters.status === 'all' || (row.kpi.status && row.kpi.status === filters.status);
       
-      // If KPI is placeholder, it should only be filtered by department, not status
-      if (row.kpi.name === '-') {
+      if (row.kpi.name === '-') { // Handle placeholder KPIs
          return departmentMatch;
       }
       
       return departmentMatch && statusMatch;
     });
-    
-    // Recalculate spans after filtering (This is complex and might be imperfect)
-    // A simpler approach might be to apply filters *before* calculating spans, 
-    // but that could hide KRAs/Objectives entirely if none of their KPIs match.
-    // For now, we'll keep the spans as calculated pre-filtering, which might result
-    // in spans that seem too large if rows are filtered out.
-    // TODO: Revisit span calculation post-filtering if needed for perfect accuracy.
 
-    return filteredRows; // Return the filtered rows
+    // TODO: Recalculate spans after filtering for perfect accuracy if needed.
+    
+    return filteredRows; 
 
   }, [kras, filters.department, filters.status, objectivesData]);
 
@@ -735,22 +762,39 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                           </TableCell>
                         </TableRow>
                       ) : (
-                        processedRows.map((row, rowIndex) => {
-                          const { kra, kpi, isFirstKpiOfObjective, objectiveRowSpan, isFirstKpiOfKra, kraRowSpan, objectiveName } = row;
-                          const kpiStatusVariant = getKpiStatusVariant(kpi.status);
+                        processedRows.map((row, rowIndex) => { 
+                          const { 
+                            kpi, 
+                            originalKra, // Use originalKra for actions
+                            isFirstRowOfObjective, 
+                            objectiveRowSpan, 
+                            objectiveName,
+                            isFirstRowOfKraTitleGroup, 
+                            kraTitleRowSpan, 
+                            kraTitle 
+                          } = row;
                           const targetQuarter = getQuarter(kpi.targetDate);
+                          
+                          // Determine if this specific KPI row should have edit/delete actions
+                          // Usually the first KPI of the *original* KRA instance gets the KRA actions
+                          // This check might need refinement depending on exact desired behavior
+                          const isFirstKpiOfOriginalKra = (originalKra as any).unitKpis?.[0]?.id === kpi.id || (!kpi.id && !(originalKra as any).unitKpis?.length); 
+
                           return (
-                            <TableRow key={`${kra.id}-${kpi.id || rowIndex}`}>
-                              {isFirstKpiOfObjective && (
+                            <TableRow key={`${originalKra.id}-${kpi.id || rowIndex}`}>
+                              {/* Conditionally render Objective Cell */}
+                              {isFirstRowOfObjective && (
                                 <TableCell className="align-top border-r text-sm font-medium" rowSpan={objectiveRowSpan}>
                                   {objectiveName}
                                 </TableCell>
                               )}
-                              {isFirstKpiOfKra && (
-                                <TableCell className="align-top border-r" rowSpan={kraRowSpan}>
-                                  {kra.title}
+                              {/* Conditionally render KRA Title Cell */}
+                              {isFirstRowOfKraTitleGroup && (
+                                <TableCell className="align-top border-r" rowSpan={kraTitleRowSpan}>
+                                  {kraTitle} 
                                 </TableCell>
                               )}
+                              {/* KPI Cells - Rendered in every row */}
                               <TableCell className="align-top text-sm">
                                 {kpi.name !== '-' ? kpi.name : <span className="text-muted-foreground">-</span>}
                               </TableCell>
@@ -773,7 +817,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                                       <Tooltip key={assignee.id || `assignee-${index}`}>
                                         <TooltipTrigger asChild>
                                           <Avatar className="h-6 w-6 border-2 border-background">
-                                            <AvatarImage src={assignee.avatarUrl} /* alt={assignee.name} */ /> 
+                                            <AvatarImage src={assignee.avatarUrl} /> 
                                             <AvatarFallback>{assignee.initials || assignee.name?.substring(0, 2) || '?'}</AvatarFallback>
                                           </Avatar>
                                         </TooltipTrigger>
@@ -789,34 +833,37 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                                 {kpi.comments || '-'}
                               </TableCell>
                               <TableCell className="align-top text-right">
-                                {isFirstKpiOfKra && (
+                                {/* Actions - Render KRA actions only on the first row of the ORIGINAL KRA instance */}
+                                {isFirstKpiOfOriginalKra && ( 
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKraModal(kra)}>
+                                            {/* Pass the original KRA object to edit */}
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKraModal(originalKra)}> 
                                                 <Edit className="h-4 w-4" />
                                             </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent><p>Edit KRA</p></TooltipContent>
+                                        <TooltipContent><p>Edit KRA Instance</p></TooltipContent>
                                     </Tooltip>
                                 )}
-                                {kpi.id && kpi.name !== '-' && (
+                                {kpi.id && kpi.name !== '-' && ( // Only show edit KPI if it's not a placeholder
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKpiModal(kra.id, kpi)}>
+                                             {/* Pass the original KRA ID and the specific KPI */}
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKpiModal(originalKra.id, kpi)}>
                                                 <MessageSquare className="h-4 w-4" />
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent><p>Edit KPI / Add Comment</p></TooltipContent>
                                     </Tooltip>
                                 )}
-                                {isFirstKpiOfKra && (
+                                 {isFirstKpiOfOriginalKra && ( // KRA Delete action
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(kra.id)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(originalKra.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent><p>Delete KRA</p></TooltipContent>
+                                        <TooltipContent><p>Delete KRA Instance</p></TooltipContent>
                                     </Tooltip>
                                 )}
                               </TableCell>
@@ -886,6 +933,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
           staffMembers={staffMembers}
           objectives={objectivesData}
           units={units}
+          existingKraTitles={existingKraTitles}
         />
 
         <Dialog open={isObjectiveModalOpen} onOpenChange={handleCloseObjectiveModal}>

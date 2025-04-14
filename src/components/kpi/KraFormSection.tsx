@@ -24,6 +24,7 @@ interface KraFormSectionProps {
   staffMembers?: StaffMember[]; // Add staffMembers prop
   objectives?: Objective[]; // List of objectives for dropdown
   units?: { id: string | number; name: string }[]; // Update units prop type
+  existingKraTitles?: string[]; // Add prop for existing titles
 }
 
 // Simple MultiSelectChip component placeholder for Assignees
@@ -126,7 +127,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
   users = [],
   staffMembers = [], // Add default value
   objectives = [],
-  units = []
+  units = [],
+  existingKraTitles = [] // Accept prop
 }) => {
 
   // Helper to handle date input changes (assuming YYYY-MM-DD format)
@@ -138,16 +140,63 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">KRA Information</h3>
-      {/* KRA Title */}
+      {/* KRA Title Combobox */}
       <div className="grid gap-1.5">
         <Label htmlFor="kra-title">KRA Title *</Label>
-        <Input
-          id="kra-title"
-          value={formData.title || ''}
-          onChange={(e) => onChange('title', e.target.value)}
-          placeholder="e.g., Enhance Customer Onboarding Experience"
-          required
-        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-label="Select or type a KRA title"
+              className={cn(
+                "w-full justify-between",
+                !formData.title && "text-muted-foreground"
+              )}
+            >
+              {formData.title || "Select or type a KRA title..."}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+            <Command 
+              // Filter based on typed value, but allow typing new values
+              filter={(value, search) => {
+                if (value.toLowerCase().includes(search.toLowerCase())) return 1
+                return 0
+              }}
+            >
+              <CommandInput 
+                placeholder="Search or type new KRA title..." 
+                value={formData.title || ''} 
+                onValueChange={(search) => onChange('title', search)} // Update form data as user types
+              />
+              <CommandList>
+                <CommandEmpty>No existing KRAs found. Type to create new.</CommandEmpty>
+                <CommandGroup>
+                  {existingKraTitles.map((title) => (
+                    <CommandItem
+                      key={title}
+                      value={title}
+                      onSelect={(currentValue) => {
+                        onChange('title', currentValue === formData.title ? '' : currentValue)
+                        // Optionally close popover on select: document.getElementById('kra-title')?.parentElement?.parentElement?.['aria-expanded'] = false;
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          formData.title === title ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {title}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Objective & Unit (Side by side on larger screens) */}

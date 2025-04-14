@@ -19,6 +19,7 @@ interface KpiModalProps {
   staffMembers?: StaffMember[]; // Add staffMembers prop for assignees
   objectives?: Objective[]; // Changed from string[] to Objective[]
   units?: { id: string | number; name: string }[]; // Update units prop type
+  existingKraTitles?: string[]; // Add prop for existing titles
 }
 
 const KpiModal: React.FC<KpiModalProps> = ({
@@ -30,6 +31,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
   staffMembers = [], // Add default value
   objectives = [], // Provide default empty arrays
   units = [], // Provide default empty arrays
+  existingKraTitles = [], // Add default value
 }) => {
   // Initialize state based on whether we are editing or adding
   const [formData, setFormData] = useState<Partial<Kra>>({});
@@ -138,6 +140,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
               staffMembers={staffMembers}
               objectives={objectives}
               units={units}
+              existingKraTitles={existingKraTitles}
             />
 
             <Separator />
