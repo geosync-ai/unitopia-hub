@@ -39,14 +39,20 @@ const KpiModal: React.FC<KpiModalProps> = ({
 
   // Effect to reset form when kraData changes (for edit) or modal opens for add
   useEffect(() => {
+    console.log("[KpiModal useEffect] Running. isOpen:", isOpen); // Log useEffect trigger
     if (isOpen) {
+      console.log("[KpiModal useEffect] Modal is open. Received kraData:", kraData); // Log received data
       if (kraData) {
         // Editing existing KRA
+        console.log("[KpiModal useEffect] Editing mode. Setting formData from kraData.");
         setFormData({ ...kraData });
         // Ensure KPI blocks are initialized correctly, including description and comments
-        setKpiBlocks(kraData.kpis ? kraData.kpis.map(kpi => ({ ...kpi })) : [{}]);
+        const kpisToSet = kraData.kpis ? kraData.kpis.map(kpi => ({ ...kpi })) : [{}];
+        console.log("[KpiModal useEffect] Setting kpiBlocks:", kpisToSet); // Log what's being set
+        setKpiBlocks(kpisToSet);
       } else {
         // Adding new KRA - reset to defaults
+        console.log("[KpiModal useEffect] Add mode. Resetting formData and kpiBlocks.");
         setFormData({
           title: '',
           objectiveId: undefined, // Use objectiveId, initialized to undefined
