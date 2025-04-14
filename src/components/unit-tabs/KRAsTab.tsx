@@ -529,15 +529,15 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       }
     }
 
-    // --- Final Steps ---\
-    if (!operationError) {\
-      toast({ title: `KRA ${isEditing ? 'Updated' : 'Created'} Successfully`, description: "KRA and associated KPIs have been saved." });\
-      // Trigger data refresh in parent component\
-      console.log("[handleKpiFormSubmit] Success! Attempting to call onDataRefresh..."); // Log before calling\
-      onDataRefresh?.(); // Call the refresh function if it exists\
-    } else {\
-        toast({ title: `KRA ${isEditing ? 'Update' : 'Creation'} Partially Failed`, description: "Errors occurred during saving. Check console logs.", variant: "destructive" });\
-    }\
+    // --- Final Steps ---
+    if (!operationError) {
+      toast({ title: `KRA ${isEditing ? 'Updated' : 'Created'} Successfully`, description: "KRA and associated KPIs have been saved." });
+      // Trigger data refresh in parent component
+      console.log("[handleKpiFormSubmit] Success! Attempting to call onDataRefresh..."); // Log before calling
+      onDataRefresh?.(); // Call the refresh function if it exists
+    } else {
+        toast({ title: `KRA ${isEditing ? 'Update' : 'Creation'} Partially Failed`, description: "Errors occurred during saving. Check console logs.", variant: "destructive" });
+    }
 
     handleCloseKpiModal(); // Close modal regardless of partial errors, as some operations might have succeeded
   };
