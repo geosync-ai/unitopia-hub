@@ -46,8 +46,8 @@ const KpiModal: React.FC<KpiModalProps> = ({
         // Editing existing KRA
         console.log("[KpiModal useEffect] Editing mode. Setting formData from kraData.");
         setFormData({ ...kraData });
-        // Ensure KPI blocks are initialized correctly, including description and comments
-        const kpisToSet = kraData.kpis ? kraData.kpis.map(kpi => ({ ...kpi })) : [{}];
+        // Ensure KPI blocks are initialized correctly, using the correct property name 'unitKpis'
+        const kpisToSet = kraData.unitKpis ? kraData.unitKpis.map(kpi => ({ ...kpi })) : [{}];
         console.log("[KpiModal useEffect] Setting kpiBlocks:", kpisToSet); // Log what's being set
         setKpiBlocks(kpisToSet);
       } else {

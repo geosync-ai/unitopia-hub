@@ -25,7 +25,7 @@ export interface Kra {
   unit: string; // Assuming unit is stored as string, could be an ID. Let's treat this as unitId for form consistency.
   startDate: string; // ISO date string format recommended (e.g., "YYYY-MM-DD")
   targetDate: string; // ISO date string format recommended
-  kpis: Kpi[];
+  unitKpis: Kpi[];
   comments?: string; // Optional overall comments for the KRA
   department: string;
   status: 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
