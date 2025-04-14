@@ -81,6 +81,7 @@ import {
 import { OrganizationUnit } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
+import { Objective } from '@/types/kpi';
 
 // Define hooks for state management
 const useTaskState = (initialTasks = []) => {
@@ -772,194 +773,183 @@ const Unit = () => {
     );
   }
 
+  // Objective State Management
+  const [objectivesData, setObjectivesData] = useState<Objective[]>([]);
+
+  const handleSaveObjective = useCallback((objective: Objective) => {
+    setObjectivesData(prev => {
+      const existingIndex = prev.findIndex(o => o.id === objective.id);
+      if (existingIndex > -1) {
+        // Update existing objective
+        const updatedObjectives = [...prev];
+        updatedObjectives[existingIndex] = objective;
+        return updatedObjectives;
+      } else {
+        // Add new objective (generate ID if necessary)
+        const newObjective = { ...objective, id: objective.id || `obj-${Date.now()}` };
+        return [...prev, newObjective];
+      }
+    });
+    // Optional: Add API call here to save to backend/Supabase
+    toast({ title: "Objective saved successfully." });
+  }, [toast]);
+
+  const handleDeleteObjective = useCallback((objectiveId: string | number) => {
+    setObjectivesData(prev => prev.filter(o => o.id !== objectiveId));
+    // Optional: Add API call here to delete from backend/Supabase
+    toast({ title: "Objective deleted successfully.", variant: "destructive" });
+  }, [toast]);
+
+  // Effect to load data or check setup status
+  useEffect(() => {
+    if (!setupWizard.isSetupComplete) {
+      // Don't load data if setup isn't complete
+      return;
+    }
+    // Trigger refresh/fetch for all data sources if needed
+    // Example: taskState.refresh(); projectState.refresh(); ...
+  }, [setupWizard.isSetupComplete]); // Add other dependencies like refresh functions if needed
+
+  if (setupWizard.loading) {
+    return <PageLayout title="Unit Dashboard"><div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> Loading Setup...</div></PageLayout>;
+  }
+
+  if (!setupWizard.isSetupComplete && !setupWizard.showWizard) {
+     // This case might mean setup is done but page reloaded, check local storage again
+     // Or handle potential intermediate states
+     return <PageLayout title="Unit Dashboard"><div className="text-center p-8">Checking setup status...</div></PageLayout>;
+  }
+
+  if (setupWizard.showWizard) {
+    return (
+      <SetupWizard
+        initialConfig={setupWizard.config}
+        onComplete={setupWizard.completeSetup}
+        onCancel={() => {
+          // Decide what happens on cancel - maybe go back or show a message
+          console.log("Setup cancelled");
+          // Potentially navigate away or show a placeholder
+        }}
+      />
+    );
+  }
+
+  // Main content rendering after setup is complete
   return (
-    <PageLayout>
-      <div className="p-6 flex">
-        <div className={`flex-1 transition-all duration-300 ${showAiChat ? 'mr-4' : ''}`}>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Unit Dashboard</h1>
-            <div className="flex gap-2 items-center">
-              {/* Unit Selector */}
-              {availableUnits.length > 0 && (
-                <Select
-                  value={selectedUnit || undefined}
-                  onValueChange={value => setSelectedUnit(value)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select Unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableUnits.map(unit => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowSetupWizard(true)}
-                className="flex items-center gap-2"
-              >
-                Setup
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowAiChat(!showAiChat)}
-                className="flex items-center gap-2"
-              >
-                {showAiChat ? 'Hide AI Assistant' : 'Show AI Assistant'}
-              </Button>
-            </div>
-          </div>
-          
-          <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks/Daily Operations</TabsTrigger>
-              <TabsTrigger value="kras">KRAs</TabsTrigger>
-              <TabsTrigger value="projects">Projects</TabsTrigger>
-              <TabsTrigger value="risks">Risks</TabsTrigger>
-              <TabsTrigger value="assets">User Asset Management</TabsTrigger>
-            </TabsList>
-            
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-8">
-              <OverviewTab 
-                projects={projectState.data}
-                tasks={taskState.data}
-                risks={riskState.data}
-                kras={kraState.kras}
-                setupState={setupWizard}
-              />
-            </TabsContent>
-            
-            {/* Tasks/Daily Operations Tab */}
-            <TabsContent value="tasks" className="space-y-6">
-              <TasksTab 
-                tasks={taskState.data} 
-                addTask={taskState.add}
-                editTask={taskState.update}
-                deleteTask={taskState.remove}
-                error={taskState.error}
-                onRetry={taskState.refresh}
-                staffMembers={staffMembers}
-              />
-            </TabsContent>
-            
-            {/* KRAs Tab */}
-            <TabsContent value="kras" className="space-y-6">
-              {setupWizard.isSetupComplete || true ? (
-                <KRAsTab />
-              ) : (
-                <div className="text-center text-muted-foreground p-8">
-                  Please complete the setup wizard to view KRAs.
-                </div>
-              )}
-            </TabsContent>
-            
-            {/* Projects Tab */}
-            <TabsContent value="projects" className="space-y-6">
-              <ProjectsTab 
-                projects={projectState.data}
-                addProject={projectState.add}
-                editProject={projectState.update}
-                deleteProject={projectState.remove}
-                error={projectState.error}
-                onRetry={projectState.refresh}
-                staffMembers={staffMembers}
-              />
-            </TabsContent>
-            
-            {/* Risks Tab */}
-            <TabsContent value="risks" className="space-y-6">
-              <RisksTab 
-                risks={riskState.data}
-                addRisk={riskState.add}
-                editRisk={riskState.update}
-                deleteRisk={riskState.remove}
-                error={riskState.error}
-                onRetry={riskState.refresh}
-              />
-            </TabsContent>
-            
-            {/* User Asset Management Tab */}
-            <TabsContent value="assets" className="space-y-6">
-              <AssetsTab 
-                assets={assetState.data}
-                addAsset={assetState.add}
-                editAsset={assetState.update}
-                deleteAsset={assetState.remove}
-                error={assetState.error}
-                onRetry={assetState.refresh}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-        
-        {/* AI Chat Area (conditionally rendered) */}
-        {showAiChat && (
-          <div className="w-1/3 max-w-md border-l pl-4">
-            <div className="border rounded-lg h-[calc(100vh-160px)] flex flex-col">
-              <div className="p-4 border-b">
-                <h3 className="font-semibold">AI Assistant</h3>
-              </div>
-              <div className="flex-1 overflow-auto p-4">
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-muted p-3">
-                    <p className="text-sm">How can I help you today?</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 border-t">
-                <div className="flex gap-2">
-                  <Input placeholder="Type a message..." />
-                  <Button>Send</Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Setup Wizard - Only shown when the Setup button is clicked */}
-      {showSetupWizard && (
-        <SetupWizard
-          isOpen={showSetupWizard}
-          onClose={handleSetupClose}
-          onComplete={handleSetupComplete}
-          setSetupMethod={setupWizard.setSetupMethod}
-          setOneDriveConfig={setupWizard.setOneDriveConfig}
-          setObjectives={setupWizard.setObjectives}
-          setKRAs={setupWizard.setKRAs}
-          setKPIs={setupWizard.setKPIs}
-          handleSetupCompleteFromHook={setupWizard.handleSetupComplete}
-          updateCsvConfig={setupWizard.updateCsvConfig}
-          setCsvConfig={setupWizard.setCsvConfig}
-          csvConfig={setupWizard.csvConfig}
-          oneDriveConfig={setupWizard.oneDriveConfig}
-          setupMethodProp={setupWizard.setupMethod}
-          objectivesProp={setupWizard.objectives}
-          krasProp={setupWizard.kras}
-          kpisProp={setupWizard.kpis}
-          isSetupComplete={setupWizard.isSetupComplete}
-        />
+    <PageLayout title="Unit Dashboard" subtitle={user?.department ? `Department: ${user.department}` : ''}>
+      {isDataLoading && (
+         <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> Loading Unit Data...</div>
       )}
-      
-      {/* Skip OneDrive Setup Button - Only shown when SetupWizard is visible */}
-      {showSetupWizard && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Button
-            variant="outline"
-            className="bg-white border-amber-300 text-amber-700 hover:bg-amber-50"
-            onClick={handleSkipOneDriveSetup}
-          >
-            Skip OneDrive Setup
-          </Button>
-        </div>
+      {dataError && (
+        <Card className="mb-6 bg-destructive/10 border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">Data Loading Error</CardTitle>
+            <CardDescription className="text-destructive">
+              There was an error loading some unit data. Please check the data sources or try again later.
+              {/* Consider adding a retry button */}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Optionally list specific errors */}
+            {taskState.error && <p>Tasks Error: {taskState.error}</p>}
+            {projectState.error && <p>Projects Error: {projectState.error}</p>}
+            {riskState.error && <p>Risks Error: {riskState.error}</p>}
+            {assetState.error && <p>Assets Error: {assetState.error}</p>}
+            {kraState.error && <p>KRAs Error: {kraState.error}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isDataLoading && !dataError && (
+        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks/Daily Operations</TabsTrigger>
+            <TabsTrigger value="kras">KRAs</TabsTrigger>
+            <TabsTrigger value="projects">Projects</TabsTrigger>
+            <TabsTrigger value="risks">Risks</TabsTrigger>
+            <TabsTrigger value="assets">User Asset Management</TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-8">
+            <OverviewTab
+              projects={projectState.data}
+              tasks={taskState.data}
+              risks={riskState.data}
+              kras={kraState.kras}
+              setupState={setupWizard}
+              objectives={objectivesData}
+            />
+          </TabsContent>
+
+          {/* Tasks/Daily Operations Tab */}
+          <TabsContent value="tasks" className="space-y-6">
+            <TasksTab
+              tasks={taskState.data}
+              addTask={taskState.add}
+              editTask={taskState.update}
+              deleteTask={taskState.remove}
+              error={taskState.error}
+              onRetry={taskState.refresh}
+              staffMembers={staffMembers}
+              objectives={objectivesData}
+            />
+          </TabsContent>
+
+          {/* KRAs Tab */}
+          <TabsContent value="kras" className="space-y-6">
+            <KRAsTab
+              kras={kraState.kras}
+              objectivesData={objectivesData}
+              onSaveObjective={handleSaveObjective}
+              onDeleteObjective={handleDeleteObjective}
+              units={kraState.units || []}
+            />
+          </TabsContent>
+
+          {/* Projects Tab */}
+          <TabsContent value="projects" className="space-y-6">
+            <ProjectsTab
+              projects={projectState.data}
+              addProject={projectState.add}
+              editProject={projectState.update}
+              deleteProject={projectState.remove}
+              error={projectState.error}
+              onRetry={projectState.refresh}
+              staffMembers={staffMembers}
+              objectives={objectivesData}
+            />
+          </TabsContent>
+
+          {/* Risks Tab */}
+          <TabsContent value="risks" className="space-y-6">
+            <RisksTab
+              risks={riskState.data}
+              addRisk={riskState.add}
+              editRisk={riskState.update}
+              deleteRisk={riskState.remove}
+              error={riskState.error}
+              onRetry={riskState.refresh}
+              staffMembers={staffMembers}
+              projects={projectState.data}
+              objectives={objectivesData}
+            />
+          </TabsContent>
+
+          {/* Assets Tab */}
+          <TabsContent value="assets" className="space-y-6">
+            <AssetsTab
+              assets={assetState.data}
+              addAsset={assetState.add}
+              editAsset={assetState.update}
+              deleteAsset={assetState.remove}
+              error={assetState.error}
+              onRetry={assetState.refresh}
+              staffMembers={staffMembers}
+            />
+          </TabsContent>
+        </Tabs>
       )}
     </PageLayout>
   );

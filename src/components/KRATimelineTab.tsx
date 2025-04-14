@@ -76,6 +76,16 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
     }
   };
 
+  // Helper function to get KPI progress percentage
+  const getKpiProgress = (kpi: Kpi): number => {
+    if (kpi.status === 'Completed') return 100;
+    const target = Number(kpi.target);
+    const actual = Number(kpi.actual);
+    if (target === 0 || isNaN(target) || isNaN(actual) || actual === undefined || actual === null) return 0;
+    const progress = Math.min(100, Math.max(0, (actual / target) * 100));
+    return Math.round(progress);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -220,46 +230,58 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           </>
                         ) : (
                           <>
-                            {kra.kpis && kra.kpis.map((kpi, kpiIndex) => {
-                              const kpiStartDate = parseDate(kpi.startDate);
-                              const kpiTargetDate = parseDate(kpi.targetDate);
-                              const kpiStartPosition = calculatePosition(kpiStartDate);
-                              const kpiWidth = calculateWidth(kpiStartDate, kpiTargetDate);
-                              const kpiColorClass = getKpiStatusColorClass(kpi.status);
+                            {/* Individual KPI bars for Monthly/Weekly View */}
+                            <TooltipProvider> { /* Ensure provider wraps the map */ }
+                              {kra.kpis && kra.kpis.map((kpi, kpiIndex) => {
+                                const kpiStartDate = parseDate(kpi.startDate);
+                                const kpiTargetDate = parseDate(kpi.targetDate);
+                                const kpiStartPosition = calculatePosition(kpiStartDate);
+                                const kpiWidth = calculateWidth(kpiStartDate, kpiTargetDate);
+                                const kpiColorClass = getKpiStatusColorClass(kpi.status);
+                                const kpiProgress = getKpiProgress(kpi);
 
-                              if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
-                                return <></>;
-                              }
+                                if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
+                                  return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; // Use Fragment with key
+                                }
 
-                              return (
-                                <TooltipProvider key={kpi.id || `kpi-${kraIndex}-${kpiIndex}`} delayDuration={100}>
-                                  <Tooltip>
+                                return (
+                                  <Tooltip key={kpi.id || `kpi-${kraIndex}-${kpiIndex}`} delayDuration={100}>
                                     <TooltipTrigger asChild>
+                                      {/* Outer div: Positions the bar, acts as track */}
                                       <div
-                                        className={`absolute h-6 rounded shadow-sm flex items-center overflow-hidden ${kpiColorClass}`}
+                                        className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden`}
                                         style={{
                                           left: `${kpiStartPosition}%`,
                                           width: `${kpiWidth}%`,
-                                          top: `${1 + kpiIndex * 1.75}rem`,
-                                          zIndex: 10 + kpiIndex,
+                                          top: `${1 + kpiIndex * 1.75}rem`, // Stack KPIs vertically
+                                          zIndex: 10 + kpiIndex, // Ensure stacking order
                                         }}
                                       >
-                                        <span className="text-xs text-white font-medium px-1.5 truncate">
+                                        {/* Inner div: Shows progress with status color */}
+                                        <div
+                                          className={`absolute top-0 left-0 h-full rounded-full ${kpiColorClass} transition-all duration-300`}
+                                          style={{ width: `${kpiProgress}%` }}
+                                        />
+                                        {/* KPI Name Label: Positioned above progress */}
+                                        <span className="absolute inset-0 flex items-center text-xs text-white font-medium px-2 truncate z-10">
                                           {kpi.name}
                                         </span>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" align="center">
-                                      <p>{kpi.name}</p>
+                                      <p className="font-semibold">{kpi.name}</p>
                                       <p className="text-xs text-muted-foreground">
                                         {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'}
                                       </p>
                                       <p className="text-xs">Status: {kpi.status}</p>
+                                      <p className="text-xs">Progress: {kpiProgress}%</p>
+                                      {kpi.target !== undefined && <p className="text-xs">Target: {kpi.target}</p>}
+                                      {kpi.actual !== undefined && <p className="text-xs">Actual: {kpi.actual}</p>}
                                     </TooltipContent>
                                   </Tooltip>
-                                </TooltipProvider>
-                              );
-                            })}
+                                );
+                              })}
+                            </TooltipProvider> { /* End provider */ }
                             {(!kra.kpis || kra.kpis.length === 0) && (
                                 <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
                                     No KPIs defined for this KRA.
