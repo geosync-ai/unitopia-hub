@@ -349,13 +349,14 @@ export const KRAsTab: React.FC = () => {
                         <TableHead>Actual</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Assignees</TableHead>
+                        <TableHead>Comments</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {processedRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={10} className="h-24 text-center">
+                          <TableCell colSpan={11} className="h-24 text-center">
                             No KPIs found matching the current filters.
                           </TableCell>
                         </TableRow>
@@ -401,6 +402,22 @@ export const KRAsTab: React.FC = () => {
                                     {(kpi.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
                                   </div>
                                 ) : '-' }
+                              </TableCell>
+                              <TableCell className="align-top text-center">
+                                {kpi.comments ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center justify-center h-6 w-6 cursor-help">
+                                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="max-w-xs text-sm">{kpi.comments}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
                               </TableCell>
                               {isFirstKpiOfKra && (
                                 <TableCell className="text-right align-top" rowSpan={kraRowSpan}>
