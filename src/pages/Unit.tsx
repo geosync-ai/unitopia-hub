@@ -193,34 +193,6 @@ interface Risk {
   updatedAt: Date;
 }
 
-interface KPI {
-  id: string;
-  name: string;
-  date: Date;
-  startDate: Date; // Add start date
-  target: string;
-  actual: string;
-  status: 'on-track' | 'at-risk' | 'behind' | 'completed';
-  description: string;
-  notes: string;
-}
-
-interface KRA {
-  id: string;
-  name: string;
-  objectiveId: string;
-  objectiveName: string;
-  department: string;
-  responsible: string;
-  startDate: Date;
-  endDate: Date;
-  progress: number;
-  status: 'open' | 'in-progress' | 'closed';
-  kpis: KPI[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface Task {
   id: string;
   title: string;
