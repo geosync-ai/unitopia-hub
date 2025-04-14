@@ -802,6 +802,24 @@ export const unitService = { // Or whatever your service object is named
       throw error; // Re-throw the error to be handled by the calling component
     }
   },
+
+  // Delete an objective
+  deleteObjective: async (id: string) => {
+    const supabase = getSupabaseClient();
+    console.log(`[unitService] Deleting objective with ID: ${id}`);
+    const { error } = await supabase
+      .from(TABLES.OBJECTIVES)
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      console.error(`[unitService] Error deleting objective ID ${id}:`, error);
+      throw error;
+    }
+    
+    console.log(`[unitService] Objective ID ${id} deleted successfully.`);
+    return true;
+  },
   // --- END ADDED FUNCTION ---
 
   // ... other existing service functions (tasksService, projectsService, etc.) ...

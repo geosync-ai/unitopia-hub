@@ -173,14 +173,32 @@ const Unit = () => {
 
   }, [fetchObjectives]); // Depend on fetchObjectives
 
+  // Function to refresh all relevant data
+  const handleRefreshAllData = useCallback(() => {
+    console.log("[Unit.tsx] Refreshing all data...");
+    fetchObjectives();
+    kraState.refresh?.();
+    // Potentially refresh other states if KRA/Objective changes affect them
+    // projectState.refresh?.(); 
+    // taskState.refresh?.();
+  }, [fetchObjectives, kraState.refresh]);
+
   const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
-    // TODO: Implement Supabase delete logic here or in unitService
-    console.warn(`[Unit.tsx] handleDeleteObjective called for ID: ${objectiveId}. DB delete not implemented yet.`);
-    // For now, just remove from local state and show toast
-    setObjectivesData(prev => prev.filter(o => o.id !== objectiveId));
-    toast({ title: "Objective deleted (locally).", variant: "destructive" });
-    // Consider calling fetchObjectives() after implementing DB delete
-  }, [toast]);
+    console.log(`[Unit.tsx] Attempting to delete objective ID: ${objectiveId}`);
+    try {
+      // Assume unitService has a deleteObjective method
+      await unitService.deleteObjective(String(objectiveId)); 
+      toast({ title: "Objective Deleted", description: `Objective ID ${objectiveId} deleted successfully.` });
+      handleRefreshAllData(); // Refresh data after successful deletion
+    } catch (error) {
+      console.error("[Unit.tsx] Error deleting objective:", error);
+      toast({ 
+        title: "Error Deleting Objective", 
+        description: error instanceof Error ? error.message : "An unexpected error occurred.", 
+        variant: "destructive" 
+      });
+    }
+  }, [toast, handleRefreshAllData]);
 
   // Effect to load data on mount
   useEffect(() => {
@@ -191,7 +209,7 @@ const Unit = () => {
     riskState.refresh?.();
     assetState.refresh?.();
     kraState.refresh?.();
-  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]); // Add fetchObjectives to dependencies
+  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]); // Dependencies remain the same
 
   // Determine if data loading is complete - Include objectivesLoading
   const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || assetState.loading || kraState.loading;
@@ -273,8 +291,13 @@ const Unit = () => {
               onSaveObjective={handleSaveObjective} 
               onDeleteObjective={handleDeleteObjective}
               // Derive units from KRA data if kraState doesn't provide it
-              units={kraState.data ? Array.from(new Set((kraState.data as Kra[]).map(k => k.unit || 'Unknown'))).filter(u => u !== 'Unknown') : []} 
+              units={kraState.data 
+                ? Array.from(new Set((kraState.data as Kra[]).map(k => k.unit || 'Unknown')))
+                    .filter(u => u !== 'Unknown')
+                    .map(unitName => ({ id: unitName, name: unitName })) // Map to UnitData structure
+                : []} 
               staffMembers={staffMembers} 
+              onDataRefresh={handleRefreshAllData} // Pass the refresh handler
             />
           </TabsContent>
 
