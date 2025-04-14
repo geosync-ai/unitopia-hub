@@ -126,8 +126,10 @@ const Unit = () => {
   const assetState = useAssetsData();
   const kraState = useKRAsData();
 
-  // Active Tab State
+  // Active Tab State for the main page sections
   const [activeTab, setActiveTab] = useState<string>("overview");
+  // Active Tab State for the KRAs section specifically
+  const [kraSectionTab, setKraSectionTab] = useState<string>("kpis");
 
   // Objective State Management - Initialize as empty array
   const [objectivesData, setObjectivesData] = useState<Objective[]>([]); 
@@ -293,14 +295,16 @@ const Unit = () => {
               objectivesData={objectivesData} // Pass REAL objectivesData
               onSaveObjective={handleSaveObjective} 
               onDeleteObjective={handleDeleteObjective}
-              // Derive units from KRA data if kraState doesn't provide it
+              // Derive units from KRA data
               units={kraState.data 
                 ? Array.from(new Set((kraState.data as Kra[]).map(k => k.unit || 'Unknown')))
                     .filter(u => u !== 'Unknown')
-                    .map(unitName => ({ id: unitName, name: unitName })) // Map to UnitData structure
+                    .map(unitName => ({ id: unitName, name: unitName }))
                 : []} 
               staffMembers={staffMembers} 
-              onDataRefresh={handleRefreshAllData} // Pass the refresh handler
+              onDataRefresh={handleRefreshAllData} // Pass refresh handler
+              activeTab={kraSectionTab} // Pass active tab state down
+              onTabChange={setKraSectionTab} // Pass tab change handler down
             />
           </TabsContent>
 

@@ -218,6 +218,8 @@ interface KRAsTabProps {
   units: UnitData[];
   staffMembers?: StaffMember[];
   onDataRefresh?: () => void; // Add prop for triggering data refresh
+  activeTab: string; // Add prop for controlled tab state
+  onTabChange: (tabValue: string) => void; // Add prop for handling tab change
 }
 
 export const KRAsTab: React.FC<KRAsTabProps> = ({
@@ -227,7 +229,9 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   onDeleteObjective,
   units,
   staffMembers,
-  onDataRefresh
+  onDataRefresh,
+  activeTab, // Use prop
+  onTabChange // Use prop
 }) => {
   const kras = krasFromProps; // Use props directly
   const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
@@ -238,7 +242,6 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       department: 'all',
       status: 'all',
   });
-  const [activeTab, setActiveTab] = useState<string>("kpis");
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
   const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ name: '', description: '' });
@@ -695,6 +698,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     }
   };
 
+  // Use activeTab prop here
   const addButtonLabel = activeTab === 'objectives' ? 'Add Objective' : 'Add KRA';
   const handleAddButtonClick = activeTab === 'objectives' ? handleOpenAddObjectiveModal : handleOpenAddKraModal;
 
@@ -720,7 +724,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
           </CardHeader>
 
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
               <TabsList className="mb-4">
                 <TabsTrigger value="kpis">KPIs</TabsTrigger>
                 <TabsTrigger value="objectives">Objectives</TabsTrigger>
