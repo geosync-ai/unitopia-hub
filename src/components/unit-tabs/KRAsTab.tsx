@@ -402,7 +402,6 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
         status: mapStatusToDbFormat(kpi.status || 'Not Started'),
         start_date: kpi.startDate || null,
         target_date: kpi.targetDate || null,
-        assignees: kpi.assignees || [],
         description: kpi.description || null,
         comments: kpi.comments || null, // Assuming comments field exists in KPI form
       }));
