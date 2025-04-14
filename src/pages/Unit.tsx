@@ -57,7 +57,6 @@ import AddAssetModal from '@/components/unit-tabs/modals/AddAssetModal';
 import EditAssetModal from '@/components/unit-tabs/modals/EditAssetModal';
 
 // Import custom hooks for state management
-import { useSetupWizard, SetupWizardState } from '@/hooks/useSetupWizard';
 import { useAuth, User } from "@/hooks/useAuth";
 import { OneDriveConfig, CsvConfig } from '@/components/setup-wizard/types';
 import { 
@@ -71,7 +70,6 @@ import { OrganizationUnit } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { Objective, Kra } from '@/types/kpi';
-import { SetupWizard, ExtendedSetupWizardProps } from '@/components/setup-wizard/SetupWizard';
 
 // Import tab components
 import { TasksTab } from '@/components/unit-tabs/TasksTab';
@@ -135,15 +133,6 @@ const Unit = () => {
   const assetState = useAssetsData();
   const kraState = useKRAsData(); // Assuming this hook returns { data: Kra[], loading, error, ... }
 
-  // Setup Wizard State - Correct call: pass data states
-  const setupWizard = useSetupWizard({
-    projectState: projectState,
-    taskState: taskState,
-    riskState: riskState,
-    kraState: kraState,
-    assetState: assetState,
-  });
-
   // Active Tab State
   const [activeTab, setActiveTab] = useState<string>("overview");
 
@@ -171,63 +160,22 @@ const Unit = () => {
     toast({ title: "Objective deleted successfully.", variant: "destructive" });
   }, [toast]);
 
-  // Effect to load data or check setup status (keep as before)
+  // Effect to load data on mount
   useEffect(() => {
-    if (!setupWizard.isSetupComplete) {
-      return;
-    }
+     // Ensure refresh functions exist before calling
      taskState.refresh?.();
      projectState.refresh?.();
      riskState.refresh?.();
      assetState.refresh?.();
      kraState.refresh?.();
-  }, [setupWizard.isSetupComplete, taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]);
+     // Run only once on mount (and when refresh functions change, if ever)
+  }, [taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]);
 
   // Determine if data loading is complete - Use '.loading'
   const isDataLoading = taskState.loading || projectState.loading || riskState.loading || assetState.loading || kraState.loading;
   const hasDataLoadingError = taskState.error || projectState.error || riskState.error || assetState.error || kraState.error;
 
-  // Decide what to render based on setup state
-  if (!setupWizard.isSetupComplete) {
-    // Render the SetupWizard component if setup is not complete
-    // Pass necessary props based on SetupWizard's definition in types.ts
-    // Ensure the props match ExtendedSetupWizardProps if that's the correct type
-    const wizardProps: ExtendedSetupWizardProps = {
-        isOpen: true, 
-        onClose: () => { /* Logic for closing wizard prematurely */ 
-            // Maybe check if user wants to discard changes
-            console.log("SetupWizard onClose triggered"); 
-            // Potentially navigate back or show confirmation
-            // For now, just log it. A robust implementation might prevent closing
-            // or prompt the user. Closing might imply cancellation.
-            // Let's assume for now onClose is tied to clicking outside or cancel button,
-            // and doesn't necessarily mean completion. We rely on onComplete.
-        },
-        onComplete: () => { 
-            setupWizard.handleSetupComplete(); // Call the hook's completion handler
-            // Optionally call other functions needed after setup completion
-        },
-        // Pass the state and setters managed by useSetupWizard hook
-        setSetupMethod: setupWizard.setSetupMethod,
-        setOneDriveConfig: setupWizard.setOneDriveConfig,
-        setObjectives: setupWizard.setObjectives,
-        setKRAs: setupWizard.setKRAs, // Assuming these exist on hook return
-        setKPIs: setupWizard.setKPIs, // Assuming these exist on hook return
-        handleSetupCompleteFromHook: setupWizard.handleSetupComplete, // Pass hook's own handler
-        updateCsvConfig: setupWizard.updateCsvConfig,
-        csvConfig: setupWizard.csvConfig,
-        oneDriveConfig: setupWizard.oneDriveConfig,
-        setupMethodProp: setupWizard.setupMethod,
-        objectivesProp: setupWizard.objectives,
-        krasProp: setupWizard.kras, // Pass kras from hook state
-        kpisProp: setupWizard.kpis, // Pass kpis from hook state
-        isSetupComplete: setupWizard.isSetupComplete,
-        setCsvConfig: setupWizard.setCsvConfig, // Pass setter if needed by component
-    };
-    return <SetupWizard {...wizardProps} />;
-  }
-
-  // Main content rendering after setup is complete
+  // Main content rendering directly
   return (
     <PageLayout>
       {user && (user.unitName || user.divisionName) && (
@@ -276,7 +224,6 @@ const Unit = () => {
               tasks={taskState.data}
               risks={riskState.data}
               kras={kraState.data || []} // Use kraState.data
-              setupState={setupWizard} 
               objectives={objectivesData} // Pass objectives
             />
           </TabsContent>
