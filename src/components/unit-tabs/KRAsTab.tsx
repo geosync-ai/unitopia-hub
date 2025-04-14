@@ -280,7 +280,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const handleKpiFormSubmit = async (formData: any) => {
     console.log("[handleKpiFormSubmit] Received form data:", JSON.stringify(formData, null, 2));
     const supabase = getSupabaseClient();
-    const isEditing = !!editingKra?.id; // Check if we are editing based on state
+    const isEditing = !!editingKra?.id;
     let kraId = editingKra?.id;
     let operationError = false;
 
@@ -294,7 +294,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       target_date: formData.targetDate || null,
       assignees: formData.assignees || [], // Default to empty array if needed
       description: formData.description || null,
-      status: formData.status || 'Draft' // Default status if needed
+      status: isEditing ? (formData.status || 'Draft') : 'Draft' 
     };
     console.log("[handleKpiFormSubmit] Prepared KRA Payload:", kraPayload);
 
