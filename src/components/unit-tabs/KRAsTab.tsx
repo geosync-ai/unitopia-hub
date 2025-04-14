@@ -35,16 +35,25 @@ import StatusBadge from '@/components/common/StatusBadge';
 import KRATimelineTab from '@/components/KRATimelineTab';
 import KRAInsightsTab from '@/components/KRAInsightsTab';
 import KpiModal from '@/components/kpi/KpiModal';
-import { Kra, Kpi, User } from '@/types/kpi';
+import { Kra, Kpi, User, Objective } from '@/types/kpi';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 // --- Mock Data --- Placeholder - Replace with data fetching logic
 const mockUsers: User[] = [
   { id: 1, name: 'Jane Smith', initials: 'JS', avatarUrl: 'https://via.placeholder.com/30/FFA500/FFFFFF?text=JS' },
   { id: 2, name: 'John Doe', initials: 'JD', avatarUrl: 'https://via.placeholder.com/30/007BFF/FFFFFF?text=JD' },
   { id: 3, name: 'Alice Green', initials: 'AG', avatarUrl: 'https://via.placeholder.com/30/28A745/FFFFFF?text=AG' },
+];
+
+const mockObjectives: Objective[] = [
+  { id: 'obj1', name: 'Enhance User Experience', description: 'Improve overall user satisfaction and ease of use.' },
+  { id: 'obj2', name: 'Business Growth', description: 'Increase market share and revenue.' },
+  { id: 'obj3', name: 'Increase Efficiency', description: 'Streamline internal processes.' },
 ];
 
 const mockKpis1: Kpi[] = [
@@ -159,6 +168,11 @@ export const KRAsTab: React.FC = () => {
     status: 'all',
   });
   const [activeTab, setActiveTab] = useState<string>("kpis"); // State to track active tab
+  // State for Objectives
+  const [objectivesData, setObjectivesData] = useState<Objective[]>(mockObjectives);
+  const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
+  const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ name: '', description: '' });
 
   // Memoize derived state for filters
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
@@ -255,6 +269,65 @@ export const KRAsTab: React.FC = () => {
       }
   };
 
+  // --- Objective Handlers ---
+  const handleOpenAddObjectiveModal = () => {
+    setEditingObjective(undefined);
+    setNewObjectiveData({ name: '', description: '' }); // Clear form
+    setIsObjectiveModalOpen(true);
+  };
+
+  const handleOpenEditObjectiveModal = (objective: Objective) => {
+    setEditingObjective(objective);
+    setNewObjectiveData({ name: objective.name, description: objective.description || '' }); // Pre-fill form
+    setIsObjectiveModalOpen(true);
+  };
+
+  const handleCloseObjectiveModal = () => {
+    setIsObjectiveModalOpen(false);
+    setEditingObjective(undefined);
+    setNewObjectiveData({ name: '', description: '' });
+  };
+
+  const handleObjectiveFormChange = (field: keyof Objective, value: string) => {
+    setNewObjectiveData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveObjective = () => {
+    // TODO: Add validation (e.g., name is required)
+    if (!newObjectiveData.name?.trim()) {
+        alert("Objective name cannot be empty."); // Replace with toast
+        return;
+    }
+
+    if (editingObjective) {
+      // Update existing objective
+      setObjectivesData(prev => prev.map(obj =>
+        obj.id === editingObjective.id ? { ...editingObjective, ...newObjectiveData } : obj
+      ));
+      console.log("Updated Objective:", { ...editingObjective, ...newObjectiveData });
+    } else {
+      // Add new objective
+      const newObjective = {
+        id: `obj_${Date.now()}`, // Temporary ID
+        name: newObjectiveData.name.trim(),
+        description: newObjectiveData.description?.trim() || undefined,
+      };
+      setObjectivesData(prev => [...prev, newObjective]);
+      console.log("Added Objective:", newObjective);
+    }
+    handleCloseObjectiveModal();
+  };
+
+  const handleDeleteObjective = (objectiveId: string | number) => {
+    if (window.confirm(`Are you sure you want to delete this objective? This may affect existing KRAs linked to it.`)) {
+      // TODO: Add logic to check/handle KRAs linked to this objective before deletion
+      console.log("Deleting Objective:", objectiveId);
+      setObjectivesData(prev => prev.filter(obj => obj.id !== objectiveId));
+      // TODO: Update any KRAs that were using this objective? Or prevent deletion?
+    }
+  };
+  // --- End Objective Handlers ---
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -262,7 +335,7 @@ export const KRAsTab: React.FC = () => {
           <h2 className="text-2xl font-bold">Key Result Areas</h2>
           <Button
             className="flex items-center gap-2"
-            onClick={handleOpenAddModal}
+            onClick={activeTab === 'objectives' ? handleOpenAddObjectiveModal : handleOpenAddModal}
           >
             <Plus className="h-4 w-4" /> {activeTab === 'objectives' ? 'Add Objective' : 'Add KRA'}
           </Button>
@@ -456,8 +529,42 @@ export const KRAsTab: React.FC = () => {
               </TabsContent>
               
               <TabsContent value="objectives">
-                <div className="p-4 text-center text-muted-foreground">
-                  Objectives management UI will go here.
+                <div className="overflow-auto border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[35%]">Objective Name</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right w-[15%]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {objectivesData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="h-24 text-center">
+                            No Objectives defined yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        objectivesData.map((objective) => (
+                          <TableRow key={objective.id}>
+                            <TableCell className="font-medium">{objective.name}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{objective.description || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditObjectiveModal(objective)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteObjective(objective.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </TabsContent>
               
@@ -478,9 +585,53 @@ export const KRAsTab: React.FC = () => {
           kraData={editingKra}
           onSubmit={handleFormSubmit}
           users={mockUsers}
-          objectives={objectives}
+          objectives={objectivesData.map(o => o.name)}
           units={units}
         />
+
+        <Dialog open={isObjectiveModalOpen} onOpenChange={handleCloseObjectiveModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingObjective ? 'Edit Objective' : 'Add New Objective'}</DialogTitle>
+              <DialogDescription>
+                {editingObjective ? 'Update the objective details.' : 'Define a new objective for KRAs.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="objective-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="objective-name"
+                  value={newObjectiveData.name || ''}
+                  onChange={(e) => handleObjectiveFormChange('name', e.target.value)}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="objective-description" className="text-right">
+                  Description
+                </Label>
+                <Textarea
+                  id="objective-description"
+                  value={newObjectiveData.description || ''}
+                  onChange={(e) => handleObjectiveFormChange('description', e.target.value)}
+                  className="col-span-3"
+                  placeholder="(Optional) Describe the objective..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+               <DialogClose asChild>
+                 <Button type="button" variant="outline">Cancel</Button>
+               </DialogClose>
+              <Button type="button" onClick={handleSaveObjective}>Save Objective</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

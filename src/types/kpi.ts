@@ -12,17 +12,24 @@ export interface Kpi {
   status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'At Risk' | 'On Track';
   comments?: string;
   assignees?: User[]; // Add assignees to KPI
+  metric?: string;
+  unit?: string;
+  progress?: number;
 }
 
 export interface Kra {
   id: string | number; // Or use UUIDs
   title: string;
-  objective: string; // Assuming objective is stored as string, could be an ID linked to master data
+  objectiveId?: string | number; // Add this line
   unit: string; // Assuming unit is stored as string, could be an ID
   startDate: string; // ISO date string format recommended (e.g., "YYYY-MM-DD")
   targetDate: string; // ISO date string format recommended
   kpis: Kpi[];
   comments?: string; // Optional overall comments for the KRA
+  department: string;
+  status: 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
+  owner: User;
+  isEditing?: boolean; // Client-side state
 }
 
 // Basic User interface, adjust as needed based on your actual user data structure
@@ -31,4 +38,11 @@ export interface User {
   name: string;
   avatarUrl?: string; // Optional avatar image URL
   initials?: string; // Fallback initials
+}
+
+// Add Objective interface
+export interface Objective {
+  id: string | number;
+  name: string;
+  description?: string; // Optional description
 } 
