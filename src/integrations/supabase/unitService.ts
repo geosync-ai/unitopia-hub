@@ -651,8 +651,14 @@ export const krasService = {
       throw error;
     }
     
+    console.log("[krasService.getKRAs] Raw data from Supabase:", data);
+
     // Convert snake_case to camelCase for frontend
-    return (data || []).map(snakeToCamelCase);
+    const camelCaseData = (data || []).map(snakeToCamelCase);
+
+    console.log("[krasService.getKRAs] Data after snakeToCamelCase:", camelCaseData);
+
+    return camelCaseData;
   },
   
   // Add a new KRA
