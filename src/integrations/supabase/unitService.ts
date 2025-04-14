@@ -643,10 +643,6 @@ export const krasService = {
       .from(TABLES.KRAS)
       .select('*');
     
-    if (userEmail) {
-      query = query.eq('responsible', userEmail);
-    }
-    
     const { data, error } = await query;
     
     if (error) {
