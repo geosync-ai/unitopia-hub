@@ -192,22 +192,11 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                 {kras.map((kra, kraIndex) => {
                   const kraStartDate = parseDate(kra.startDate);
                   const kraTargetDate = parseDate(kra.targetDate);
-                  const kraStartPosition = calculatePosition(kraStartDate);
-                  const kraWidth = calculateWidth(kraStartDate, kraTargetDate);
                   const kraProgress = getKraProgress(kra.unitKpis || []);
                   const kpisExist = kra.unitKpis && kra.unitKpis.length > 0;
 
-                  console.log(`[KRATimelineTab] KRA #${kraIndex} (${kra.id}):`, {
-                    kra,
-                    kraStartDate,
-                    kraTargetDate,
-                    kraStartPosition,
-                    kraWidth,
-                    kraProgress,
-                  });
-
                   return (
-                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: currentViewMode !== 'quarters' && kpisExist ? `${(kra.unitKpis.length * 2) + 2}rem` : '4rem' }}>
+                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 2) + 2}rem` : '4rem' }}>
                       <div className="w-48 px-4 py-3 text-sm shrink-0">
                         <span className="font-medium text-gray-900 block truncate">{kra.objectiveId ? `Obj: ${kra.objectiveId}` : 'N/A'}</span>
                       </div>
@@ -215,99 +204,62 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                         <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
                         <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
                       </div>
-                      <div className={`flex-1 relative ${currentViewMode !== 'quarters' && kpisExist ? 'py-2' : 'h-16'}`}>
-                        {currentViewMode === 'quarters' ? (
-                          <>
-                            {kraStartDate && kraTargetDate && kraWidth > 0 && (
-                              <div
-                                className="absolute h-6 rounded-md shadow-sm flex items-center overflow-hidden bg-blue-100"
-                                style={{
-                                  left: `${kraStartPosition}%`,
-                                  width: `${kraWidth}%`,
-                                  top: '1rem',
-                                }}
-                                title={`${kra.title} (${kraProgress}%)`}
-                              >
-                                <div
-                                  className={`h-full rounded-l-md ${getProgressColorClass(kraProgress)} transition-all duration-300`}
-                                  style={{ width: `${kraProgress}%` }}
-                                />
-                                <span className="absolute left-2 right-2 top-0 bottom-0 flex items-center text-xs text-white font-medium px-1 truncate">
-                                  {/* {kra.title} - {kraProgress}% */}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {/* Individual KPI bars for Monthly/Weekly View */}
-                            <TooltipProvider> { /* Ensure provider wraps the map */ }
-                              {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
-                                const kpiStartDate = parseDate(kpi.startDate);
-                                const kpiTargetDate = parseDate(kpi.targetDate);
-                                const kpiStartPosition = calculatePosition(kpiStartDate);
-                                const kpiWidth = calculateWidth(kpiStartDate, kpiTargetDate);
-                                const kpiColorClass = getKpiStatusColorClass(kpi.status);
-                                const kpiProgress = getKpiProgress(kpi);
+                      <div className={`flex-1 relative ${kpisExist ? 'py-2' : 'h-16'}`}>
+                        <>
+                          {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
+                            const kpiStartDate = parseDate(kpi.startDate);
+                            const kpiTargetDate = parseDate(kpi.targetDate);
+                            const kpiStartPosition = calculatePosition(kpiStartDate);
+                            const kpiWidth = calculateWidth(kpiStartDate, kpiTargetDate);
+                            const kpiColorClass = getKpiStatusColorClass(kpi.status);
+                            const kpiProgress = getKpiProgress(kpi);
 
-                                console.log(`  [KRATimelineTab] KPI #${kpiIndex} (${kpi.id}) for KRA ${kra.id}:`, {
-                                  kpi,
-                                  kpiStartDate,
-                                  kpiTargetDate,
-                                  kpiStartPosition,
-                                  kpiWidth,
-                                  kpiProgress,
-                                });
+                            if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
+                              return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; // Use Fragment with key
+                            }
 
-                                if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
-                                  console.log(`    [KRATimelineTab] Skipping KPI ${kpi.id} due to invalid dates/width.`); // Log skipping
-                                  return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; // Use Fragment with key
-                                }
-
-                                return (
-                                  <Tooltip key={kpi.id || `kpi-${kraIndex}-${kpiIndex}`} delayDuration={100}>
-                                    <TooltipTrigger asChild>
-                                      {/* Outer div: Positions the bar, acts as track */}
-                                      <div
-                                        className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden`}
-                                        style={{
-                                          left: `${kpiStartPosition}%`,
-                                          width: `${kpiWidth}%`,
-                                          top: `${1 + kpiIndex * 1.75}rem`, // Stack KPIs vertically
-                                          zIndex: 10 + kpiIndex, // Ensure stacking order
-                                        }}
-                                      >
-                                        {/* Inner div: Shows progress with status color */}
-                                        <div
-                                          className={`absolute top-0 left-0 h-full rounded-full ${kpiColorClass} transition-all duration-300`}
-                                          style={{ width: `${kpiProgress}%` }}
-                                        />
-                                        {/* KPI Name Label: Positioned above progress */}
-                                        <span className="absolute inset-0 flex items-center text-xs text-white font-medium px-2 truncate z-10">
-                                          {kpi.name}
-                                        </span>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" align="center">
-                                      <p className="font-semibold">{kpi.name}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'}
-                                      </p>
-                                      <p className="text-xs">Status: {kpi.status}</p>
-                                      <p className="text-xs">Progress: {kpiProgress}%</p>
-                                      {kpi.target !== undefined && <p className="text-xs">Target: {kpi.target}</p>}
-                                      {kpi.actual !== undefined && <p className="text-xs">Actual: {kpi.actual}</p>}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                );
-                              })}
-                            </TooltipProvider> { /* End provider */ }
-                            {(!kra.unitKpis || kra.unitKpis.length === 0) && (
-                                <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
-                                    No KPIs defined for this KRA.
-                                </div>
-                            )}
-                          </>
+                            return (
+                              <Tooltip key={kpi.id || `kpi-${kraIndex}-${kpiIndex}`} delayDuration={100}>
+                                <TooltipTrigger asChild>
+                                  {/* Outer div: Positions the bar, acts as track */}
+                                  <div
+                                    className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden`}
+                                    style={{
+                                      left: `${kpiStartPosition}%`,
+                                      width: `${kpiWidth}%`,
+                                      top: `${1 + kpiIndex * 1.75}rem`, // Stack KPIs vertically
+                                      zIndex: 10 + kpiIndex, // Ensure stacking order
+                                    }}
+                                  >
+                                    {/* Inner div: Shows progress with status color */}
+                                    <div
+                                      className={`absolute top-0 left-0 h-full rounded-full ${kpiColorClass} transition-all duration-300`}
+                                      style={{ width: `${kpiProgress}%` }}
+                                    />
+                                    {/* KPI Name Label: Positioned above progress */}
+                                    <span className="absolute inset-0 flex items-center text-xs text-white font-medium px-2 truncate z-10">
+                                      {kpi.name}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="center">
+                                  <p className="font-semibold">{kpi.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'}
+                                  </p>
+                                  <p className="text-xs">Status: {kpi.status}</p>
+                                  <p className="text-xs">Progress: {kpiProgress}%</p>
+                                  {kpi.target !== undefined && <p className="text-xs">Target: {kpi.target}</p>}
+                                  {kpi.actual !== undefined && <p className="text-xs">Actual: {kpi.actual}</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </>
+                        {(!kra.unitKpis || kra.unitKpis.length === 0) && (
+                          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
+                            No KPIs defined for this KRA.
+                          </div>
                         )}
                       </div>
                     </div>
