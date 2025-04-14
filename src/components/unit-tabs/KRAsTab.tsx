@@ -158,6 +158,7 @@ export const KRAsTab: React.FC = () => {
     department: 'all',
     status: 'all',
   });
+  const [activeTab, setActiveTab] = useState<string>("kpis"); // State to track active tab
 
   // Memoize derived state for filters
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
@@ -259,11 +260,11 @@ export const KRAsTab: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Key Result Areas</h2>
-          <Button 
-            className="flex items-center gap-2" 
+          <Button
+            className="flex items-center gap-2"
             onClick={handleOpenAddModal}
           >
-            <Plus className="h-4 w-4" /> Add KRA
+            <Plus className="h-4 w-4" /> {activeTab === 'objectives' ? 'Add Objective' : 'Add KRA'}
           </Button>
         </div>
         
@@ -275,9 +276,10 @@ export const KRAsTab: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="kpis">
+            <Tabs defaultValue="kpis" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="kpis">KPIs</TabsTrigger>
+                <TabsTrigger value="objectives">Objectives</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="insights">Insights</TabsTrigger>
               </TabsList>
@@ -340,6 +342,7 @@ export const KRAsTab: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[15%]">Objective</TableHead>
                         <TableHead className="w-[20%]">KRA</TableHead>
                         <TableHead className="w-[20%]">KPI</TableHead>
                         <TableHead>Start Date</TableHead>
@@ -356,7 +359,7 @@ export const KRAsTab: React.FC = () => {
                     <TableBody>
                       {processedRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={11} className="h-24 text-center">
+                          <TableCell colSpan={12} className="h-24 text-center">
                             No KPIs found matching the current filters.
                           </TableCell>
                         </TableRow>
@@ -367,9 +370,13 @@ export const KRAsTab: React.FC = () => {
                           return (
                             <TableRow key={`${kra.id}-${kpi.id || rowIndex}`}>
                               {isFirstKpiOfKra && (
+                                <TableCell className="align-top border-r text-sm" rowSpan={kraRowSpan}>
+                                  {kra.objective}
+                                </TableCell>
+                              )}
+                              {isFirstKpiOfKra && (
                                 <TableCell className="font-medium align-top border-r" rowSpan={kraRowSpan}>
                                   {kra.title}
-                                  <span className="block text-xs text-muted-foreground mt-0.5">{kra.objective}</span>
                                 </TableCell>
                               )}
                               <TableCell className="align-top text-sm">
@@ -445,6 +452,12 @@ export const KRAsTab: React.FC = () => {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="objectives">
+                <div className="p-4 text-center text-muted-foreground">
+                  Objectives management UI will go here.
                 </div>
               </TabsContent>
               
