@@ -9,7 +9,7 @@ export interface Kpi {
   actual?: number;
   startDate?: string; // Add KPI start date
   targetDate?: string; // Add KPI target date (or 'dueDate')
-  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'At Risk' | 'On Track';
+  status: 'not-started' | 'in-progress' | 'completed' | 'on-hold' | 'at-risk' | 'on-track' | 'behind';
   comments?: string;
   assignees?: User[]; // Add assignees to KPI
   metric?: string;

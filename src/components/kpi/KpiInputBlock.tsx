@@ -146,7 +146,16 @@ const getQuarter = (dateString: string | undefined): string => {
 };
 
 const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onChange, onRemove, isOnlyBlock, users = [], staffMembers = [] }) => {
-  const statuses: Kpi['status'][] = ['Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
+  // Use DB format for values, but map to user-friendly labels
+  const statusOptions: { value: Kpi['status']; label: string }[] = [
+    { value: 'not-started', label: 'Not Started' },
+    { value: 'on-track', label: 'On Track' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'at-risk', label: 'At Risk' },
+    { value: 'on-hold', label: 'On Hold' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'behind', label: 'Behind' },
+  ];
   const [calculatedQuarter, setCalculatedQuarter] = useState<string>(() => getQuarter(formData.targetDate));
 
   // Update quarter when targetDate changes
@@ -255,7 +264,7 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
         <div className="grid gap-1.5">
           <Label htmlFor={`kpi-status-${kpiIndex}`}>Status *</Label>
           <Select
-            value={formData.status || 'Not Started'} // Default to 'Not Started'
+            value={formData.status || 'not-started'} // Default to DB format
             onValueChange={(value) => onChange('status', value as Kpi['status'])}
             required
           >
@@ -263,8 +272,10 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-              {statuses.map(status => (
-                <SelectItem key={status} value={status}>{status}</SelectItem>
+              {statusOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label} { /* Display user-friendly label */}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -299,14 +310,13 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
             id={`kpi-comments-${kpiIndex}`}
             value={formData.comments || ''}
             onChange={(e) => onChange('comments', e.target.value)}
-            placeholder="Add any notes specific to this KPI..."
+            placeholder="Enter comments..."
             rows={2}
           />
         </div>
-
       </CardContent>
     </Card>
   );
 };
 
-export default KpiInputBlock; 
+export default KpiInputBlock;
