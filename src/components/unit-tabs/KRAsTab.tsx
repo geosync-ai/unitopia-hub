@@ -551,11 +551,9 @@ export const KRAsTab: React.FC = () => {
                             <TableCell className="font-medium">{objective.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{objective.description || '-'}</TableCell>
                             <TableCell className="text-right">
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditObjectiveModal(objective)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditObjectiveModal(objective)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteObjective(objective.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
