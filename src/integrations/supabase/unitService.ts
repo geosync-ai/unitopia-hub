@@ -641,7 +641,8 @@ export const krasService = {
     
     let query = supabase
       .from(TABLES.KRAS)
-      .select('*');
+      // Fetch all KRA columns (*) AND all columns from related KPIs (unit_kpis(*))
+      .select('*, unit_kpis(*)'); 
     
     const { data, error } = await query;
     
