@@ -5,7 +5,6 @@ import KraFormSection from './KraFormSection';
 import KpiInputBlock from './KpiInputBlock';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle } from 'lucide-react';
 
@@ -107,9 +106,9 @@ const KpiModal: React.FC<KpiModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Scrollable form content */}
-        <ScrollArea className="flex-grow pr-6 -mr-6">
-          <div className="space-y-6 py-4">
+        {/* Scrollable middle section */}
+        <div className="flex-1 overflow-y-auto pr-6 -mr-6 py-4">
+          <div className="space-y-6">
             {/* Section 1: KRA Information */}
             <KraFormSection
               formData={formData}
@@ -126,12 +125,12 @@ const KpiModal: React.FC<KpiModalProps> = ({
               <h3 className="text-lg font-medium">KPIs</h3>
               {kpiBlocks.map((kpi, index) => (
                 <KpiInputBlock
-                  key={kpi.id || kpi.tempId || index} // Use stable ID if available, fallback to tempId or index
+                  key={kpi.id || kpi.tempId || index}
                   kpiIndex={index}
                   formData={kpi}
                   onChange={(field, value) => handleKpiChange(index, field, value)}
                   onRemove={handleRemoveKpi}
-                  isOnlyBlock={kpiBlocks.length === 1} // Prevent removing the last block? (optional)
+                  isOnlyBlock={kpiBlocks.length === 1}
                 />
               ))}
               <Button type="button" variant="outline" size="sm" onClick={handleAddKpi} className="mt-2">
@@ -139,16 +138,14 @@ const KpiModal: React.FC<KpiModalProps> = ({
               </Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        {/* Footer remains fixed at the bottom */}
+        <DialogFooter className="mt-auto pt-4 border-t">
           <DialogClose asChild>
              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           </DialogClose>
-          {/* Using type="button" and onClick to prevent accidental form submission if inside a <form> tag */}
-          {/* Alternatively, wrap content in <form> and use type="submit" */}
           <Button type="button" onClick={() => handleSubmit()}> 
-             {/* TODO: Add loading state */} 
             {kraData ? 'Save Changes' : 'Add KRA'}
           </Button>
         </DialogFooter>
