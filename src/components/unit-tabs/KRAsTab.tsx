@@ -106,6 +106,22 @@ const formatDate = (dateString: string | undefined): string => {
   }
 };
 
+// Helper function to get quarter from date string (YYYY-MM-DD)
+const getQuarter = (dateString: string | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    const month = date.getMonth(); // 0-indexed (0 = January)
+    if (month <= 2) return 'Q1';
+    if (month <= 5) return 'Q2';
+    if (month <= 8) return 'Q3';
+    return 'Q4';
+  } catch {
+    return '-';
+  }
+};
+
 // Map KPI status to Badge variants (can reuse getStatusVariant logic if desired)
 const getKpiStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
@@ -325,25 +341,28 @@ export const KRAsTab: React.FC = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[20%]">KRA</TableHead>
-                        <TableHead className="w-[25%]">KPI</TableHead>
+                        <TableHead className="w-[20%]">KPI</TableHead>
                         <TableHead>Start Date</TableHead>
                         <TableHead>Target Date</TableHead>
+                        <TableHead>Quarter</TableHead>
                         <TableHead>Target</TableHead>
                         <TableHead>Actual</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Assignees</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {processedRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
+                          <TableCell colSpan={10} className="h-24 text-center">
                             No KPIs found matching the current filters.
                           </TableCell>
                         </TableRow>
                       ) : (
                         processedRows.map(({ kra, kpi, isFirstKpiOfKra, kraRowSpan }, rowIndex) => {
                           const kpiStatusVariant = getKpiStatusVariant(kpi.status);
+                          const targetQuarter = getQuarter(kpi.targetDate);
                           return (
                             <TableRow key={`${kra.id}-${kpi.id || rowIndex}`}>
                               {isFirstKpiOfKra && (
@@ -357,12 +376,31 @@ export const KRAsTab: React.FC = () => {
                               </TableCell>
                               <TableCell className="align-top text-sm">{formatDate(kpi.startDate)}</TableCell>
                               <TableCell className="align-top text-sm">{formatDate(kpi.targetDate)}</TableCell>
+                              <TableCell className="align-top text-sm">{targetQuarter}</TableCell>
                               <TableCell className="align-top text-sm">{kpi.target ?? '-'}</TableCell>
                               <TableCell className="align-top text-sm">{kpi.actual ?? '-'}</TableCell>
                               <TableCell className="align-top">
                                 {kpi.name !== '-' ? (
                                      <Badge variant={kpiStatusVariant}>{kpi.status}</Badge>
                                 ) : '-'}
+                              </TableCell>
+                              <TableCell className="align-top">
+                                {kpi.name !== '-' ? (
+                                  <div className="flex -space-x-2 overflow-hidden">
+                                    {(kpi.assignees || []).map(user => (
+                                      <Tooltip key={user.id}>
+                                        <TooltipTrigger asChild>
+                                          <Avatar className="inline-block h-6 w-6 rounded-full ring-1 ring-background">
+                                            <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                            <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{user.name}</TooltipContent>
+                                      </Tooltip>
+                                    ))}
+                                    {(kpi.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
+                                  </div>
+                                ) : '-' }
                               </TableCell>
                               {isFirstKpiOfKra && (
                                 <TableCell className="text-right align-top" rowSpan={kraRowSpan}>

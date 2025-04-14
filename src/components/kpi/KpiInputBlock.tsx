@@ -1,5 +1,5 @@
 // src/components/kpi/KpiInputBlock.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Kpi, User } from '@/types/kpi';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -109,8 +109,30 @@ const AssigneeSelector: React.FC<{ users: User[]; selectedUsers: User[]; onChang
 };
 // --- End Assignee Selector ---
 
+// Helper function to get quarter from date string (YYYY-MM-DD)
+const getQuarter = (dateString: string | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    const month = date.getMonth(); // 0-indexed (0 = January)
+    if (month <= 2) return 'Q1';
+    if (month <= 5) return 'Q2';
+    if (month <= 8) return 'Q3';
+    return 'Q4';
+  } catch {
+    return '-';
+  }
+};
+
 const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onChange, onRemove, isOnlyBlock, users = [] }) => {
   const statuses: Kpi['status'][] = ['Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
+  const [calculatedQuarter, setCalculatedQuarter] = useState<string>(() => getQuarter(formData.targetDate));
+
+  // Update quarter when targetDate changes
+  useEffect(() => {
+    setCalculatedQuarter(getQuarter(formData.targetDate));
+  }, [formData.targetDate]);
 
   return (
     <Card className="bg-muted/30 border shadow-sm">
@@ -179,13 +201,20 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor={`kpi-target-date-${kpiIndex}`}>Target Date</Label>
-            <Input
-              id={`kpi-target-date-${kpiIndex}`}
-              type="date"
-              value={formData.targetDate || ''}
-              onChange={(e) => onChange('targetDate', e.target.value)}
-              min={formData.startDate || ''} // Prevent target date before start date
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id={`kpi-target-date-${kpiIndex}`}
+                type="date"
+                value={formData.targetDate || ''}
+                onChange={(e) => onChange('targetDate', e.target.value)}
+                min={formData.startDate || ''} // Prevent target date before start date
+                className="flex-1"
+              />
+              {/* Display Calculated Quarter */}
+              <Badge variant="outline" className="h-9 px-3 whitespace-nowrap">
+                  {calculatedQuarter}
+              </Badge>
+            </div>
           </div>
         </div>
 

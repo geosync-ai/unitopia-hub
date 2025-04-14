@@ -190,36 +190,6 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, use
         </div>
       </div>
 
-      {/* Start Date & Target Date (Side by side on larger screens) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Start Date Picker */}
-        <div className="grid gap-1.5">
-          <Label htmlFor="kra-start-date">Start Date *</Label>
-          {/* Replace with Shadcn DatePicker if available */}
-          <Input
-            id="kra-start-date"
-            type="date"
-            value={formData.startDate || ''}
-            onChange={(e) => handleDateChange('startDate', e.target.value)}
-            required
-          />
-        </div>
-
-        {/* Target Date Picker */}
-        <div className="grid gap-1.5">
-          <Label htmlFor="kra-target-date">Target Date *</Label>
-          {/* Replace with Shadcn DatePicker if available */}
-          <Input
-            id="kra-target-date"
-            type="date"
-            value={formData.targetDate || ''}
-            onChange={(e) => handleDateChange('targetDate', e.target.value)}
-            min={formData.startDate || ''} // Prevent target date before start date
-            required
-          />
-        </div>
-      </div>
-
       {/* Assignees Multi-select - REMOVED */}
       {/* <div className="grid gap-1.5">
         <Label htmlFor="kra-assignees">Assignees</Label>
