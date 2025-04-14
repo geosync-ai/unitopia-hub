@@ -625,6 +625,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
         console.log('[handleSaveObjective] Objective saved successfully in DB. UI State Input:', savedObjectiveForUI);
         
         onSaveObjective(savedObjectiveForUI);
+        onDataRefresh?.(); // Trigger data refresh after saving objective
 
         toast({ title: "Objective saved successfully." });
         handleCloseObjectiveModal();
@@ -636,6 +637,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
            variant: "default"
          });
          handleCloseObjectiveModal();
+         onDataRefresh?.(); // Also trigger refresh here in case of partial success
       }
 
     } catch (error) {
