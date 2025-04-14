@@ -284,17 +284,20 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   };
 
   const mapStatusToDbFormat = (status: string): string => {
-    // Map UI status format to database format
+    // Map UI status format to VALID database format based on unit_kpis_status_check constraint
     const statusMap: Record<string, string> = {
-      'At Risk': 'at-risk',
-      'On Track': 'on-track',
-      'In Progress': 'in-progress',
-      'Off Track': 'off-track',
-      'Completed': 'completed',
-      'Not Started': 'not-started',
-      'On Hold': 'on-hold'
+      'On Track': 'on-track',    // Valid
+      'At Risk': 'at-risk',     // Valid
+      'Completed': 'completed', // Valid
+      // Map other UI statuses to 'behind' as it's a valid catch-all status
+      'Behind': 'behind',      // Explicitly map 'Behind' if used in UI
+      'Off Track': 'behind',   
+      'In Progress': 'behind', 
+      'Not Started': 'behind', 
+      'On Hold': 'behind'     
     };
-    return statusMap[status] || 'not-started';
+    // Default to 'behind' if no specific mapping found or if input is invalid/null
+    return statusMap[status] || 'behind';
   };
 
   const handleKpiFormSubmit = async (formData: any) => {
