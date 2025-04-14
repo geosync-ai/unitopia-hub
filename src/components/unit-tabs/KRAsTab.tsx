@@ -277,6 +277,19 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     setEditingKpiDetails(undefined);
   };
 
+  const mapStatusToDbFormat = (status: string): string => {
+    // Map UI status format to database format
+    const statusMap: Record<string, string> = {
+      'At Risk': 'at-risk',
+      'On Track': 'on-track',
+      'Off Track': 'off-track',
+      'Completed': 'completed',
+      'Pending': 'pending',
+      'Not Started': 'pending'
+    };
+    return statusMap[status] || 'pending'; // Default to pending if unknown
+  };
+
   const handleKpiFormSubmit = async (formData: any) => {
     console.log("[handleKpiFormSubmit] Received form data:", JSON.stringify(formData, null, 2));
     const supabase = getSupabaseClient();
@@ -294,8 +307,15 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       target_date: formData.targetDate || null,
       assignees: formData.assignees || [], // Default to empty array if needed
       description: formData.description || null,
-      status: isEditing ? (formData.status || 'Draft') : 'Draft' 
+      status: mapStatusToDbFormat(formData.status || 'pending')
     };
+    
+    // Get current division ID from localStorage
+    const currentDivisionId = localStorage.getItem('current_division_id');
+    if (currentDivisionId) {
+      kraPayload.division_id = currentDivisionId;
+    }
+    
     console.log("[handleKpiFormSubmit] Prepared KRA Payload:", kraPayload);
 
     // --- KRA Save/Update --- 

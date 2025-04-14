@@ -672,18 +672,54 @@ export const krasService = {
       updated_at: new Date().toISOString()
     };
     
-    const { data, error } = await supabase
-      .from(TABLES.KRAS)
-      .insert([kraWithTimestamps])
-      .select();
-    
-    if (error) {
-      console.error('Error adding KRA:', error);
-      throw error;
+    // Ensure status is a valid enum value for the DB
+    // Valid values in DB constraint: 'on-track', 'at-risk', 'off-track', 'completed', 'pending'
+    if (kraWithTimestamps.status) {
+      const validStatuses = ['on-track', 'at-risk', 'off-track', 'completed', 'pending'];
+      if (!validStatuses.includes(kraWithTimestamps.status)) {
+        // Map to a valid status or default to 'pending'
+        const statusMapping: Record<string, string> = {
+          'At Risk': 'at-risk',
+          'On Track': 'on-track',
+          'Off Track': 'off-track',
+          'Completed': 'completed',
+          'Pending': 'pending',
+          'Draft': 'pending'
+        };
+        kraWithTimestamps.status = statusMapping[kraWithTimestamps.status] || 'pending';
+      }
+    } else {
+      kraWithTimestamps.status = 'pending'; // Default status
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Ensure division_id is present
+    if (!kraWithTimestamps.division_id) {
+      // Get current division ID from localStorage
+      const currentDivisionId = localStorage.getItem('current_division_id');
+      if (currentDivisionId) {
+        kraWithTimestamps.division_id = currentDivisionId;
+      }
+    }
+    
+    console.log('Prepared KRA data for insertion:', kraWithTimestamps);
+    
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.KRAS)
+        .insert([kraWithTimestamps])
+        .select();
+      
+      if (error) {
+        console.error('Error adding KRA:', error);
+        throw error;
+      }
+      
+      // Convert back to camelCase for frontend
+      return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    } catch (error) {
+      console.error('Failed to create KRA:', error);
+      throw error;
+    }
   },
   
   // Update a KRA

@@ -4,6 +4,46 @@ import supabaseConfig from '@/config/supabase';
 import { getStaffMembersByDivision, staffMembers as mockStaffMembers } from '@/data/divisions';
 import { StaffMember } from '@/data/divisions';
 
+// Helper function to get staff member by email with proper query formatting
+export const getStaffMemberByEmail = async (email: string): Promise<StaffMember | null> => {
+  if (!email) return null;
+  
+  try {
+    const supabase = getSupabaseClient();
+    
+    // Use encodeURIComponent properly and select all fields
+    const { data, error } = await supabase
+      .from(supabaseConfig.tables.staff_members)
+      .select('*')
+      .eq('email', email) // Using eq rather than direct URL encoding
+      .single();
+    
+    if (error) {
+      console.error('Error fetching staff member by email:', error);
+      return null;
+    }
+    
+    if (data) {
+      return {
+        id: data.id.toString(),
+        name: data.name,
+        email: data.email,
+        jobTitle: data.job_title,
+        department: data.department,
+        mobile: data.mobile || 'N/A',
+        businessPhone: data.business_phone || 'N/A',
+        officeLocation: data.office_location || 'N/A',
+        divisionId: data.division_id
+      };
+    }
+    
+    return null;
+  } catch (err) {
+    console.error('Exception in getStaffMemberByEmail:', err);
+    return null;
+  }
+};
+
 interface UseStaffMembersReturn {
   staffMembers: StaffMember[];
   loading: boolean;
@@ -22,6 +62,13 @@ export function useStaffMembers(divisionId?: string): UseStaffMembersReturn {
     
     try {
       const supabase = getSupabaseClient();
+      
+      // Set headers for the Supabase client
+      const customHeaders = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Prefer': 'return=representation'
+      };
       
       if (divisionId) {
         // Fetch staff for a specific division

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { KRA, KPI, KraItem, KraFilterState } from '@/types';
 import { mockKras } from '@/data/mockData';
 import { useToast } from '@/components/ui/use-toast';
+import { useKraModals } from './useKraModals';
 
 export function useKraState() {
   const { toast } = useToast();
@@ -15,9 +16,14 @@ export function useKraState() {
     responsible: 'all'
   });
   
-  const [showAddKraModal, setShowAddKraModal] = useState(false);
-  const [showEditKpiModal, setShowEditKpiModal] = useState(false);
-  const [showDeleteKpiModal, setShowDeleteKpiModal] = useState(false);
+  const {
+    showAddKraModal,
+    setShowAddKraModal,
+    showEditKpiModal,
+    setShowEditKpiModal,
+    showDeleteKpiModal,
+    setShowDeleteKpiModal,
+  } = useKraModals();
   
   const [newKra, setNewKra] = useState<Partial<KRA>>({
     status: 'open',
@@ -140,7 +146,7 @@ export function useKraState() {
             ...kra,
             kpis: kra.kpis.map(kpi => 
               kpi.id === editingKpi.id 
-                ? { ...editingKpi, kraId: undefined } 
+                ? { ...editingKpi, kraId: undefined }
                 : kpi
             ),
             updatedAt: new Date().toISOString()
@@ -218,7 +224,7 @@ export function useKraState() {
     applyKraFilters,
     resetKraFilters,
     
-    // Modal states
+    // Modal states (now from useKraModals)
     showAddKraModal,
     setShowAddKraModal,
     showEditKpiModal,
@@ -237,6 +243,6 @@ export function useKraState() {
     // Handler functions
     handleAddKra,
     handleEditKpi,
-    handleDeleteKpi
+    handleDeleteKpi,
   };
 } 
