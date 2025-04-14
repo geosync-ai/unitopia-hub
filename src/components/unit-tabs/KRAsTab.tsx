@@ -282,12 +282,13 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     const statusMap: Record<string, string> = {
       'At Risk': 'at-risk',
       'On Track': 'on-track',
+      'In Progress': 'in-progress',
       'Off Track': 'off-track',
       'Completed': 'completed',
-      'Pending': 'pending',
-      'Not Started': 'pending'
+      'Not Started': 'not-started',
+      'On Hold': 'on-hold'
     };
-    return statusMap[status] || 'pending'; // Default to pending if unknown
+    return statusMap[status] || 'not-started';
   };
 
   const handleKpiFormSubmit = async (formData: any) => {
@@ -307,7 +308,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       target_date: formData.targetDate || null,
       assignees: formData.assignees || [], // Default to empty array if needed
       description: formData.description || null,
-      status: mapStatusToDbFormat(formData.status || 'pending')
+      status: mapStatusToDbFormat(formData.status || 'On Track')
     };
     
     // Get current division ID from localStorage
