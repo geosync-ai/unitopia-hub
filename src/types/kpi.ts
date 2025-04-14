@@ -15,6 +15,7 @@ export interface Kpi {
   metric?: string;
   unit?: string;
   progress?: number;
+  costAssociated?: number; // Add cost associated field
 }
 
 export interface Kra {

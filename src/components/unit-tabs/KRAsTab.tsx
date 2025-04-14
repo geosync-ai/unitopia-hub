@@ -143,6 +143,17 @@ const getQuarter = (dateString: string | undefined): string => {
   }
 };
 
+// Helper function to format currency (PNG Kina)
+const formatCurrency = (value: number | undefined | null): string => {
+  if (value === undefined || value === null || isNaN(value)) return '-';
+  try {
+    return new Intl.NumberFormat('en-PG', { style: 'currency', currency: 'PGK' }).format(value);
+  } catch (e) {
+    console.error("Error formatting currency:", value, e);
+    return 'Invalid Amount';
+  }
+};
+
 // Map KPI status to Badge variants (can reuse getStatusVariant logic if desired)
 const getKpiStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
@@ -478,6 +489,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
         assignees: kpi.assignees || [], // Re-added assignees for jsonb column
         description: kpi.description || null,
         comments: kpi.comments || null, // Assuming comments field exists in KPI form
+        cost_associated: kpi.costAssociated || null // Add cost associated field
       }));
 
       if (kpiPayloads.length > 0) {
@@ -735,6 +747,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                         <TableHead className="min-w-[80px]">Target</TableHead>
                         <TableHead className="min-w-[80px]">Actual</TableHead>
                         <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[100px]">Cost</TableHead>
                         <TableHead className="min-w-[120px]">Assignees</TableHead>
                         <TableHead className="min-w-[150px]">Comments</TableHead>
                         <TableHead className="text-right min-w-[100px]">Actions</TableHead>
@@ -784,6 +797,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                               <TableCell className="align-top whitespace-nowrap">
                                 {kpi.status ? <StatusBadge status={kpi.status} /> : <span className="text-muted-foreground">-</span>}
                               </TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatCurrency(kpi.costAssociated)}</TableCell>
                               <TableCell className="align-top">
                                 {kpi.assignees && kpi.assignees.length > 0 ? (
                                   <div className="flex -space-x-2 overflow-hidden">

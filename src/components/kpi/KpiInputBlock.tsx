@@ -42,7 +42,6 @@ const AssigneeSelector: React.FC<{
     const userToAdd: User = { // This conversion might be lossy or need adjustments
       id: staff.id,
       name: staff.name,
-      email: staff.email,
       initials: staff.name.split(' ').map(n => n[0]).join(''), // Basic initials generation
       // Add other fields if User type requires them and they exist on StaffMember
     };
@@ -111,10 +110,9 @@ const AssigneeSelector: React.FC<{
                     <div className="flex items-center gap-2">
                        <Avatar className="h-5 w-5">
                          {/* Use staff.pictureUrl if available, else fallback */}
-                        <AvatarImage src={staff.pictureUrl} alt={staff.name} />
                         <AvatarFallback>{staff.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                       </Avatar>
-                      {staff.name} ({staff.title})
+                      {staff.name} ({staff.job_title})
                     </div>
                     <Check
                       className={cn("h-3 w-3", selectedAssignees.find(u => u.id === staff.id) ? "opacity-100" : "opacity-0")}
@@ -208,6 +206,19 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
               placeholder="e.g., 92"
             />
           </div>
+        </div>
+
+        {/* Cost Associated */}
+        <div className="grid gap-1.5">
+          <Label htmlFor={`kpi-cost-${kpiIndex}`}>Cost Associated (Kina)</Label>
+          <Input
+            id={`kpi-cost-${kpiIndex}`}
+            type="number"
+            value={formData.costAssociated ?? ''} // Use nullish coalescing
+            onChange={(e) => onChange('costAssociated', e.target.value ? parseFloat(e.target.value) : undefined)}
+            placeholder="e.g., 1500.00"
+            step="0.01" // Allow decimal input for currency
+          />
         </div>
 
         {/* KPI Start Date & Target Date (Side by side) */}
