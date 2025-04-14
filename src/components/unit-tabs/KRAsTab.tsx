@@ -685,7 +685,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                            <SelectContent>
                              <SelectItem value="all">All Departments</SelectItem>
                              {units.map(unit => (
-                               <SelectItem key={unit.id} value={unit.id}>
+                               <SelectItem key={unit.id} value={String(unit.id)}>
                                  {unit.name}
                                </SelectItem>
                              ))}
@@ -776,12 +776,12 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                               )}
                               {/* KPI Cells */}
                               <TableCell className="align-top text-sm">{kpi.name !== '-' ? kpi.name : <span className="text-muted-foreground">-</span>}</TableCell>
-                              <TableCell className="align-top text-sm">{formatDate(kpi.startDate)}</TableCell>
-                              <TableCell className="align-top text-sm">{formatDate(kpi.targetDate)}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi.startDate)}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi.targetDate)}</TableCell>
                               <TableCell className="align-top text-sm">{targetQuarter}</TableCell>
                               <TableCell className="align-top text-sm">{kpi.target ?? '-'}</TableCell>
                               <TableCell className="align-top text-sm">{kpi.actual ?? '-'}</TableCell>
-                              <TableCell className="align-top">
+                              <TableCell className="align-top whitespace-nowrap">
                                 {kpi.status ? <StatusBadge status={kpi.status} /> : <span className="text-muted-foreground">-</span>}
                               </TableCell>
                               <TableCell className="align-top">
