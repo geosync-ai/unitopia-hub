@@ -54,7 +54,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
           comments: '',
           // Initialize other required Kra fields
           department: '',
-          status: 'pending',
+          status: 'on-track',
           owner: undefined,
         });
         // Ensure default KPI block has assignees array
@@ -108,7 +108,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
       targetDate: formData.targetDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default target 90 days later
       department: formData.department || formData.unit || 'Default Dept',
-      status: formData.status || 'pending',
+      status: formData.status || 'not-started',
       owner: formData.owner || (users.length > 0 ? users[0] : undefined), // Default to first user or undefined
     } as Kra;
 
