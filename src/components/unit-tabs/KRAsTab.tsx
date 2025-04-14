@@ -45,6 +45,18 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { StaffMember } from '@/types/staff';
 import { getSupabaseClient } from '@/integrations/supabase/supabaseClient';
 import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { krasService } from '@/integrations/supabase/unitService';
 
 // --- Mock Data --- Placeholder - Replace with data fetching logic
 const mockUsers: User[] = [
@@ -221,6 +233,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
   const [editingKra, setEditingKra] = useState<Kra | undefined>(undefined);
   const [editingKpiDetails, setEditingKpiDetails] = useState<{ kraId: string; kpi: Kpi } | undefined>(undefined);
+  const [kraToDelete, setKraToDelete] = useState<string | number | null>(null);
   const [filters, setFilters] = useState<KraFiltersState>({
       department: 'all',
       status: 'all',
@@ -530,11 +543,33 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   };
 
   const handleDeleteKra = (kraId: string | number) => {
-    // Ensure kraId is string for deleteKRA function if it expects string
-    console.log("Delete KRA clicked (in KRAsTab):", String(kraId));
-    // TODO: Implement actual deletion logic, perhaps calling a service 
-    // Example: krasService.deleteKRA(String(kraId)).then(...).catch(...);
-    toast({ title: "Delete action triggered (not implemented)", description: `Attempting to delete KRA ID: ${kraId}`, variant: "destructive" });
+    console.log("Requesting delete confirmation for KRA ID:", String(kraId));
+    setKraToDelete(kraId); // Set the ID to open the dialog
+  };
+
+  const confirmDeleteKra = async () => {
+    if (!kraToDelete) return;
+
+    const idToDelete = String(kraToDelete); // Ensure it's a string for the service
+    console.log("Confirming deletion for KRA ID:", idToDelete);
+
+    try {
+      await krasService.deleteKRA(idToDelete);
+      toast({
+        title: "KRA Deleted",
+        description: `KRA with ID ${idToDelete} has been successfully deleted.`,
+      });
+      onDataRefresh?.(); // Refresh data in parent component
+    } catch (error: any) {
+      console.error("Error deleting KRA:", error);
+      toast({
+        title: "Error Deleting KRA",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setKraToDelete(null); // Close the dialog
+    }
   };
 
   const handleOpenAddObjectiveModal = () => {
@@ -830,38 +865,41 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                                 ) : <span className="text-muted-foreground">-</span>}
                               </TableCell>
                               <TableCell className="align-top text-xs text-muted-foreground">{kpi.comments || '-'}</TableCell>
-                              <TableCell className="align-top text-right">
-                                {isFirstKpiOfOriginalKra && (
+                              <TableCell className="align-top text-right sticky right-0 bg-card border-l px-2 py-1 whitespace-nowrap align-middle">
+                                <div className="flex justify-end items-center space-x-1">
+                                  <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKraModal(originalKra)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Edit KRA Instance</p></TooltipContent>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="p-1 h-auto"
+                                          onClick={() => handleOpenEditKpiModal(row.originalKra.id, row.kpi)}
+                                          aria-label="Edit KPI"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Edit KPI</TooltipContent>
                                     </Tooltip>
-                                )}
-                                {kpi.id && kpi.name !== '-' && (
+                                  </TooltipProvider>
+                                  <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditKpiModal(originalKra.id, kpi)}>
-                                                <MessageSquare className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Edit KPI / Add Comment</p></TooltipContent>
+                                      <TooltipTrigger asChild>
+                                         <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="p-1 h-auto text-destructive hover:text-destructive"
+                                          onClick={() => handleDeleteKra(row.originalKra.id)}
+                                          aria-label="Delete KRA"
+                                         >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Delete KRA (and its KPIs)</TooltipContent>
                                     </Tooltip>
-                                )}
-                                 {isFirstKpiOfOriginalKra && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            {/* Cast ID to string to potentially fix linter error */}
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKra(String(originalKra.id))}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Delete KRA Instance</p></TooltipContent>
-                                    </Tooltip>
-                                )}
+                                  </TooltipProvider>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -974,6 +1012,22 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={kraToDelete !== null} onOpenChange={(open) => !open && setKraToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the Key Result Area
+                (ID: {kraToDelete}) and all of its associated KPIs.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setKraToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteKra}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   );
