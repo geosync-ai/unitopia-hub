@@ -34,10 +34,6 @@ import { Edit, Plus, Trash2, MessageSquare } from 'lucide-react';
 import StatusBadge from '@/components/common/StatusBadge';
 import KRATimelineTab from '@/components/KRATimelineTab';
 import KRAInsightsTab from '@/components/KRAInsightsTab';
-import { useKraState } from '@/hooks/useKraState';
-import AddKraModal from './modals/AddKraModal';
-import EditKpiModal from './modals/EditKpiModal';
-import DeleteKpiModal from './modals/DeleteKpiModal';
 import KpiModal from '@/components/kpi/KpiModal';
 import { Kra, Kpi, User } from '@/types/kpi';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -130,11 +126,11 @@ const getKraStatus = (kpis: Kpi[]): Kpi['status'] => {
 };
 
 // Map KRA status to Badge variants
-const getStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" | "success" => {
+const getStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
-    case 'Completed': return 'success';
+    case 'Completed': return 'default';
     case 'At Risk': return 'destructive';
-    case 'On Track': return 'default'; // Or 'success' depending on preference
+    case 'On Track': return 'default';
     case 'In Progress': return 'default';
     case 'On Hold': return 'secondary';
     case 'Not Started': return 'outline';
@@ -151,30 +147,8 @@ interface KraFiltersState {
 }
 
 export const KRAsTab: React.FC = () => {
-  const {
-    kras,
-    kraFilters,
-    setKraFilters,
-    filteredKraItems,
-    resetKraFilters,
-    showAddKraModal,
-    setShowAddKraModal,
-    showEditKpiModal,
-    setShowEditKpiModal,
-    showDeleteKpiModal,
-    setShowDeleteKpiModal,
-    editingKpi,
-    setEditingKpi,
-    deletingKpi,
-    setDeletingKpi,
-    handleAddKra,
-    handleEditKpi,
-    handleDeleteKpi,
-    newKra,
-    setNewKra
-  } = useKraState();
-  
-  // State management
+  // Use local state management
+  const [kras, setKras] = useState<Kra[]>(mockKras); // Now kras and setKras are defined here
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKra, setEditingKra] = useState<Kra | undefined>(undefined);
   const [filters, setFilters] = useState<KraFiltersState>({
@@ -185,7 +159,21 @@ export const KRAsTab: React.FC = () => {
 
   // Memoize derived state for filters
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit))), [kras]);
-  const responsibleUsers = useMemo(() => Array.from(new Set(kras.flatMap(kra => kra.assignees.map(u => u.name)))), [kras]); // Using names for simplicity
+  const responsibleUsers = useMemo(() => {
+    const usersSet = new Set<string>();
+    kras.forEach(kra => {
+      // Check if assignees is an array and not empty before mapping
+      if (Array.isArray(kra.assignees)) {
+        kra.assignees.forEach(u => {
+          // Also check if user and user.name exist (optional but safer)
+          if (u && u.name) {
+             usersSet.add(u.name)
+          }
+        });
+      }
+    });
+    return Array.from(usersSet);
+  }, [kras]); // Rerun when kras data changes
   const statuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
 
   const handleFilterChange = useCallback((filterName: keyof KraFiltersState, value: string) => {
