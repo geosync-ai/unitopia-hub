@@ -60,17 +60,17 @@ const mockObjectives: Objective[] = [
 ];
 
 const mockKpis1: Kpi[] = [
-  { id: 'kpi1', name: 'Customer Satisfaction Score', target: 90, actual: 85, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01', assignees: [mockUsers[0]], comments: 'Survey results pending' },
-  { id: 'kpi2', name: 'Support Response Time', target: 4, actual: 3.5, status: 'On Track', startDate: '2023-01-05', targetDate: '2023-03-31', assignees: [mockUsers[0]] },
+  { id: 'kpi1', name: 'Customer Satisfaction Score', target: 90, actual: 85, status: 'at-risk', startDate: '2023-01-01', targetDate: '2023-06-01', assignees: [mockUsers[0]], comments: 'Survey results pending' },
+  { id: 'kpi2', name: 'Support Response Time', target: 4, actual: 3.5, status: 'on-track', startDate: '2023-01-05', targetDate: '2023-03-31', assignees: [mockUsers[0]] },
 ];
 
 const mockKpis2: Kpi[] = [
-  { id: 'kpi3', name: 'Market Share Percentage', target: 25, actual: 22, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01', assignees: [mockUsers[1]] },
+  { id: 'kpi3', name: 'Market Share Percentage', target: 25, actual: 22, status: 'at-risk', startDate: '2023-01-01', targetDate: '2023-06-01', assignees: [mockUsers[1]] },
 ];
 
 const mockKpis3: Kpi[] = [
-  { id: 'kpi4', name: 'New Feature Adoption Rate', target: 60, actual: 65, status: 'Completed', startDate: '2023-03-15', targetDate: '2023-07-31', assignees: [mockUsers[2]] },
-  { id: 'kpi5', name: 'Documentation Accuracy', target: 95, actual: 90, status: 'In Progress', startDate: '2023-04-01', targetDate: '2023-09-15', assignees: [mockUsers[1], mockUsers[2]] },
+  { id: 'kpi4', name: 'New Feature Adoption Rate', target: 60, actual: 65, status: 'completed', startDate: '2023-03-15', targetDate: '2023-07-31', assignees: [mockUsers[2]] },
+  { id: 'kpi5', name: 'Documentation Accuracy', target: 95, actual: 90, status: 'in-progress', startDate: '2023-04-01', targetDate: '2023-09-15', assignees: [mockUsers[1], mockUsers[2]] },
 ];
 
 const mockKras: Kra[] = [
@@ -81,8 +81,8 @@ const mockKras: Kra[] = [
     unit: 'Customer Service',
     startDate: '2023-01-01',
     targetDate: '2023-06-01',
-    kpis: mockKpis1,
-    comments: 'Initial focus on support improvements.',
+    unitKpis: mockKpis1,
+    description: 'Initial focus on support improvements.',
     department: 'Customer Service',
     status: 'on-track',
     owner: mockUsers[0],
@@ -94,7 +94,7 @@ const mockKras: Kra[] = [
     unit: 'Marketing',
     startDate: '2023-01-01',
     targetDate: '2023-06-01',
-    kpis: mockKpis2,
+    unitKpis: mockKpis2,
     department: 'Marketing',
     status: 'at-risk',
     owner: mockUsers[1],
@@ -106,8 +106,8 @@ const mockKras: Kra[] = [
     unit: 'Engineering',
     startDate: '2023-03-15',
     targetDate: '2023-09-15',
-    kpis: mockKpis3,
-    comments: 'Focus on agile practices adoption.',
+    unitKpis: mockKpis3,
+    description: 'Focus on agile practices adoption.',
     department: 'Engineering',
     status: 'pending',
     owner: mockUsers[2],
@@ -157,12 +157,13 @@ const formatCurrency = (value: number | undefined | null): string => {
 // Map KPI status to Badge variants (can reuse getStatusVariant logic if desired)
 const getKpiStatusVariant = (status: Kpi['status']): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
-    case 'Completed': return 'default';
-    case 'At Risk': return 'destructive';
-    case 'On Track': return 'default';
-    case 'In Progress': return 'default';
-    case 'On Hold': return 'secondary';
-    case 'Not Started': return 'outline';
+    case 'completed': return 'default';
+    case 'at-risk': return 'destructive';
+    case 'on-track': return 'default';
+    case 'in-progress': return 'default';
+    case 'on-hold': return 'secondary';
+    case 'not-started': return 'outline';
+    case 'behind': return 'destructive';
     default: return 'outline';
   }
 };
@@ -204,6 +205,7 @@ interface KRAsTabProps {
   onDeleteObjective: (objectiveId: string | number) => void;
   units: UnitData[];
   staffMembers?: StaffMember[];
+  onDataRefresh?: () => void; // Add prop for triggering data refresh
 }
 
 export const KRAsTab: React.FC<KRAsTabProps> = ({
@@ -212,7 +214,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   onSaveObjective,
   onDeleteObjective,
   units,
-  staffMembers
+  staffMembers,
+  onDataRefresh
 }) => {
   const kras = krasFromProps; // Use props directly
   const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
@@ -235,7 +238,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   }, [kras]);
 
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
-  const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
+  const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'not-started', 'on-track', 'in-progress', 'at-risk', 'on-hold', 'completed', 'behind'];
 
   const handleFilterChange = useCallback((filterName: 'department' | 'status', value: string) => {
       setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -516,8 +519,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     // --- Final Steps ---
     if (!operationError) {
       toast({ title: `KRA ${isEditing ? 'Updated' : 'Created'} Successfully`, description: "KRA and associated KPIs have been saved." });
-      // TODO: Trigger data refresh in parent component (Unit.tsx)
-      // Example: onDataChange?.(); // If a callback prop exists
+      // Trigger data refresh in parent component
+      onDataRefresh?.(); // Call the refresh function if it exists
     } else {
         toast({ title: `KRA ${isEditing ? 'Update' : 'Creation'} Partially Failed`, description: "Errors occurred during saving. Check console logs.", variant: "destructive" });
     }
@@ -722,7 +725,10 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                           <SelectContent>
                             {kpiStatuses.map(status => (
                               <SelectItem key={status} value={status}>
-                                {status === 'all' ? 'All Statuses' : status}
+                                {/* Display user-friendly label for statuses in filter */}
+                                {status === 'all' ? 'All Statuses' : status.replace(
+                                  /\b(?!\w)/g, (match, index, fullStr) => fullStr.charAt(index - 1) === '-' ? '' : ' '
+                                ).replace(/^.|\s./g, (match) => match.toUpperCase()).replace('-', ' ')}
                               </SelectItem>
                             ))}
                           </SelectContent>
