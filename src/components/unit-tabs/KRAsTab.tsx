@@ -337,13 +337,16 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   };
 
   const handleOpenEditKraModal = (kra: Kra) => {
-    const kraToEdit = kras.find(k => k.id === kra.id);
+    // Ensure we find the full KRA data from the original props, including its KPIs
+    const kraToEdit = krasFromProps.find(k => k.id === kra.id);
     if (kraToEdit) {
-      setEditingKra(kraToEdit);
-      setEditingKpiDetails(undefined);
+      console.log("Editing KRA:", kraToEdit); // Add log to check the data
+      setEditingKra(kraToEdit); // Pass the full KRA object with KPIs
+      setEditingKpiDetails(undefined); // Ensure KPI-specific edit state is cleared
       setIsKpiModalOpen(true);
     } else {
-      console.error("Could not find KRA data to edit for ID:", kra.id);
+      console.error("Could not find KRA data in props to edit for ID:", kra.id);
+      toast({ title: "Error", description: "Could not find the KRA data to edit.", variant: "destructive" });
     }
   };
 
