@@ -43,6 +43,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { StaffMember } from '@/types/staff';
+import { getSupabaseClient } from '@/integrations/supabase/supabaseClient';
+import { useToast } from "@/components/ui/use-toast";
 
 // --- Mock Data --- Placeholder - Replace with data fetching logic
 const mockUsers: User[] = [
@@ -198,6 +200,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
   const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ name: '', description: '' });
+  const { toast } = useToast();
 
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
   const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
@@ -305,18 +308,94 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     setNewObjectiveData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveObjective = () => {
-    if (!newObjectiveData.name) {
-      alert("Objective name is required.");
-      return;
-    }
-    const objectiveToSave: Objective = {
-      id: editingObjective ? editingObjective.id : `obj-${Date.now()}`,
-      name: newObjectiveData.name || '',
-      description: newObjectiveData.description || '',
+  const handleSaveObjective = async () => {
+    const supabase = getSupabaseClient();
+    const objectivePayload = {
+      title: newObjectiveData.name,
+      description: newObjectiveData.description,
     };
-    onSaveObjective(objectiveToSave);
-    handleCloseObjectiveModal();
+
+    console.log('[handleSaveObjective] Attempting to save objective. Payload:', objectivePayload);
+
+    try {
+      let savedObjectiveData;
+      let error;
+      let operationType: 'insert' | 'update' = 'insert';
+
+      if (editingObjective?.id) {
+        operationType = 'update';
+        console.log(`[handleSaveObjective] Updating objective ID: ${editingObjective.id}`);
+        const { data, error: updateError } = await supabase
+          .from('unit_objectives')
+          .update(objectivePayload)
+          .eq('id', editingObjective.id)
+          .select()
+          .single();
+
+        savedObjectiveData = data;
+        error = updateError;
+        console.log('[handleSaveObjective] Supabase update response:', { data, error });
+
+      } else {
+        operationType = 'insert';
+        console.log('[handleSaveObjective] Inserting new objective');
+        if (!objectivePayload.title || objectivePayload.title.trim() === '') {
+            toast({ title: "Error", description: "Objective name cannot be empty.", variant: "destructive" });
+            console.error('[handleSaveObjective] Objective title is empty, cannot insert.');
+            return;
+        }
+        const { data, error: insertError } = await supabase
+          .from('unit_objectives')
+          .insert(objectivePayload)
+          .select()
+          .single();
+
+        savedObjectiveData = data;
+        error = insertError;
+        console.log('[handleSaveObjective] Supabase insert response:', { data, error });
+      }
+
+      if (error) {
+        console.error(`[handleSaveObjective] Supabase error during ${operationType}:`, error);
+        toast({ 
+          title: `Error ${operationType === 'insert' ? 'creating' : 'updating'} objective`, 
+          description: error.message || 'An unknown database error occurred.', 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      if (savedObjectiveData) {
+        const savedObjectiveForUI: Objective = {
+          id: savedObjectiveData.id,
+          name: savedObjectiveData.title,
+          description: savedObjectiveData.description,
+        };
+
+        console.log('[handleSaveObjective] Objective saved successfully in DB. UI State Input:', savedObjectiveForUI);
+        
+        onSaveObjective(savedObjectiveForUI);
+
+        toast({ title: "Objective saved successfully." });
+        handleCloseObjectiveModal();
+      } else {
+         console.warn('[handleSaveObjective] Supabase returned no data and no error after save operation. Check RLS select policies.');
+         toast({ 
+           title: "Objective Saved (potentially)", 
+           description: "The operation may have succeeded, but the result couldn't be immediately retrieved. Refresh data if needed.", 
+           variant: "default"
+         });
+         handleCloseObjectiveModal();
+      }
+
+    } catch (error) {
+      console.error('[handleSaveObjective] Unexpected error saving objective:', error);
+      toast({ 
+        title: "Unexpected Error", 
+        description: error instanceof Error ? error.message : "An unexpected error occurred during save.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleDeleteObjective = (objectiveId: string | number) => {
