@@ -48,17 +48,17 @@ const mockUsers: User[] = [
 ];
 
 const mockKpis1: Kpi[] = [
-  { id: 'kpi1', name: 'Customer Satisfaction Score', target: 90, actual: 85, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01', comments: 'Survey results pending' },
-  { id: 'kpi2', name: 'Support Response Time', target: 4, actual: 3.5, status: 'On Track', startDate: '2023-01-05', targetDate: '2023-03-31' },
+  { id: 'kpi1', name: 'Customer Satisfaction Score', target: 90, actual: 85, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01', assignees: [mockUsers[0]], comments: 'Survey results pending' },
+  { id: 'kpi2', name: 'Support Response Time', target: 4, actual: 3.5, status: 'On Track', startDate: '2023-01-05', targetDate: '2023-03-31', assignees: [mockUsers[0]] },
 ];
 
 const mockKpis2: Kpi[] = [
-  { id: 'kpi3', name: 'Market Share Percentage', target: 25, actual: 22, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01' },
+  { id: 'kpi3', name: 'Market Share Percentage', target: 25, actual: 22, status: 'At Risk', startDate: '2023-01-01', targetDate: '2023-06-01', assignees: [mockUsers[1]] },
 ];
 
 const mockKpis3: Kpi[] = [
-  { id: 'kpi4', name: 'New Feature Adoption Rate', target: 60, actual: 65, status: 'Completed', startDate: '2023-03-15', targetDate: '2023-07-31' },
-  { id: 'kpi5', name: 'Documentation Accuracy', target: 95, actual: 90, status: 'In Progress', startDate: '2023-04-01', targetDate: '2023-09-15' },
+  { id: 'kpi4', name: 'New Feature Adoption Rate', target: 60, actual: 65, status: 'Completed', startDate: '2023-03-15', targetDate: '2023-07-31', assignees: [mockUsers[2]] },
+  { id: 'kpi5', name: 'Documentation Accuracy', target: 95, actual: 90, status: 'In Progress', startDate: '2023-04-01', targetDate: '2023-09-15', assignees: [mockUsers[1], mockUsers[2]] },
 ];
 
 const mockKras: Kra[] = [
@@ -69,7 +69,6 @@ const mockKras: Kra[] = [
     unit: 'Customer Service',
     startDate: '2023-01-01',
     targetDate: '2023-06-01',
-    assignees: [mockUsers[0]],
     kpis: mockKpis1,
     comments: 'Initial focus on support improvements.'
   },
@@ -80,7 +79,6 @@ const mockKras: Kra[] = [
     unit: 'Marketing',
     startDate: '2023-01-01',
     targetDate: '2023-06-01',
-    assignees: [mockUsers[1]],
     kpis: mockKpis2,
   },
    {
@@ -90,7 +88,6 @@ const mockKras: Kra[] = [
     unit: 'Engineering',
     startDate: '2023-03-15',
     targetDate: '2023-09-15',
-    assignees: [mockUsers[1], mockUsers[2]],
     kpis: mockKpis3,
     comments: 'Focus on agile practices adoption.'
   },
@@ -151,20 +148,11 @@ export const KRAsTab: React.FC = () => {
   // Memoize derived state for filters
   const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
   const objectives = useMemo(() => Array.from(new Set(kras.map(kra => kra.objective || 'Unknown'))).filter(o => o !== 'Unknown'), [kras]);
-  const units = departments; // Assuming unit is the same as department
-  const responsibleUsers = useMemo(() => {
-    const usersSet = new Set<string>();
-    kras.forEach(kra => {
-      if (Array.isArray(kra.assignees)) {
-        kra.assignees.forEach(u => { if (u && u.name) { usersSet.add(u.name) } });
-      }
-    });
-    return Array.from(usersSet);
-  }, [kras]);
+  const units = departments;
   // Filter options for KPI status
   const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
 
-  const handleFilterChange = useCallback((filterName: keyof KraFiltersState, value: string) => {
+  const handleFilterChange = useCallback((filterName: 'department' | 'status', value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   }, []);
 
@@ -172,25 +160,23 @@ export const KRAsTab: React.FC = () => {
     setFilters({
       department: 'all',
       status: 'all',
-      responsible: 'all',
     });
   }, []);
 
-  // Pre-process KRAs into rows suitable for rendering the new table structure
+  // Pre-process KRAs into rows
   const processedRows = useMemo((): ProcessedRow[] => {
     let rows: ProcessedRow[] = [];
     kras.forEach(kra => {
-      const kraKpis = kra.kpis && kra.kpis.length > 0 ? kra.kpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi]; // Handle KRAs with no KPIs
+      const kraKpis = kra.kpis && kra.kpis.length > 0 ? kra.kpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
 
-      // Apply filters at the KRA level first
+      // Filter only by department at KRA level
       const departmentMatch = filters.department === 'all' || kra.unit === filters.department;
-      const responsibleMatch = filters.responsible === 'all' || (kra.assignees || []).some(u => u.name === filters.responsible);
 
-      if (!departmentMatch || !responsibleMatch) {
-        return; // Skip this KRA if it doesn't match filters
+      if (!departmentMatch) {
+        return;
       }
 
-      // Filter KPIs within the matched KRA
+      // Filter KPIs by status
       const filteredKpis = kraKpis.filter(kpi =>
            filters.status === 'all' || kpi.status === filters.status
       );
@@ -206,11 +192,9 @@ export const KRAsTab: React.FC = () => {
             });
           });
       }
-      // If a KRA matches department/responsible but has no matching KPIs after status filter,
-      // we might still want to show it, depending on desired behavior. Currently, it's skipped.
     });
     return rows;
-  }, [kras, filters]);
+  }, [kras, filters.department, filters.status]);
 
   // Modal Handlers
   const handleOpenAddModal = () => {
@@ -285,7 +269,7 @@ export const KRAsTab: React.FC = () => {
               </TabsList>
               
               <div className="bg-muted/50 p-4 rounded-md mb-6 border">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="kra-department-filter">Department</Label>
                     <Select
@@ -319,26 +303,6 @@ export const KRAsTab: React.FC = () => {
                         {kpiStatuses.map(status => (
                           <SelectItem key={status} value={status}>
                             {status === 'all' ? 'All Statuses' : status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="kra-responsible-filter">Responsible</Label>
-                    <Select
-                      value={filters.responsible}
-                      onValueChange={(value) => handleFilterChange('responsible', value)}
-                    >
-                      <SelectTrigger id="kra-responsible-filter">
-                        <SelectValue placeholder="All Responsible" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Responsible</SelectItem>
-                        {responsibleUsers.map(responsible => (
-                          <SelectItem key={responsible} value={responsible}>
-                            {responsible}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -403,13 +367,13 @@ export const KRAsTab: React.FC = () => {
                                      <Badge variant={kpiStatusVariant}>{kpi.status}</Badge>
                                 ) : '-'}
                               </TableCell>
-                              {isFirstKpiOfKra && (
-                                <TableCell className="align-top" rowSpan={kraRowSpan}>
+                              <TableCell className="align-top">
+                                {kpi.name !== '-' ? (
                                   <div className="flex -space-x-2 overflow-hidden">
-                                    {(kra.assignees || []).map(user => (
+                                    {(kpi.assignees || []).map(user => (
                                       <Tooltip key={user.id}>
                                         <TooltipTrigger asChild>
-                                          <Avatar className="inline-block h-7 w-7 rounded-full ring-2 ring-background">
+                                          <Avatar className="inline-block h-6 w-6 rounded-full ring-1 ring-background">
                                             <AvatarImage src={user.avatarUrl} alt={user.name} />
                                             <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
                                           </Avatar>
@@ -417,10 +381,10 @@ export const KRAsTab: React.FC = () => {
                                         <TooltipContent>{user.name}</TooltipContent>
                                       </Tooltip>
                                     ))}
-                                    {(kra.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
+                                    {(kpi.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
                                   </div>
-                                </TableCell>
-                              )}
+                                ) : '-' }
+                              </TableCell>
                               {isFirstKpiOfKra && (
                                 <TableCell className="text-right align-top" rowSpan={kraRowSpan}>
                                   <Tooltip>

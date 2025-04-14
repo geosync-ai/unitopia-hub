@@ -220,15 +220,15 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({ formData, onChange, use
         </div>
       </div>
 
-      {/* Assignees Multi-select */}
-      <div className="grid gap-1.5">
+      {/* Assignees Multi-select - REMOVED */}
+      {/* <div className="grid gap-1.5">
         <Label htmlFor="kra-assignees">Assignees</Label>
         <AssigneeSelector
            users={users}
            selectedUsers={formData.assignees || []}
            onChange={(selected) => onChange('assignees', selected)}
          />
-      </div>
+      </div> */}
 
        {/* KRA Comments */}
        <div className="grid gap-1.5">

@@ -48,10 +48,10 @@ const KpiModal: React.FC<KpiModalProps> = ({
           unit: '',
           startDate: '',
           targetDate: '',
-          assignees: [],
           comments: '',
         });
-        setKpiBlocks([{}]); // Start with one empty KPI block
+        // Ensure default KPI block has assignees array
+        setKpiBlocks([{ assignees: [] }]);
       }
     } else {
       // Reset form when modal closes
@@ -73,8 +73,8 @@ const KpiModal: React.FC<KpiModalProps> = ({
   }, []);
 
   const handleAddKpi = () => {
-    // Add a new empty KPI object. Assign a temporary client-side key for React list rendering.
-    setKpiBlocks(prev => [...prev, { tempId: `kpi_${Date.now()}` }]);
+    // Add a new empty KPI object with default assignees array
+    setKpiBlocks(prev => [...prev, { tempId: `kpi_${Date.now()}`, assignees: [] }]);
   };
 
   const handleRemoveKpi = (index: number) => {
@@ -131,6 +131,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
                   onChange={(field, value) => handleKpiChange(index, field, value)}
                   onRemove={handleRemoveKpi}
                   isOnlyBlock={kpiBlocks.length === 1}
+                  users={users}
                 />
               ))}
               <Button type="button" variant="outline" size="sm" onClick={handleAddKpi} className="mt-2">

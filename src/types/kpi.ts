@@ -11,6 +11,7 @@ export interface Kpi {
   targetDate?: string; // Add KPI target date (or 'dueDate')
   status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'At Risk' | 'On Track';
   comments?: string;
+  assignees?: User[]; // Add assignees to KPI
 }
 
 export interface Kra {
@@ -20,7 +21,6 @@ export interface Kra {
   unit: string; // Assuming unit is stored as string, could be an ID
   startDate: string; // ISO date string format recommended (e.g., "YYYY-MM-DD")
   targetDate: string; // ISO date string format recommended
-  assignees: User[]; // Array of user objects
   kpis: Kpi[];
   comments?: string; // Optional overall comments for the KRA
 }

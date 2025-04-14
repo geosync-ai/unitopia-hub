@@ -1,6 +1,6 @@
 // src/components/kpi/KpiInputBlock.tsx
 import React from 'react';
-import { Kpi } from '@/types/kpi';
+import { Kpi, User } from '@/types/kpi';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface KpiInputBlockProps {
   kpiIndex: number;
@@ -15,9 +21,95 @@ interface KpiInputBlockProps {
   onChange: (field: keyof Kpi, value: any) => void;
   onRemove: (index: number) => void;
   isOnlyBlock?: boolean; // Optional: To disable remove on the last block
+  users?: User[]; // Add users prop for assignee selection
 }
 
-const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onChange, onRemove, isOnlyBlock }) => {
+// --- Assignee Selector Component (copied/adapted from KraFormSection) ---
+const AssigneeSelector: React.FC<{ users: User[]; selectedUsers: User[]; onChange: (users: User[]) => void }> = ({ users = [], selectedUsers = [], onChange }) => {
+  const [open, setOpen] = React.useState(false);
+
+  const handleSelect = (user: User) => {
+    if (!selectedUsers.find(u => u.id === user.id)) {
+      onChange([...selectedUsers, user]);
+    }
+    setOpen(false);
+  };
+
+  const handleRemove = (userId: string | number) => {
+    onChange(selectedUsers.filter(u => u.id !== userId));
+  };
+
+  return (
+    <div className="space-y-2">
+       <div className="flex flex-wrap gap-1">
+        {selectedUsers.map((user) => (
+          <Badge key={user.id} variant="secondary" className="flex items-center gap-1 pr-1 h-6">
+            <Avatar className="h-5 w-5 mr-1">
+              <AvatarImage src={user.avatarUrl} alt={user.name} />
+              <AvatarFallback>{user.initials || user.name[0]}</AvatarFallback>
+            </Avatar>
+            <span className="text-xs">{user.name}</span>
+            <button
+              onClick={() => handleRemove(user.id)}
+              className="ml-0.5 rounded-full outline-none ring-offset-background focus:ring-1 focus:ring-ring focus:ring-offset-1"
+              onKeyDown={(e) => { if (e.key === "Enter") { handleRemove(user.id); } }}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              aria-label={`Remove ${user.name}`}
+            >
+              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between h-9 text-xs"
+          >
+            {selectedUsers.length > 0 ? `${selectedUsers.length} selected` : "Select Assignees..."}
+            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search user..." className="text-xs" />
+            <CommandList>
+              <CommandEmpty>No user found.</CommandEmpty>
+              <CommandGroup>
+                {users.map((user) => (
+                  <CommandItem
+                    key={user.id}
+                    value={user.name}
+                    onSelect={() => handleSelect(user)}
+                    disabled={!!selectedUsers.find(u => u.id === user.id)}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                       <Avatar className="h-5 w-5">
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        <AvatarFallback>{user.initials || user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      {user.name}
+                    </div>
+                    <Check
+                      className={cn("h-3 w-3", selectedUsers.find(u => u.id === user.id) ? "opacity-100" : "opacity-0")}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
+// --- End Assignee Selector ---
+
+const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onChange, onRemove, isOnlyBlock, users = [] }) => {
   const statuses: Kpi['status'][] = ['Not Started', 'On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed'];
 
   return (
@@ -114,6 +206,16 @@ const KpiInputBlock: React.FC<KpiInputBlockProps> = ({ kpiIndex, formData, onCha
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Add Assignee Selector */}
+        <div className="grid gap-1.5">
+          <Label htmlFor={`kpi-assignees-${kpiIndex}`}>Assignees</Label>
+          <AssigneeSelector
+            users={users} // Pass users list
+            selectedUsers={formData.assignees || []}
+            onChange={(selected) => onChange('assignees', selected)}
+          />
         </div>
 
         {/* KPI Description Textarea */}
