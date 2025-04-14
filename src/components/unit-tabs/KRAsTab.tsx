@@ -238,8 +238,9 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   }, []);
 
   const processedRows = useMemo((): ProcessedRow[] => {
-    const groupedRows: ProcessedRow[] = []; // Build the final flat array here
+    const groupedRows: ProcessedRow[] = []; 
 
+    // Group by Objective
     const objectiveGroups = kras.reduce((acc, kra) => {
       const objId = kra.objectiveId || 'no-objective';
       if (!acc[objId]) {
@@ -250,9 +251,10 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     }, {} as Record<string, { name: string; kras: Kra[] }>);
 
     Object.values(objectiveGroups).forEach(objectiveGroup => {
-      let objectiveSpan = 0;
+      let objectiveSpan = 0; 
       let isFirstRowInObjective = true;
       
+      // Group by KRA Title within Objective
       const kraTitleGroups = objectiveGroup.kras.reduce((acc, kra) => {
          const kraTitle = kra.title || 'Untitled KRA';
          if (!acc[kraTitle]) {
@@ -262,19 +264,19 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
          return acc;
       }, {} as Record<string, Kra[]>);
 
-      // Calculate objective span based on the number of rows its KRAs will generate
+      // Calculate objective span (sum of rows for all KRAs in this objective)
       Object.values(kraTitleGroups).forEach(krasWithSameTitle => {
           krasWithSameTitle.forEach(kra => {
               const kpis = (kra as any).unitKpis || [];
-              objectiveSpan += Math.max(kpis.length, 1);
+              objectiveSpan += Math.max(kpis.length, 1); 
           });
       });
 
       Object.entries(kraTitleGroups).forEach(([kraTitle, krasWithSameTitle]) => {
-        let kraTitleSpan = 0;
+        let kraTitleSpan = 0; 
         let isFirstRowInKraTitleGroup = true;
         
-        // Calculate KRA title span
+        // Calculate KRA title span (sum of rows for KRAs with this title in this objective)
         krasWithSameTitle.forEach(kra => {
              const kpis = (kra as any).unitKpis || [];
              kraTitleSpan += Math.max(kpis.length, 1);
@@ -290,21 +292,21 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
               objectiveId: kraInstance.objectiveId,
               objectiveName: objectiveGroup.name,
               isFirstRowOfObjective: isFirstRowInObjective,
-              objectiveRowSpan: objectiveSpan, // Apply calculated span
+              objectiveRowSpan: objectiveSpan, 
               kraTitle: kraTitle,
               isFirstRowOfKraTitleGroup: isFirstRowInKraTitleGroup,
-              kraTitleRowSpan: kraTitleSpan, // Apply calculated span
+              kraTitleRowSpan: kraTitleSpan, 
               kpi: kpi,
               originalKra: kraInstance,
             });
-            isFirstRowInObjective = false; // Turn off flags after the first row
+            isFirstRowInObjective = false; 
             isFirstRowInKraTitleGroup = false;
           });
         });
       });
     });
 
-    // Apply Filters AFTER grouping and span calculation
+    // Apply Filters AFTER grouping and PRE-FILTER span calculation
     const filteredRows = groupedRows.filter(row => {
       const departmentMatch = filters.department === 'all' || row.originalKra.unit === filters.department;
       const statusMatch = filters.status === 'all' || (row.kpi.status && row.kpi.status === filters.status);
@@ -312,50 +314,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       return departmentMatch && statusMatch;
     });
     
-    // Recalculate spans AFTER filtering 
-    const finalRows: ProcessedRow[] = [];
-    const objectiveSpans: Record<string, number> = {};
-    const kraTitleSpans: Record<string, Record<string, number>> = {};
-
-    // Count rows per group in the filtered data
-    filteredRows.forEach(row => {
-      const objKey = String(row.objectiveId || 'no-objective');
-      const kraKey = row.kraTitle;
-      objectiveSpans[objKey] = (objectiveSpans[objKey] || 0) + 1;
-      if (!kraTitleSpans[objKey]) kraTitleSpans[objKey] = {};
-      kraTitleSpans[objKey][kraKey] = (kraTitleSpans[objKey][kraKey] || 0) + 1;
-    });
-
-    const seenObjectives: Record<string, boolean> = {};
-    const seenKraTitles: Record<string, Record<string, boolean>> = {};
-
-    // Assign new spans and flags based on filtered counts
-    filteredRows.forEach(row => {
-      const objKey = String(row.objectiveId || 'no-objective');
-      const kraKey = row.kraTitle;
-      let isFirstObjective = false;
-      let isFirstKraTitle = false;
-
-      if (!seenObjectives[objKey]) {
-        isFirstObjective = true;
-        seenObjectives[objKey] = true;
-      }
-      if (!seenKraTitles[objKey]) seenKraTitles[objKey] = {};
-      if (!seenKraTitles[objKey][kraKey]) {
-        isFirstKraTitle = true;
-        seenKraTitles[objKey][kraKey] = true;
-      }
-
-      finalRows.push({
-        ...row,
-        isFirstRowOfObjective: isFirstObjective,
-        objectiveRowSpan: objectiveSpans[objKey] || 1,
-        isFirstRowOfKraTitleGroup: isFirstKraTitle,
-        kraTitleRowSpan: kraTitleSpans[objKey]?.[kraKey] || 1,
-      });
-    });
-
-    return finalRows;
+    console.log("[KRAsTab] Processed rows (spans calculated before filtering):", filteredRows); // Log the final data being used
+    return filteredRows; 
 
   }, [kras, filters.department, filters.status, objectivesData]);
 
