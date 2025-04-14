@@ -277,9 +277,142 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     setEditingKpiDetails(undefined);
   };
 
-  const handleKpiFormSubmit = (formData: Kra) => {
-    console.log("KRA/KPI Form submitted (in KRAsTab):", formData);
-    handleCloseKpiModal();
+  const handleKpiFormSubmit = async (formData: any) => {
+    console.log("[handleKpiFormSubmit] Received form data:", JSON.stringify(formData, null, 2));
+    const supabase = getSupabaseClient();
+    const isEditing = !!editingKra?.id; // Check if we are editing based on state
+    let kraId = editingKra?.id;
+    let operationError = false;
+
+    // 1. Prepare KRA Payload (Map frontend fields to DB columns)
+    // Ensure formData fields match your KraFormData type
+    const kraPayload: any = {
+      title: formData.title,
+      objective_id: formData.objectiveId || null, // Ensure null if undefined
+      unit_name: formData.unit || 'Default Unit', // Map 'unit' to 'unit_name', provide default if needed
+      start_date: formData.startDate || null,
+      target_date: formData.targetDate || null,
+      assignees: formData.assignees || [], // Default to empty array if needed
+      description: formData.description || null,
+      status: formData.status || 'Draft' // Default status if needed
+    };
+    console.log("[handleKpiFormSubmit] Prepared KRA Payload:", kraPayload);
+
+    // --- KRA Save/Update --- 
+    try {
+      if (isEditing) {
+        // --- Update KRA ---
+        console.log(`[handleKpiFormSubmit] Updating KRA ID: ${kraId}`);
+        const { error: updateKraError } = await supabase
+          .from('unit_kras')
+          .update(kraPayload)
+          .eq('id', kraId);
+        
+        if (updateKraError) {
+          console.error("[handleKpiFormSubmit] Error updating KRA:", updateKraError);
+          toast({ title: "Error Updating KRA", description: updateKraError.message, variant: "destructive" });
+          operationError = true;
+          // Decide if we should stop or try to update KPIs anyway? Stop for now.
+          return; 
+        }
+        console.log(`[handleKpiFormSubmit] KRA ID ${kraId} updated successfully.`);
+
+      } else {
+        // --- Insert KRA ---
+        console.log("[handleKpiFormSubmit] Inserting new KRA");
+        const { data: newKraData, error: insertKraError } = await supabase
+          .from('unit_kras')
+          .insert(kraPayload)
+          .select('id') // Select only the ID
+          .single();
+
+        if (insertKraError) {
+          console.error("[handleKpiFormSubmit] Error inserting KRA:", insertKraError);
+          toast({ title: "Error Creating KRA", description: insertKraError.message, variant: "destructive" });
+          operationError = true;
+          return; // Stop if KRA insert fails
+        }
+
+        if (!newKraData?.id) {
+          console.error("[handleKpiFormSubmit] KRA inserted but no ID returned.");
+          toast({ title: "Error Creating KRA", description: "Could not get ID for the new KRA.", variant: "destructive" });
+          operationError = true;
+          return; 
+        }
+
+        kraId = newKraData.id; // Get the ID for linking KPIs
+        console.log(`[handleKpiFormSubmit] New KRA inserted successfully. ID: ${kraId}`);
+      }
+    } catch (error) {
+        console.error("[handleKpiFormSubmit] Unexpected error during KRA save/update:", error);
+        toast({ title: "Unexpected KRA Error", description: error instanceof Error ? error.message : "An unknown error occurred.", variant: "destructive" });
+        operationError = true;
+        return;
+    }
+
+    // --- KPI Save/Update --- (Only proceed if KRA operation was successful and we have a kraId)
+    if (!operationError && kraId && formData.kpis && Array.isArray(formData.kpis)) {
+      console.log(`[handleKpiFormSubmit] Processing ${formData.kpis.length} KPIs for KRA ID: ${kraId}`);
+      
+      // If editing, first delete existing KPIs for this KRA
+      if (isEditing) {
+          console.log(`[handleKpiFormSubmit] Deleting existing KPIs for KRA ID: ${kraId}`);
+          const { error: deleteKpiError } = await supabase
+              .from('unit_kpis')
+              .delete()
+              .eq('kra_id', kraId);
+          
+          if (deleteKpiError) {
+              console.error("[handleKpiFormSubmit] Error deleting existing KPIs:", deleteKpiError);
+              toast({ title: "Error Updating KPIs", description: `Failed to clear old KPIs: ${deleteKpiError.message}`, variant: "destructive" });
+              // Continue to attempt insert, maybe some KPIs were deleted?
+          } else {
+              console.log(`[handleKpiFormSubmit] Existing KPIs deleted successfully for KRA ID: ${kraId}`);
+          }
+      }
+
+      // Prepare and insert KPI Payloads
+      const kpiPayloads = formData.kpis.map((kpi: any) => ({
+        kra_id: kraId, // Link to the parent KRA
+        name: kpi.name,
+        target: kpi.target || null,
+        actual: kpi.actual || null, 
+        status: kpi.status || 'Not Started',
+        start_date: kpi.startDate || null,
+        target_date: kpi.targetDate || null,
+        assignees: kpi.assignees || [],
+        description: kpi.description || null,
+        comments: kpi.comments || null, // Assuming comments field exists in KPI form
+      }));
+
+      if (kpiPayloads.length > 0) {
+          console.log("[handleKpiFormSubmit] Prepared KPI Payloads:", kpiPayloads);
+          const { error: insertKpiError } = await supabase
+              .from('unit_kpis')
+              .insert(kpiPayloads);
+
+          if (insertKpiError) {
+              console.error("[handleKpiFormSubmit] Error inserting KPIs:", insertKpiError);
+              toast({ title: "Error Saving KPIs", description: insertKpiError.message, variant: "destructive" });
+              operationError = true; 
+          } else {
+              console.log(`[handleKpiFormSubmit] ${kpiPayloads.length} KPIs inserted successfully for KRA ID: ${kraId}`);
+          }
+      } else {
+          console.log("[handleKpiFormSubmit] No KPIs provided in the form data.");
+      }
+    }
+
+    // --- Final Steps ---
+    if (!operationError) {
+      toast({ title: `KRA ${isEditing ? 'Updated' : 'Created'} Successfully`, description: "KRA and associated KPIs have been saved." });
+      // TODO: Trigger data refresh in parent component (Unit.tsx)
+      // Example: onDataChange?.(); // If a callback prop exists
+    } else {
+        toast({ title: `KRA ${isEditing ? 'Update' : 'Creation'} Partially Failed`, description: "Errors occurred during saving. Check console logs.", variant: "destructive" });
+    }
+
+    handleCloseKpiModal(); // Close modal regardless of partial errors, as some operations might have succeeded
   };
 
   const handleDeleteKra = (kraId: string | number) => {
