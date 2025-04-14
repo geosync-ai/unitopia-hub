@@ -559,6 +559,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
         title: "KRA Deleted",
         description: `KRA with ID ${idToDelete} has been successfully deleted.`,
       });
+      console.log("[confirmDeleteKra] KRA deleted. Attempting to call onDataRefresh..."); // Add log
       onDataRefresh?.(); // Refresh data in parent component
     } catch (error: any) {
       console.error("Error deleting KRA:", error);

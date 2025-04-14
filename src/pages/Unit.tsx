@@ -175,8 +175,10 @@ const Unit = () => {
 
   // Function to refresh all relevant data
   const handleRefreshAllData = useCallback(() => {
-    console.log("[Unit.tsx] Refreshing all data...");
+    console.log("[Unit.tsx] handleRefreshAllData called."); // Confirm function is called
+    console.log("[Unit.tsx] Calling fetchObjectives..."); // Log before fetchObjectives
     fetchObjectives();
+    console.log("[Unit.tsx] Calling kraState.refresh..."); // Log before kraState.refresh
     kraState.refresh?.();
     // Potentially refresh other states if KRA/Objective changes affect them
     // projectState.refresh?.(); 
@@ -189,6 +191,7 @@ const Unit = () => {
       // Assume unitService has a deleteObjective method
       await unitService.deleteObjective(String(objectiveId)); 
       toast({ title: "Objective Deleted", description: `Objective ID ${objectiveId} deleted successfully.` });
+      console.log("[Unit.tsx] Objective deleted. Calling handleRefreshAllData..."); // Log before refresh
       handleRefreshAllData(); // Refresh data after successful deletion
     } catch (error) {
       console.error("[Unit.tsx] Error deleting objective:", error);
