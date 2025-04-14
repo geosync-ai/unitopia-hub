@@ -119,11 +119,10 @@ const getKpiStatusVariant = (status: Kpi['status']): "default" | "secondary" | "
   }
 };
 
-// Define filters state type (remains the same for now)
+// Define filters state type
 interface KraFiltersState {
   department: string;
-  status: string; // This now likely filters by KPI status
-  responsible: string;
+  status: string; // Filters by KPI status
 }
 
 // Define structure for the processed rows
@@ -142,7 +141,6 @@ export const KRAsTab: React.FC = () => {
   const [filters, setFilters] = useState<KraFiltersState>({
     department: 'all',
     status: 'all',
-    responsible: 'all',
   });
 
   // Memoize derived state for filters
@@ -333,14 +331,13 @@ export const KRAsTab: React.FC = () => {
                         <TableHead>Target</TableHead>
                         <TableHead>Actual</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Assignees</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {processedRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="h-24 text-center">
+                          <TableCell colSpan={8} className="h-24 text-center">
                             No KPIs found matching the current filters.
                           </TableCell>
                         </TableRow>
@@ -366,24 +363,6 @@ export const KRAsTab: React.FC = () => {
                                 {kpi.name !== '-' ? (
                                      <Badge variant={kpiStatusVariant}>{kpi.status}</Badge>
                                 ) : '-'}
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {kpi.name !== '-' ? (
-                                  <div className="flex -space-x-2 overflow-hidden">
-                                    {(kpi.assignees || []).map(user => (
-                                      <Tooltip key={user.id}>
-                                        <TooltipTrigger asChild>
-                                          <Avatar className="inline-block h-6 w-6 rounded-full ring-1 ring-background">
-                                            <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                            <AvatarFallback>{user.initials || user.name.charAt(0)}</AvatarFallback>
-                                          </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>{user.name}</TooltipContent>
-                                      </Tooltip>
-                                    ))}
-                                    {(kpi.assignees || []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
-                                  </div>
-                                ) : '-' }
                               </TableCell>
                               {isFirstKpiOfKra && (
                                 <TableCell className="text-right align-top" rowSpan={kraRowSpan}>
