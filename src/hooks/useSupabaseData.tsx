@@ -106,6 +106,7 @@ export function useSupabaseData<T extends { id?: string }>(
     setLoading(true);
     try {
       const fetchMethod = getFetchMethod();
+      console.log(`[useSupabaseData - fetchData] Fetching ${entityType} with user: ${user.email}, divisionId: ${currentDivisionId || undefined}`);
       const fetchedData = await fetchMethod(user.email, currentDivisionId || undefined);
       setData(fetchedData as T[]);
       setError(null);

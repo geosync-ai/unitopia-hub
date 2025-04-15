@@ -50,6 +50,8 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   const [filteredRisks, setFilteredRisks] = useState<Risk[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  console.log(`[RisksTab] Effect dependencies - selectedUnit: ${selectedUnit}, statusFilter: ${statusFilter}, risks count: ${risks.length}`);
+
   // Filter risks by selected unit and status
   useEffect(() => {
     let filtered = [...risks];

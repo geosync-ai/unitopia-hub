@@ -412,16 +412,9 @@ export const risksService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    
-    // Log the processed data
-    console.log('Processed risk data being sent to Supabase:', 
-      JSON.stringify({
-        originalLikelihood: risk.likelihood,
-        safeLikelihood,
-        processedRisk: riskWithTimestamps
-      }, null, 2)
-    );
-    
+
+    console.log('[unitService.addRisk] Final payload before insert:', JSON.stringify(riskWithTimestamps, null, 2));
+
     try {
       // Try a simpler, direct approach
       const { data, error } = await supabase
