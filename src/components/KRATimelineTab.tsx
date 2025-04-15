@@ -285,8 +285,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                         {/* Use a div with margin for spacing */}
                         <div className="mt-auto flex-grow"></div> {/* Flex grow to push border down */}
                       </div>
-                      {/* KRA Details Column - Add border-r, conditional border-b */}
-                      <div className={`w-64 px-4 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'} ${isLastForKraTitle ? 'border-b border-gray-100' : ''}`}> 
+                      {/* KRA Details Column - Remove conditional border-b */}
+                      <div className={`w-64 px-4 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'}`}> 
                         {isFirstForKraTitle && (
                           <>
                             <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
