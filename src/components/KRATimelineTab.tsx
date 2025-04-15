@@ -221,23 +221,23 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
 
             <div className="relative">
               {/* Vertical Grid Lines - Apply dashed style */}
-              <div className="absolute top-0 left-[calc(12rem+16rem)] right-0 h-full flex">
+              <div className="absolute top-0 left-[calc(12rem+16rem)] right-0 h-full flex pointer-events-none">
                 {currentViewMode === 'quarters' && quarters.map((_, i) => (
                   <div 
                     key={i} 
-                    className={`flex-1 border-r-dashed border-gray-200 ${i < 3 ? 'border-r' : 'border-r-0'}`}
+                    className={`flex-1 border-r border-dashed border-gray-100 ${i < 3 ? 'border-r' : 'border-r-0'}`}
                   />
                 ))}
                 {currentViewMode === 'months' && months.map((_, i) => (
                   <div 
                     key={i} 
-                    className={`flex-1 border-r-dashed border-gray-200 ${i < 11 ? 'border-r' : 'border-r-0'}`}
+                    className={`flex-1 border-r border-dashed border-gray-100 ${i < 11 ? 'border-r' : 'border-r-0'}`}
                   />
                 ))}
                 {currentViewMode === 'weeks' && weeks.map((_, i) => (
                   <div
                     key={i}
-                    className={`border-r-dashed border-gray-200 ${i < 51 ? 'border-r' : 'border-r-0'}`}
+                    className={`border-r border-dashed border-gray-100 ${i < 51 ? 'border-r' : 'border-r-0'}`}
                     style={{ 
                       width: '1.92%'
                     }}
@@ -267,9 +267,9 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   return (
                     <div key={kra.id} className="flex items-stretch hover:bg-gray-50/50 relative">
                       {/* Objective Column - Add border-r, conditional border-b */}
-                      <div className={`w-48 px-4 shrink-0 flex flex-col border-r border-gray-200 ${isFirstForObjective ? 'border-t border-gray-200 pt-3' : 'pt-3'} ${isLastForObjective ? 'border-b border-gray-200' : ''}`}> 
+                      <div className={`w-48 px-4 py-3 shrink-0 flex flex-col border-r border-gray-200 ${isFirstForObjective ? 'border-t border-gray-200' : ''} ${isLastForObjective ? 'border-b border-gray-200' : ''}`}>
                         {isFirstForObjective && (
-                          <span className="font-medium text-gray-900 block truncate text-sm">
+                          <span className="font-medium text-gray-900 block truncate text-sm mb-1">
                             {kra.unitObjectives?.title 
                               ? kra.unitObjectives.title 
                               : (kra.objectiveId ? `Obj ID: ${kra.objectiveId}` : 'N/A')
@@ -277,14 +277,14 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           </span>
                         )}
                         {/* Use a div with margin for spacing */}
-                        <div className="mt-auto flex-grow"></div> {/* Flex grow to push border down */}
+                        <div className="mt-auto"></div>
                       </div>
                       {/* KRA Details Column - Re-add conditional border-b */}
-                      <div className={`w-64 px-4 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'} ${isLastForKraTitle ? 'border-b border-gray-100' : ''}`}> 
+                      <div className={`w-64 px-4 py-3 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200' : ''} ${isLastForKraTitle ? 'border-b border-gray-200' : ''}`}>
                         {isFirstForKraTitle && (
                           <>
                             <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
-                            <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground block truncate mt-0.5">{kra.unit || 'N/A'}</div>
                             {/* Display calculated date range */}
                             {kraDateRange && (
                               <div className="text-xs text-muted-foreground/80 block truncate mt-1">
@@ -294,14 +294,14 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           </>
                         )}
                         {/* Use a div with margin for spacing */}
-                        <div className="mt-auto flex-grow"></div> {/* Flex grow for alignment */} 
+                        <div className="mt-auto"></div>
                       </div>
                       {/* Timeline Bars Column - Keep border-b */}
                       <div 
-                        className={`flex-1 relative border-b border-gray-100 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}
-                        style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 1.75) + 2}rem` : '4rem' }} 
+                        className={`flex-1 relative border-b border-gray-200 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}
+                        style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 2) + 1.5}rem` : '4rem' }}
                       >
-                        <div className={`relative ${kpisExist ? 'py-2 h-full' : 'h-16'}`}> 
+                        <div className={`relative ${kpisExist ? 'py-3 h-full' : 'h-full flex items-center justify-center'}`}>
                           {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
                             const kpiStartDate = parseDate(kpi.startDate);
                             const kpiTargetDate = parseDate(kpi.targetDate);
@@ -319,11 +319,11 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                 <TooltipTrigger asChild>
                                   {/* Outer div: Positions the bar, acts as track */}
                                   <div
-                                    className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden ${kpiIndex > 0 ? 'border-t border-white/60' : ''}`}
+                                    className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden`}
                                     style={{
                                       left: `${kpiStartPosition}%`,
                                       width: `${kpiWidth}%`,
-                                      top: `${1 + kpiIndex * 1.75}rem`, // Stack KPIs vertically
+                                      top: `${0.75 + kpiIndex * 2}rem`, // Stack KPIs vertically with more space (adjust multiplier)
                                       zIndex: 10 + kpiIndex, // Ensure stacking order
                                     }}
                                   >
@@ -333,7 +333,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                       style={{ width: `${kpiProgress}%` }}
                                     />
                                     {/* KPI Name Label: Positioned above progress */}
-                                    <span className="absolute inset-0 flex items-center text-xs text-white font-medium px-2 truncate z-10">
+                                    <span className="absolute inset-0 flex items-center text-[11px] text-white font-medium px-2 truncate z-10">
                                       {kpi.name}
                                     </span>
                                   </div>
@@ -353,7 +353,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           })}
                         </div>
                         {(!kra.unitKpis || kra.unitKpis.length === 0) && (
-                          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
+                          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
                             No KPIs defined for this KRA.
                           </div>
                         )}
