@@ -296,12 +296,18 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                         {/* Use a div with margin for spacing */}
                         <div className="mt-auto"></div>
                       </div>
-                      {/* Timeline Bars Column - Keep border-b */}
+                      {/* Timeline Bars Column */}
                       <div 
                         className={`flex-1 relative border-b border-gray-200 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}
                         style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 2) + 1.5}rem` : '4rem' }}
                       >
-                        <div className={`relative ${kpisExist ? 'py-3 h-full' : 'h-full flex items-center justify-center'}`}>
+                        {/* Dotted background */}
+                        <div
+                          className="absolute inset-0 z-0 bg-[repeating-linear-gradient(to_bottom,transparent,transparent_19px,theme(colors.gray.100)_19px,theme(colors.gray.100)_20px)] opacity-75"
+                          aria-hidden="true"
+                        />
+                        {/* Container for KPI Bars */}
+                        <div className={`relative z-10 ${kpisExist ? 'py-3 h-full' : 'h-full'}`}> 
                           {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
                             const kpiStartDate = parseDate(kpi.startDate);
                             const kpiTargetDate = parseDate(kpi.targetDate);
@@ -311,28 +317,28 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                             const kpiProgress = getKpiProgress(kpi);
 
                             if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
-                              return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; // Use Fragment with key
+                              return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; 
                             }
 
                             return (
                               <Tooltip key={kpi.id || `kpi-${kraIndex}-${kpiIndex}`} delayDuration={100}>
                                 <TooltipTrigger asChild>
-                                  {/* Outer div: Positions the bar, acts as track */}
+                                  {/* Outer div: Positions the bar */}
                                   <div
                                     className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden`}
                                     style={{
                                       left: `${kpiStartPosition}%`,
                                       width: `${kpiWidth}%`,
-                                      top: `${0.75 + kpiIndex * 2}rem`, // Stack KPIs vertically with more space (adjust multiplier)
-                                      zIndex: 10 + kpiIndex, // Ensure stacking order
+                                      top: `${0.75 + kpiIndex * 2}rem`, 
+                                      zIndex: 10 + kpiIndex, 
                                     }}
                                   >
-                                    {/* Inner div: Shows progress with status color */}
+                                    {/* Inner div: Shows progress */}
                                     <div
                                       className={`absolute top-0 left-0 h-full rounded-full ${kpiColorClass} transition-all duration-300`}
                                       style={{ width: `${kpiProgress}%` }}
                                     />
-                                    {/* KPI Name Label: Positioned above progress */}
+                                    {/* KPI Name Label */}
                                     <span className="absolute inset-0 flex items-center text-[11px] text-white font-medium px-2 truncate z-10">
                                       {kpi.name}
                                     </span>
@@ -352,8 +358,9 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                             );
                           })}
                         </div>
-                        {(!kra.unitKpis || kra.unitKpis.length === 0) && (
-                          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                        {/* "No KPIs" message (positioned separately) */}
+                        {!kpisExist && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
                             No KPIs defined for this KRA.
                           </div>
                         )}
