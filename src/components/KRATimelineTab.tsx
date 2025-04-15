@@ -155,7 +155,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
       <CardHeader>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <img src="/images/scpng-logo.png" alt="SCPNG Logo" className="h-10 w-auto" />
+            {/* <img src="/images/scpng-logo.png" alt="SCPNG Logo" className="h-10 w-auto" /> */}
             <CardTitle>Key Result Areas Timeline</CardTitle>
           </div>
           <div className="flex bg-gray-100 rounded-lg p-1">
