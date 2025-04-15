@@ -74,6 +74,52 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
     return Math.round(progress);
   };
 
+  // Helper function to get KPI progress percentage
+  const getKpiProgress = (kpi: Kpi): number => {
+    if (kpi.status === 'completed') return 100;
+    const target = Number(kpi.target);
+    const actual = Number(kpi.actual);
+    if (target === 0 || isNaN(target) || isNaN(actual) || actual === undefined || actual === null) return 0;
+    const progress = Math.min(100, Math.max(0, (actual / target) * 100));
+    return Math.round(progress);
+  };
+
+  // --- New Helper: Get Date Range from KPIs ---
+  const getKpiDateRange = (kpis: Kpi[]): string => {
+    if (!kpis || kpis.length === 0) return '';
+
+    let minStartDate: Date | null = null;
+    let maxTargetDate: Date | null = null;
+
+    kpis.forEach(kpi => {
+      const startDate = parseDate(kpi.startDate);
+      const targetDate = parseDate(kpi.targetDate);
+
+      if (startDate) {
+        if (!minStartDate || startDate < minStartDate) {
+          minStartDate = startDate;
+        }
+      }
+      if (targetDate) {
+        if (!maxTargetDate || targetDate > maxTargetDate) {
+          maxTargetDate = targetDate;
+        }
+      }
+    });
+
+    const formatDate = (date: Date | null): string => {
+      if (!date) return '?';
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
+
+    if (minStartDate || maxTargetDate) {
+      return `${formatDate(minStartDate)} - ${formatDate(maxTargetDate)}`;
+    }
+
+    return '';
+  };
+  // --- End Helper ---
+
   const getProgressColorClass = (progress: number): string => {
     if (progress >= 100) return "bg-green-500";
     if (progress >= 75) return "bg-green-400";
@@ -92,16 +138,6 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
       case 'behind': return "bg-red-500";
       default: return "bg-gray-300";
     }
-  };
-
-  // Helper function to get KPI progress percentage
-  const getKpiProgress = (kpi: Kpi): number => {
-    if (kpi.status === 'completed') return 100;
-    const target = Number(kpi.target);
-    const actual = Number(kpi.actual);
-    if (target === 0 || isNaN(target) || isNaN(actual) || actual === undefined || actual === null) return 0;
-    const progress = Math.min(100, Math.max(0, (actual / target) * 100));
-    return Math.round(progress);
   };
 
   return (
@@ -216,6 +252,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   const isFirstForObjective = kra.objectiveId ? firstObjectiveMap.get(kra.objectiveId) === kra.id : false;
                   const kraTitleKey = `${kra.objectiveId}-${kra.title}`;
                   const isFirstForKraTitle = kra.title ? firstKraTitleMap.get(kraTitleKey) === kra.id : false;
+                  // Calculate date range for the KRA based on its KPIs
+                  const kraDateRange = getKpiDateRange(kra.unitKpis || []);
                   // --- End Grouping Checks ---
 
                   return (
@@ -239,6 +277,12 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           <>
                             <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
                             <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
+                            {/* Display calculated date range */}
+                            {kraDateRange && (
+                              <div className="text-xs text-muted-foreground/80 block truncate mt-1">
+                                {kraDateRange}
+                              </div>
+                            )}
                           </>
                         )}
                         {/* Use a div with margin for spacing instead of &nbsp; */}
@@ -267,7 +311,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                 <TooltipTrigger asChild>
                                   {/* Outer div: Positions the bar, acts as track */}
                                   <div
-                                    className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden`}
+                                    className={`absolute h-5 rounded-full bg-gray-200 shadow-sm overflow-hidden ${kpiIndex > 0 ? 'border-t border-white/60' : ''}`}
                                     style={{
                                       left: `${kpiStartPosition}%`,
                                       width: `${kpiWidth}%`,
