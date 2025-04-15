@@ -219,34 +219,37 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   // --- End Grouping Checks ---
 
                   return (
-                    <div key={kra.id} className="flex items-start hover:bg-gray-50/50 relative">
-                      {/* Objective Column - Render content only if first, add top border */}
-                      <div className={`w-48 px-4 py-3 text-sm shrink-0 border-b border-gray-100 ${isFirstForObjective ? 'border-t border-gray-200' : ''}`}>
+                    <div key={kra.id} className="flex items-stretch hover:bg-gray-50/50 relative">
+                      {/* Objective Column */}
+                      <div className={`w-48 px-4 shrink-0 border-b border-gray-100 flex flex-col ${isFirstForObjective ? 'border-t border-gray-200 pt-3' : 'pt-3'}`}> 
                         {isFirstForObjective && (
-                          <span className="font-medium text-gray-900 block truncate">
+                          <span className="font-medium text-gray-900 block truncate text-sm">
                             {kra.unitObjectives?.title 
                               ? kra.unitObjectives.title 
                               : (kra.objectiveId ? `Obj ID: ${kra.objectiveId}` : 'N/A')
                             }
                           </span>
                         )}
-                        {/* Render empty div if not first to maintain height/alignment */}
-                        {!isFirstForObjective && <span>&nbsp;</span>}
+                        {/* Use a div with margin for spacing instead of &nbsp; */}
+                        {!isFirstForObjective && <div className="mt-auto"></div>}
                       </div>
-                      {/* KRA Details Column - Render content only if first for title group, add top border */}
-                      <div className={`w-64 px-4 py-3 shrink-0 border-b border-gray-100 ${isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}>
+                      {/* KRA Details Column */}
+                      <div className={`w-64 px-4 shrink-0 border-b border-gray-100 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'}`}> 
                         {isFirstForKraTitle && (
                           <>
                             <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
                             <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
                           </>
                         )}
-                        {/* Render empty div if not first to maintain height/alignment */}
-                        {!isFirstForKraTitle && <span>&nbsp;</span>}
+                        {/* Use a div with margin for spacing instead of &nbsp; */}
+                        {!isFirstForKraTitle && <div className="mt-auto"></div>}
                       </div>
-                      {/* Timeline Bars Column */}
-                      <div className={`flex-1 relative border-b border-gray-100 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''} ${kpisExist ? 'py-2' : 'h-16'}`}>
-                        <>
+                      {/* Timeline Bars Column - Adjust padding/height */}
+                      <div 
+                        className={`flex-1 relative border-b border-gray-100 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}
+                        style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 1.75) + 2}rem` : '4rem' }} // Adjusted minHeight slightly based on KPI stacking
+                      >
+                        <div className={`relative ${kpisExist ? 'py-2 h-full' : 'h-16'}`}> {/* Ensure inner div fills height */} 
                           {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
                             const kpiStartDate = parseDate(kpi.startDate);
                             const kpiTargetDate = parseDate(kpi.targetDate);
@@ -296,7 +299,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                               </Tooltip>
                             );
                           })}
-                        </>
+                        </div>
                         {(!kra.unitKpis || kra.unitKpis.length === 0) && (
                           <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" style={{ left: '0%', width: '100%', top: '1rem' }}>
                             No KPIs defined for this KRA.
