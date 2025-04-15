@@ -231,7 +231,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                 {currentViewMode === 'months' && months.map((_, i) => (
                   <div 
                     key={i} 
-                    className={`flex-1 border-r border-dashed border-gray-100 ${i < 11 ? 'border-r' : 'border-r-0'}`}
+                    className={`flex-1 border-r border-dashed border-gray-200 ${i < 11 ? 'border-r' : 'border-r-0'}`}
                   />
                 ))}
                 {currentViewMode === 'weeks' && weeks.map((_, i) => (
