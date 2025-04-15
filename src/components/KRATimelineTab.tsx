@@ -12,6 +12,23 @@ interface KRATimelineTabProps {
 const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
   const [currentViewMode, setCurrentViewMode] = useState<'quarters' | 'months' | 'weeks'>('quarters');
 
+  // --- Preprocessing for Grouping --- 
+  const firstObjectiveMap = new Map<string | number, string>();
+  const firstKraTitleMap = new Map<string, string>(); // Key: objectiveId-kraTitle
+
+  kras.forEach(kra => {
+    // Track first occurrence of each objectiveId
+    if (kra.objectiveId && !firstObjectiveMap.has(kra.objectiveId)) {
+      firstObjectiveMap.set(kra.objectiveId, kra.id as string);
+    }
+    // Track first occurrence of each KRA title *within* an objective
+    const kraTitleKey = `${kra.objectiveId}-${kra.title}`;
+    if (kra.title && !firstKraTitleMap.has(kraTitleKey)) {
+      firstKraTitleMap.set(kraTitleKey, kra.id as string);
+    }
+  });
+  // --- End Preprocessing ---
+
   const quarters = ["Q1", "Q2", "Q3", "Q4"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const weeks = Array.from({ length: 52 }, (_, i) => `W${i + 1}`);
@@ -195,21 +212,40 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   const kraProgress = getKraProgress(kra.unitKpis || []);
                   const kpisExist = kra.unitKpis && kra.unitKpis.length > 0;
 
+                  // --- Grouping Checks ---
+                  const isFirstForObjective = kra.objectiveId ? firstObjectiveMap.get(kra.objectiveId) === kra.id : false;
+                  const kraTitleKey = `${kra.objectiveId}-${kra.title}`;
+                  const isFirstForKraTitle = kra.title ? firstKraTitleMap.get(kraTitleKey) === kra.id : false;
+                  // --- End Grouping Checks ---
+
                   return (
-                    <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 2) + 2}rem` : '4rem' }}>
-                      <div className="w-48 px-4 py-3 text-sm shrink-0">
-                        <span className="font-medium text-gray-900 block truncate">
-                          {kra.unitObjectives?.title 
-                            ? kra.unitObjectives.title 
-                            : (kra.objectiveId ? `Obj ID: ${kra.objectiveId}` : 'N/A')
-                          }
-                        </span>
+                    <div key={kra.id} className="flex items-start hover:bg-gray-50/50 relative">
+                      {/* Objective Column - Render content only if first, add top border */}
+                      <div className={`w-48 px-4 py-3 text-sm shrink-0 border-b border-gray-100 ${isFirstForObjective ? 'border-t border-gray-200' : ''}`}>
+                        {isFirstForObjective && (
+                          <span className="font-medium text-gray-900 block truncate">
+                            {kra.unitObjectives?.title 
+                              ? kra.unitObjectives.title 
+                              : (kra.objectiveId ? `Obj ID: ${kra.objectiveId}` : 'N/A')
+                            }
+                          </span>
+                        )}
+                        {/* Render empty div if not first to maintain height/alignment */}
+                        {!isFirstForObjective && <span>&nbsp;</span>}
                       </div>
-                      <div className="w-64 px-4 py-3 shrink-0">
-                        <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
-                        <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
+                      {/* KRA Details Column - Render content only if first for title group, add top border */}
+                      <div className={`w-64 px-4 py-3 shrink-0 border-b border-gray-100 ${isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}>
+                        {isFirstForKraTitle && (
+                          <>
+                            <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
+                            <div className="text-xs text-muted-foreground block truncate">{kra.unit || 'N/A'}</div>
+                          </>
+                        )}
+                        {/* Render empty div if not first to maintain height/alignment */}
+                        {!isFirstForKraTitle && <span>&nbsp;</span>}
                       </div>
-                      <div className={`flex-1 relative ${kpisExist ? 'py-2' : 'h-16'}`}>
+                      {/* Timeline Bars Column */}
+                      <div className={`flex-1 relative border-b border-gray-100 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''} ${kpisExist ? 'py-2' : 'h-16'}`}>
                         <>
                           {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
                             const kpiStartDate = parseDate(kpi.startDate);
