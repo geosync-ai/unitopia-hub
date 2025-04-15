@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Kra, Kpi } from '@/types/kpi';
 
 interface KRATimelineTabProps {
@@ -338,16 +339,19 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                     </span>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" align="center" className="z-[100]">
-                                  <p className="font-semibold">{kpi.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'}
-                                  </p>
-                                  <p className="text-xs">Status: {kpi.status}</p>
-                                  <p className="text-xs">Progress: {kpiProgress}%</p>
-                                  {kpi.target !== undefined && <p className="text-xs">Target: {kpi.target}</p>}
-                                  {kpi.actual !== undefined && <p className="text-xs">Actual: {kpi.actual}</p>}
-                                </TooltipContent>
+                                {/* Wrap TooltipContent in a Portal */} 
+                                <TooltipPrimitive.Portal>
+                                  <TooltipContent side="top" align="center" className="z-[100]">
+                                    <p className="font-semibold">{kpi.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'} 
+                                    </p>
+                                    <p className="text-xs">Status: {kpi.status}</p>
+                                    <p className="text-xs">Progress: {kpiProgress}%</p>
+                                    {kpi.target !== undefined && <p className="text-xs">Target: {kpi.target}</p>}
+                                    {kpi.actual !== undefined && <p className="text-xs">Actual: {kpi.actual}</p>}
+                                  </TooltipContent>
+                                </TooltipPrimitive.Portal>
                               </Tooltip>
                             );
                           })}
