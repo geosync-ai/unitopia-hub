@@ -301,13 +301,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                         className={`flex-1 relative border-b border-gray-200 ${isFirstForObjective || isFirstForKraTitle ? 'border-t border-gray-200' : ''}`}
                         style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 2) + 1.5}rem` : '4rem' }}
                       >
-                        {/* Dotted background */}
-                        <div
-                          className="absolute inset-0 z-0 bg-[repeating-linear-gradient(to_bottom,transparent,transparent_19px,theme(colors.gray.100)_19px,theme(colors.gray.100)_20px)] opacity-75"
-                          aria-hidden="true"
-                        />
-                        {/* Container for KPI Bars */}
-                        <div className={`relative z-10 ${kpisExist ? 'py-3 h-full' : 'h-full'}`}> 
+                        {/* Container for KPI Bars - ensure z-index is not needed if background removed */}
+                        <div className={`relative ${kpisExist ? 'py-3 h-full' : 'h-full'}`}> {/* Removed z-10 */}
                           {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
                             const kpiStartDate = parseDate(kpi.startDate);
                             const kpiTargetDate = parseDate(kpi.targetDate);
@@ -330,7 +325,6 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                       left: `${kpiStartPosition}%`,
                                       width: `${kpiWidth}%`,
                                       top: `${0.75 + kpiIndex * 2}rem`, 
-                                      zIndex: 10 + kpiIndex, 
                                     }}
                                   >
                                     {/* Inner div: Shows progress */}
@@ -358,9 +352,9 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                             );
                           })}
                         </div>
-                        {/* "No KPIs" message (positioned separately) */}
+                        {/* "No KPIs" message (positioned separately) - ensure z-index is not needed if background removed */}
                         {!kpisExist && (
-                          <div className="absolute inset-0 z-10 flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground px-4 text-center"> {/* Removed z-10 */}
                             No KPIs defined for this KRA.
                           </div>
                         )}
