@@ -169,15 +169,27 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
               />
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="project-budget">Budget</Label>
-            <Input 
-              id="project-budget" 
-              placeholder="Budget" 
-              type="number"
-              value={project.budget || ''} 
-              onChange={(e) => handleChange('budget', e.target.value ? Number(e.target.value) : undefined)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="project-budget">Budget</Label>
+              <Input 
+                id="project-budget" 
+                placeholder="Total Budget" 
+                type="number"
+                value={project.budget || ''} 
+                onChange={(e) => handleChange('budget', e.target.value ? Number(e.target.value) : undefined)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-budget-spent">Amount Spent</Label>
+              <Input 
+                id="project-budget-spent" 
+                placeholder="Amount Spent" 
+                type="number"
+                value={project.budgetSpent || ''}
+                onChange={(e) => handleChange('budgetSpent', e.target.value ? Number(e.target.value) : undefined)}
+              />
+            </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="project-progress">Progress (%)</Label>
