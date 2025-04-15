@@ -220,31 +220,25 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
             </div>
 
             <div className="relative">
+              {/* Vertical Grid Lines - Apply dashed style */}
               <div className="absolute top-0 left-[calc(12rem+16rem)] right-0 h-full flex">
                 {currentViewMode === 'quarters' && quarters.map((_, i) => (
                   <div 
                     key={i} 
-                    className="flex-1 border-r border-dashed border-gray-200"
-                    style={{ 
-                      borderRight: i < 3 ? '1px dashed #e5e7eb' : 'none'
-                    }}
+                    className={`flex-1 border-r-dashed border-gray-200 ${i < 3 ? 'border-r' : 'border-r-0'}`}
                   />
                 ))}
                 {currentViewMode === 'months' && months.map((_, i) => (
                   <div 
                     key={i} 
-                    className="flex-1 border-r border-dashed border-gray-200"
-                    style={{ 
-                      borderRight: i < 11 ? '1px dashed #e5e7eb' : 'none'
-                    }}
+                    className={`flex-1 border-r-dashed border-gray-200 ${i < 11 ? 'border-r' : 'border-r-0'}`}
                   />
                 ))}
                 {currentViewMode === 'weeks' && weeks.map((_, i) => (
                   <div
                     key={i}
-                    className="border-r border-dashed border-gray-200"
+                    className={`border-r-dashed border-gray-200 ${i < 51 ? 'border-r' : 'border-r-0'}`}
                     style={{ 
-                      borderRight: i < 51 ? '1px dashed #e5e7eb' : 'none',
                       width: '1.92%'
                     }}
                   />
@@ -285,8 +279,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                         {/* Use a div with margin for spacing */}
                         <div className="mt-auto flex-grow"></div> {/* Flex grow to push border down */}
                       </div>
-                      {/* KRA Details Column - Remove conditional border-b */}
-                      <div className={`w-64 px-4 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'}`}> 
+                      {/* KRA Details Column - Re-add conditional border-b */}
+                      <div className={`w-64 px-4 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'} ${isLastForKraTitle ? 'border-b border-gray-100' : ''}`}> 
                         {isFirstForKraTitle && (
                           <>
                             <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
