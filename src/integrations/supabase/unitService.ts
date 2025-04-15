@@ -230,11 +230,6 @@ export const projectsService = {
       query = query.eq('division_id', divisionId);
     }
     
-    // Still keep email filtering for backward compatibility
-    if (userEmail) {
-      query = query.eq('manager', userEmail);
-    }
-    
     const { data, error } = await query;
 
     console.log(`[projectsService.getProjects] Raw data from Supabase:`, data); // Log raw data
