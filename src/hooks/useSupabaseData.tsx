@@ -144,21 +144,14 @@ export function useSupabaseData<T extends { id?: string }>(
     }
     
     try {
-      // Conditionally add division ID to the item
-      let itemWithDivision: any = { ...item };
-      if (currentDivisionId) {
-        // Only add divisionId if the context provides one.
-        // We assume the specific service (e.g., projectsService.addProject) 
-        // expects a field named 'divisionId' or handles its absence.
-        itemWithDivision.divisionId = currentDivisionId;
-      }
-
-      console.log(`[useSupabaseData - add ${entityType}] Data before sending:`, 
-        JSON.stringify(itemWithDivision, null, 2)
+      // The calling component (e.g., RisksTab) is responsible for adding unit_id or division_id
+      // Pass the item directly, assuming it contains the necessary identifiers.
+      console.log(`[useSupabaseData - add ${entityType}] Data being sent:`,
+        JSON.stringify(item, null, 2) // Log the original item
       );
       
       const addMethod = getAddMethod();
-      const newItem = await addMethod(itemWithDivision);
+      const newItem = await addMethod(item); // Pass the original item directly
       
       if (newItem) {
         setData(prev => [...prev, newItem as unknown as T]);
@@ -184,7 +177,7 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return null;
     }
-  }, [user?.email, entityType, getAddMethod, currentDivisionId]);
+  }, [user?.email, entityType, getAddMethod]); // Removed currentDivisionId from dependencies as it's no longer directly used here
 
   // Update an item
   const update = useCallback(async (id: string, updateData: Partial<T>) => {
