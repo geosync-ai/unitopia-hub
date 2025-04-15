@@ -137,6 +137,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
     onChange(field, value);
   };
 
+  const [inputValue, setInputValue] = React.useState(formData.title || '');
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">KRA Information</h3>
@@ -166,10 +168,13 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
                 return 0
               }}
             >
-              <CommandInput 
-                placeholder="Search or type new KRA title..." 
-                value={formData.title || ''} 
-                onValueChange={(search) => onChange('title', search.trim())} // Update form data as user types, trimming whitespace
+              <CommandInput
+                placeholder="Search or type new title..."
+                value={inputValue}
+                onValueChange={(search) => {
+                   setInputValue(search);
+                   onChange('title', search);
+                }}
               />
               <CommandList>
                 <CommandEmpty>No existing KRAs found. Type to create new.</CommandEmpty>
