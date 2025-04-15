@@ -16,6 +16,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
   const firstObjectiveMap = new Map<string | number, string>();
   const firstKraTitleMap = new Map<string, string>(); // Key: objectiveId-kraTitle
   const lastObjectiveMap = new Map<string | number, string>(); // To find the last KRA for an objective
+  const lastKraTitleMap = new Map<string, string>(); // To find the last KRA for a title group
 
   kras.forEach(kra => {
     // Track first occurrence of each objectiveId
@@ -30,6 +31,10 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
     // Track last KRA for each objective (will be overwritten until the last one)
     if (kra.objectiveId) {
         lastObjectiveMap.set(kra.objectiveId, kra.id as string);
+    }
+    // Track last KRA for each title group (will be overwritten)
+    if (kra.title) { // Check if title exists
+        lastKraTitleMap.set(kraTitleKey, kra.id as string);
     }
   });
   // --- End Preprocessing ---
@@ -259,6 +264,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   const isFirstForKraTitle = kra.title ? firstKraTitleMap.get(kraTitleKey) === kra.id : false;
                   // Check if it's the last KRA for this objective
                   const isLastForObjective = kra.objectiveId ? lastObjectiveMap.get(kra.objectiveId) === kra.id : false;
+                  // Check if it's the last KRA for this title group
+                  const isLastForKraTitle = kra.title ? lastKraTitleMap.get(kraTitleKey) === kra.id : false;
                   // Calculate date range for the KRA based on its KPIs
                   const kraDateRange = getKpiDateRange(kra.unitKpis || []);
                   // --- End Grouping Checks ---
@@ -278,8 +285,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                         {/* Use a div with margin for spacing */}
                         <div className="mt-auto flex-grow"></div> {/* Flex grow to push border down */}
                       </div>
-                      {/* KRA Details Column - Add border-r, keep border-b */}
-                      <div className={`w-64 px-4 shrink-0 border-b border-gray-100 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'}`}> 
+                      {/* KRA Details Column - Add border-r, conditional border-b */}
+                      <div className={`w-64 px-4 shrink-0 border-r border-gray-200 flex flex-col ${isFirstForKraTitle ? 'border-t border-gray-200 pt-3' : 'pt-3'} ${isLastForKraTitle ? 'border-b border-gray-100' : ''}`}> 
                         {isFirstForKraTitle && (
                           <>
                             <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
@@ -293,7 +300,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                           </>
                         )}
                         {/* Use a div with margin for spacing */}
-                        {!isFirstForKraTitle && <div className="mt-auto"></div>}
+                        <div className="mt-auto flex-grow"></div> {/* Flex grow for alignment */} 
                       </div>
                       {/* Timeline Bars Column - Keep border-b */}
                       <div 
