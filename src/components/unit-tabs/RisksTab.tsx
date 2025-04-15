@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { StaffMember } from '@/types/staff';
 import { Objective } from '@/types/kpi';
+import { toast } from '@/components/ui/use-toast';
 
 interface RisksTabProps {
   risks: Risk[];
@@ -80,10 +81,17 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   };
 
   const handleAddRisk = (risk: Risk) => {
+    if (!selectedUnit) {
+      toast({        title: "Error",
+        description: "No unit selected. Please select a unit before adding a risk.",
+        variant: "destructive"
+      });
+      return;
+    }
     // Add current unit ID to new risk
     const riskWithUnitId = {
       ...risk,
-      unit_id: selectedUnit || undefined
+      unit_id: selectedUnit // We know selectedUnit is not null here
     };
     addRisk(riskWithUnitId);
   };

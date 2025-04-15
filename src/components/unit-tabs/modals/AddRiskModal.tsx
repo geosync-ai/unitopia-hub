@@ -193,12 +193,13 @@ const AddRiskModal = ({
   const handleAdd = async () => {
     if (!validate()) return;
     
-    // Check database schema to debug likelihood constraint
+    /* // Removing unnecessary schema check causing errors
     try {
       await risksService.checkRiskTableSchema();
     } catch (err) {
       console.error('Failed to check schema:', err);
     }
+    */
     
     // Ensure likelihood is one of the allowed values
     const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
