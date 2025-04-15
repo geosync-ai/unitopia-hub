@@ -36,7 +36,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     assignee: '',
     status: 'todo',
     priority: 'medium',
-    completionPercentage: 1,
+    completionPercentage: 0,
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     startDate: new Date(),
     checklist: [],
@@ -77,7 +77,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       assignee: '',
       status: 'todo',
       priority: 'medium',
-      completionPercentage: 1,
+      completionPercentage: 0,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       startDate: new Date(),
       checklist: [],
@@ -194,12 +194,17 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 <Input 
                   id="task-percentage" 
                   type="number"
-                  min="1"
+                  min="0"
                   max="100"
-                  value={newTask.completionPercentage || 1} 
+                  value={newTask.completionPercentage || 0}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value, 10);
-                    setNewTask({...newTask, completionPercentage: value < 1 ? 1 : value});
+                    let value = parseInt(e.target.value, 10);
+                    if (isNaN(value) || value < 0) {
+                      value = 0;
+                    } else if (value > 100) {
+                      value = 100;
+                    }
+                    setNewTask({...newTask, completionPercentage: value});
                   }}
                 />
                 <span>%</span>
