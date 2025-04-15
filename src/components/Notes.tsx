@@ -99,7 +99,7 @@ export default function Notes() {
               className="p-4 bg-gray-50 rounded border border-gray-200"
             >
               <p className="text-gray-800">{note.content}</p>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-600 mt-2">
                 {new Date(note.created_at).toLocaleString()}
               </p>
             </li>
