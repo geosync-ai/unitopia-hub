@@ -369,7 +369,10 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
                           )}
                           <div className="text-sm font-semibold text-gray-900">{kra.name}</div>
                           <div className="text-xs text-gray-500 mt-1">
-                            {kra.startDate?.toLocaleDateString()} - {kra.endDate?.toLocaleDateString()}
+                            {/* Conditionally render dates and separator */}
+                            {kra.startDate?.toLocaleDateString()}
+                            {kra.startDate && kra.endDate && ' - '}
+                            {kra.endDate?.toLocaleDateString()}
                           </div>
                         </div>
                         <div className="flex-1 flex relative items-center px-2 py-2">
