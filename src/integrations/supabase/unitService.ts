@@ -121,11 +121,6 @@ export const tasksService = {
       query = query.eq('division_id', divisionId);
     }
     
-    // Still keep email filtering for backward compatibility
-    if (userEmail) {
-      query = query.eq('assignee', userEmail);
-    }
-    
     const { data, error } = await query;
     
     if (error) {
