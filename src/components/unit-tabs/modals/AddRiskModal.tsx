@@ -287,70 +287,81 @@ const AddRiskModal = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label htmlFor="title" className="mb-2">Title <span className="text-destructive">*</span></Label>
-              <Input
-                id="title"
+        {/* Use flex-grow and overflow-y-auto for scrollable content */}
+        <div className="flex-grow overflow-y-auto pr-4">
+          {/* Apply two-column grid layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {/* Title (spans 2 columns) */}
+            <div className="md:col-span-2 grid gap-1.5">
+              <Label htmlFor="risk-title">Title <span className="text-red-500">*</span></Label>
+              <Input 
+                id="risk-title" 
                 name="title"
-                value={formState.title}
+                placeholder="Risk Title" 
+                value={formState.title} 
                 onChange={handleChange}
-                className={errors.title ? 'border-destructive' : ''}
               />
-              {errors.title && <p className="text-sm text-destructive mt-1">{errors.title}</p>}
+              {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
             </div>
-            
-            <div className="col-span-2">
-              <Label htmlFor="description" className="mb-2">Description</Label>
-              <Textarea
-                id="description"
+
+            {/* Description (spans 2 columns) */}
+            <div className="md:col-span-2 grid gap-1.5">
+              <Label htmlFor="risk-description">Description</Label>
+              <Textarea 
+                id="risk-description" 
                 name="description"
-                value={formState.description}
+                placeholder="Detailed description of the risk" 
+                value={formState.description} 
                 onChange={handleChange}
                 rows={3}
               />
             </div>
-            
-            <div>
-              <Label htmlFor="owner" className="mb-2">Owner <span className="text-destructive">*</span></Label>
-              <Input
-                id="owner"
+
+            {/* Owner */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="risk-owner">Owner <span className="text-red-500">*</span></Label>
+              <Input 
+                id="risk-owner"
                 name="owner"
-                value={formState.owner}
+                placeholder="Responsible person or team" 
+                value={formState.owner} 
                 onChange={handleChange}
-                className={errors.owner ? 'border-destructive' : ''}
               />
-              {errors.owner && <p className="text-sm text-destructive mt-1">{errors.owner}</p>}
+              {errors.owner && <p className="text-red-500 text-sm">{errors.owner}</p>}
             </div>
-            
-            <div>
-              <Label htmlFor="category" className="mb-2">Category <span className="text-destructive">*</span></Label>
-              <Select
+
+            {/* Category */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="risk-category">Category <span className="text-red-500">*</span></Label>
+              <Select 
+                name="category"
                 value={formState.category}
                 onValueChange={(value) => handleSelectChange('category', value)}
               >
-                <SelectTrigger id="category" className={errors.category ? 'border-destructive' : ''}>
+                <SelectTrigger id="risk-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="operational">Operational</SelectItem>
                   <SelectItem value="financial">Financial</SelectItem>
+                  <SelectItem value="operational">Operational</SelectItem>
                   <SelectItem value="strategic">Strategic</SelectItem>
                   <SelectItem value="compliance">Compliance</SelectItem>
                   <SelectItem value="reputational">Reputational</SelectItem>
+                  {/* Add other relevant categories */}
                 </SelectContent>
               </Select>
-              {errors.category && <p className="text-sm text-destructive mt-1">{errors.category}</p>}
+              {errors.category && <p className="text-red-500 text-sm">{errors.category}</p>}
             </div>
             
-            <div>
-              <Label htmlFor="status" className="mb-2">Status</Label>
-              <Select
+            {/* Status */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="risk-status">Status</Label>
+              <Select 
+                name="status"
                 value={formState.status}
-                onValueChange={(value) => handleSelectChange('status', value)}
+                onValueChange={(value) => handleSelectChange('status', value as Risk['status'])}
               >
-                <SelectTrigger id="status">
+                <SelectTrigger id="risk-status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -363,19 +374,21 @@ const AddRiskModal = ({
                 </SelectContent>
               </Select>
             </div>
-            
-            <div>
-              <Label htmlFor="identificationDate" className="mb-2">Identification Date</Label>
+
+            {/* Identification Date */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="risk-identificationDate">Identification Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal"
+                      "w-full justify-start text-left font-normal",
+                      !formState.identificationDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formState.identificationDate ? format(new Date(formState.identificationDate), 'PPP') : <span>Pick a date</span>}
+                    {formState.identificationDate ? format(new Date(formState.identificationDate), "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -388,15 +401,17 @@ const AddRiskModal = ({
                 </PopoverContent>
               </Popover>
             </div>
-            
-            <div>
-              <Label htmlFor="impact" className="mb-2">Impact Level</Label>
-              <Select
+
+            {/* Impact Level */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="risk-impact">Impact Level</Label>
+              <Select 
+                name="impact"
                 value={formState.impact}
-                onValueChange={(value) => handleSelectChange('impact', value)}
+                onValueChange={(value) => handleSelectChange('impact', value as Risk['impact'])}
               >
-                <SelectTrigger id="impact">
-                  <SelectValue placeholder="Select impact" />
+                <SelectTrigger id="risk-impact">
+                  <SelectValue placeholder="Select impact level" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
@@ -406,14 +421,16 @@ const AddRiskModal = ({
                 </SelectContent>
               </Select>
             </div>
-            
-            <div>
-              <Label htmlFor="likelihood" className="mb-2">Likelihood</Label>
-              <Select
+
+            {/* Likelihood */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="risk-likelihood">Likelihood</Label>
+              <Select 
+                name="likelihood"
                 value={formState.likelihood}
-                onValueChange={(value) => handleSelectChange('likelihood', value)}
+                onValueChange={(value) => handleSelectChange('likelihood', value as Risk['likelihood'])}
               >
-                <SelectTrigger id="likelihood">
+                <SelectTrigger id="risk-likelihood">
                   <SelectValue placeholder="Select likelihood" />
                 </SelectTrigger>
                 <SelectContent>
@@ -423,83 +440,35 @@ const AddRiskModal = ({
                   <SelectItem value="very-high">Very High</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.likelihood && <p className="text-red-500 text-sm">{errors.likelihood}</p>}
             </div>
-            
-            <div className="col-span-2">
-              <Label htmlFor="mitigationPlan" className="mb-2">Mitigation Plan</Label>
-              <Textarea
-                id="mitigationPlan"
+
+            {/* Mitigation Plan (spans 2 columns) */}
+            <div className="md:col-span-2 grid gap-1.5">
+              <Label htmlFor="risk-mitigationPlan">Mitigation Plan</Label>
+              <Textarea 
+                id="risk-mitigationPlan" 
                 name="mitigationPlan"
-                value={formState.mitigationPlan}
+                placeholder="Steps to mitigate the risk" 
+                value={formState.mitigationPlan} 
                 onChange={handleChange}
                 rows={3}
               />
             </div>
-            
-            <div className="col-span-2">
-              <div className="border-t pt-4 mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-medium">Checklist</h3>
-                  <span className="text-sm text-muted-foreground">
-                    {completionPercentage}% complete
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
-                  <div 
-                    className="bg-primary h-1.5 rounded-full" 
-                    style={{ width: `${completionPercentage}%` }}
-                  ></div>
-                </div>
+          </div> {/* End grid layout */}
 
-                <div className="flex items-center gap-2">
-                  <Input 
-                    placeholder="Add new checklist item" 
-                    className="flex-1"
-                    id="new-checklist-item"
-                    value={newChecklistItem}
-                    onChange={(e) => setNewChecklistItem(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleAddChecklistItem();
-                      }
-                    }}
-                  />
-                  <Button 
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleAddChecklistItem}
-                  >
-                    Add
-                  </Button>
-                </div>
-
-                {formState.checklist.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    {formState.checklist.map(item => (
-                      <div key={item.id} className="flex items-center gap-2">
-                        <Checkbox 
-                          id={item.id} 
-                          checked={item.checked}
-                          onCheckedChange={(checked) => {
-                            const updatedChecklist = formState.checklist.map(i => 
-                              i.id === item.id ? { ...i, checked: checked as boolean } : i
-                            );
-                            setFormState(prev => ({ ...prev, checklist: updatedChecklist }));
-                          }}
-                        />
-                        <Label htmlFor={item.id}>{item.text}</Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Checklist Section remains below the grid */}
+          <div className="border-t pt-4 mt-2">
+            <ChecklistSection 
+              items={formState.checklist}
+              onChange={(items) => setFormState(prev => ({ ...prev, checklist: items }))}
+            />
           </div>
-        </div>
+        </div> {/* End scrollable content area */}
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="submit" onClick={handleAdd}>Add Risk</Button>
+          <Button onClick={handleAdd}>Add Risk</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
