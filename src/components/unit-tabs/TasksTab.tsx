@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Edit, Trash2 } from 'lucide-react';
 import AddTaskModal from './modals/AddTaskModal';
 import EditTaskModal from './modals/EditTaskModal';
@@ -25,6 +27,14 @@ interface Task {
   completionPercentage?: number;
 }
 
+const taskStatuses: Task['status'][] = ['todo', 'in-progress', 'review', 'done'];
+const taskPriorities: Task['priority'][] = ['low', 'medium', 'high', 'urgent'];
+
+interface TaskFiltersState {
+  status: string;
+  priority: string;
+}
+
 interface TasksTabProps {
   tasks: Task[];
   addTask: (task: Omit<Task, 'id'>) => void;
@@ -41,6 +51,26 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [filters, setFilters] = useState<TaskFiltersState>({
+      status: 'all',
+      priority: 'all',
+  });
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const statusMatch = filters.status === 'all' || task.status === filters.status;
+      const priorityMatch = filters.priority === 'all' || task.priority === filters.priority;
+      return statusMatch && priorityMatch;
+    });
+  }, [tasks, filters]);
+
+  const handleFilterChange = (filterName: keyof TaskFiltersState, value: string) => {
+    setFilters(prevFilters => ({ ...prevFilters, [filterName]: value }));
+  };
+
+  const resetFilters = () => {
+    setFilters({ status: 'all', priority: 'all' });
+  };
 
   const handleEdit = (task: Task) => {
     setSelectedTask(task);
@@ -89,15 +119,65 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
 
   return (
     <>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Tasks / Daily Operations</h2>
+        <Button onClick={() => setShowAddModal(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Task
+        </Button>
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Tasks</CardTitle>
-          <Button variant="outline" onClick={() => setShowAddModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Task
-          </Button>
+        <CardHeader>
         </CardHeader>
         <CardContent>
+          <div className="bg-muted/50 p-4 rounded-md mb-6 border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="task-status-filter">Status</Label>
+                <Select
+                  value={filters.status}
+                  onValueChange={(value) => handleFilterChange('status', value)}
+                >
+                  <SelectTrigger id="task-status-filter">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {taskStatuses.map(status => (
+                      <SelectItem key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="task-priority-filter">Priority</Label>
+                <Select
+                  value={filters.priority}
+                  onValueChange={(value) => handleFilterChange('priority', value)}
+                >
+                  <SelectTrigger id="task-priority-filter">
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    {taskPriorities.map(priority => (
+                      <SelectItem key={priority} value={priority}>
+                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
+            </div>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -111,14 +191,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.length === 0 ? (
+              {filteredTasks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No tasks found. Create your first task by clicking "Add Task".
+                    {tasks.length === 0 ? 'No tasks found. Create your first task by clicking "Add Task".' : 'No tasks match the current filters.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                tasks.map((task) => (
+                filteredTasks.map((task) => (
                   <TableRow key={task.id}>
                     <TableCell>{task.title}</TableCell>
                     <TableCell>{getStatusBadge(task.status)}</TableCell>
@@ -142,7 +222,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
         </CardContent>
       </Card>
 
-      {/* Modals */}
       {showAddModal && (
         <AddTaskModal
           open={showAddModal}
