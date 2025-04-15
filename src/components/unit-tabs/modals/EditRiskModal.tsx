@@ -94,6 +94,14 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
   // Update the form state when the risk prop changes
   useEffect(() => {
     if (risk) {
+      // Helper to safely get ISO string from Date or string
+      const getDateString = (dateValue: Date | string | undefined | null): string => {
+        if (!dateValue) return new Date().toISOString();
+        if (typeof dateValue === 'string') return dateValue; // Already a string
+        if (dateValue instanceof Date) return dateValue.toISOString(); // Convert Date object
+        return new Date().toISOString(); // Fallback
+      };
+
       setFormState({
         id: risk.id || '',
         title: risk.title || '',
@@ -103,10 +111,10 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
         status: risk.status || 'identified',
         impact: risk.impact || 'medium',
         likelihood: risk.likelihood || 'low',
-        identificationDate: risk.identificationDate ? risk.identificationDate.toISOString() : new Date().toISOString(),
+        identificationDate: getDateString(risk.identificationDate),
         mitigationPlan: risk.mitigationPlan || '',
-        createdAt: risk.createdAt ? risk.createdAt.toISOString() : new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: getDateString(risk.createdAt),
+        updatedAt: new Date().toISOString(), // Keep this as current time for update
         checklist: risk.checklist || []
       });
     }
