@@ -99,7 +99,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
             Create a new task with the form below
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 overflow-y-auto max-h-[65vh] pr-4">
           <div className="grid gap-2">
             <Label htmlFor="task-title">Title</Label>
             <Input 
@@ -233,7 +233,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </div>
         </div>
         
-        <div className="border-t pt-4 mt-2">
+        <div className="col-span-2 border-t pt-4 mt-2">
           <ChecklistSection 
             items={newTask.checklist || []}
             onChange={(items) => setNewTask({...newTask, checklist: items})}
