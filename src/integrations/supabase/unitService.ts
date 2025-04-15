@@ -218,6 +218,7 @@ export const tasksService = {
 export const projectsService = {
   // Get all projects
   getProjects: async (userEmail?: string, divisionId?: string) => {
+    console.log(`[projectsService.getProjects] Fetching projects with userEmail: ${userEmail}, divisionId: ${divisionId}`); // Log input parameters
     const supabase = getSupabaseClient();
     
     let query = supabase
@@ -235,6 +236,9 @@ export const projectsService = {
     }
     
     const { data, error } = await query;
+
+    console.log(`[projectsService.getProjects] Raw data from Supabase:`, data); // Log raw data
+    console.log(`[projectsService.getProjects] Error from Supabase:`, error); // Log error
     
     if (error) {
       console.error('Error fetching projects:', error);
@@ -242,7 +246,9 @@ export const projectsService = {
     }
     
     // Convert snake_case to camelCase for frontend
-    return (data || []).map(snakeToCamelCase);
+    const mappedData = (data || []).map(snakeToCamelCase);
+    console.log(`[projectsService.getProjects] Data after snakeToCamelCase:`, mappedData); // Log mapped data
+    return mappedData;
   },
   
   // Add a new project
