@@ -138,15 +138,12 @@ const Unit = () => {
 
   // --- Objective Fetching Logic --- 
   const fetchObjectives = useCallback(async () => {
-    console.log("[Unit.tsx] Fetching objectives...");
     setObjectivesLoading(true);
     setObjectivesError(null);
     try {
       const fetchedObjectives = await unitService.getAllObjectives();
       setObjectivesData(fetchedObjectives);
-      console.log("[Unit.tsx] Objectives fetched successfully:", fetchedObjectives);
     } catch (error) {
-      console.error("[Unit.tsx] Failed to fetch objectives:", error);
       setObjectivesError(error instanceof Error ? error : new Error('Failed to load objectives'));
       toast({ title: "Error Loading Objectives", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
@@ -158,8 +155,6 @@ const Unit = () => {
   const handleSaveObjective = useCallback(async (objective: Objective) => {
     // This function is now primarily called AFTER a successful save in KRAsTab
     // We just need to update the local state and potentially re-fetch for consistency
-    console.log("[Unit.tsx] handleSaveObjective triggered. Updating local state and re-fetching.");
-    // Option 1: Optimistically update state (faster UI)
     setObjectivesData(prev => {
       const existingIndex = prev.findIndex(o => o.id === objective.id);
       if (existingIndex > -1) {
@@ -177,10 +172,7 @@ const Unit = () => {
 
   // Function to refresh all relevant data
   const handleRefreshAllData = useCallback(() => {
-    console.log("[Unit.tsx] handleRefreshAllData called."); // Confirm function is called
-    console.log("[Unit.tsx] Calling fetchObjectives..."); // Log before fetchObjectives
     fetchObjectives();
-    console.log("[Unit.tsx] Calling kraState.refresh..."); // Log before kraState.refresh
     kraState.refresh?.();
     // Potentially refresh other states if KRA/Objective changes affect them
     // projectState.refresh?.(); 
@@ -188,15 +180,12 @@ const Unit = () => {
   }, [fetchObjectives, kraState.refresh]);
 
   const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
-    console.log(`[Unit.tsx] Attempting to delete objective ID: ${objectiveId}`);
     try {
       // Assume unitService has a deleteObjective method
       await unitService.deleteObjective(String(objectiveId)); 
       toast({ title: "Objective Deleted", description: `Objective ID ${objectiveId} deleted successfully.` });
-      console.log("[Unit.tsx] Objective deleted. Calling handleRefreshAllData..."); // Log before refresh
       handleRefreshAllData(); // Refresh data after successful deletion
     } catch (error) {
-      console.error("[Unit.tsx] Error deleting objective:", error);
       toast({ 
         title: "Error Deleting Objective", 
         description: error instanceof Error ? error.message : "An unexpected error occurred.", 
@@ -207,7 +196,6 @@ const Unit = () => {
 
   // Effect to load data on mount
   useEffect(() => {
-    console.log("[Unit.tsx] Initial data fetch useEffect triggered.");
     fetchObjectives(); // Fetch objectives on mount
     taskState.refresh?.();
     projectState.refresh?.();

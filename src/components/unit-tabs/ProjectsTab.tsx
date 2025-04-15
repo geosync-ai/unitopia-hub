@@ -87,17 +87,26 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) {
+      amount = 0;
+    }
+    return new Intl.NumberFormat('en-PG', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      currency: 'PGK',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString();
+  const formatDate = (date: Date | string | undefined) => {
+    if (date instanceof Date) {
+      return new Date(date).toLocaleDateString();
+    } else if (typeof date === 'string') {
+      return date;
+    } else {
+      return '';
+    }
   };
 
   const getManagerName = (email: string) => {
