@@ -18,19 +18,27 @@ export interface Kpi {
   costAssociated?: number; // Add cost associated field
 }
 
+// Define possible KRA statuses
+type KraStatus = 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
+
+// KRA definition
 export interface Kra {
-  id: string | number; // Or use UUIDs
+  id: string | number; // Allow number for potential legacy or other integrations
   title: string;
-  objectiveId?: string | number; // Add this line
-  unit: string; // Assuming unit is stored as string, could be an ID. Let's treat this as unitId for form consistency.
-  startDate: string; // ISO date string format recommended (e.g., "YYYY-MM-DD")
-  targetDate: string; // ISO date string format recommended
-  unitKpis: Kpi[];
-  description?: string; // Use description to match database column for KRA notes
-  department: string; // Seems redundant if unit represents department? Keep for now.
-  status: 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
-  owner: User;
-  isEditing?: boolean; // Client-side state
+  objectiveId?: string | number | null;
+  unit?: string | null; // Unit or Department name
+  unitId?: string | number | null; // FK to a potential 'units' table
+  startDate?: string; // ISO Date string
+  targetDate?: string; // ISO Date string
+  unitKpis?: Kpi[]; // Renamed from kpis for clarity
+  description?: string | null;
+  department?: string | null; // Consider consolidating with unit
+  status?: KraStatus; // Use the defined type
+  owner?: User | null;
+  createdAt?: string; // ISO Date string
+  updatedAt?: string; // ISO Date string
+  // Add nested objective structure from Supabase query
+  unitObjectives?: { title: string } | null;
 }
 
 // Basic User interface, adjust as needed based on your actual user data structure

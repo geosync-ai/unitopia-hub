@@ -198,7 +198,12 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   return (
                     <div key={kra.id} className="flex items-start border-b border-gray-100 hover:bg-gray-50/50 relative" style={{ minHeight: kpisExist ? `${(kra.unitKpis.length * 2) + 2}rem` : '4rem' }}>
                       <div className="w-48 px-4 py-3 text-sm shrink-0">
-                        <span className="font-medium text-gray-900 block truncate">{kra.objectiveId ? `Obj: ${kra.objectiveId}` : 'N/A'}</span>
+                        <span className="font-medium text-gray-900 block truncate">
+                          {kra.unitObjectives?.title 
+                            ? kra.unitObjectives.title 
+                            : (kra.objectiveId ? `Obj ID: ${kra.objectiveId}` : 'N/A')
+                          }
+                        </span>
                       </div>
                       <div className="w-64 px-4 py-3 shrink-0">
                         <div className="text-sm font-medium text-gray-900 block truncate">{kra.title}</div>
