@@ -193,17 +193,7 @@ export const RisksTab: React.FC<RisksTabProps> = ({
             </div>
             <Button 
               variant="outline" 
-              onClick={() => {
-                if (!currentDivisionId) {
-                  toast({
-                    title: "Cannot Add Risk",
-                    description: "Please select a Division before adding a risk.",
-                    variant: "destructive"
-                  });
-                } else {
-                  setShowAddModal(true)
-                }
-              }}
+              onClick={() => setShowAddModal(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Risk
