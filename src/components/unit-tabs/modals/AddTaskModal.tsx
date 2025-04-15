@@ -92,152 +92,154 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Add New Task</DialogTitle>
           <DialogDescription>
             Create a new task with the form below
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4 overflow-y-auto max-h-[65vh] pr-4">
-          <div className="grid gap-2">
-            <Label htmlFor="task-title">Title</Label>
-            <Input 
-              id="task-title" 
-              placeholder="Task Title" 
-              value={newTask.title} 
-              onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="task-description">Description</Label>
-            <Textarea 
-              id="task-description" 
-              placeholder="Task Description" 
-              value={newTask.description} 
-              onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-assignee">
-                Assignee {currentUserDepartment && <span className="text-sm text-muted-foreground">({currentUserDepartment})</span>}
-              </Label>
-              <Select 
-                value={newTask.assignee}
-                onValueChange={(value) => {
-                  const selectedStaff = staffMembers.find(staff => staff.email === value);
-                  setNewTask({...newTask, assignee: value});
-                }}
-              >
-                <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {loading ? (
-                    <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
-                  ) : staffMembers && staffMembers.length > 0 ? (
-                    staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.email}>
-                        {staff.name} ({staff.job_title})
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+        <div className="flex-grow overflow-y-auto pr-4">
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="task-title">Title</Label>
+              <Input 
+                id="task-title" 
+                placeholder="Task Title" 
+                value={newTask.title} 
+                onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+              />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-status">Status</Label>
-              <Select 
-                value={newTask.status}
-                onValueChange={(value: 'todo' | 'in-progress' | 'review' | 'done') => 
-                  setNewTask({...newTask, status: value})
-                }
-              >
-                <SelectTrigger id="task-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todo">To Do</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="review">Review</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid gap-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea 
+                id="task-description" 
+                placeholder="Task Description" 
+                value={newTask.description} 
+                onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+              />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-priority">Priority</Label>
-              <Select 
-                value={newTask.priority}
-                onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => 
-                  setNewTask({...newTask, priority: value})
-                }
-              >
-                <SelectTrigger id="task-priority">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-percentage">Completion Percentage</Label>
-              <div className="flex items-center gap-2">
-                <Input 
-                  id="task-percentage" 
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={newTask.completionPercentage || 0}
-                  onChange={(e) => {
-                    let value = parseInt(e.target.value, 10);
-                    if (isNaN(value) || value < 0) {
-                      value = 0;
-                    } else if (value > 100) {
-                      value = 100;
-                    }
-                    setNewTask({...newTask, completionPercentage: value});
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="task-assignee">
+                  Assignee {currentUserDepartment && <span className="text-sm text-muted-foreground">({currentUserDepartment})</span>}
+                </Label>
+                <Select 
+                  value={newTask.assignee}
+                  onValueChange={(value) => {
+                    const selectedStaff = staffMembers.find(staff => staff.email === value);
+                    setNewTask({...newTask, assignee: value});
                   }}
+                >
+                  <SelectTrigger id="task-assignee" className={loading ? "opacity-50" : ""}>
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loading ? (
+                      <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
+                    ) : staffMembers && staffMembers.length > 0 ? (
+                      staffMembers.map((staff) => (
+                        <SelectItem key={staff.id} value={staff.email}>
+                          {staff.name} ({staff.job_title})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="task-status">Status</Label>
+                <Select 
+                  value={newTask.status}
+                  onValueChange={(value: 'todo' | 'in-progress' | 'review' | 'done') => 
+                    setNewTask({...newTask, status: value})
+                  }
+                >
+                  <SelectTrigger id="task-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <Select 
+                  value={newTask.priority}
+                  onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => 
+                    setNewTask({...newTask, priority: value})
+                  }
+                >
+                  <SelectTrigger id="task-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="task-percentage">Completion Percentage</Label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    id="task-percentage" 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newTask.completionPercentage || 0}
+                    onChange={(e) => {
+                      let value = parseInt(e.target.value, 10);
+                      if (isNaN(value) || value < 0) {
+                        value = 0;
+                      } else if (value > 100) {
+                        value = 100;
+                      }
+                      setNewTask({...newTask, completionPercentage: value});
+                    }}
+                  />
+                  <span>%</span>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="task-start-date">Start Date</Label>
+                <Input 
+                  id="task-start-date" 
+                  type="date"
+                  value={newTask.startDate instanceof Date ? newTask.startDate.toISOString().split('T')[0] : ''} 
+                  onChange={(e) => setNewTask({...newTask, startDate: new Date(e.target.value)})}
                 />
-                <span>%</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="task-due-date">Due Date</Label>
+                <Input 
+                  id="task-due-date" 
+                  type="date"
+                  value={typeof newTask.dueDate === 'string' ? newTask.dueDate : ''}
+                  onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
+                />
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-start-date">Start Date</Label>
-              <Input 
-                id="task-start-date" 
-                type="date"
-                value={newTask.startDate instanceof Date ? newTask.startDate.toISOString().split('T')[0] : ''} 
-                onChange={(e) => setNewTask({...newTask, startDate: new Date(e.target.value)})}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-due-date">Due Date</Label>
-              <Input 
-                id="task-due-date" 
-                type="date"
-                value={typeof newTask.dueDate === 'string' ? newTask.dueDate : ''}
-                onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
-              />
-            </div>
+          
+          <div className="border-t pt-4 mt-2">
+            <ChecklistSection 
+              items={newTask.checklist || []}
+              onChange={(items) => setNewTask({...newTask, checklist: items})}
+            />
           </div>
-        </div>
-        
-        <div className="col-span-2 border-t pt-4 mt-2">
-          <ChecklistSection 
-            items={newTask.checklist || []}
-            onChange={(items) => setNewTask({...newTask, checklist: items})}
-          />
         </div>
         
         <DialogFooter>
