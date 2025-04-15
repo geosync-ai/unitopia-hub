@@ -338,7 +338,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                                     </span>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" align="center" className="z-50">
+                                <TooltipContent side="top" align="center" className="z-[100]">
                                   <p className="font-semibold">{kpi.name}</p>
                                   <p className="text-xs text-muted-foreground">
                                     {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'}
