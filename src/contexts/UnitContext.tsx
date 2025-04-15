@@ -2,17 +2,15 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   KRA, 
   Task, 
-  Project, 
+  Project,
   Risk, 
   UserAsset,
   TaskFilterState,
-  ProjectFilterState,
   RiskFilterState,
   AssetFilterState
 } from '@/types';
 import { 
   mockTasks, 
-  mockProjects, 
   mockRisks, 
   mockKras, 
   mockAssets 
@@ -22,32 +20,27 @@ import {
 interface UnitContextType {
   // Data
   tasks: Task[];
-  projects: Project[];
   risks: Risk[];
   kras: KRA[];
   assets: UserAsset[];
 
   // Filtered data
   filteredTasks: Task[];
-  filteredProjects: Project[];
   filteredRisks: Risk[];
   filteredAssets: UserAsset[];
   
   // Filters
   taskFilters: TaskFilterState;
-  projectFilters: ProjectFilterState;
   riskFilters: RiskFilterState;
   assetFilters: AssetFilterState;
   
   // Filter setters
   setTaskFilters: React.Dispatch<React.SetStateAction<TaskFilterState>>;
-  setProjectFilters: React.Dispatch<React.SetStateAction<ProjectFilterState>>;
   setRiskFilters: React.Dispatch<React.SetStateAction<RiskFilterState>>;
   setAssetFilters: React.Dispatch<React.SetStateAction<AssetFilterState>>;
   
   // Data setters
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setRisks: React.Dispatch<React.SetStateAction<Risk[]>>;
   setKras: React.Dispatch<React.SetStateAction<KRA[]>>;
   setAssets: React.Dispatch<React.SetStateAction<UserAsset[]>>;
@@ -73,8 +66,6 @@ export const UnitProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize data state with empty arrays
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [risks, setRisks] = useState<Risk[]>([]);
   const [filteredRisks, setFilteredRisks] = useState<Risk[]>([]);
   const [kras, setKras] = useState<KRA[]>([]);
@@ -87,12 +78,6 @@ export const UnitProvider: React.FC<{ children: React.ReactNode }> = ({ children
     assignee: 'all',
     priority: 'all',
     dueDate: 'all'
-  });
-  
-  const [projectFilters, setProjectFilters] = useState<ProjectFilterState>({
-    status: 'all',
-    manager: 'all',
-    dateRange: 'all'
   });
   
   const [riskFilters, setRiskFilters] = useState<RiskFilterState>({
@@ -115,8 +100,6 @@ export const UnitProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setTasks(mockTasks);
       setFilteredTasks(mockTasks);
-      setProjects(mockProjects);
-      setFilteredProjects(mockProjects);
       setRisks(mockRisks);
       setFilteredRisks(mockRisks);
       setKras(mockKras);
@@ -169,48 +152,6 @@ export const UnitProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setFilteredTasks(filtered);
   }, [tasks, taskFilters]);
-  
-  // Filter projects when filter state changes
-  useEffect(() => {
-    let filtered = [...projects];
-    
-    if (projectFilters.status !== 'all') {
-      filtered = filtered.filter(project => project.status === projectFilters.status);
-    }
-    
-    if (projectFilters.manager !== 'all') {
-      filtered = filtered.filter(project => project.manager === projectFilters.manager);
-    }
-    
-    if (projectFilters.dateRange !== 'all') {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      
-      if (projectFilters.dateRange === 'thisMonth') {
-        filtered = filtered.filter(project => {
-          const startMonth = project.startDate.getMonth();
-          const startYear = project.startDate.getFullYear();
-          return startMonth === currentMonth && startYear === currentYear;
-        });
-      } else if (projectFilters.dateRange === 'thisQuarter') {
-        const currentQuarter = Math.floor(currentMonth / 3);
-        filtered = filtered.filter(project => {
-          const startMonth = project.startDate.getMonth();
-          const startYear = project.startDate.getFullYear();
-          const startQuarter = Math.floor(startMonth / 3);
-          return startQuarter === currentQuarter && startYear === currentYear;
-        });
-      } else if (projectFilters.dateRange === 'thisYear') {
-        filtered = filtered.filter(project => {
-          const startYear = project.startDate.getFullYear();
-          return startYear === currentYear;
-        });
-      }
-    }
-    
-    setFilteredProjects(filtered);
-  }, [projects, projectFilters]);
   
   // Filter risks when filter state changes
   useEffect(() => {
@@ -266,32 +207,27 @@ export const UnitProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     // Data
     tasks,
-    projects,
     risks,
     kras,
     assets,
     
     // Filtered data
     filteredTasks,
-    filteredProjects,
     filteredRisks,
     filteredAssets,
     
     // Filters
     taskFilters,
-    projectFilters,
     riskFilters,
     assetFilters,
     
     // Filter setters
     setTaskFilters,
-    setProjectFilters,
     setRiskFilters,
     setAssetFilters,
     
     // Data setters
     setTasks,
-    setProjects,
     setRisks,
     setKras,
     setAssets,
