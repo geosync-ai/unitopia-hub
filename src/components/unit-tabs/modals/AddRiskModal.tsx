@@ -279,7 +279,7 @@ const AddRiskModal = ({
         if (!isOpen) resetForm();
       }}
     >
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Add New Risk</DialogTitle>
           <DialogDescription>
