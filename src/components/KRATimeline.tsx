@@ -227,7 +227,7 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
   }));
 
   // Use the augmented mock data or the props data
-  const displayKras = kras.length > 0 ? kras.map(kra => ({
+  const krasToDisplay = kras.length > 0 ? kras.map(kra => ({
       ...kra,
       kpis: kra.kpis?.map(kpi => ({ // Add optional chaining for safety
           ...kpi,
@@ -235,6 +235,16 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
           endDate: kpi.endDate ? new Date(kpi.endDate) : undefined, // Ensure endDate is Date or undefined
       })) || [] // Ensure kpis is always an array
    })) : mockKRAsWithDetails;
+
+  // Group KRAs by objectiveName
+  const groupedKras = krasToDisplay.reduce((acc, kra) => {
+    const objective = kra.objectiveName || 'Uncategorized';
+    if (!acc[objective]) {
+      acc[objective] = [];
+    }
+    acc[objective].push(kra);
+    return acc;
+  }, {} as Record<string, KRA[]>);
 
   return (
     <TooltipProvider>
@@ -277,10 +287,9 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
           <div className="mb-6 overflow-x-auto">
             <div className="timeline-view">
               {/* Timeline header */}
-              <div className="flex border-b border-gray-200 pb-2">
-                <div className="w-48 px-4 py-2 text-sm font-medium text-gray-700">Objectives</div>
-                <div className="w-64 px-4 py-2 text-sm font-medium text-gray-700">KRA Details</div>
-                <div className="flex-1 flex">
+              <div className="flex border-b border-gray-200 pb-2 sticky top-0 bg-white z-30">
+                <div className="w-72 px-4 py-2 text-sm font-medium text-gray-700 sticky left-0 bg-white z-30">KRA Details</div>
+                <div className="flex-1 flex pl-2">
                   {currentViewMode === 'quarters' && quarters.map(quarter => (
                     <div key={quarter} className="flex-1 text-center text-sm font-medium text-gray-700">
                       {quarter}
@@ -310,7 +319,7 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
               {/* Timeline grid */}
               <div className="relative">
                 {/* Background Grid Lines */}
-                <div className="absolute top-0 left-[calc(theme(width.48)+theme(width.64))] right-0 h-full flex z-0">
+                <div className="absolute top-0 left-72 right-0 h-full flex z-0">
                    {currentViewMode === 'quarters' && quarters.map((_, i) => (
                      <div
                        key={`q-line-${i}`}
@@ -346,51 +355,58 @@ const KRATimeline: React.FC<KRATimelineProps> = ({ kras }) => {
                    ))}
                 </div>
 
-                {/* KRA Rows */}
-                {displayKras.map((kra, kraIndex) => (
-                  <div key={kra.id || kraIndex} className="flex border-b border-gray-200 relative min-h-[60px]">
-                    <div className="w-48 px-4 py-2 flex items-center border-r border-gray-200 sticky left-0 bg-white z-20">
-                      <span className="text-sm font-medium text-gray-800">{kra.objectiveName}</span>
-                    </div>
-                    <div className="w-64 px-4 py-2 border-r border-gray-200 sticky left-48 bg-white z-20">
-                      <div className="text-sm font-semibold text-gray-900">{kra.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {kra.startDate?.toLocaleDateString()} - {kra.endDate?.toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex-1 flex relative items-center px-2 py-2 pl-[calc(theme(width.48)+theme(width.64)+theme(space.2))]">
-                       {kra.kpis && kra.kpis.map((kpi) => {
-                           const kpiPosition = calculatePosition(kpi.date, currentViewMode);
-                           const kpiWidth = calculateWidth(kpi.date, kpi.endDate, currentViewMode);
-                           const kpiColor = getKpiStatusColor(kpi.status);
+                {/* KRA Rows - Grouped by Objective */}
+                {Object.entries(groupedKras).map(([objectiveName, krasInGroup], groupIndex) => (
+                  <React.Fragment key={objectiveName}>
+                    {krasInGroup.map((kra, kraIndex) => (
+                      <div
+                        key={kra.id || `${objectiveName}-${kraIndex}`}
+                        className={`flex border-b border-gray-200 relative min-h-[60px] ${kraIndex === 0 ? 'border-t-2 border-gray-300' : ''}`}
+                      >
+                        <div className="w-72 px-4 py-2 border-r border-gray-200 sticky left-0 bg-white z-20 flex flex-col justify-center">
+                          {kraIndex === 0 && (
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{objectiveName}</div>
+                          )}
+                          <div className="text-sm font-semibold text-gray-900">{kra.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {kra.startDate?.toLocaleDateString()} - {kra.endDate?.toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex-1 flex relative items-center px-2 py-2">
+                           {kra.kpis && kra.kpis.map((kpi) => {
+                               const kpiPosition = calculatePosition(kpi.date, currentViewMode);
+                               const kpiWidth = calculateWidth(kpi.date, kpi.endDate, currentViewMode);
+                               const kpiColor = getKpiStatusColor(kpi.status);
 
-                           return (
-                             <Tooltip key={kpi.id}>
-                               <TooltipTrigger asChild>
-                                 <div
-                                   className="absolute h-4 rounded text-white text-[10px] flex items-center justify-center overflow-hidden whitespace-nowrap px-1 cursor-pointer z-10"
-                                   style={{
-                                     left: `${kpiPosition}%`,
-                                     width: `${kpiWidth}%`,
-                                     backgroundColor: kpiColor,
-                                     top: '50%',
-                                     transform: 'translateY(-50%)'
-                                   }}
-                                   onClick={() => setSelectedKPI(kpi)}
-                                 >
-                                   <span className="truncate">{kpi.name}</span>
-                                 </div>
-                               </TooltipTrigger>
-                               <TooltipContent>
-                                 <p>{kpi.name} ({kpi.status})</p>
-                                 <p>Date: {kpi.date?.toLocaleDateString() || 'N/A'}</p>
-                                 {kpi.endDate && <p>End: {kpi.endDate.toLocaleDateString()}</p>}
-                               </TooltipContent>
-                             </Tooltip>
-                           );
-                       })}
-                    </div>
-                  </div>
+                               return (
+                                 <Tooltip key={kpi.id}>
+                                   <TooltipTrigger asChild>
+                                     <div
+                                       className="absolute h-4 rounded text-white text-[10px] flex items-center justify-center overflow-hidden whitespace-nowrap px-1 cursor-pointer z-10"
+                                       style={{
+                                         left: `${kpiPosition}%`,
+                                         width: `${kpiWidth}%`,
+                                         backgroundColor: kpiColor,
+                                         top: '50%',
+                                         transform: 'translateY(-50%)'
+                                       }}
+                                       onClick={() => setSelectedKPI(kpi)}
+                                     >
+                                       <span className="truncate">{kpi.name}</span>
+                                     </div>
+                                   </TooltipTrigger>
+                                   <TooltipContent>
+                                     <p>{kpi.name} ({kpi.status})</p>
+                                     <p>Date: {kpi.date?.toLocaleDateString() || 'N/A'}</p>
+                                     {kpi.endDate && <p>End: {kpi.endDate.toLocaleDateString()}</p>}
+                                   </TooltipContent>
+                                 </Tooltip>
+                               );
+                           })}
+                        </div>
+                      </div>
+                    ))}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
