@@ -17,6 +17,7 @@ export interface Risk {
   updatedAt: Date;
   checklist?: ChecklistItem[];
   unit_id?: string;
+  division_id?: string;
 }
 
 export interface KPI {

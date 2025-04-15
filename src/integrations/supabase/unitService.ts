@@ -359,15 +359,26 @@ export const risksService = {
   },
   
   // Get all risks
-  getRisks: async (userEmail?: string) => {
+  getRisks: async (userEmail?: string, divisionId?: string) => {
     const supabase = getSupabaseClient();
     
     let query = supabase
       .from(TABLES.RISKS)
       .select('*');
     
-    if (userEmail) {
-      query = query.eq('owner', userEmail);
+    // Filter by owner if userEmail is provided (optional, adjust as needed)
+    // if (userEmail) {
+    //   query = query.eq('owner', userEmail); 
+    // }
+
+    // Filter by division_id if divisionId is provided
+    if (divisionId) {
+      query = query.eq('division_id', divisionId);
+    } else {
+      // Optional: Handle case where no division is selected?
+      // Maybe fetch only risks with null division_id or apply different logic?
+      // For now, if no divisionId, it fetches all risks (potentially filtered by userEmail above)
+      console.warn('[risksService.getRisks] No divisionId provided, fetching all risks (potentially filtered by owner).');
     }
     
     const { data, error } = await query;

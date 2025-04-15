@@ -19,6 +19,7 @@ import {
 import { StaffMember } from '@/types/staff';
 import { Objective } from '@/types/kpi';
 import { toast } from '@/components/ui/use-toast';
+import { useDivisionContext } from '@/hooks/useDivisionContext';
 
 interface RisksTabProps {
   risks: Risk[];
@@ -44,6 +45,7 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   objectives
 }) => {
   const { selectedUnit, businessUnits } = useAuth();
+  const { currentDivisionId } = useDivisionContext();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -52,14 +54,20 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   console.log(`[RisksTab] Effect dependencies - selectedUnit: ${selectedUnit}, statusFilter: ${statusFilter}, risks count: ${risks.length}`);
+  console.log(`[RisksTab] Current Division ID: ${currentDivisionId}`);
 
-  // Filter risks by selected unit and status
+  // Filter risks by division and status
   useEffect(() => {
     let filtered = [...risks];
     
-    // Filter by selected unit if one is selected
-    if (selectedUnit) {
-      filtered = filtered.filter(risk => risk.unit_id === selectedUnit);
+    // Filter by division_id if one is available
+    if (currentDivisionId) {
+      // Ensure risks have division_id for comparison
+      filtered = filtered.filter(risk => 'division_id' in risk && risk.division_id === currentDivisionId);
+    } else {
+      // If no division selected, maybe show risks with null division_id?
+      // Or show nothing? Currently shows risks with null/undefined division_id.
+      filtered = filtered.filter(risk => !risk.division_id);
     }
     
     // Apply status filter if not 'all'
@@ -67,8 +75,9 @@ export const RisksTab: React.FC<RisksTabProps> = ({
       filtered = filtered.filter(risk => risk.status === statusFilter);
     }
     
+    console.log(`[RisksTab] Filtering complete. Raw count: ${risks.length}, Filtered count: ${filtered.length}`);
     setFilteredRisks(filtered);
-  }, [risks, selectedUnit, statusFilter]);
+  }, [risks, currentDivisionId, statusFilter]);
 
   const handleEdit = (risk: Risk) => {
     setSelectedRisk(risk);
@@ -81,19 +90,24 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   };
 
   const handleAddRisk = (risk: Risk) => {
-    if (!selectedUnit) {
-      toast({        title: "Error",
-        description: "No unit selected. Please select a unit before adding a risk.",
+    if (!currentDivisionId) {
+      toast({
+        title: "Error Adding Risk",
+        description: "No Division selected. Cannot add risk without a division context.",
         variant: "destructive"
       });
       return;
     }
-    // Add current unit ID to new risk
-    const riskWithUnitId = {
+    // Add current division ID to new risk
+    const riskWithDivisionId = {
       ...risk,
-      unit_id: selectedUnit // We know selectedUnit is not null here
+      division_id: currentDivisionId
     };
-    addRisk(riskWithUnitId);
+    // Remove unit_id if it exists from the modal data, just to be safe
+    delete (riskWithDivisionId as any).unit_id;
+
+    console.log('[RisksTab - handleAddRisk] Adding risk with division_id:', JSON.stringify(riskWithDivisionId, null, 2));
+    addRisk(riskWithDivisionId as Omit<Risk, 'id' | 'createdAt' | 'updatedAt'>);
   };
 
   const getImpactBadge = (impact: string) => {
@@ -180,10 +194,10 @@ export const RisksTab: React.FC<RisksTabProps> = ({
             <Button 
               variant="outline" 
               onClick={() => {
-                if (!selectedUnit) {
+                if (!currentDivisionId) {
                   toast({
                     title: "Cannot Add Risk",
-                    description: "Please select a Business Unit before adding a risk.",
+                    description: "Please select a Division before adding a risk.",
                     variant: "destructive"
                   });
                 } else {
