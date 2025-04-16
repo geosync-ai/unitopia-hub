@@ -39,9 +39,16 @@ const AssetManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<UserAsset | null>(null);
 
-  // Filter assets assigned to the current user's EMAIL using assigned_to_email field
+  // --- Reverted Filtering Logic --- 
+  // Filter assets assigned to the current user's NAME using assigned_to field.
+  // This is temporary until assigned_to_email is populated in the database.
+  const loggedInUserName = user?.name;
+  const myAssets = assets.filter(asset => asset.assigned_to === loggedInUserName);
+  // --- End Reverted Filtering Logic ---
+
+  // --- Email for filtering (keep for when DB is updated) ---
   const loggedInUserEmail = user?.email;
-  const myAssets = assets.filter(asset => asset.assigned_to_email === loggedInUserEmail);
+  // --- End Email for filtering ---
 
   // Fetch data on mount
   useEffect(() => {
@@ -73,29 +80,27 @@ const AssetManagement = () => {
 
   // --- Data Operation Handlers ---
 
-  // Use Omit<UserAsset, 'id'> and ensure assigned_to is set
   const handleSaveAdd = async (newAssetData: Partial<Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>>) => {
-    // Add required fields if missing (like assigned_date)
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
     const completeAssetData = {
       ...newAssetData,
       assigned_to: user?.name, // Assign current user's name
-      assigned_to_email: loggedInUserEmail, // Assign current user's email
-      assigned_date: newAssetData.assigned_date || today, // Ensure assigned_date is present
+      assigned_to_email: loggedInUserEmail, // Still attempt to assign email for new assets
+      assigned_date: newAssetData.assigned_date || today,
     } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
     
-    // Basic validation (add more as needed)
     if (!completeAssetData.name) {
       toast({ title: "Error", description: "Asset name is required.", variant: "destructive" });
       return;
     }
+    // Keep the email check for new assets, assuming it *should* be there going forward
     if (!completeAssetData.assigned_to_email) {
         toast({ title: "Error", description: "Assignee email could not be determined.", variant: "destructive" });
         return;
     }
 
     try {
-      await addAsset(completeAssetData as any); // Cast to any for now, Supabase types might need alignment
+      await addAsset(completeAssetData as any);
       toast({ title: "Asset Added", description: "New asset has been added successfully." });
       handleCloseModals();
       refresh();
