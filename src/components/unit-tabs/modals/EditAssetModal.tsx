@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ChecklistSection from '@/components/ChecklistSection';
 import { UserAsset } from '@/types';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
@@ -21,10 +20,20 @@ import FileUpload from '@/components/FileUpload';
 interface EditAssetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  asset: UserAsset;
+  asset: UserAsset | null;
   onEdit: (editedAsset: Partial<UserAsset>) => void;
   onDelete?: () => void;
 }
+
+const formatDateForInput = (date: string | Date | null | undefined): string => {
+  if (!date) return '';
+  if (typeof date === 'string') return date;
+  try {
+    return date.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+};
 
 const EditAssetModal: React.FC<EditAssetModalProps> = ({
   isOpen,
@@ -33,167 +42,139 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
   onEdit,
   onDelete
 }) => {
-  const [editedAsset, setEditedAsset] = useState<UserAsset>(asset);
+  const [editedAsset, setEditedAsset] = useState<Partial<UserAsset>>(asset || {});
   
-  // Update local state when asset prop changes
   useEffect(() => {
-    setEditedAsset(asset);
+    setEditedAsset(asset || {});
   }, [asset]);
 
   const handleSaveAsset = () => {
-    if (!editedAsset) return;
+    if (!editedAsset || !asset) return;
 
     if (!editedAsset.name) {
-      toast({
-        title: "Error",
-        description: "Asset name is required",
-      });
+      toast({ title: "Validation Error", description: "Asset name is required", variant: "destructive" });
       return;
     }
 
-    if (!editedAsset.serialNumber) {
-      toast({
-        title: "Error",
-        description: "Serial number is required",
-      });
-      return;
-    }
-
-    if (!editedAsset.assignedTo) {
-      toast({
-        title: "Error",
-        description: "Assigned to field is required",
-      });
-      return;
-    }
-
-    // Save the asset
     onEdit(editedAsset);
     
-    // Close the modal
     onClose();
   };
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: keyof UserAsset, value: any) => {
     setEditedAsset(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
+  const handleDateChange = (field: keyof UserAsset, date: Date | null | undefined) => {
+    handleChange(field, date ? formatDateForInput(date) : null);
+  };
+
   if (!asset) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>Edit Asset</DialogTitle>
           <DialogDescription>
-            Make changes to the asset details
+            Make changes to the asset details below.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="edit-asset-name">Asset Name <span className="text-destructive">*</span></Label>
-            <Input 
-              id="edit-asset-name" 
-              placeholder="Asset Name" 
-              value={editedAsset.name || ''} 
-              onChange={(e) => handleChange('name', e.target.value)}
-            />
-          </div>
+        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-name">Asset Name <span className="text-destructive">*</span></Label>
+              <Input id="edit-asset-name" placeholder="e.g., Dell Laptop XYZ" value={editedAsset.name || ''} onChange={(e) => handleChange('name', e.target.value)} />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="edit-asset-type">Type</Label>
-              <Select 
-                value={editedAsset.type || 'laptop'}
-                onValueChange={(value: 'laptop' | 'mobile' | 'tablet' | 'software' | 'other') => 
-                  handleChange('type', value)
-                }
-              >
-                <SelectTrigger id="edit-asset-type">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="laptop">Laptop</SelectItem>
-                  <SelectItem value="mobile">Mobile</SelectItem>
-                  <SelectItem value="tablet">Tablet</SelectItem>
-                  <SelectItem value="software">Software</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input id="edit-asset-type" placeholder="e.g., Laptop, Monitor, Phone" value={editedAsset.type || ''} onChange={(e) => handleChange('type', e.target.value)} />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-asset-status">Status</Label>
-              <Select 
-                value={editedAsset.status || 'active'}
-                onValueChange={(value: 'active' | 'maintenance' | 'retired') => 
-                  handleChange('status', value)
-                }
-              >
-                <SelectTrigger id="edit-asset-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="retired">Retired</SelectItem>
-                </SelectContent>
-              </Select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-unit">Unit</Label>
+              <Input id="edit-asset-unit" placeholder="e.g., IT Unit" value={editedAsset.unit || ''} onChange={(e) => handleChange('unit', e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-division">Division</Label>
+              <Input id="edit-asset-division" placeholder="e.g., Corporate Services" value={editedAsset.division || ''} onChange={(e) => handleChange('division', e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-assigned-to">Assigned To</Label>
+              <Input id="edit-asset-assigned-to" value={editedAsset.assigned_to || ''} readOnly disabled />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-assigned-email">Assigned Email</Label>
+              <Input id="edit-asset-assigned-email" value={editedAsset.assigned_to_email || ''} readOnly disabled />
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="edit-asset-serial">Serial Number <span className="text-destructive">*</span></Label>
-            <Input 
-              id="edit-asset-serial" 
-              placeholder="Serial Number" 
-              value={editedAsset.serialNumber || ''} 
-              onChange={(e) => handleChange('serialNumber', e.target.value)}
-            />
+            <Label htmlFor="edit-asset-assigned-date">Assigned Date</Label>
+            <Input id="edit-asset-assigned-date" value={formatDateForInput(editedAsset.assigned_date)} readOnly disabled />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-asset-assigned">Assigned To <span className="text-destructive">*</span></Label>
-              <Input 
-                id="edit-asset-assigned" 
-                placeholder="User Name" 
-                value={editedAsset.assignedTo || ''} 
-                onChange={(e) => handleChange('assignedTo', e.target.value)}
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-condition">Condition</Label>
+              <Input id="edit-asset-condition" placeholder="e.g., New, Good, Fair, Poor" value={editedAsset.condition || ''} onChange={(e) => handleChange('condition', e.target.value)} />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-asset-department">Department</Label>
-              <Input 
-                id="edit-asset-department" 
-                placeholder="Department" 
-                value={editedAsset.department || ''} 
-                onChange={(e) => handleChange('department', e.target.value)}
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-vendor">Vendor</Label>
+              <Input id="edit-asset-vendor" placeholder="e.g., Dell Inc., Apple Store" value={editedAsset.vendor || ''} onChange={(e) => handleChange('vendor', e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
+            <div className="grid gap-2">
               <Label htmlFor="edit-asset-purchase-date">Purchase Date</Label>
-              <DatePicker 
-                date={editedAsset.purchaseDate} 
-                setDate={(date) => handleChange('purchaseDate', date)} 
-              />
+              <DatePicker date={editedAsset.purchase_date ? new Date(editedAsset.purchase_date) : undefined} setDate={(date) => handleDateChange('purchase_date', date)} />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-asset-warranty">Warranty Expiry</Label>
-              <DatePicker 
-                date={editedAsset.warrantyExpiry} 
-                setDate={(date) => handleChange('warrantyExpiry', date)} 
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-warranty">Warranty Expiry Date</Label>
+              <DatePicker date={editedAsset.warranty_expiry_date ? new Date(editedAsset.warranty_expiry_date) : undefined} setDate={(date) => handleDateChange('warranty_expiry_date', date)} />
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-expiry-date">Expiry Date (e.g., Software)</Label>
+              <DatePicker date={editedAsset.expiry_date ? new Date(editedAsset.expiry_date) : undefined} setDate={(date) => handleDateChange('expiry_date', date)} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-life">Life Expectancy (Years)</Label>
+              <Input id="edit-asset-life" type="number" placeholder="e.g., 3" value={editedAsset.life_expectancy_years ?? ''} onChange={(e) => handleChange('life_expectancy_years', e.target.value ? parseInt(e.target.value, 10) : undefined)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-invoice-url">Invoice URL</Label>
+              <Input id="edit-asset-invoice-url" placeholder="https://..." value={editedAsset.invoice_url || ''} onChange={(e) => handleChange('invoice_url', e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-asset-barcode-url">Barcode URL</Label>
+              <Input id="edit-asset-barcode-url" placeholder="https://..." value={editedAsset.barcode_url || ''} onChange={(e) => handleChange('barcode_url', e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-asset-ytd-usage">YTD Usage</Label>
+            <Input id="edit-asset-ytd-usage" placeholder="e.g., 50 hours, 1000km" value={editedAsset.ytd_usage || ''} onChange={(e) => handleChange('ytd_usage', e.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="edit-asset-notes">Notes</Label>
-            <Textarea 
-              id="edit-asset-notes" 
-              placeholder="Additional notes about the asset" 
-              value={editedAsset.notes || ''} 
-              onChange={(e) => handleChange('notes', e.target.value)}
+            <Textarea id="edit-asset-notes" placeholder="Additional notes about the asset" value={editedAsset.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-asset-admin-comments">Admin Comments</Label>
+            <Textarea id="edit-asset-admin-comments" placeholder="Internal comments" value={editedAsset.admin_comments || ''} onChange={(e) => handleChange('admin_comments', e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <FileUpload 
+              onFileUpload={(url) => handleChange('image_url', url)}
+              currentImage={editedAsset.image_url}
+              label="Asset Image"
             />
           </div>
         </div>
