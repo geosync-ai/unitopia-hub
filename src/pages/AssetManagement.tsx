@@ -230,9 +230,9 @@ const AssetManagement = () => {
                       <TableCell className="font-medium">{asset.name}</TableCell>
                       <TableCell>{asset.type || 'N/A'}</TableCell>
                       <TableCell>{asset.condition || 'N/A'}</TableCell>
-                      <TableCell>{asset.assigned_to || 'N/A'}</TableCell> 
+                      <TableCell>{asset.assignedTo || 'N/A'}</TableCell> 
                       <TableCell>{asset.assigned_to_email || 'N/A'}</TableCell>
-                      <TableCell>{formatDate(asset.assigned_date)}</TableCell>
+                      <TableCell>{formatDate(asset.assignedDate)}</TableCell>
                       <TableCell>{asset.vendor || 'N/A'}</TableCell>
                       <TableCell className="text-right">
                          <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
