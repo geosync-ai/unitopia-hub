@@ -25,6 +25,7 @@ import Notes from "./pages/Notes";
 import { useEffect } from "react";
 import divisionService from "./integrations/supabase/divisionService";
 import { DivisionProvider } from './hooks/useDivisionContext';
+import AssetManagement from './pages/AssetManagement';
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,8 @@ const AppRoutes = () => {
           <Index />
         </ProtectedRoute>
       } />
+      
+      <Route path="/asset-management" element={<ProtectedRoute><AssetManagement /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,9 +39,9 @@ const AssetManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<UserAsset | null>(null);
 
-  // Filter assets assigned to the current user's NAME
-  const loggedInUserName = user?.name; // Use the name property from useAuth user object
-  const myAssets = assets.filter(asset => asset.assignedTo === loggedInUserName);
+  // Filter assets assigned to the current user's NAME using assigned_to field
+  const loggedInUserName = user?.name;
+  const myAssets = assets.filter(asset => asset.assigned_to === loggedInUserName);
 
   // Fetch data on mount
   useEffect(() => {
@@ -73,30 +73,45 @@ const AssetManagement = () => {
 
   // --- Data Operation Handlers ---
 
-  // Use Omit<UserAsset, 'id'> as expected by the modal prop
-  const handleSaveAdd = async (newAssetData: Omit<UserAsset, 'id'>) => { 
+  // Use Omit<UserAsset, 'id'> and ensure assigned_to is set
+  const handleSaveAdd = async (newAssetData: Partial<Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>>) => {
+    // Add required fields if missing (like assigned_date)
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const completeAssetData = {
+      ...newAssetData,
+      assigned_to: loggedInUserName, // Ensure assigned to current user
+      assigned_date: newAssetData.assigned_date || today, // Ensure assigned_date is present
+    } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
+    
+    // Basic validation (add more as needed)
+    if (!completeAssetData.name) {
+      toast({ title: "Error", description: "Asset name is required.", variant: "destructive" });
+      return;
+    }
+
     try {
-      // Ensure the new asset is assigned to the current user if Add modal doesn't handle it
-      const assetToSave = loggedInUserName ? { ...newAssetData, assignedTo: loggedInUserName } : newAssetData;
-      
-      await addAsset(assetToSave);
+      await addAsset(completeAssetData as any); // Cast to any for now, Supabase types might need alignment
       toast({ title: "Asset Added", description: "New asset has been added successfully." });
       handleCloseModals();
       refresh();
     } catch (err) {
+      console.error("Error adding asset:", err);
       toast({ title: "Error Adding Asset", description: err instanceof Error ? err.message : "Could not add asset.", variant: "destructive" });
     }
   };
 
-  // Use Partial<UserAsset> as expected by the modal prop
+  // Use Partial<UserAsset> for updates
   const handleSaveEdit = async (updatedAssetData: Partial<UserAsset>) => {
     if (!selectedAsset) return;
     try {
-      await editAsset(selectedAsset.id, updatedAssetData);
+      // Add last_updated_by if needed
+      const dataToSave = loggedInUserName ? { ...updatedAssetData, last_updated_by: loggedInUserName } : updatedAssetData;
+      await editAsset(selectedAsset.id, dataToSave);
       toast({ title: "Asset Updated", description: "Asset details have been updated." });
       handleCloseModals();
       refresh();
     } catch (err) {
+      console.error("Error updating asset:", err);
       toast({ title: "Error Updating Asset", description: err instanceof Error ? err.message : "Could not update asset.", variant: "destructive" });
     }
   };
@@ -109,6 +124,7 @@ const AssetManagement = () => {
       handleCloseModals();
       refresh();
     } catch (err) {
+      console.error("Error deleting asset:", err);
       toast({ title: "Error Deleting Asset", description: err instanceof Error ? err.message : "Could not delete asset.", variant: "destructive" });
     }
   };
@@ -117,8 +133,11 @@ const AssetManagement = () => {
   const formatDate = (dateInput: Date | string | null | undefined) => {
     if (!dateInput) return 'N/A';
     try {
+      // Supabase date columns are likely strings
       const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-      return date.toLocaleDateString();
+      // Adjust for potential timezone issues if Supabase dates are not UTC
+      // This simple approach might show the date in the user's local timezone
+      return date.toLocaleDateString(); 
     } catch (e) {
       return 'Invalid Date';
     }
@@ -137,11 +156,10 @@ const AssetManagement = () => {
               <Plus className="mr-2 h-4 w-4" /> Add Asset
             </Button>
           </DialogTrigger>
-          {/* Pass correct props to AddAssetModal */}
           <AddAssetModal 
             isOpen={isAddModalOpen} 
             onClose={handleCloseModals} 
-            onAdd={handleSaveAdd} // Use onAdd prop
+            onAdd={handleSaveAdd}
           />
         </Dialog>
       </div>
@@ -167,10 +185,10 @@ const AssetManagement = () => {
                   <TableHead className="w-[80px]">Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Condition</TableHead>
                   <TableHead>Assigned To</TableHead>
-                  <TableHead>Purchase Date</TableHead>
-                  <TableHead>Serial No.</TableHead>
+                  <TableHead>Assigned Date</TableHead>
+                  <TableHead>Vendor</TableHead>
                   <TableHead className="text-right w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -186,36 +204,32 @@ const AssetManagement = () => {
                     <TableRow key={asset.id}>
                       <TableCell>
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={asset.imageUrl || undefined} alt={asset.name} />
+                          <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
                           <AvatarFallback>{asset.name.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">{asset.name}</TableCell>
                       <TableCell>{asset.type || 'N/A'}</TableCell>
-                      <TableCell>{asset.status || 'N/A'}</TableCell>
-                      <TableCell>{asset.assignedTo || 'N/A'}</TableCell> 
-                      <TableCell>{formatDate(asset.purchaseDate)}</TableCell>
-                      <TableCell>{asset.serialNumber || 'N/A'}</TableCell>
+                      <TableCell>{asset.condition || 'N/A'}</TableCell>
+                      <TableCell>{asset.assigned_to || 'N/A'}</TableCell> 
+                      <TableCell>{formatDate(asset.assigned_date)}</TableCell>
+                      <TableCell>{asset.vendor || 'N/A'}</TableCell>
                       <TableCell className="text-right">
-                         {/* Edit Action */}
                          <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
                            <DialogTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => handleEditClick(asset)} title="Edit Asset">
                                 <Edit className="h-4 w-4" />
                               </Button>
                            </DialogTrigger>
-                           {/* Pass correct props to EditAssetModal */}
                            <EditAssetModal 
                               isOpen={isEditModalOpen && selectedAsset?.id === asset.id} 
                               onClose={handleCloseModals} 
-                              onEdit={handleSaveEdit} // Use onEdit prop
-                              asset={selectedAsset as UserAsset} // Pass selected asset, assert type
-                              onDelete={() => handleDeleteClick(asset)} // Pass delete handler
+                              onEdit={handleSaveEdit}
+                              asset={selectedAsset as UserAsset} 
+                              onDelete={() => handleDeleteClick(asset)}
                            />
                          </Dialog>
 
-                         {/* Delete Action */}
-                         {/* Pass correct props to DeleteModal */}
                          <Dialog open={isDeleteModalOpen && selectedAsset?.id === asset.id} onOpenChange={setIsDeleteModalOpen}>
                             <DialogTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(asset)} title="Delete Asset">
@@ -223,11 +237,11 @@ const AssetManagement = () => {
                               </Button>
                             </DialogTrigger>
                             <DeleteModal 
-                              open={isDeleteModalOpen && selectedAsset?.id === asset.id} // Use open prop
-                              onOpenChange={setIsDeleteModalOpen} // Use onOpenChange prop
-                              onDelete={handleConfirmDelete} // Use onDelete prop
-                              title="Delete Asset" // Provide title
-                              description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`} // Provide description
+                              open={isDeleteModalOpen && selectedAsset?.id === asset.id} 
+                              onOpenChange={setIsDeleteModalOpen} 
+                              onDelete={handleConfirmDelete}
+                              title="Delete Asset"
+                              description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`}
                             />
                          </Dialog>
                       </TableCell>
