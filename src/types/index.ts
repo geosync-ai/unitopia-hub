@@ -89,17 +89,28 @@ export interface Project {
 export interface UserAsset {
   id: string;
   name: string;
-  type: 'laptop' | 'mobile' | 'tablet' | 'software' | 'other';
-  serialNumber: string;
-  assignedTo: string;
-  department: string;
-  purchaseDate: Date;
-  warrantyExpiry: Date;
-  status: 'active' | 'maintenance' | 'retired';
-  notes: string;
-  imageUrl?: string;
+  type?: string;
+  assigned_date: string;
+  assigned_to?: string;
+  unit?: string;
+  division?: string;
+  purchase_date?: string;
+  vendor?: string;
+  warranty_expiry_date?: string;
+  invoice_url?: string;
+  expiry_date?: string;
+  life_expectancy_years?: number;
+  condition?: string;
+  ytd_usage?: string;
+  specifications?: Record<string, any>;
+  notes?: string;
+  barcode_url?: string;
+  image_url?: string;
+  admin_comments?: string;
+  last_updated?: string;
+  last_updated_by?: string;
+  created_at?: string;
   checklist?: ChecklistItem[];
-  unit_id?: string;
 }
 
 export interface OrganizationUnit {
