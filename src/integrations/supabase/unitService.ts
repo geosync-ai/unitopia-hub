@@ -522,29 +522,33 @@ export const risksService = {
 // Asset operations
 export const assetsService = {
   // Get all assets
-  getAssets: async (/* userEmail?: string */) => { // Removed userEmail parameter as it's not used for filtering here
+  getAssets: async () => {
     const supabase = getSupabaseClient();
+    console.log('[assetsService.getAssets] Starting fetch...'); // Log start
     
-    // Fetch ALL assets, filtering will happen in the frontend component
     let query = supabase
       .from(TABLES.ASSETS)
       .select('*');
     
-    // Removed the filter: query = query.eq('assigned_to', userEmail);
-    
     try {
+      console.log('[assetsService.getAssets] Executing query...'); // Log before query
       const { data, error } = await query;
       
+      // Log the raw response from Supabase
+      console.log('[assetsService.getAssets] Raw Supabase response:', { data, error });
+
       if (error) {
-        console.error('Error fetching assets:', error);
+        console.error('[assetsService.getAssets] Supabase query error:', error);
         throw error;
       }
       
-      // Convert snake_case to camelCase for frontend
-      return (data || []).map(snakeToCamelCase);
+      const mappedData = (data || []).map(snakeToCamelCase);
+      // Log the data after conversion
+      console.log('[assetsService.getAssets] Data after snakeToCamelCase conversion:', mappedData);
+
+      return mappedData;
     } catch (err) {
-      console.error('Error fetching assets catch block:', err); // Added log here
-      // Still return empty array to allow UI to render
+      console.error('[assetsService.getAssets] Error in try-catch block:', err);
       return [];
     }
   },
