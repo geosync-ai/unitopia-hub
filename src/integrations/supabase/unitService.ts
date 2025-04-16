@@ -522,16 +522,15 @@ export const risksService = {
 // Asset operations
 export const assetsService = {
   // Get all assets
-  getAssets: async (userEmail?: string) => {
+  getAssets: async (/* userEmail?: string */) => { // Removed userEmail parameter as it's not used for filtering here
     const supabase = getSupabaseClient();
     
+    // Fetch ALL assets, filtering will happen in the frontend component
     let query = supabase
       .from(TABLES.ASSETS)
       .select('*');
     
-    if (userEmail) {
-      query = query.eq('assigned_to', userEmail);
-    }
+    // Removed the filter: query = query.eq('assigned_to', userEmail);
     
     try {
       const { data, error } = await query;
@@ -544,7 +543,7 @@ export const assetsService = {
       // Convert snake_case to camelCase for frontend
       return (data || []).map(snakeToCamelCase);
     } catch (err) {
-      console.error('Error fetching assets:', err);
+      console.error('Error fetching assets catch block:', err); // Added log here
       // Still return empty array to allow UI to render
       return [];
     }

@@ -92,6 +92,7 @@ export interface UserAsset {
   type?: string;
   assigned_date: string;
   assigned_to?: string;
+  assigned_to_email?: string;
   unit?: string;
   division?: string;
   purchase_date?: string;

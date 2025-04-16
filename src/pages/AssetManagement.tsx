@@ -39,9 +39,9 @@ const AssetManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<UserAsset | null>(null);
 
-  // Filter assets assigned to the current user's NAME using assigned_to field
-  const loggedInUserName = user?.name;
-  const myAssets = assets.filter(asset => asset.assigned_to === loggedInUserName);
+  // Filter assets assigned to the current user's EMAIL using assigned_to_email field
+  const loggedInUserEmail = user?.email;
+  const myAssets = assets.filter(asset => asset.assigned_to_email === loggedInUserEmail);
 
   // Fetch data on mount
   useEffect(() => {
@@ -79,7 +79,8 @@ const AssetManagement = () => {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const completeAssetData = {
       ...newAssetData,
-      assigned_to: loggedInUserName, // Ensure assigned to current user
+      assigned_to: user?.name, // Assign current user's name
+      assigned_to_email: loggedInUserEmail, // Assign current user's email
       assigned_date: newAssetData.assigned_date || today, // Ensure assigned_date is present
     } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
     
@@ -87,6 +88,10 @@ const AssetManagement = () => {
     if (!completeAssetData.name) {
       toast({ title: "Error", description: "Asset name is required.", variant: "destructive" });
       return;
+    }
+    if (!completeAssetData.assigned_to_email) {
+        toast({ title: "Error", description: "Assignee email could not be determined.", variant: "destructive" });
+        return;
     }
 
     try {
@@ -105,7 +110,7 @@ const AssetManagement = () => {
     if (!selectedAsset) return;
     try {
       // Add last_updated_by if needed
-      const dataToSave = loggedInUserName ? { ...updatedAssetData, last_updated_by: loggedInUserName } : updatedAssetData;
+      const dataToSave = loggedInUserEmail ? { ...updatedAssetData, last_updated_by: loggedInUserEmail } : updatedAssetData;
       await editAsset(selectedAsset.id, dataToSave);
       toast({ title: "Asset Updated", description: "Asset details have been updated." });
       handleCloseModals();
@@ -187,6 +192,7 @@ const AssetManagement = () => {
                   <TableHead>Type</TableHead>
                   <TableHead>Condition</TableHead>
                   <TableHead>Assigned To</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Assigned Date</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead className="text-right w-[100px]">Actions</TableHead>
@@ -195,7 +201,7 @@ const AssetManagement = () => {
               <TableBody>
                 {myAssets.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                       No assets assigned to you.
                     </TableCell>
                   </TableRow>
@@ -205,13 +211,14 @@ const AssetManagement = () => {
                       <TableCell>
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
-                          <AvatarFallback>{asset.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">{asset.name}</TableCell>
                       <TableCell>{asset.type || 'N/A'}</TableCell>
                       <TableCell>{asset.condition || 'N/A'}</TableCell>
                       <TableCell>{asset.assigned_to || 'N/A'}</TableCell> 
+                      <TableCell>{asset.assigned_to_email || 'N/A'}</TableCell>
                       <TableCell>{formatDate(asset.assigned_date)}</TableCell>
                       <TableCell>{asset.vendor || 'N/A'}</TableCell>
                       <TableCell className="text-right">
