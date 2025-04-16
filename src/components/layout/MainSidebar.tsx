@@ -12,7 +12,8 @@ import {
   MessageSquare, 
   GalleryHorizontal,
   LogOut,
-  Target
+  Target,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,6 +45,7 @@ const MainSidebar = () => {
     { icon: BarChart2, path: '/organization', label: 'Organization' },
     { icon: Target, path: '/unit', label: 'Unit' },
     { icon: Calendar, path: '/calendar', label: 'Calendar' },
+    { icon: Package, path: '/asset-management', label: 'Assets' },
   ];
   
   // Show admin link only to admins
