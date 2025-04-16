@@ -7,7 +7,7 @@ const TABLES = {
   TASKS: 'unit_tasks',
   PROJECTS: 'unit_projects',
   RISKS: 'unit_risks',
-  ASSETS: 'unit_assets',
+  ASSETS: 'assets',
   KRAS: 'unit_kras',
   KPIS: 'unit_kpis',
   OBJECTIVES: 'unit_objectives' // Add objectives table name
