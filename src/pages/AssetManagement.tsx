@@ -147,16 +147,26 @@ const AssetManagement = () => {
     }
   };
 
-  // Helper to format dates nicely
-  const formatDate = (dateInput: Date | string | null | undefined) => {
+  // Updated formatDate to handle timestamps better
+  const formatDate = (dateInput: Date | string | null | undefined, includeTime = false) => {
     if (!dateInput) return 'N/A';
     try {
-      // Supabase date columns are likely strings
       const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-      // Adjust for potential timezone issues if Supabase dates are not UTC
-      // This simple approach might show the date in the user's local timezone
-      return date.toLocaleDateString(); 
+      if (isNaN(date.getTime())) return 'Invalid Date'; // Check if date is valid
+      
+      const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      };
+      if (includeTime) {
+        options.hour = 'numeric';
+        options.minute = 'numeric';
+        // options.second = 'numeric'; // Optional: include seconds
+      }
+      return date.toLocaleString(undefined, options);
     } catch (e) {
+      console.error("Error formatting date:", dateInput, e); // Log error
       return 'Invalid Date';
     }
   };
@@ -197,79 +207,108 @@ const AssetManagement = () => {
             </div>
           )}
           {!loading && !error && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">Image</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Condition</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Assigned Date</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead className="text-right w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myAssets.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table className="min-w-max">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                      No assets assigned to you.
-                    </TableCell>
+                    <TableHead className="sticky left-0 bg-background z-10 w-[60px]">Img</TableHead>
+                    <TableHead className="sticky left-[60px] bg-background z-10 min-w-[200px]">Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Condition</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Division</TableHead>
+                    <TableHead>Assigned Date</TableHead>
+                    <TableHead>Purchase Date</TableHead>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>Warranty Expiry</TableHead>
+                    <TableHead>Expiry Date</TableHead>
+                    <TableHead>Life Exp (Yrs)</TableHead>
+                    <TableHead>YTD Usage</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead>Admin Comments</TableHead>
+                    <TableHead>Invoice URL</TableHead>
+                    <TableHead>Barcode URL</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead>Updated By</TableHead>
+                    <TableHead>Created At</TableHead>
+                    <TableHead className="sticky right-0 bg-background z-10 text-right w-[100px]">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  myAssets.map((asset) => (
-                    <TableRow key={asset.id}>
-                      <TableCell>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={asset.imageUrl || undefined} alt={asset.name} />
-                          <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">{asset.name}</TableCell>
-                      <TableCell>{asset.type || 'N/A'}</TableCell>
-                      <TableCell>{asset.condition || 'N/A'}</TableCell>
-                      <TableCell>{asset.assignedTo || 'N/A'}</TableCell> 
-                      <TableCell>{asset.assigned_to_email || 'N/A'}</TableCell>
-                      <TableCell>{formatDate(asset.assignedDate)}</TableCell>
-                      <TableCell>{asset.vendor || 'N/A'}</TableCell>
-                      <TableCell className="text-right">
-                         <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
-                           <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(asset)} title="Edit Asset">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                           </DialogTrigger>
-                           <EditAssetModal 
-                              isOpen={isEditModalOpen && selectedAsset?.id === asset.id} 
-                              onClose={handleCloseModals} 
-                              onEdit={handleSaveEdit}
-                              asset={selectedAsset as UserAsset} 
-                              onDelete={() => handleDeleteClick(asset)}
-                           />
-                         </Dialog>
-
-                         <Dialog open={isDeleteModalOpen && selectedAsset?.id === asset.id} onOpenChange={setIsDeleteModalOpen}>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(asset)} title="Delete Asset">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </DialogTrigger>
-                            <DeleteModal 
-                              open={isDeleteModalOpen && selectedAsset?.id === asset.id} 
-                              onOpenChange={setIsDeleteModalOpen} 
-                              onDelete={handleConfirmDelete}
-                              title="Delete Asset"
-                              description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`}
-                            />
-                         </Dialog>
+                </TableHeader>
+                <TableBody>
+                  {myAssets.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={23} className="h-24 text-center text-muted-foreground">
+                        No assets assigned to you.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    myAssets.map((asset) => (
+                      <TableRow key={asset.id}>
+                        <TableCell className="sticky left-0 bg-background z-10">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={asset.imageUrl || undefined} alt={asset.name} />
+                            <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="sticky left-[60px] bg-background z-10 font-medium">{asset.name}</TableCell>
+                        <TableCell>{asset.type || 'N/A'}</TableCell>
+                        <TableCell>{asset.condition || 'N/A'}</TableCell>
+                        <TableCell>{asset.assignedTo || 'N/A'}</TableCell>
+                        <TableCell>{asset.assignedToEmail || 'N/A'}</TableCell>
+                        <TableCell>{asset.unit || 'N/A'}</TableCell>
+                        <TableCell>{asset.division || 'N/A'}</TableCell>
+                        <TableCell>{formatDate(asset.assignedDate)}</TableCell>
+                        <TableCell>{formatDate(asset.purchaseDate)}</TableCell>
+                        <TableCell>{asset.vendor || 'N/A'}</TableCell>
+                        <TableCell>{formatDate(asset.warrantyExpiryDate)}</TableCell>
+                        <TableCell>{formatDate(asset.expiryDate)}</TableCell>
+                        <TableCell>{asset.lifeExpectancyYears ?? 'N/A'}</TableCell>
+                        <TableCell>{asset.ytdUsage || 'N/A'}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={asset.notes}>{asset.notes || 'N/A'}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={asset.adminComments}>{asset.adminComments || 'N/A'}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={asset.invoiceUrl}>{asset.invoiceUrl || 'N/A'}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={asset.barcodeUrl}>{asset.barcodeUrl || 'N/A'}</TableCell>
+                        <TableCell>{formatDate(asset.lastUpdated, true)}</TableCell>
+                        <TableCell>{asset.lastUpdatedBy || 'N/A'}</TableCell>
+                        <TableCell>{formatDate(asset.createdAt, true)}</TableCell>
+                        <TableCell className="sticky right-0 bg-background z-10 text-right">
+                          <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
+                             <DialogTrigger asChild>
+                               <Button variant="ghost" size="icon" onClick={() => handleEditClick(asset)} title="Edit Asset">
+                                 <Edit className="h-4 w-4" />
+                               </Button>
+                             </DialogTrigger>
+                             <EditAssetModal 
+                                isOpen={isEditModalOpen && selectedAsset?.id === asset.id} 
+                                onClose={handleCloseModals} 
+                                onEdit={handleSaveEdit}
+                                asset={selectedAsset as UserAsset} 
+                                onDelete={() => handleDeleteClick(asset)}
+                             />
+                          </Dialog>
+                          <Dialog open={isDeleteModalOpen && selectedAsset?.id === asset.id} onOpenChange={setIsDeleteModalOpen}>
+                             <DialogTrigger asChild>
+                               <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(asset)} title="Delete Asset">
+                                 <Trash2 className="h-4 w-4 text-destructive" />
+                               </Button>
+                             </DialogTrigger>
+                             <DeleteModal 
+                               open={isDeleteModalOpen && selectedAsset?.id === asset.id} 
+                               onOpenChange={setIsDeleteModalOpen} 
+                               onDelete={handleConfirmDelete}
+                               title="Delete Asset"
+                               description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`}
+                             />
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
