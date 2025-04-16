@@ -41,6 +41,9 @@ const getConditionBadgeClass = (condition?: string): string => {
 };
 
 const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
+  // Log the specific asset data received by the card
+  console.log(`[AssetCard] Rendering card for asset: ${asset.name}, image_url:`, asset.image_url);
+
   return (
     <Card className="flex flex-col h-full overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
       <CardHeader className="p-0 relative h-48 flex-shrink-0">
