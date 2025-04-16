@@ -43,16 +43,16 @@ const AssetManagement = () => {
   console.log('[AssetManagement] User object from useAuth:', user);
   console.log('[AssetManagement] Assets array before filtering:', assets);
 
-  // --- Reverted Filtering Logic --- 
+  // --- Filtering Logic ---
   const loggedInUserName = user?.name;
   console.log('[AssetManagement] Logged in user name for filtering:', loggedInUserName);
   const myAssets = assets.filter(asset => {
-    // Add log inside the filter for detailed comparison
-    console.log(`[AssetManagement] Comparing asset.assigned_to: "${asset.assigned_to}" === loggedInUserName: "${loggedInUserName}" -> ${asset.assigned_to === loggedInUserName}`);
-    return asset.assigned_to === loggedInUserName;
+    // Use the correct camelCase property 'assignedTo' after conversion
+    console.log(`[AssetManagement] Comparing asset.assignedTo: "${asset.assignedTo}" === loggedInUserName: "${loggedInUserName}" -> ${asset.assignedTo === loggedInUserName}`);
+    return asset.assignedTo === loggedInUserName; 
   });
   console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
-  // --- End Reverted Filtering Logic ---
+  // --- End Filtering Logic ---
 
   // --- Email for filtering (keep for when DB is updated) ---
   const loggedInUserEmail = user?.email;
