@@ -16,6 +16,7 @@ import { UserAsset } from '@/types';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
 import FileUpload from '@/components/FileUpload';
+import { Upload } from 'lucide-react';
 
 interface EditAssetModalProps {
   isOpen: boolean;
@@ -43,9 +44,11 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
   onDelete
 }) => {
   const [editedAsset, setEditedAsset] = useState<Partial<UserAsset>>(asset || {});
+  const [showInvoiceUpload, setShowInvoiceUpload] = useState(false);
   
   useEffect(() => {
     setEditedAsset(asset || {});
+    setShowInvoiceUpload(false);
   }, [asset]);
 
   const handleSaveAsset = () => {
@@ -150,8 +153,37 @@ const EditAssetModal: React.FC<EditAssetModalProps> = ({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-asset-invoice-url">Invoice URL</Label>
-              <Input id="edit-asset-invoice-url" placeholder="https://..." value={editedAsset.invoice_url || ''} onChange={(e) => handleChange('invoice_url', e.target.value)} />
+              <Label htmlFor="edit-asset-invoice-url">Invoice URL or Upload</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  id="edit-asset-invoice-url" 
+                  placeholder="https://... or click upload" 
+                  value={editedAsset.invoice_url || ''} 
+                  onChange={(e) => {
+                     handleChange('invoice_url', e.target.value);
+                     setShowInvoiceUpload(false);
+                  }}
+                />
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setShowInvoiceUpload(true)} 
+                  title="Upload Invoice"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </div>
+              {showInvoiceUpload && (
+                 <div className="mt-2">
+                   <FileUpload 
+                     onFileUpload={(url) => { 
+                       handleChange('invoice_url', url); 
+                       setShowInvoiceUpload(false);
+                     }}
+                     label="Upload Invoice File"
+                   />
+                 </div>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-asset-barcode-url">Barcode URL</Label>

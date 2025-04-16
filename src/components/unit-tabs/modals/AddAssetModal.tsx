@@ -16,6 +16,7 @@ import { UserAsset } from '@/types';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
 import FileUpload from '@/components/FileUpload';
+import { Upload } from 'lucide-react';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -62,16 +63,19 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
     // checklist: [] // Assuming not used for now
   });
   
+  // State to control the visibility of the FileUpload component for invoice
+  const [showInvoiceUpload, setShowInvoiceUpload] = useState(false);
+
   const handleAddAsset = () => {
     // Basic validation (add more as needed)
     if (!newAsset.name) {
       toast({ title: "Validation Error", description: "Asset name is required", variant: "destructive" });
       return;
     }
-    if (!newAsset.assigned_date && !newAsset.purchase_date) {
-       // Parent sets assigned_date, but maybe add basic check
-       // console.warn("Assigned date or purchase date might be missing");
-    }
+    // Removed check for assigned_date as it's set by parent
+    // if (!newAsset.assigned_date && !newAsset.purchase_date) {
+    //    // console.warn("Assigned date or purchase date might be missing");
+    // }
 
     onAdd(newAsset);
     handleCloseAndReset();
@@ -171,10 +175,42 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
 
           {/* Row 6: Invoice URL & Barcode URL */}
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             {/* Invoice URL Input + Upload Button */}
              <div className="grid gap-2">
-               <Label htmlFor="asset-invoice-url">Invoice URL</Label>
-               <Input id="asset-invoice-url" placeholder="https://..." value={newAsset.invoice_url || ''} onChange={(e) => handleChange('invoice_url', e.target.value)} />
+               <Label htmlFor="asset-invoice-url">Invoice URL or Upload</Label>
+               <div className="flex items-center gap-2">
+                 <Input 
+                   id="asset-invoice-url" 
+                   placeholder="https://... or click upload" 
+                   value={newAsset.invoice_url || ''} 
+                   onChange={(e) => {
+                      handleChange('invoice_url', e.target.value);
+                      setShowInvoiceUpload(false); // Hide uploader if typing URL
+                   }}
+                 />
+                 <Button 
+                   variant="outline" 
+                   size="icon" 
+                   onClick={() => setShowInvoiceUpload(true)} 
+                   title="Upload Invoice"
+                 >
+                   <Upload className="h-4 w-4" />
+                 </Button>
+               </div>
+               {showInvoiceUpload && (
+                  <div className="mt-2">
+                    <FileUpload 
+                      onFileUpload={(url) => { 
+                        handleChange('invoice_url', url); 
+                        setShowInvoiceUpload(false); // Hide after upload
+                      }}
+                      label="Upload Invoice File"
+                      // Only show the uploader, no current image preview needed here
+                    />
+                  </div>
+               )}
              </div>
+             {/* Barcode URL Input */}
              <div className="grid gap-2">
                <Label htmlFor="asset-barcode-url">Barcode URL</Label>
                <Input id="asset-barcode-url" placeholder="https://..." value={newAsset.barcode_url || ''} onChange={(e) => handleChange('barcode_url', e.target.value)} />
