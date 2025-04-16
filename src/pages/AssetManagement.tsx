@@ -39,11 +39,19 @@ const AssetManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<UserAsset | null>(null);
 
+  // Log the user object and the assets array before filtering
+  console.log('[AssetManagement] User object from useAuth:', user);
+  console.log('[AssetManagement] Assets array before filtering:', assets);
+
   // --- Reverted Filtering Logic --- 
-  // Filter assets assigned to the current user's NAME using assigned_to field.
-  // This is temporary until assigned_to_email is populated in the database.
   const loggedInUserName = user?.name;
-  const myAssets = assets.filter(asset => asset.assigned_to === loggedInUserName);
+  console.log('[AssetManagement] Logged in user name for filtering:', loggedInUserName);
+  const myAssets = assets.filter(asset => {
+    // Add log inside the filter for detailed comparison
+    console.log(`[AssetManagement] Comparing asset.assigned_to: "${asset.assigned_to}" === loggedInUserName: "${loggedInUserName}" -> ${asset.assigned_to === loggedInUserName}`);
+    return asset.assigned_to === loggedInUserName;
+  });
+  console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
   // --- End Reverted Filtering Logic ---
 
   // --- Email for filtering (keep for when DB is updated) ---
