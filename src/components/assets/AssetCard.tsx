@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, Briefcase, Building, CalendarDays, CheckCircle, ShieldAlert, Clock } from 'lucide-react';
@@ -43,15 +42,22 @@ const getConditionBadgeClass = (condition?: string): string => {
 
 const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
   return (
-    <Card className="flex flex-col h-full overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
-      <CardHeader className="p-0 relative">
-        {/* Image */}
-        <Avatar className="w-full h-48 rounded-t-lg object-cover">
-          <AvatarImage src={asset.image_url || undefined} alt={asset.name} className="object-cover" />
-          <AvatarFallback className="rounded-t-lg text-xl bg-muted flex items-center justify-center">
-             {asset.name?.charAt(0).toUpperCase() || 'A'}
-          </AvatarFallback>
-        </Avatar>
+    <Card className="flex flex-col h-full overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
+      <CardHeader className="p-0 relative h-48 flex-shrink-0">
+        {/* Image or Fallback */}
+        {asset.image_url ? (
+          <img 
+            src={asset.image_url} 
+            alt={asset.name || 'Asset image'} 
+            className="w-full h-full object-cover rounded-t-lg"
+          />
+        ) : (
+          <div className="w-full h-full rounded-t-lg bg-muted flex items-center justify-center">
+            <span className="text-4xl font-semibold text-muted-foreground">
+              {asset.name?.charAt(0).toUpperCase() || 'A'}
+            </span>
+          </div>
+        )}
         {/* Actions */}
         <div className="absolute top-2 right-2 flex gap-1 bg-background/70 p-1 rounded-md">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(asset)} title="Edit">
