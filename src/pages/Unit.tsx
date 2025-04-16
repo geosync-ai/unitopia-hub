@@ -53,8 +53,6 @@ import EditProjectModal from '@/components/unit-tabs/modals/EditProjectModal';
 import AddRiskModal from '@/components/unit-tabs/modals/AddRiskModal';
 import EditRiskModal from '@/components/unit-tabs/modals/EditRiskModal';
 import DeleteRiskModal from '@/components/unit-tabs/modals/DeleteRiskModal';
-import AddAssetModal from '@/components/unit-tabs/modals/AddAssetModal';
-import EditAssetModal from '@/components/unit-tabs/modals/EditAssetModal';
 
 // Import custom hooks for state management
 import { useAuth, User } from "@/hooks/useAuth";
@@ -63,7 +61,6 @@ import {
   useTasksData, 
   useProjectsData, 
   useRisksData, 
-  useAssetsData, 
   useKRAsData 
 } from '@/hooks/useSupabaseData';
 import { OrganizationUnit } from '@/types';
@@ -76,7 +73,6 @@ import { unitService } from '@/integrations/supabase/unitService'; // Import the
 import { TasksTab } from '@/components/unit-tabs/TasksTab';
 import { ProjectsTab } from '@/components/unit-tabs/ProjectsTab';
 import { RisksTab } from '@/components/unit-tabs/RisksTab';
-import { AssetsTab } from '@/components/unit-tabs/AssetsTab';
 import { OverviewTab } from '@/components/unit-tabs/OverviewTab';
 
 // Define status options for dropdowns
@@ -123,7 +119,6 @@ const Unit = () => {
   const taskState = useTasksData();
   const projectState = useProjectsData();
   const riskState = useRisksData();
-  const assetState = useAssetsData();
   const kraState = useKRAsData();
 
   // Active Tab State for the main page sections
@@ -200,13 +195,12 @@ const Unit = () => {
     taskState.refresh?.();
     projectState.refresh?.();
     riskState.refresh?.();
-    assetState.refresh?.();
     kraState.refresh?.();
-  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, assetState.refresh, kraState.refresh]); // Dependencies remain the same
+  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh]); // Dependencies remain the same
 
   // Determine if data loading is complete - Include objectivesLoading
-  const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || assetState.loading || kraState.loading;
-  const hasDataLoadingError = objectivesError || taskState.error || projectState.error || riskState.error || assetState.error || kraState.error;
+  const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading;
+  const hasDataLoadingError = objectivesError || taskState.error || projectState.error || riskState.error || kraState.error;
 
   // Main content rendering
   return (
@@ -234,7 +228,6 @@ const Unit = () => {
             {taskState.error && <p>Tasks Error: {taskState.error.message}</p>}
             {projectState.error && <p>Projects Error: {projectState.error.message}</p>}
             {riskState.error && <p>Risks Error: {riskState.error.message}</p>}
-            {assetState.error && <p>Assets Error: {assetState.error.message}</p>}
             {kraState.error && <p>KRAs Error: {kraState.error.message}</p>}
           </CardContent>
         </Card>
@@ -248,7 +241,6 @@ const Unit = () => {
             <TabsTrigger value="kras">KRAs</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="risks">Risks</TabsTrigger>
-            <TabsTrigger value="assets">User Asset Management</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -322,19 +314,6 @@ const Unit = () => {
               staffMembers={staffMembers} // Pass staffMembers
               projects={projectState.data} 
               objectives={objectivesData} // Pass REAL objectivesData
-            />
-          </TabsContent>
-
-          {/* Assets Tab */}
-          <TabsContent value="assets" className="space-y-6">
-            <AssetsTab
-              assets={assetState.data}
-              addAsset={assetState.add}
-              editAsset={assetState.update}
-              deleteAsset={assetState.remove}
-              error={assetState.error}
-              onRetry={assetState.refresh}
-              staffMembers={staffMembers} // Pass staffMembers
             />
           </TabsContent>
         </Tabs>
