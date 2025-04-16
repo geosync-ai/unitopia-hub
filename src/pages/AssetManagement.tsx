@@ -223,7 +223,7 @@ const AssetManagement = () => {
                     <TableRow key={asset.id}>
                       <TableCell>
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
+                          <AvatarImage src={asset.imageUrl || undefined} alt={asset.name} />
                           <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                         </Avatar>
                       </TableCell>
