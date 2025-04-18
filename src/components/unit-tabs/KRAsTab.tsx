@@ -344,17 +344,16 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
 
     // Apply Filters AFTER grouping and PRE-FILTER span calculation
     const filteredRows = groupedRows.filter(row => {
-      // Filter by Department ID (unitId) now
-      const departmentMatch = filters.department === 'all' || String(row.originalKra.unitId) === filters.department;
+      // Filter by Department NAME string now
+      const departmentMatch = filters.department === 'all' || row.originalKra.unit === filters.department;
       const statusMatch = filters.status === 'all' || (row.kpi.status && row.kpi.status === filters.status);
       if (row.kpi.name === '-') { 
-          // For rows representing only a KRA without KPIs, only filter by department
           return departmentMatch;
       }
       return departmentMatch && statusMatch;
     });
     
-    console.log("[KRAsTab] Processed rows (spans calculated before filtering):", filteredRows); // Log the final data being used
+    console.log("[KRAsTab] Processed rows (spans calculated before filtering):", filteredRows);
     return filteredRows; 
 
   }, [kras, filters.department, filters.status, objectivesData]);
@@ -768,7 +767,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                            <SelectContent>
                              <SelectItem value="all">All Departments</SelectItem>
                              {units.map(unit => (
-                               <SelectItem key={unit.id} value={String(unit.id)}>
+                               <SelectItem key={unit.id} value={unit.name}>
                                  {unit.name}
                                </SelectItem>
                              ))}

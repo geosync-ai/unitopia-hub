@@ -59,12 +59,12 @@ const KpiModal: React.FC<KpiModalProps> = ({
         setFormData({
           title: '',
           objectiveId: undefined, 
-          unitId: undefined, // Reset unitId as well
+          unitId: undefined, 
+          unit: '', // Reset unit (department name) as well
           startDate: '',
           targetDate: '',
-          comments: '',
-          department: '',
-          status: 'not-started' as KraStatus, // Explicitly cast or ensure type match
+          description: '', // Reset description/comments
+          status: 'pending' as KraStatus, // Use a valid KraStatus
           owner: undefined,
         });
         // Ensure default KPI block has assignees array
@@ -107,24 +107,24 @@ const KpiModal: React.FC<KpiModalProps> = ({
         return rest;
     });
     
-    // Use unitId from formData when submitting
+    // Ensure unit (department name) is included in submission data
     const completeFormData = {
       ...formData,
-      id: formData.id || kraData?.id || `kra_${Date.now()}`, // Use existing ID or generate new
+      id: formData.id || kraData?.id || `kra_${Date.now()}`, 
       kpis: finalKpiBlocks,
-      unitId: formData.unitId, // Make sure unitId is included
-      // Remove redundant/potentially incorrect defaults if already set in formData by KraFormSection
+      unit: formData.unit, // Ensure unit (department name string) is submitted
+      unitId: formData.unitId, // Keep unitId if still needed for other purposes
       title: formData.title || 'Untitled KRA',
       objectiveId: formData.objectiveId,
       startDate: formData.startDate || '',
       targetDate: formData.targetDate || '',
-      status: formData.status || 'not-started',
+      status: formData.status || 'pending', // Use a valid KraStatus
       owner: formData.owner,
-      // 'unit' and 'department' might be redundant if unitId is primary key
-    } as Partial<Kra>; // Use Partial<Kra> as some fields might still be optional
+      description: formData.description, // Include description
+    } as Partial<Kra>; 
 
     console.log("Modal Submit:", completeFormData);
-    onSubmit(completeFormData as Kra); // Assert as Kra before submission if validation passes
+    onSubmit(completeFormData as Kra); 
   };
 
   return (

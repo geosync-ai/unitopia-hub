@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -68,7 +68,7 @@ import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { Objective, Kra } from '@/types/kpi';
 import { unitService } from '@/integrations/supabase/unitService'; // Import the unitService
-import { unitManagementService } from '@/integrations/supabase/unitManagementService'; // Import unitManagementService
+import DivisionStaffMap from '@/utils/divisionStaffMap'; // Import DivisionStaffMap
 
 // Import tab components
 import { TasksTab } from '@/components/unit-tabs/TasksTab';
@@ -84,9 +84,9 @@ const statusOptions = [
   { value: 'done', label: 'Done' }
 ];
 
-// Define structure for unit data (if not already defined globally)
+// Define structure for unit data (now representing departments)
 interface UnitData {
-  id: string | number;
+  id: string; // Use department name as ID
   name: string;
 }
 
@@ -119,7 +119,8 @@ const StatusDropdown: React.FC<{
 // Define the main Unit component
 const Unit = () => {
   const { user } = useAuth();
-  const { staffMembers } = useStaffByDepartment();
+  // Destructure currentUserDepartment from the hook
+  const { staffMembers, currentUserDepartment } = useStaffByDepartment(); 
   const { toast } = useToast();
 
   // Initialize data states first
@@ -128,10 +129,10 @@ const Unit = () => {
   const riskState = useRisksData();
   const kraState = useKRAsData();
 
-  // --- State for All Units --- 
-  const [allUnitsData, setAllUnitsData] = useState<UnitData[]>([]);
-  const [unitsLoading, setUnitsLoading] = useState<boolean>(true);
-  const [unitsError, setUnitsError] = useState<Error | null>(null);
+  // --- Remove State for All Units from DB ---
+  // const [allUnitsData, setAllUnitsData] = useState<UnitData[]>([]);
+  // const [unitsLoading, setUnitsLoading] = useState<boolean>(true);
+  // const [unitsError, setUnitsError] = useState<Error | null>(null);
 
   // Active Tab State for the main page sections
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -140,8 +141,22 @@ const Unit = () => {
 
   // Objective State Management - Initialize as empty array
   const [objectivesData, setObjectivesData] = useState<Objective[]>([]); 
-  const [objectivesLoading, setObjectivesLoading] = useState<boolean>(true); // Add loading state
-  const [objectivesError, setObjectivesError] = useState<Error | null>(null); // Add error state
+  const [objectivesLoading, setObjectivesLoading] = useState<boolean>(true); 
+  const [objectivesError, setObjectivesError] = useState<Error | null>(null); 
+
+  // --- Derive Departments from DivisionStaffMap ---
+  const derivedUnits = useMemo((): UnitData[] => {
+    try {
+      const allStaff = DivisionStaffMap.getAllStaff();
+      const departmentNames = allStaff.map(staff => staff.department).filter(Boolean); // Get all department names, remove falsy values
+      const uniqueDepartmentNames = Array.from(new Set(departmentNames));
+      console.log("[Unit.tsx] Derived unique departments:", uniqueDepartmentNames);
+      return uniqueDepartmentNames.map(name => ({ id: name, name: name }));
+    } catch (error) {
+        console.error("Error deriving units from DivisionStaffMap:", error);
+        return []; // Return empty array on error
+    }
+  }, []); // Empty dependency array, derived once
 
   // --- Objective Fetching Logic --- 
   const fetchObjectives = useCallback(async () => {
@@ -158,21 +173,8 @@ const Unit = () => {
     }
   }, [toast]); // Dependency array includes toast
 
-  // --- Unit Fetching Logic --- 
-  const fetchAllUnits = useCallback(async () => {
-    setUnitsLoading(true);
-    setUnitsError(null);
-    try {
-      const fetchedUnits = await unitManagementService.getAllUnits();
-      // Ensure the fetched data matches the UnitData structure if necessary
-      setAllUnitsData(fetchedUnits.map(u => ({ id: u.id, name: u.name }))); 
-    } catch (error) {
-      setUnitsError(error instanceof Error ? error : new Error('Failed to load units'));
-      toast({ title: "Error Loading Units", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
-    } finally {
-      setUnitsLoading(false);
-    }
-  }, [toast]);
+  // --- REMOVE Unit Fetching Logic --- 
+  // const fetchAllUnits = useCallback(async () => { /* ... */ }, [toast]);
 
   // --- Modified Objective Handlers --- 
   const handleSaveObjective = useCallback(async (objective: Objective) => {
@@ -196,12 +198,12 @@ const Unit = () => {
   // Function to refresh all relevant data
   const handleRefreshAllData = useCallback(() => {
     fetchObjectives();
-    fetchAllUnits(); // Refresh units too
+    // fetchAllUnits(); // Remove unit refresh
     kraState.refresh?.();
-    // Potentially refresh other states if KRA/Objective changes affect them
-    // projectState.refresh?.(); 
-    // taskState.refresh?.();
-  }, [fetchObjectives, fetchAllUnits, kraState.refresh]);
+    taskState.refresh?.(); // Refresh tasks too if needed
+    projectState.refresh?.(); // Refresh projects too if needed
+    riskState.refresh?.(); // Refresh risks too if needed
+  }, [fetchObjectives, kraState.refresh, taskState.refresh, projectState.refresh, riskState.refresh]); // Update dependencies
 
   const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
     try {
@@ -221,23 +223,25 @@ const Unit = () => {
   // Effect to load data on mount
   useEffect(() => {
     fetchObjectives(); // Fetch objectives on mount
-    fetchAllUnits(); // Fetch units on mount
+    // fetchAllUnits(); // Remove unit fetch
     taskState.refresh?.();
     projectState.refresh?.();
     riskState.refresh?.();
     kraState.refresh?.();
-  }, [fetchObjectives, fetchAllUnits, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh]); // Dependencies remain the same
+  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh]); // Update dependencies
 
-  // Determine if data loading is complete - Include unitsLoading
-  const isDataLoading = unitsLoading || objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading;
-  const hasDataLoadingError = unitsError || objectivesError || taskState.error || projectState.error || riskState.error || kraState.error;
+  // Determine if data loading is complete - Remove unitsLoading
+  const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading;
+  // Remove unitsError
+  const hasDataLoadingError = objectivesError || taskState.error || projectState.error || riskState.error || kraState.error;
 
   // Main content rendering
   return (
     <PageLayout>
       {user && (user.unitName || user.divisionName) && (
         <div className="mb-4 text-sm text-muted-foreground">
-          Unit/Division: {user.unitName || user.divisionName}
+          {/* Display user's actual department if available from hook */} 
+          Unit/Department: {currentUserDepartment || user.unitName || user.divisionName || 'N/A'}
         </div>
       )}
 
@@ -253,8 +257,7 @@ const Unit = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Display error messages - Include unitsError */}
-            {unitsError && <p>Units Error: {unitsError.message}</p>}
+            {/* Remove unitsError display */}
             {objectivesError && <p>Objectives Error: {objectivesError.message}</p>}
             {taskState.error && <p>Tasks Error: {taskState.error.message}</p>}
             {projectState.error && <p>Projects Error: {projectState.error.message}</p>}
@@ -303,15 +306,15 @@ const Unit = () => {
           <TabsContent value="kras" className="space-y-6">
             <KRAsTab
               kras={kraState.data || []} 
-              objectivesData={objectivesData} // Pass REAL objectivesData
+              objectivesData={objectivesData} 
               onSaveObjective={handleSaveObjective} 
               onDeleteObjective={handleDeleteObjective}
-              // --- MODIFIED --- Pass the fetched allUnitsData
-              units={allUnitsData} 
+              // --- MODIFIED --- Pass the derived department list
+              units={derivedUnits} 
               staffMembers={staffMembers} 
-              onDataRefresh={handleRefreshAllData} // Pass refresh handler
-              activeTab={kraSectionTab} // Pass active tab state down
-              onTabChange={setKraSectionTab} // Pass tab change handler down
+              onDataRefresh={handleRefreshAllData} 
+              activeTab={kraSectionTab} 
+              onTabChange={setKraSectionTab} 
             />
           </TabsContent>
 

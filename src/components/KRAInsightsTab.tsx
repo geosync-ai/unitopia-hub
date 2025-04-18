@@ -14,8 +14,10 @@ import {
   Cell,
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  LabelList
 } from 'recharts';
+import { useTheme } from "next-themes";
 
 interface KRAInsightsTabProps {
   kras: Kra[];
@@ -30,19 +32,41 @@ const getKraProgress = (kpis: Kpi[]): number => {
   return Math.round(progress);
 };
 
-const getKraStatus = (kpis: Kpi[]): Kpi['status'] => {
+const getKraStatus = (kpis: Kpi[]): string => {
   if (!kpis || kpis.length === 0) return 'Not Started';
-  if (kpis.some(kpi => kpi.status === 'At Risk')) return 'At Risk';
-  if (kpis.every(kpi => kpi.status === 'Completed')) return 'Completed';
-  if (kpis.some(kpi => kpi.status === 'On Hold')) return 'On Hold';
-  if (kpis.some(kpi => kpi.status === 'In Progress')) return 'In Progress';
-  if (kpis.some(kpi => kpi.status === 'On Track')) return 'On Track';
+  if (kpis.some(kpi => kpi.status === 'at-risk')) return 'At Risk';
+  if (kpis.some(kpi => kpi.status === 'behind')) return 'Behind';
+  if (kpis.some(kpi => kpi.status === 'on-hold')) return 'On Hold';
+  if (kpis.some(kpi => kpi.status === 'in-progress')) return 'In Progress';
+  if (kpis.some(kpi => kpi.status === 'on-track')) return 'On Track';
+  if (kpis.every(kpi => kpi.status === 'completed')) return 'Completed';
   return 'Not Started';
+};
+
+const themeColors = {
+  primary: '#400010',
+  secondary: '#600018',
+  accent: '#E11D48',
+  neutral: '#64748b',
+  background: '#ffffff',
+  foreground: '#0f172a'
+};
+
+const statusColors: Record<string, string> = {
+  'Completed': themeColors.primary,
+  'On Track': '#10b981',
+  'In Progress': '#3b82f6',
+  'Pending': themeColors.neutral,
+  'Not Started': themeColors.neutral,
+  'On Hold': '#f59e0b',
+  'At Risk': themeColors.accent,
+  'Behind': '#ef4444',
 };
 
 export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
   const validKras = Array.isArray(kras) ? kras : [];
-  
+  const { theme } = useTheme();
+
   const departmentData = React.useMemo(() => {
     const departments = Array.from(new Set(validKras.map(kra => kra.unit || 'Unknown')));
     return departments.map(dept => {
@@ -57,27 +81,23 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
     });
   }, [validKras]);
 
-  const safeKpiFilter = (status: Kpi['status']) => {
-    return validKras.flatMap(kra => (kra.kpis || []))
-      .filter(kpi => kpi && kpi.status === status).length;
-  };
+  const kpiStatusData = React.useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    validKras.flatMap(kra => (kra.unitKpis || [])).forEach(kpi => {
+      if (kpi?.status) {
+        statusCounts[kpi.status] = (statusCounts[kpi.status] || 0) + 1;
+      }
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+  }, [validKras]);
 
-  const kpiStatusData = [
-    { name: 'On Track', value: safeKpiFilter('On Track') },
-    { name: 'In Progress', value: safeKpiFilter('In Progress') },
-    { name: 'At Risk', value: safeKpiFilter('At Risk') },
-    { name: 'On Hold', value: safeKpiFilter('On Hold') },
-    { name: 'Completed', value: safeKpiFilter('Completed') },
-    { name: 'Not Started', value: safeKpiFilter('Not Started') },
-  ];
-
-  const kraPerformanceData = React.useMemo(() => {
-      const statuses: Kpi['status'][] = ['On Track', 'In Progress', 'At Risk', 'On Hold', 'Completed', 'Not Started'];
-      const data = statuses.map(status => ({
-          name: status,
-          value: validKras.filter(kra => getKraStatus(kra.kpis || []) === status).length
-      }));
-      return data.filter(d => d.value > 0);
+  const kraStatusData = React.useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    validKras.forEach(kra => {
+      const status = getKraStatus(kra.unitKpis || []);
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
   }, [validKras]);
 
   const progressTrendData = [
@@ -87,11 +107,29 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
     { month: 'Oct', progress: 85 }, { month: 'Nov', progress: 90 }, { month: 'Dec', progress: 95 }
   ];
 
-  const COLORS = ['#3b82f6', '#64748b', '#f59e0b', '#a855f7', '#10b981', '#94a3b8'];
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col">
+              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                {payload[0].name || label}
+              </span>
+              <span className="font-bold text-muted-foreground">
+                {payload[0].value}{payload[0].unit}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className="space-y-8 mt-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-6 mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>KRA Status Overview</CardTitle>
@@ -99,26 +137,32 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-               {kraPerformanceData.length > 0 ? (
+               {kraStatusData.length > 0 ? (
                  <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
+                    <defs>
+                    </defs>
+                    <Tooltip content={<CustomTooltip />} />
                     <Pie
-                      data={kraPerformanceData}
+                      data={kraStatusData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
+                      outerRadius={110}
+                      paddingAngle={2}
                       dataKey="value"
                       labelLine={false}
-                      label={({ name, percent, value }) => `${name} (${value})`}
                     >
-                      {kraPerformanceData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {kraStatusData.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={statusColors[entry.name] || themeColors.neutral} stroke={themeColors.background} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value, name) => [`${value} KRAs`, name]} />
-                    <Legend />
+                     <Legend 
+                       verticalAlign="bottom" 
+                       height={36}
+                       iconType="circle"
+                       formatter={(value, entry) => <span style={{ color: themeColors.foreground }}>{value}</span>}
+                      />
                   </PieChart>
                 </ResponsiveContainer>
                ) : (
@@ -140,15 +184,17 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
                   <BarChart
                     layout="vertical"
                     data={kpiStatusData.filter(d => d.value > 0)}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+                    barGap={4}
+                    barSize={12}
                   >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" width={80} />
-                    <Tooltip formatter={(value, name) => [`${value} KPIs`, name]} />
-                    <Bar dataKey="value" name="KPIs">
-                      {kpiStatusData.filter(d => d.value > 0).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={themeColors.neutral} strokeOpacity={0.3}/>
+                    <XAxis type="number" allowDecimals={false} stroke={themeColors.neutral} fontSize={12} />
+                    <YAxis type="category" dataKey="name" width={80} stroke={themeColors.neutral} fontSize={12} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                    <Bar dataKey="value" name="KPIs" radius={[0, 4, 4, 0]}>
+                      {kpiStatusData.filter(d => d.value > 0).map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={statusColors[entry.name] || themeColors.neutral} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -172,13 +218,15 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
                 <BarChart
                   layout="vertical"
                   data={departmentData}
-                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+                  barGap={4} 
+                  barSize={12} 
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} unit="%" />
-                  <YAxis type="category" dataKey="name" width={80} />
-                  <Tooltip formatter={(value, name) => [`${value}%`, name]} />
-                  <Bar dataKey="value" name="Avg Progress" fill="#8884d8" />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={themeColors.neutral} strokeOpacity={0.3} />
+                  <XAxis type="number" domain={[0, 100]} unit="%" stroke={themeColors.neutral} fontSize={12} />
+                  <YAxis type="category" dataKey="name" width={80} stroke={themeColors.neutral} fontSize={12} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip unit="%"/>} cursor={{ fill: 'transparent' }} />
+                  <Bar dataKey="value" name="Avg Progress" fill={themeColors.secondary} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
              ) : (
@@ -198,13 +246,27 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={progressTrendData}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis domain={[0, 100]} unit="%" />
-                  <Tooltip formatter={(value) => [`${value}%`, 'Progress']} />
-                  <Area type="monotone" dataKey="progress" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
+                   <defs>
+                    <linearGradient id="progressGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={themeColors.primary} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={themeColors.primary} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={themeColors.neutral} strokeOpacity={0.3} />
+                  <XAxis dataKey="month" stroke={themeColors.neutral} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 100]} unit="%" stroke={themeColors.neutral} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip unit="%"/>} cursor={false} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="progress" 
+                    stroke={themeColors.primary} 
+                    strokeWidth={2} 
+                    fillOpacity={1} 
+                    fill="url(#progressGradient)" 
+                    dot={false}
+                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -215,4 +277,4 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
   );
 };
 
-export default KRAInsightsTab; 
+export default KRAInsightsTab;
