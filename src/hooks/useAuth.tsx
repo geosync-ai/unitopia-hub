@@ -65,12 +65,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userDivisions, setUserDivisions] = useState<Division[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const createUserObjectFromSupabase = useCallback(async (supabaseUser: SupabaseUser, session: Session | null): Promise<User | null> => {
-    if (!supabaseUser || !supabaseUser.email) return null;
-
-    setIsLoading(true);
+  const fetchUserDivisions = useCallback(async (userId: string): Promise<any[]> => {
+    if (!userId) {
+      console.error('Cannot fetch divisions: No user ID provided');
+      return [];
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.error('Supabase client not available for fetching divisions.');
+      return [];
+    }
+    console.log(`Fetching division memberships for user: ${userId}`);
     try {
-      console.log('Constructing User object for:', supabaseUser.email);
+      const { data: memberships, error: membershipError } = await supabase
+        .from(supabaseConfig.tables.division_memberships)
+        .select(`role, divisionId: division_id, divisions ( id, name, description, code )`)
+        .eq('user_id', userId);
+
+      if (membershipError) throw membershipError;
+
+      console.log('Fetched division memberships with division data:', memberships);
+      return memberships || [];
+    } catch (error) {
+      console.error('Failed to fetch user divisions:', error);
+      toast.error('Failed to load division memberships');
+      return [];
+    }
+  }, []);
+
+  const createUserObjectFromSupabase = useCallback(async (supabaseUser: SupabaseUser, session: Session | null): Promise<User | null> => {
+    if (!supabaseUser || !supabaseUser.email) {
+        console.error("Cannot create user object: Invalid Supabase user data.");
+        return null;
+    }
+
+    console.log('Constructing User object for:', supabaseUser.email);
+    try {
       const role: UserRole = adminEmails.includes(supabaseUser.email.toLowerCase()) ? 'admin' : 'user';
 
       let userMemberships: any[] = [];
@@ -105,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })),
         profilePicture: supabaseUser.user_metadata?.avatar_url,
         accessToken: session?.access_token,
+        notes: user?.notes,
       };
       console.log('Constructed User:', newUser);
       return newUser;
@@ -115,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
         setIsLoading(false);
     }
-  }, [fetchUserDivisions]);
+  }, [fetchUserDivisions, user?.notes]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -364,45 +395,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Failed to fetch user units:', error);
       toast.error('Failed to load business units');
-      return [];
-    }
-  };
-
-  const fetchUserDivisions = async (userId: string): Promise<any[]> => {
-     if (!userId) {
-      console.error('Cannot fetch divisions: No user ID provided');
-      return [];
-    }
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      console.error('Supabase client not available for fetching divisions.');
-      return [];
-    }
-
-    console.log(`Fetching division memberships for user: ${userId}`);
-
-    try {
-      const { data: memberships, error: membershipError } = await supabase
-        .from(supabaseConfig.tables.division_memberships)
-        .select(`
-          role,
-          divisionId: division_id,
-          divisions ( id, name, description, code )
-        `)
-        .eq('user_id', userId);
-
-      if (membershipError) {
-        console.error('Error fetching division memberships:', membershipError);
-        throw membershipError;
-      }
-
-      console.log('Fetched division memberships with division data:', memberships);
-
-      return memberships || [];
-
-    } catch (error) {
-      console.error('Failed to fetch user divisions:', error);
-      toast.error('Failed to load division memberships');
       return [];
     }
   };
