@@ -18,7 +18,6 @@ import {
 import { StaffMember } from '@/types/staff';
 import { Objective } from '@/types/kpi';
 import { toast } from '@/components/ui/use-toast';
-import { useDivisionContext } from '@/hooks/useDivisionContext';
 
 interface RisksTabProps {
   risks: Risk[];
@@ -43,7 +42,7 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   staffMembers,
   objectives
 }) => {
-  const { currentDivisionId } = useDivisionContext();
+  const currentDivisionId: string | null = null; // Placeholder: Division context hook missing
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -51,8 +50,7 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   const [filteredRisks, setFilteredRisks] = useState<Risk[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  console.log(`[RisksTab] Effect dependencies - selectedUnit: ${selectedUnit}, statusFilter: ${statusFilter}, risks count: ${risks.length}`);
-  console.log(`[RisksTab] Current Division ID: ${currentDivisionId}`);
+  console.log(`[RisksTab] Current Division ID (Placeholder): ${currentDivisionId}`);
 
   // Filter risks by division and status
   useEffect(() => {
