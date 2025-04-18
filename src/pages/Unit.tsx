@@ -150,7 +150,7 @@ const Unit = () => {
       const allStaff = DivisionStaffMap.getAllStaff();
       const departmentNames = allStaff.map(staff => staff.department).filter(Boolean); // Get all department names, remove falsy values
       const uniqueDepartmentNames = Array.from(new Set(departmentNames));
-      console.log("[Unit.tsx] Derived unique departments:", uniqueDepartmentNames);
+      // console.log("[Unit.tsx] Derived unique departments:", uniqueDepartmentNames); // Remove log
       return uniqueDepartmentNames.map(name => ({ id: name, name: name }));
     } catch (error) {
         console.error("Error deriving units from DivisionStaffMap:", error);

@@ -67,15 +67,34 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
 
+  console.log('[KRAInsightsTab] User:', JSON.stringify(user, null, 2));
+  console.log('[KRAInsightsTab] Received kras data:', JSON.stringify(validKras, null, 2));
+
   const userOwnedKras = React.useMemo(() => {
-    if (!user?.id) return [];
-    return validKras.filter(kra => kra.owner?.id === user.id);
+    if (!user?.id) {
+      console.log('[KRAInsightsTab] No user ID found for KRA filtering.');
+      return [];
+    }
+    console.log(`[KRAInsightsTab] Filtering KRAs for owner ID: ${user.id}`);
+    const filtered = validKras.filter(kra => {
+      return kra.owner?.id === user.id;
+    });
+    console.log('[KRAInsightsTab] Filtered userOwnedKras:', filtered);
+    return filtered;
   }, [validKras, user?.id]);
 
   const userAssignedKpis = React.useMemo(() => {
-    if (!user?.id) return [];
-    return validKras.flatMap(kra => kra.unitKpis || [])
-                    .filter(kpi => kpi.assignees?.some(assignee => assignee.id === user.id));
+    if (!user?.id) {
+      console.log('[KRAInsightsTab] No user ID found for KPI filtering.');
+      return [];
+    }
+    console.log(`[KRAInsightsTab] Filtering KPIs for assignee ID: ${user.id}`);
+    const assignedKpis = validKras.flatMap(kra => kra.unitKpis || [])
+                    .filter(kpi => {
+                      return Array.isArray(kpi.assignees) && kpi.assignees.some(assignee => assignee?.id === user.id);
+                    });
+    console.log('[KRAInsightsTab] Filtered userAssignedKpis:', assignedKpis);
+    return assignedKpis;
   }, [validKras, user?.id]);
 
   const userKraStatusData = React.useMemo(() => {
@@ -84,6 +103,7 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
       const status = getKraStatus(kra.unitKpis || []);
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
+    console.log('[KRAInsightsTab] Calculated userKraStatusData:', statusCounts);
     return Object.entries(statusCounts)
            .map(([name, value]) => ({ name, value }))
            .filter(d => d.value > 0);
@@ -96,6 +116,7 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
         statusCounts[kpi.status] = (statusCounts[kpi.status] || 0) + 1;
       }
     });
+    console.log('[KRAInsightsTab] Calculated userKpiStatusData:', statusCounts);
     return Object.entries(statusCounts)
             .map(([name, value]) => ({ name, value }))
             .filter(d => d.value > 0);
