@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { 
-  Loader2, Plus, Edit, Trash2, List, LayoutGrid 
+  Loader2, Plus, Edit, Trash2, List, LayoutGrid, Search 
 } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth.tsx";
@@ -41,6 +42,7 @@ const AssetManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<UserAsset | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [filterText, setFilterText] = useState('');
 
   // Log the user object and the assets array before filtering
   console.log('[AssetManagement] User object from useAuth:', user);
@@ -49,10 +51,23 @@ const AssetManagement = () => {
   // --- Filtering Logic ---
   const loggedInUserName = user?.name;
   console.log('[AssetManagement] Logged in user name for filtering:', loggedInUserName);
-  const myAssets = assets.filter(asset => {
-    console.log(`[AssetManagement] Comparing asset.assigned_to: "${asset.assigned_to}" === loggedInUserName: "${loggedInUserName}" -> ${asset.assigned_to === loggedInUserName}`);
-    return asset.assigned_to === loggedInUserName;
-  });
+  const myAssets = assets
+    .filter(asset => asset.assigned_to === loggedInUserName)
+    .filter(asset => {
+      const searchTerm = filterText.toLowerCase();
+      if (!searchTerm) return true;
+      
+      return (
+        asset.name?.toLowerCase().includes(searchTerm) ||
+        asset.type?.toLowerCase().includes(searchTerm) ||
+        asset.condition?.toLowerCase().includes(searchTerm) ||
+        asset.vendor?.toLowerCase().includes(searchTerm) ||
+        asset.unit?.toLowerCase().includes(searchTerm) ||
+        asset.division?.toLowerCase().includes(searchTerm)
+      );
+    });
+
+  console.log(`[AssetManagement] Filter text: "${filterText}"`);
   console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
   // --- End Filtering Logic ---
 
@@ -175,12 +190,22 @@ const AssetManagement = () => {
 
   return (
     <PageLayout>
-      <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
-        <div>
+      <div className="flex justify-between items-start mb-6 gap-4 flex-wrap">
+        <div className="flex-grow">
           <h1 className="text-2xl font-semibold">My Assets</h1>
-          <p className="text-muted-foreground">View and manage assets assigned to you.</p>
+          <p className="text-muted-foreground mb-2">View and manage assets assigned to you.</p>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="text"
+              placeholder="Filter by name, type, vendor..."
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="pl-8 w-full"
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <ToggleGroup 
             type="single" 
             defaultValue="table" 
@@ -261,7 +286,7 @@ const AssetManagement = () => {
                       {myAssets.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={23} className="h-24 text-center text-muted-foreground">
-                            No assets assigned to you.
+                            {filterText ? `No assets found matching "${filterText}".` : "No assets assigned to you."}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -335,7 +360,9 @@ const AssetManagement = () => {
               {viewMode === 'card' && (
                 <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {myAssets.length === 0 ? (
-                    <p className="col-span-full text-center text-muted-foreground py-10">No assets assigned to you.</p>
+                    <p className="col-span-full text-center text-muted-foreground py-10">
+                      {filterText ? `No assets found matching "${filterText}".` : "No assets assigned to you."}
+                    </p>
                   ) : (
                     myAssets.map((asset) => (
                       <AssetCard 
