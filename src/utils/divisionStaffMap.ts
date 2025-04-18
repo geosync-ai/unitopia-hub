@@ -35,17 +35,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       office_location: "Office of the Chairman",
       division_id: "executive-division"
     },
-    {
-      id: "8",
-      name: "Robert Salmon Minak",
-      email: "rminak@scpng.gov.pg",
-      job_title: "Acting Executive Chairman",
-      department: "Executive Unit",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "Securities Commission of Papua New Guinea",
-      division_id: "executive-division"
-    }
   ],
   'corporate-services-division': [
     {
@@ -57,17 +46,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       mobile: "+675 79632655",
       business_phone: "+675 3212223",
       office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "10",
-      name: "Anderson Yambe",
-      email: "ayambe@scpng.gov.pg",
-      job_title: "Senior Finance Officer",
-      department: "Finance Unit",
-      mobile: "70980208/81528285",
-      business_phone: "321 2223",
-      office_location: "Corporate Service Division",
       division_id: "corporate-services-division"
     },
     {
@@ -104,39 +82,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       division_id: "corporate-services-division"
     },
     {
-      id: "14",
-      name: "Jerome Rema",
-      email: "imbailagu@scpng.gov.pg",
-      job_title: "Administrative Driver",
-      department: "Corporate Services Unit",
-      mobile: "N/A",
-      business_phone: "+675 321 2223",
-      office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "15",
-      name: "Monica Heni",
-      email: "mmackolyn@scpng.gov.pg",
-      job_title: "Senior Payroll Officer",
-      department: "Human Resource Unit",
-      mobile: "+675 73497301/78100860",
-      business_phone: "+675 3212223",
-      office_location: "Coporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "16",
-      name: "Monica Abudu",
-      email: "mapulin@scpng.gov.pg",
-      job_title: "Senior Systems Analyst Consultant",
-      department: "Information Technology",
-      mobile: "+675 81620231",
-      business_phone: "N/A",
-      office_location: "Securities Commission of Papua New Guinea",
-      division_id: "corporate-services-division"
-    },
-    {
       id: "17",
       name: "Mark Timea",
       email: "mtimea@scpng.gov.pg",
@@ -156,28 +101,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       mobile: "+675 72103762",
       business_phone: "+675 321 2223",
       office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "19",
-      name: "Sisia Asigau",
-      email: "sasigau@scpng.gov.pg",
-      job_title: "Receptionist",
-      department: "Corporate Service Division",
-      mobile: "+675 71823186",
-      business_phone: "321 2223",
-      office_location: "MRD Building Level 3",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "20",
-      name: "Sulluh Kamitu",
-      email: "skamitu@scpng.gov.pg",
-      job_title: "Senior HR Officer",
-      department: "HR Department",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "N/A",
       division_id: "corporate-services-division"
     },
     {
@@ -214,28 +137,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       division_id: "corporate-services-division"
     },
     {
-      id: "41",
-      name: "Admin (System)",
-      email: "admin@scpng.gov.pg",
-      job_title: "System Administrator",
-      department: "IT Unit",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "42",
-      name: "Admin (System)",
-      email: "admin8@scpng.gov.pg",
-      job_title: "System Administrator",
-      department: "IT Unit",
-      mobile: "N/A",
-      business_phone: "675 72287868",
-      office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
       id: "44",
       name: "SCPNG Boardroom",
       email: "boardroom@scpng.gov.pg",
@@ -244,50 +145,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       mobile: "N/A",
       business_phone: "+675 321 2223",
       office_location: "Level 2 MRDC Haus, Downtown",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "45",
-      name: "Duncan Hardia",
-      email: "dhardia@scpng.gov.pg",
-      job_title: "IT Support",
-      department: "IT Unit",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "46",
-      name: "Ian Kanapari",
-      email: "ikanapari@scpng.gov.pg",
-      job_title: "Support Staff",
-      department: "Administrative Services",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "47",
-      name: "Jacob Pakuatop",
-      email: "jpakuatop@scpng.gov.pg",
-      job_title: "Support Staff",
-      department: "Administrative Services",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "Corporate Services Division",
-      division_id: "corporate-services-division"
-    },
-    {
-      id: "50",
-      name: "Shirley Too",
-      email: "stoongapa@scpng.gov.pg",
-      job_title: "Support Staff",
-      department: "Administrative Services",
-      mobile: "N/A",
-      business_phone: "N/A",
-      office_location: "Corporate Services Division",
       division_id: "corporate-services-division"
     },
     {
@@ -354,17 +211,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
       job_title: "Senior Supervision Officer",
       department: "Supervision Unit",
       mobile: "+675 72818920/75709357",
-      business_phone: "+675 321 2223",
-      office_location: "Licensing Market & Supervision Division",
-      division_id: "licensing-market-supervision-division"
-    },
-    {
-      id: "29",
-      name: "Titus Angu",
-      email: "tangu@scpng.gov.pg",
-      job_title: "Supervision Officer",
-      department: "Supervision Unit",
-      mobile: "N/A",
       business_phone: "+675 321 2223",
       office_location: "Licensing Market & Supervision Division",
       division_id: "licensing-market-supervision-division"
@@ -451,17 +297,6 @@ const staffByDivision: Record<string, StaffMember[]> = {
   ],
   'research-publication-division': [
     {
-      id: "36",
-      name: "Howard Bando",
-      email: "hbando@scpng.gov.pg",
-      job_title: "Publication Officer",
-      department: "Media & Publication Unit",
-      mobile: "+675 72017516",
-      business_phone: "+675 321 2223",
-      office_location: "Research & Publication Division",
-      division_id: "research-publication-division"
-    },
-    {
       id: "37",
       name: "Joy Komba",
       email: "jkomba@scpng.gov.pg",
@@ -472,30 +307,8 @@ const staffByDivision: Record<string, StaffMember[]> = {
       office_location: "Research & Publication",
       division_id: "research-publication-division"
     },
-    {
-      id: "38",
-      name: "Newman Tandawai",
-      email: "ntandawai@scpng.gov.pg",
-      job_title: "Research Officer",
-      department: "Research Unit",
-      mobile: "+675 73721873",
-      business_phone: "+675 321 2223",
-      office_location: "Research & Publication Division",
-      division_id: "research-publication-division"
-    }
   ],
   'secretariat-unit': [
-    {
-      id: "39",
-      name: "Joyce Nii",
-      email: "jnii@scpng.gov.pg",
-      job_title: "Executive Secretary",
-      department: "Secretariat Unit",
-      mobile: "+675 72326848",
-      business_phone: "+675 321 2223",
-      office_location: "Office of the Chairaman",
-      division_id: "secretariat-unit"
-    },
     {
       id: "40",
       name: "Lovelyn Karlyo",
