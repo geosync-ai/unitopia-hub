@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Kra, Kpi } from '@/types/kpi';
+import { Kra, Kpi, User } from '@/types/kpi';
 import {
   BarChart,
   Bar,
@@ -13,11 +13,10 @@ import {
   Pie,
   Cell,
   ResponsiveContainer,
-  AreaChart,
-  Area,
   LabelList
 } from 'recharts';
 import { useTheme } from "next-themes";
+import { useAuth } from "@/hooks/useAuth";
 
 interface KRAInsightsTabProps {
   kras: Kra[];
@@ -66,61 +65,51 @@ const statusColors: Record<string, string> = {
 export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
   const validKras = Array.isArray(kras) ? kras : [];
   const { theme } = useTheme();
+  const { user } = useAuth();
 
-  const departmentData = React.useMemo(() => {
-    const departments = Array.from(new Set(validKras.map(kra => kra.unit || 'Unknown')));
-    return departments.map(dept => {
-      const deptKras = validKras.filter(kra => (kra.unit || 'Unknown') === dept);
-      const avgProgress = deptKras.length > 0
-        ? deptKras.reduce((sum, kra) => sum + getKraProgress(kra.kpis || []), 0) / deptKras.length
-        : 0;
-      return {
-        name: dept,
-        value: Math.round(avgProgress)
-      };
-    });
-  }, [validKras]);
+  const userOwnedKras = React.useMemo(() => {
+    if (!user?.id) return [];
+    return validKras.filter(kra => kra.owner?.id === user.id);
+  }, [validKras, user?.id]);
 
-  const kpiStatusData = React.useMemo(() => {
+  const userAssignedKpis = React.useMemo(() => {
+    if (!user?.id) return [];
+    return validKras.flatMap(kra => kra.unitKpis || [])
+                    .filter(kpi => kpi.assignees?.some(assignee => assignee.id === user.id));
+  }, [validKras, user?.id]);
+
+  const userKraStatusData = React.useMemo(() => {
     const statusCounts: Record<string, number> = {};
-    validKras.flatMap(kra => (kra.unitKpis || [])).forEach(kpi => {
+    userOwnedKras.forEach(kra => {
+      const status = getKraStatus(kra.unitKpis || []);
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts)
+           .map(([name, value]) => ({ name, value }))
+           .filter(d => d.value > 0);
+  }, [userOwnedKras]);
+
+  const userKpiStatusData = React.useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    userAssignedKpis.forEach(kpi => {
       if (kpi?.status) {
         statusCounts[kpi.status] = (statusCounts[kpi.status] || 0) + 1;
       }
     });
-    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-  }, [validKras]);
+    return Object.entries(statusCounts)
+            .map(([name, value]) => ({ name, value }))
+            .filter(d => d.value > 0);
+  }, [userAssignedKpis]);
 
-  const kraStatusData = React.useMemo(() => {
-    const statusCounts: Record<string, number> = {};
-    validKras.forEach(kra => {
-      const status = getKraStatus(kra.unitKpis || []);
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
-    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-  }, [validKras]);
-
-  const progressTrendData = [
-    { month: 'Jan', progress: 10 }, { month: 'Feb', progress: 25 }, { month: 'Mar', progress: 35 },
-    { month: 'Apr', progress: 48 }, { month: 'May', progress: 52 }, { month: 'Jun', progress: 63 },
-    { month: 'Jul', progress: 68 }, { month: 'Aug', progress: 72 }, { month: 'Sep', progress: 80 },
-    { month: 'Oct', progress: 85 }, { month: 'Nov', progress: 90 }, { month: 'Dec', progress: 95 }
-  ];
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label, unit }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="rounded-lg border bg-background p-2 shadow-sm">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col">
-              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                {payload[0].name || label}
-              </span>
-              <span className="font-bold text-muted-foreground">
-                {payload[0].value}{payload[0].unit}
-              </span>
-            </div>
-          </div>
+        <div className="rounded-lg border bg-background p-2 shadow-sm text-sm">
+          <p className="font-medium mb-1">{label || payload[0].name}</p>
+          <p className="text-muted-foreground">
+             <span style={{ color: payload[0].payload?.fill || payload[0].color }}>■</span> {payload[0].name}: 
+             <span className="font-bold ml-1">{payload[0].value}{unit || ''}</span>
+           </p>
         </div>
       );
     }
@@ -132,19 +121,17 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle>KRA Status Overview</CardTitle>
-            <CardDescription>Overall KRA status distribution</CardDescription>
+            <CardTitle>Your KRA Status Overview</CardTitle>
+            <CardDescription>Status distribution of KRAs you own</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
-               {kraStatusData.length > 0 ? (
+               {userKraStatusData.length > 0 ? (
                  <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <defs>
-                    </defs>
                     <Tooltip content={<CustomTooltip />} />
                     <Pie
-                      data={kraStatusData}
+                      data={userKraStatusData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -153,8 +140,8 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
                       dataKey="value"
                       labelLine={false}
                     >
-                      {kraStatusData.map((entry) => (
-                        <Cell key={`cell-${entry.name}`} fill={statusColors[entry.name] || themeColors.neutral} stroke={themeColors.background} />
+                      {userKraStatusData.map((entry) => (
+                        <Cell key={`cell-kra-${entry.name}`} fill={statusColors[entry.name] || themeColors.neutral} stroke={themeColors.background} />
                       ))}
                     </Pie>
                      <Legend 
@@ -166,7 +153,7 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
                   </PieChart>
                 </ResponsiveContainer>
                ) : (
-                 <div className="flex items-center justify-center h-full text-muted-foreground">No KRA data available.</div>
+                 <div className="flex items-center justify-center h-full text-muted-foreground">You do not own any KRAs.</div>
                )}
             </div>
           </CardContent>
@@ -174,101 +161,34 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle>KPI Status Breakdown</CardTitle>
-            <CardDescription>Status distribution of all individual KPIs</CardDescription>
+            <CardTitle>Your Assigned KPI Status</CardTitle>
+            <CardDescription>Status distribution of KPIs assigned to you</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              {kpiStatusData.some(d => d.value > 0) ? (
+              {userKpiStatusData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     layout="vertical"
-                    data={kpiStatusData.filter(d => d.value > 0)}
+                    data={userKpiStatusData}
                     margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
-                    barGap={4}
-                    barSize={12}
+                    barGap={4} 
+                    barSize={12} 
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={themeColors.neutral} strokeOpacity={0.3}/>
                     <XAxis type="number" allowDecimals={false} stroke={themeColors.neutral} fontSize={12} />
                     <YAxis type="category" dataKey="name" width={80} stroke={themeColors.neutral} fontSize={12} axisLine={false} tickLine={false} />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                    <Bar dataKey="value" name="KPIs" radius={[0, 4, 4, 0]}>
-                      {kpiStatusData.filter(d => d.value > 0).map((entry) => (
-                        <Cell key={`cell-${entry.name}`} fill={statusColors[entry.name] || themeColors.neutral} />
+                    <Bar dataKey="value" name="KPIs" radius={[0, 4, 4, 0]}> 
+                      {userKpiStatusData.map((entry) => (
+                        <Cell key={`cell-kpi-${entry.name}`} fill={statusColors[entry.name] || themeColors.neutral} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                 <div className="flex items-center justify-center h-full text-muted-foreground">No KPI data available.</div>
+                 <div className="flex items-center justify-center h-full text-muted-foreground">No KPIs assigned to you.</div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Department Performance</CardTitle>
-            <CardDescription>Average KRA progress by department</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-             {departmentData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={departmentData}
-                  margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
-                  barGap={4} 
-                  barSize={12} 
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={themeColors.neutral} strokeOpacity={0.3} />
-                  <XAxis type="number" domain={[0, 100]} unit="%" stroke={themeColors.neutral} fontSize={12} />
-                  <YAxis type="category" dataKey="name" width={80} stroke={themeColors.neutral} fontSize={12} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip unit="%"/>} cursor={{ fill: 'transparent' }} />
-                  <Bar dataKey="value" name="Avg Progress" fill={themeColors.secondary} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-             ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">No department data available.</div>
-             )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Overall Progress Trend (Mock Data)</CardTitle>
-            <CardDescription>Illustrative progress trajectory over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={progressTrendData}
-                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-                >
-                   <defs>
-                    <linearGradient id="progressGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={themeColors.primary} stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor={themeColors.primary} stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={themeColors.neutral} strokeOpacity={0.3} />
-                  <XAxis dataKey="month" stroke={themeColors.neutral} fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis domain={[0, 100]} unit="%" stroke={themeColors.neutral} fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip content={<CustomTooltip unit="%"/>} cursor={false} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="progress" 
-                    stroke={themeColors.primary} 
-                    strokeWidth={2} 
-                    fillOpacity={1} 
-                    fill="url(#progressGradient)" 
-                    dot={false}
-                   />
-                </AreaChart>
-              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
