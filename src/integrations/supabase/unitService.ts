@@ -96,6 +96,12 @@ const snakeToCamelCase = (obj: any): any => {
       // Now matches _ followed by ANY character (.) and uppercases it
       const camelKey = key.replace(/_./g, (match) => match.charAt(1).toUpperCase()); 
       
+      // --- ADD THIS LOG --- 
+      if (key === 'image_url') {
+        console.log(`[snakeToCamelCase] Processing key: '${key}', Converted key: '${camelKey}', Original value:`, value);
+      }
+      // --------------------
+
       // Handle nested objects (recursive call)
       if (key !== 'checklist' && value !== null && typeof value === 'object') {
         value = snakeToCamelCase(value);
