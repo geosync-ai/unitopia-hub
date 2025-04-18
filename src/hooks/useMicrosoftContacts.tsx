@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from './useAuth';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { toast } from 'sonner';
+import { PublicClientApplication } from '@azure/msal-browser';
+
+// Extend the Window interface globally
+declare global {
+  interface Window {
+    msalInstance?: PublicClientApplication;
+  }
+}
 
 export interface MicrosoftContact {
   id: string;
@@ -24,7 +32,7 @@ export interface MicrosoftContact {
 }
 
 export const useMicrosoftContacts = () => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const [contacts, setContacts] = useState<MicrosoftContact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
