@@ -52,10 +52,10 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
           <img 
             src={asset.image_url} 
             alt={asset.name || 'Asset image'} 
-            className="w-full h-full object-cover rounded-t-lg"
+            className="w-full h-full object-cover rounded-lg"
           />
         ) : (
-          <div className="w-full h-full rounded-t-lg bg-muted flex items-center justify-center">
+          <div className="w-full h-full rounded-lg bg-muted flex items-center justify-center">
             <span className="text-4xl font-semibold text-muted-foreground">
               {asset.name?.charAt(0).toUpperCase() || 'A'}
             </span>
