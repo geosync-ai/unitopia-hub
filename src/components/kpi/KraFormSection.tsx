@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"; // For conditional classes
 import { Badge } from "@/components/ui/badge";
 import { StaffMember } from '@/types/staff'; // Import StaffMember
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'; // Corrected auth hook import
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment'; // Import hook to get user's department
 
 interface KraFormSectionProps {
@@ -135,7 +135,7 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
   isAddingNew, // Destructure the new prop
 }) => {
 
-  const { user } = useAuth(); // Get user from auth context
+  const { user } = useSupabaseAuth(); // Corrected auth hook usage
   // Get current user's department directly from the hook
   const { currentUserDepartment } = useStaffByDepartment(); 
 
