@@ -95,6 +95,9 @@ const LoginPage = () => {
     logger.info('Initiating Azure sign-in')
     
     try {
+      // Clear any existing session first to prevent auth conflicts
+      await supabase.auth.signOut()
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'azure',
         options: {
@@ -124,6 +127,14 @@ const LoginPage = () => {
     setError(null)
     logger.info('Retrying authentication')
     
+    // Force clear any problematic session data
+    try {
+      localStorage.removeItem('supabase.auth.token')
+      sessionStorage.removeItem('supabase.auth.token')
+    } catch (e) {
+      logger.warn('Error clearing local storage', e)
+    }
+    
     // Force reload the auth state
     supabase.auth.getUser()
       .then(({ data, error }) => {
@@ -148,6 +159,14 @@ const LoginPage = () => {
         setError('Failed to retry authentication')
         setLoading(false)
       })
+  }
+
+  const handleErrorDisplay = (errorMessage: string) => {
+    // Make error messages more user-friendly
+    if (errorMessage.includes('session missing')) {
+      return 'Your login session has expired. Please sign in again.'
+    }
+    return errorMessage
   }
 
   return (
@@ -178,7 +197,7 @@ const LoginPage = () => {
                 <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
                 <div>
                   <p className="text-red-700 font-medium">Authentication Error</p>
-                  <p className="text-sm text-red-600 mt-1">{error}</p>
+                  <p className="text-sm text-red-600 mt-1">{handleErrorDisplay(error)}</p>
                 </div>
               </div>
               <button
@@ -273,6 +292,15 @@ const ConfirmationPage = () => {
   const signOut = async () => {
     try {
       logger.info('Initiating sign out')
+      
+      // Clear browser storage before sign out
+      try {
+        localStorage.removeItem('supabase.auth.token')
+        sessionStorage.removeItem('supabase.auth.token')
+      } catch (e) {
+        logger.warn('Error clearing storage during logout', e)
+      }
+      
       const { error } = await supabase.auth.signOut()
       
       if (error) {
@@ -282,7 +310,8 @@ const ConfirmationPage = () => {
       }
       
       logger.success('User signed out successfully')
-      navigate('/')
+      // Force a page reload to clear all React state instead of using navigate
+      window.location.href = '/'
     } catch (err) {
       logger.error('Unexpected error during sign out', err)
       setError('Failed to sign out')
