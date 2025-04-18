@@ -76,7 +76,7 @@ const AssetManagement = () => {
 
           // Fetch profile using user ID
           const { data: profileData, error: profileError } = await supabase
-            .from('staff_memebers') // Replace 'profiles' with your actual profile table name
+            .from('staff_members') // Replace 'profiles' with your actual profile table name
             .select('name') // Select the column containing the user's full name
             .eq('id', userData.user.id)
             .single(); // Fetch a single record
