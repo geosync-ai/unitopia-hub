@@ -170,24 +170,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- Function to update user status in Supabase ---
   const updateUserStatus = async (userId: string, status: 'online' | 'offline') => {
-    if (!userId) return;
+    if (!userId) {
+        console.error('[updateUserStatus] Attempted to update status with no userId.');
+        return;
+    }
+    console.log(`[updateUserStatus] Attempting to update status for user ${userId} to ${status}`);
     const supabase = getSupabaseClient();
     try {
-      const { error } = await supabase
+      const payload = {
+        user_id: userId,
+        status: status,
+        last_seen: new Date().toISOString()
+      };
+      console.log('[updateUserStatus] Payload:', payload);
+
+      const { data, error } = await supabase
         .from('user_status')
-        .upsert({ 
-          user_id: userId, 
-          status: status, 
-          last_seen: new Date().toISOString() 
-        }, { onConflict: 'user_id' }); // Use upsert for both login and simple updates
+        .upsert(payload, { onConflict: 'user_id' }); 
 
       if (error) {
-        console.error(`Error updating user status to ${status}:`, error);
-        // Optionally toast, but might be noisy
-        // toast.error(`Failed to update status: ${error.message}`);
+        console.error(`[updateUserStatus] Supabase error updating status to ${status} for user ${userId}:`, error);
+        toast.error(`Failed to update your status: ${error.message}`); // Make error visible
+      } else {
+        console.log(`[updateUserStatus] Successfully updated status to ${status} for user ${userId}. Response data:`, data);
       }
     } catch (err) {
-        console.error(`Unexpected error updating user status to ${status}:`, err);
+        console.error(`[updateUserStatus] Unexpected Javascript error updating status to ${status} for user ${userId}:`, err);
+        toast.error('An unexpected error occurred while updating your status.');
     }
   };
 
@@ -376,22 +385,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } 
       // For regular users, fetch only units they are members of
       else {
+        // Define the expected shape of the data from the memberships query
+        interface MembershipWithUnit {
+          unit_id: string | number; 
+          organization_units: { 
+            id: string | number; 
+            name: string;
+            description?: string;
+            created_at: string; 
+            updated_at: string; 
+          } | null; 
+        }
+
         const { data, error } = await supabase
           .from('user_unit_memberships')
           .select(`
             unit_id,
-            organization_units!inner(*)
+            organization_units!inner(
+              id, 
+              name, 
+              description, 
+              created_at, 
+              updated_at
+            )
           `)
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          // Explicitly type the returned data
+          .returns<MembershipWithUnit[]>(); 
           
         if (error) throw error;
+        if (!data) return []; // Handle case where data is null
         
-        const units = data.map(item => ({
-          ...item.organization_units,
-          id: item.organization_units.id,
-          createdAt: new Date(item.organization_units.created_at),
-          updatedAt: new Date(item.organization_units.updated_at)
-        }));
+        // Now map the correctly typed data
+        const units = data.map(item => {
+          const unitData = item.organization_units; // Should be correctly typed now
+          if (!unitData) return null; 
+          return {
+             id: unitData.id,
+             name: unitData.name,
+             description: unitData.description,
+             createdAt: new Date(unitData.created_at), 
+             updatedAt: new Date(unitData.updated_at)  
+          } as OrganizationUnit;
+        }).filter(unit => unit !== null);
         
         setBusinessUnits(units);
         return units;
