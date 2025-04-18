@@ -53,10 +53,6 @@ import EditProjectModal from '@/components/unit-tabs/modals/EditProjectModal';
 import AddRiskModal from '@/components/unit-tabs/modals/AddRiskModal';
 import EditRiskModal from '@/components/unit-tabs/modals/EditRiskModal';
 import DeleteRiskModal from '@/components/unit-tabs/modals/DeleteRiskModal';
-
-// Import custom hooks for state management
-import { useAuth, User } from "@/hooks/useAuth";
-import { OneDriveConfig, CsvConfig } from '@/components/setup-wizard/types';
 import { 
   useTasksData, 
   useProjectsData, 
@@ -69,6 +65,7 @@ import { StaffMember } from '@/types/staff';
 import { Objective, Kra } from '@/types/kpi';
 import { unitService } from '@/integrations/supabase/unitService'; // Import the unitService
 import DivisionStaffMap from '@/utils/divisionStaffMap'; // Import DivisionStaffMap
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'; // Import the correct auth hook
 
 // Import tab components
 import { TasksTab } from '@/components/unit-tabs/TasksTab';
@@ -118,7 +115,7 @@ const StatusDropdown: React.FC<{
 
 // Define the main Unit component
 const Unit = () => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   // Destructure currentUserDepartment from the hook
   const { staffMembers, currentUserDepartment } = useStaffByDepartment(); 
   const { toast } = useToast();
@@ -238,10 +235,10 @@ const Unit = () => {
   // Main content rendering
   return (
     <PageLayout>
-      {user && (user.unitName || user.divisionName) && (
+      {user && (user.user_metadata?.unitName || user.user_metadata?.divisionName) && (
         <div className="mb-4 text-sm text-muted-foreground">
           {/* Display user's actual department if available from hook */} 
-          Unit/Department: {currentUserDepartment || user.unitName || user.divisionName || 'N/A'}
+          Unit/Department: {currentUserDepartment || user.user_metadata?.unitName || user.user_metadata?.divisionName || 'N/A'}
         </div>
       )}
 
