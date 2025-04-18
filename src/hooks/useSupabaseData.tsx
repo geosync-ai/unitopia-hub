@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { supabase, logger } from '@/lib/supabaseClient';
+import { User } from '@supabase/supabase-js';
 import { toast } from '@/components/ui/use-toast';
 import { 
   tasksService, 
@@ -8,7 +9,6 @@ import {
   assetsService, 
   krasService 
 } from '@/integrations/supabase/unitService';
-import { useDivisionContext } from './useDivisionContext';
 
 // Define types for the different service methods
 type FetchFunction = (userEmail?: string, divisionId?: string) => Promise<any[]>;
@@ -24,8 +24,6 @@ export function useSupabaseData<T extends { id?: string }>(
   const [data, setData] = useState<T[]>(initialData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { user } = useAuth();
-  const { currentDivisionId } = useDivisionContext();
 
   // Get the appropriate fetch method based on entity type
   const getFetchMethod = useCallback((): FetchFunction => {
@@ -101,21 +99,23 @@ export function useSupabaseData<T extends { id?: string }>(
 
   // Fetch data from Supabase
   const fetchData = useCallback(async () => {
-    if (!user?.email) return;
-    
     setLoading(true);
     try {
+      // Fetch user inside the function to ensure freshness
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        logger.error('useSupabaseData: Error fetching user or no user logged in', userError);
+        throw new Error('User not authenticated');
+      }
+      
       const fetchMethod = getFetchMethod();
-      console.log(`[useSupabaseData - fetchData] Fetching ${entityType} with user: ${user.email}, divisionId: ${currentDivisionId || undefined}`);
-      const fetchedData = await fetchMethod(user.email, currentDivisionId || undefined);
+      logger.info(`[useSupabaseData - fetchData] Fetching ${entityType} with user: ${user.email}`);
+      const fetchedData = await fetchMethod(user.email);
       setData(fetchedData as T[]);
       setError(null);
     } catch (err) {
-      console.error(`Error fetching ${entityType}:`, err);
+      logger.error(`Error fetching ${entityType}:`, err);
       setError(err instanceof Error ? err : new Error(String(err)));
-      
-      // Don't show toast error as it can be disruptive
-      // Still set empty data array so UI can render
       setData([]);
       
       // Log the specific error to console for debugging
@@ -132,27 +132,27 @@ export function useSupabaseData<T extends { id?: string }>(
     } finally {
       setLoading(false);
     }
-  }, [user?.email, entityType, getFetchMethod, currentDivisionId]);
+  }, [entityType, getFetchMethod]);
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {
-    if (!user?.email) {
+    // Fetch user inside the function
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      logger.error('useSupabaseData - add: No user logged in', userError);
       toast({
         title: "Error",
-        description: "You must be logged in to add items"
+        description: "You must be logged in to add items",
+        variant: "destructive"
       });
       return null;
     }
     
     try {
-      // The calling component (e.g., RisksTab) is responsible for adding unit_id or division_id
-      // Pass the item directly, assuming it contains the necessary identifiers.
-      console.log(`[useSupabaseData - add ${entityType}] Data being sent:`,
-        JSON.stringify(item, null, 2) // Log the original item
-      );
-      
+      logger.info(`[useSupabaseData - add ${entityType}] Data being sent:`, JSON.stringify(item, null, 2));
       const addMethod = getAddMethod();
-      const newItem = await addMethod(item); // Pass the original item directly
+      // Add user info if needed by the service, e.g., item.created_by = user.id
+      const newItem = await addMethod(item);
       
       if (newItem) {
         setData(prev => [...prev, newItem as unknown as T]);
@@ -164,7 +164,7 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return newItem;
     } catch (err) {
-      console.error(`Error adding ${entityType.slice(0, -1)}:`, err);
+      logger.error(`Error adding ${entityType.slice(0, -1)}:`, err);
       toast({
         title: "Error",
         description: `Failed to add ${entityType.slice(0, -1)}`,
@@ -178,20 +178,25 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return null;
     }
-  }, [user?.email, entityType, getAddMethod]); // Removed currentDivisionId from dependencies as it's no longer directly used here
+  }, [entityType, getAddMethod]);
 
   // Update an item
   const update = useCallback(async (id: string, updateData: Partial<T>) => {
-    if (!user?.email) {
+    // Fetch user inside the function
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      logger.error('useSupabaseData - update: No user logged in', userError);
       toast({
         title: "Error",
-        description: "You must be logged in to update items"
+        description: "You must be logged in to update items",
+        variant: "destructive"
       });
       return null;
     }
     
     try {
       const updateMethod = getUpdateMethod();
+      // Add user info if needed, e.g., updateData.updated_by = user.id
       const updatedItem = await updateMethod(id, updateData);
       
       if (updatedItem) {
@@ -206,7 +211,7 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return updatedItem;
     } catch (err) {
-      console.error(`Error updating ${entityType.slice(0, -1)}:`, err);
+      logger.error(`Error updating ${entityType.slice(0, -1)}:`, err);
       toast({
         title: "Error",
         description: `Failed to update ${entityType.slice(0, -1)}`,
@@ -214,14 +219,18 @@ export function useSupabaseData<T extends { id?: string }>(
       });
       return null;
     }
-  }, [user?.email, entityType, getUpdateMethod]);
+  }, [entityType, getUpdateMethod]);
 
   // Delete an item
   const remove = useCallback(async (id: string) => {
-    if (!user?.email) {
+    // Fetch user inside the function
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      logger.error('useSupabaseData - remove: No user logged in', userError);
       toast({
         title: "Error",
-        description: "You must be logged in to delete items"
+        description: "You must be logged in to delete items",
+        variant: "destructive"
       });
       return false;
     }
@@ -238,7 +247,7 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return true;
     } catch (err) {
-      console.error(`Error deleting ${entityType.slice(0, -1)}:`, err);
+      logger.error(`Error deleting ${entityType.slice(0, -1)}:`, err);
       toast({
         title: "Error",
         description: `Failed to delete ${entityType.slice(0, -1)}`,
@@ -246,17 +255,17 @@ export function useSupabaseData<T extends { id?: string }>(
       });
       return false;
     }
-  }, [user?.email, entityType, getDeleteMethod]);
+  }, [entityType, getDeleteMethod]);
 
-  // Load data on mount and when user or division changes
+  // Function to manually trigger a refresh
+  const refresh = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Initial fetch
   useEffect(() => {
-    if (user?.email) {
-      fetchData();
-    } else {
-      setData([]);
-      setLoading(false);
-    }
-  }, [user?.email, fetchData, currentDivisionId]);
+    fetchData();
+  }, [fetchData]);
 
   return {
     data,
@@ -265,7 +274,7 @@ export function useSupabaseData<T extends { id?: string }>(
     add,
     update,
     remove,
-    refresh: fetchData
+    refresh
   };
 }
 
