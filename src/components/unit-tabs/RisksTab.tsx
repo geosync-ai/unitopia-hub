@@ -8,7 +8,6 @@ import AddRiskModal from './modals/AddRiskModal';
 import EditRiskModal from './modals/EditRiskModal';
 import DeleteRiskModal from './modals/DeleteRiskModal';
 import { Risk, Project } from '@/types';
-import { useAuth } from '@/hooks/useAuth';
 import { 
   Select,
   SelectContent,
@@ -44,7 +43,6 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   staffMembers,
   objectives
 }) => {
-  const { selectedUnit, businessUnits } = useAuth();
   const { currentDivisionId } = useDivisionContext();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
