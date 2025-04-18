@@ -168,16 +168,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user?.email]);
 
+  // --- Function to update user status in Supabase ---
+  const updateUserStatus = async (userId: string, status: 'online' | 'offline') => {
+    if (!userId) return;
+    const supabase = getSupabaseClient();
+    try {
+      const { error } = await supabase
+        .from('user_status')
+        .upsert({ 
+          user_id: userId, 
+          status: status, 
+          last_seen: new Date().toISOString() 
+        }, { onConflict: 'user_id' }); // Use upsert for both login and simple updates
+
+      if (error) {
+        console.error(`Error updating user status to ${status}:`, error);
+        // Optionally toast, but might be noisy
+        // toast.error(`Failed to update status: ${error.message}`);
+      }
+    } catch (err) {
+        console.error(`Unexpected error updating user status to ${status}:`, err);
+    }
+  };
+
   const login = async (email: string, password: string) => {
-    // Special case for the default admin (demo only)
+    // This is demo login - skip status update for now
     if (email.toLowerCase() === 'admin@app.com' && password === 'admin') {
       setUser(defaultAdmin);
       localStorage.setItem('user', JSON.stringify(defaultAdmin));
       return Promise.resolve();
     }
-    
-    // For now, we'll just use the default admin for any login attempt
-    // In a real implementation, you would validate credentials against your backend
     setUser(defaultAdmin);
     localStorage.setItem('user', JSON.stringify(defaultAdmin));
     return Promise.resolve();
@@ -227,11 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       console.log('Initiating Microsoft login...');
-      
-      // Use the MSAL service for login
       await loginWithMicrosoftService(msalInstance);
-      
-      // After successful login, get the account and profile
       const account = getAccount(msalInstance);
       
       if (!account) {
@@ -241,8 +257,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log('Microsoft login successful, fetching user profile');
-      
-      // Get user profile from Microsoft Graph
       const profile = await getUserProfile(msalInstance);
       
       if (!profile) {
@@ -251,7 +265,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Create user object from profile
       const email = profile.mail || profile.userPrincipalName || account.username;
       const isAdmin = adminEmails.includes(email.toLowerCase());
       
@@ -262,17 +275,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: isAdmin ? 'admin' : 'user',
         profilePicture: profile.photo || undefined,
         isAdmin,
-        accessToken: null // Will be fetched when needed
+        accessToken: null
       };
       
-      // Update user state
+      // Update user state FIRST
       setUser(newUser);
       setUserProfile(profile);
-      
-      // Save user to localStorage
       localStorage.setItem('user', JSON.stringify(newUser));
-      
       console.log('User successfully logged in and profile saved');
+
+      // THEN update status in Supabase
+      await updateUserStatus(newUser.id, 'online');
       
       // Fetch additional user data from Supabase if needed
       fetchUserUnits().then(units => {
@@ -287,6 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Microsoft login failed:', error);
       toast.error('Failed to login with Microsoft');
+      // Optionally try setting status to offline here if login fails mid-way?
     }
   };
 
@@ -474,18 +488,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    // Capture user ID *before* clearing state
+    const userIdToLogOut = user?.id;
+
     try {
-      // Clear user data
+      // Update status to offline FIRST
+      if (userIdToLogOut) {
+        await updateUserStatus(userIdToLogOut, 'offline');
+      }
+
+      // Then clear local user data
       setUser(null);
+      setUserProfile(null); // Also clear profile if needed
       localStorage.removeItem('user');
       localStorage.removeItem('selectedUnit');
+      localStorage.removeItem('selectedDivision'); // Also remove selected division
       
       // If MSAL is initialized, log out from Microsoft
-      if (window.msalInstance) {
-        await window.msalInstance.logoutRedirect();
+      const msalInstance = (typeof window !== 'undefined' && window.msalInstance) 
+        ? window.msalInstance 
+        : null;
+      if (msalInstance) {
+        await msalInstance.logoutRedirect();
+        // Note: logoutRedirect might clear session before Supabase update completes
+        // If issues arise, consider using logoutPopup or updating status *after* redirect resolves if possible
+      } else {
+          console.warn("MSAL instance not found during logout.");
       }
     } catch (error) {
       console.error('Error during logout:', error);
+      // Still attempt to clear local state even if Supabase/MSAL fails
+      setUser(null);
+      setUserProfile(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedUnit');
+      localStorage.removeItem('selectedDivision');
     }
   };
 
