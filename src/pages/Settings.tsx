@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { 
   Card, 
@@ -21,11 +20,12 @@ import {
 } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase, logger } from '@/lib/supabaseClient';
+import { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { 
   Bell, 
-  User, 
+  User as UserIcon, 
   Shield, 
   Palette, 
   Globe, 
@@ -37,15 +37,15 @@ import {
 } from 'lucide-react';
 
 const Settings = () => {
-  const { user, businessUnits, selectedUnit, setSelectedUnit } = useAuth();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
   
-  // Mock settings - in a real app, these would come from API/database
   const [settings, setSettings] = useState({
     profile: {
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: '+675 xxx xxxx', // PNG country code
+      name: '',
+      email: '',
+      phone: '+675 xxx xxxx',
       language: 'en',
       timezone: 'Pacific/Port_Moresby'
     },
@@ -69,22 +69,72 @@ const Settings = () => {
       ipRestriction: false
     }
   });
+
+  useEffect(() => {
+    let isMounted = true;
+    setUserLoading(true);
+    logger.info('Settings Page: Fetching user data...');
+
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          logger.error('Settings Page: Error fetching user', error);
+          toast.error('Failed to load user data.');
+        } else if (data.user) {
+          logger.success('Settings Page: User data fetched', data.user);
+          setCurrentUser(data.user);
+          setSettings(prevSettings => ({
+            ...prevSettings,
+            profile: {
+              ...prevSettings.profile,
+              name: data.user?.user_metadata?.name || data.user?.email || '',
+              email: data.user?.email || ''
+            }
+          }));
+        } else {
+          logger.warn('Settings Page: No user found');
+          toast.error('User session not found. Please login again.');
+        }
+        setUserLoading(false);
+      })
+      .catch(err => {
+        if (isMounted) {
+          logger.error('Settings Page: Unexpected error fetching user', err);
+          toast.error('An error occurred while loading user data.');
+          setUserLoading(false);
+        }
+      });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+        if (!isMounted) return;
+        if (event === 'SIGNED_OUT') {
+            logger.info('Settings Page: User signed out, clearing user data.');
+            setCurrentUser(null);
+        }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+      logger.info('Settings Page: Unmounting');
+    };
+  }, []);
   
   const handleSave = (settingType: keyof typeof settings) => {
-    // In a real app, this would send data to an API
-    toast.success(`${settingType.charAt(0).toUpperCase() + settingType.slice(1)} settings saved successfully`);
+    logger.info(`Saving ${settingType} settings`, settings[settingType]);
+    toast.success(`${settingType.charAt(0).toUpperCase() + settingType.slice(1)} settings saved successfully (mock)`);
   };
   
-  const handleUnitChange = (unitId: string) => {
-    setSelectedUnit(unitId);
-    toast.success(`Unit changed to ${businessUnits.find(unit => unit.id === unitId)?.name || ''}`);
-  };
-  
-  const findUnitName = (unitId: string | null) => {
-    if (!unitId) return "Not assigned";
-    const unit = businessUnits.find(u => u.id === unitId);
-    return unit ? unit.name : "Unknown Unit";
-  };
+  if (userLoading) {
+      return (
+          <PageLayout>
+              <div className="flex justify-center items-center h-64">
+                  <p>Loading user settings...</p>
+              </div>
+          </PageLayout>
+      );
+  }
 
   return (
     <PageLayout>
@@ -102,19 +152,17 @@ const Settings = () => {
             <div className="space-y-6">
               <div className="flex flex-col items-center text-center">
                 <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-2xl mb-2">
-                  {user?.name?.charAt(0) || 'U'}
+                  {currentUser?.user_metadata?.name?.charAt(0) || currentUser?.email?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
-                <h3 className="font-medium">{user?.name}</h3>
-                <p className="text-sm text-gray-500">{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {user?.unitName || findUnitName(selectedUnit)}
-                </p>
+                <h3 className="font-medium">{currentUser?.user_metadata?.name || currentUser?.email}</h3>
+                <p className="text-sm text-gray-500">{/* Role Placeholder - Fetch from profile */}</p>
+                <p className="text-xs text-muted-foreground mt-1">{/* Unit Placeholder - Fetch from profile */}</p>
               </div>
               
               <div className="space-y-2">
                 <div className="text-sm flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{user?.email}</span>
+                  <span className="text-muted-foreground">{currentUser?.email}</span>
                 </div>
                 <div className="text-sm flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
@@ -124,25 +172,6 @@ const Settings = () => {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">GMT+10:00</span>
                 </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="business-unit" className="text-xs">Business Unit</Label>
-                <Select 
-                  value={selectedUnit || ''} 
-                  onValueChange={handleUnitChange}
-                >
-                  <SelectTrigger id="business-unit" className="mt-1">
-                    <SelectValue placeholder="Select Business Unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {businessUnits.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </CardContent>
@@ -156,7 +185,7 @@ const Settings = () => {
           >
             <TabsList className="mb-6">
               <TabsTrigger value="profile" className="flex items-center gap-1">
-                <User className="h-4 w-4" />
+                <UserIcon className="h-4 w-4" />
                 <span>Profile</span>
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center gap-1">
