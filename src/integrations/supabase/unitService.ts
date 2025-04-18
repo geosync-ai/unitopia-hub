@@ -92,12 +92,12 @@ const snakeToCamelCase = (obj: any): any => {
 
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {
-      // Convert snake_case to camelCase
-      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      // Convert snake_case to camelCase - Updated Regex
+      // Now matches _ followed by ANY character (.) and uppercases it
+      const camelKey = key.replace(/_./g, (match) => match.charAt(1).toUpperCase()); 
       
-      // Handle nested objects
+      // Handle nested objects (recursive call)
       if (key !== 'checklist' && value !== null && typeof value === 'object') {
-        // Don't convert the checklist JSONB since it's stored as-is
         value = snakeToCamelCase(value);
       }
       
