@@ -80,38 +80,6 @@ const camelToSnakeCase = (obj: any): any => {
   );
 };
 
-// Utility to convert snake_case to camelCase
-const snakeToCamelCase = (obj: any): any => {
-  if (obj === null || typeof obj !== 'object') {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(snakeToCamelCase);
-  }
-
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => {
-      // Convert snake_case to camelCase - Updated Regex
-      // Now matches _ followed by ANY character (.) and uppercases it
-      const camelKey = key.replace(/_./g, (match) => match.charAt(1).toUpperCase()); 
-      
-      // --- ADD THIS LOG --- 
-      if (key === 'image_url') {
-        console.log(`[snakeToCamelCase] Processing key: '${key}', Converted key: '${camelKey}', Original value:`, value);
-      }
-      // --------------------
-
-      // Handle nested objects (recursive call)
-      if (key !== 'checklist' && value !== null && typeof value === 'object') {
-        value = snakeToCamelCase(value);
-      }
-      
-      return [camelKey, value];
-    })
-  );
-};
-
 // Task operations
 export const tasksService = {
   // Get all tasks
@@ -134,8 +102,8 @@ export const tasksService = {
       throw error;
     }
     
-    // Convert snake_case to camelCase for frontend
-    return (data || []).map(snakeToCamelCase);
+    // Return raw data
+    return data || [];
   },
   
   // Add a new task
@@ -171,8 +139,8 @@ export const tasksService = {
       throw error;
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Return raw data from insert
+    return data?.[0] || null;
   },
   
   // Update a task
@@ -199,8 +167,8 @@ export const tasksService = {
       throw error;
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Return raw data from update
+    return data?.[0] || null;
   },
   
   // Delete a task
@@ -246,10 +214,8 @@ export const projectsService = {
       throw error;
     }
     
-    // Convert snake_case to camelCase for frontend
-    const mappedData = (data || []).map(snakeToCamelCase);
-    console.log(`[projectsService.getProjects] Data after snakeToCamelCase:`, mappedData); // Log mapped data
-    return mappedData;
+    // Return raw data
+    return data || [];
   },
   
   // Add a new project
@@ -276,8 +242,8 @@ export const projectsService = {
       throw error;
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Return raw data from insert
+    return data?.[0] || null;
   },
   
   // Update a project
@@ -304,8 +270,8 @@ export const projectsService = {
       throw error;
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Return raw data from update
+    return data?.[0] || null;
   },
   
   // Delete a project
@@ -394,8 +360,8 @@ export const risksService = {
       throw error;
     }
     
-    // Convert snake_case to camelCase for frontend
-    return (data || []).map(snakeToCamelCase);
+    // Return raw data
+    return data || [];
   },
   
   // Add a new risk
@@ -448,8 +414,8 @@ export const risksService = {
         throw error;
       }
       
-      // Convert back to camelCase for frontend
-      return data?.[0] ? snakeToCamelCase(data[0]) : null;
+      // Return raw data from insert
+      return data?.[0] || null;
     } catch (err) {
       console.error('Unexpected error in addRisk:', err);
       throw err;
@@ -504,8 +470,8 @@ export const risksService = {
       throw error;
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Return raw data from update
+    return data?.[0] || null;
   },
   
   // Delete a risk
@@ -548,11 +514,8 @@ export const assetsService = {
         throw error;
       }
       
-      const mappedData = (data || []).map(snakeToCamelCase);
-      // Log the data after conversion
-      console.log('[assetsService.getAssets] Data after snakeToCamelCase conversion:', mappedData);
-
-      return mappedData;
+      // Return raw data
+      return data || [];
     } catch (err) {
       console.error('[assetsService.getAssets] Error in try-catch block:', err);
       return [];
@@ -584,8 +547,8 @@ export const assetsService = {
         throw error;
       }
       
-      // Convert back to camelCase for frontend
-      return data?.[0] ? snakeToCamelCase(data[0]) : null;
+      // Return raw data from insert
+      return data?.[0] || null;
     } catch (error) {
       console.error('Error adding asset:', error);
       throw error;
@@ -617,8 +580,8 @@ export const assetsService = {
         throw error;
       }
       
-      // Convert back to camelCase for frontend
-      return data?.[0] ? snakeToCamelCase(data[0]) : null;
+      // Return raw data from update
+      return data?.[0] || null;
     } catch (error) {
       console.error('Error updating asset:', error);
       throw error;
@@ -667,12 +630,8 @@ export const krasService = {
     
     console.log("[krasService.getKRAs] Raw data from Supabase (before conversion):", JSON.stringify(data, null, 2)); // Add log before conversion
 
-    // Convert snake_case to camelCase for frontend
-    const camelCaseData = (data || []).map(snakeToCamelCase);
-
-    console.log("[krasService.getKRAs] Data after snakeToCamelCase:", camelCaseData);
-
-    return camelCaseData;
+    // Return raw data (nested objects handled by Supabase)
+    return data || [];
   },
   
   // Add a new KRA
@@ -731,8 +690,8 @@ export const krasService = {
         throw error;
       }
       
-      // Convert back to camelCase for frontend
-      return data?.[0] ? snakeToCamelCase(data[0]) : null;
+      // Return raw data from insert
+      return data?.[0] || null;
     } catch (error) {
       console.error('Failed to create KRA:', error);
       throw error;
@@ -763,8 +722,8 @@ export const krasService = {
       throw error;
     }
     
-    // Convert back to camelCase for frontend
-    return data?.[0] ? snakeToCamelCase(data[0]) : null;
+    // Return raw data from update
+    return data?.[0] || null;
   },
   
   // Delete a KRA

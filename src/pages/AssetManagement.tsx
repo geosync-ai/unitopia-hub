@@ -50,9 +50,8 @@ const AssetManagement = () => {
   const loggedInUserName = user?.name;
   console.log('[AssetManagement] Logged in user name for filtering:', loggedInUserName);
   const myAssets = assets.filter(asset => {
-    // Use the correct camelCase property 'assignedTo' after conversion
-    console.log(`[AssetManagement] Comparing asset.assignedTo: "${asset.assignedTo}" === loggedInUserName: "${loggedInUserName}" -> ${asset.assignedTo === loggedInUserName}`);
-    return asset.assignedTo === loggedInUserName; 
+    console.log(`[AssetManagement] Comparing asset.assigned_to: "${asset.assigned_to}" === loggedInUserName: "${loggedInUserName}" -> ${asset.assigned_to === loggedInUserName}`);
+    return asset.assigned_to === loggedInUserName;
   });
   console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
   // --- End Filtering Logic ---
@@ -270,31 +269,31 @@ const AssetManagement = () => {
                           <TableRow key={asset.id}>
                             <TableCell className="sticky left-0 bg-background z-10">
                               <Avatar className="h-10 w-10">
-                                <AvatarImage src={asset.imageUrl || undefined} alt={asset.name} />
+                                <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
                                 <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                               </Avatar>
                             </TableCell>
                             <TableCell className="sticky left-[60px] bg-background z-10 font-medium">{asset.name}</TableCell>
                             <TableCell>{asset.type || 'N/A'}</TableCell>
                             <TableCell>{asset.condition || 'N/A'}</TableCell>
-                            <TableCell>{asset.assignedTo || 'N/A'}</TableCell>
-                            <TableCell>{asset.assignedToEmail || 'N/A'}</TableCell>
+                            <TableCell>{asset.assigned_to || 'N/A'}</TableCell>
+                            <TableCell>{asset.assigned_to_email || 'N/A'}</TableCell>
                             <TableCell>{asset.unit || 'N/A'}</TableCell>
                             <TableCell>{asset.division || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(asset.assignedDate)}</TableCell>
-                            <TableCell>{formatDate(asset.purchaseDate)}</TableCell>
+                            <TableCell>{formatDate(asset.assigned_date)}</TableCell>
+                            <TableCell>{formatDate(asset.purchase_date)}</TableCell>
                             <TableCell>{asset.vendor || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(asset.warrantyExpiryDate)}</TableCell>
-                            <TableCell>{formatDate(asset.expiryDate)}</TableCell>
-                            <TableCell>{asset.lifeExpectancyYears ?? 'N/A'}</TableCell>
-                            <TableCell>{asset.ytdUsage || 'N/A'}</TableCell>
+                            <TableCell>{formatDate(asset.warranty_expiry_date)}</TableCell>
+                            <TableCell>{formatDate(asset.expiry_date)}</TableCell>
+                            <TableCell>{asset.life_expectancy_years ?? 'N/A'}</TableCell>
+                            <TableCell>{asset.ytd_usage || 'N/A'}</TableCell>
                             <TableCell className="max-w-xs truncate" title={asset.notes}>{asset.notes || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.adminComments}>{asset.adminComments || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.invoiceUrl}>{asset.invoiceUrl || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.barcodeUrl}>{asset.barcodeUrl || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(asset.lastUpdated, true)}</TableCell>
-                            <TableCell>{asset.lastUpdatedBy || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(asset.createdAt, true)}</TableCell>
+                            <TableCell className="max-w-xs truncate" title={asset.admin_comments}>{asset.admin_comments || 'N/A'}</TableCell>
+                            <TableCell className="max-w-xs truncate" title={asset.invoice_url}>{asset.invoice_url || 'N/A'}</TableCell>
+                            <TableCell className="max-w-xs truncate" title={asset.barcode_url}>{asset.barcode_url || 'N/A'}</TableCell>
+                            <TableCell>{formatDate(asset.last_updated, true)}</TableCell>
+                            <TableCell>{asset.last_updated_by || 'N/A'}</TableCell>
+                            <TableCell>{formatDate(asset.created_at, true)}</TableCell>
                             <TableCell className="sticky right-0 bg-background z-10 text-right">
                               <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
                                  <DialogTrigger asChild>

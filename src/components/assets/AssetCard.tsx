@@ -41,13 +41,13 @@ const getConditionBadgeClass = (condition?: string): string => {
 };
 
 const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
-  // Log the specific asset data received by the card
-  console.log(`[AssetCard] Rendering card for asset: ${asset.name}. Received image_url:`, asset.image_url);
+  // Use snake_case properties as they come from the DB/type definition
+  console.log(`[AssetCard] Rendering card for asset: ${asset.name}. Using image_url:`, asset.image_url);
 
   return (
     <Card className="flex flex-col h-full overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
       <CardHeader className="p-0 relative h-48 flex-shrink-0">
-        {/* Image or Fallback */}
+        {/* Image or Fallback - Use image_url */}
         {asset.image_url ? (
           <img 
             src={asset.image_url} 
@@ -84,7 +84,7 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
             }
         </div>
 
-        {/* Details List */}
+        {/* Details List - Use snake_case */}
         <div className="space-y-1.5 text-sm text-muted-foreground flex-grow mb-3">
             <div className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4 flex-shrink-0" />
