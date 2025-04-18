@@ -20,6 +20,7 @@ import AddAssetModal from '@/components/unit-tabs/modals/AddAssetModal';
 import EditAssetModal from '@/components/unit-tabs/modals/EditAssetModal';
 import DeleteModal from '@/components/unit-tabs/modals/DeleteModal';
 import AssetCard from '@/components/assets/AssetCard';
+import HighlightMatch from '@/components/ui/HighlightMatch';
 
 const AssetManagement = () => {
   const { user } = useAuth();
@@ -63,7 +64,8 @@ const AssetManagement = () => {
         asset.condition?.toLowerCase().includes(searchTerm) ||
         asset.vendor?.toLowerCase().includes(searchTerm) ||
         asset.unit?.toLowerCase().includes(searchTerm) ||
-        asset.division?.toLowerCase().includes(searchTerm)
+        asset.division?.toLowerCase().includes(searchTerm) ||
+        asset.assigned_to?.toLowerCase().includes(searchTerm)
       );
     });
 
@@ -298,16 +300,30 @@ const AssetManagement = () => {
                                 <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                               </Avatar>
                             </TableCell>
-                            <TableCell className="sticky left-[60px] bg-background z-10 font-medium">{asset.name}</TableCell>
-                            <TableCell>{asset.type || 'N/A'}</TableCell>
-                            <TableCell>{asset.condition || 'N/A'}</TableCell>
-                            <TableCell>{asset.assigned_to || 'N/A'}</TableCell>
+                            <TableCell className="sticky left-[60px] bg-background z-10 font-medium">
+                                <HighlightMatch text={asset.name} searchTerm={filterText} />
+                            </TableCell>
+                            <TableCell>
+                                <HighlightMatch text={asset.type} searchTerm={filterText} />
+                            </TableCell>
+                            <TableCell>
+                                <HighlightMatch text={asset.condition} searchTerm={filterText} />
+                            </TableCell>
+                            <TableCell>
+                                <HighlightMatch text={asset.assigned_to} searchTerm={filterText} />
+                            </TableCell>
                             <TableCell>{asset.assigned_to_email || 'N/A'}</TableCell>
-                            <TableCell>{asset.unit || 'N/A'}</TableCell>
-                            <TableCell>{asset.division || 'N/A'}</TableCell>
+                            <TableCell>
+                                <HighlightMatch text={asset.unit} searchTerm={filterText} />
+                            </TableCell>
+                            <TableCell>
+                                <HighlightMatch text={asset.division} searchTerm={filterText} />
+                            </TableCell>
                             <TableCell>{formatDate(asset.assigned_date)}</TableCell>
                             <TableCell>{formatDate(asset.purchase_date)}</TableCell>
-                            <TableCell>{asset.vendor || 'N/A'}</TableCell>
+                            <TableCell>
+                                <HighlightMatch text={asset.vendor} searchTerm={filterText} />
+                            </TableCell>
                             <TableCell>{formatDate(asset.warranty_expiry_date)}</TableCell>
                             <TableCell>{formatDate(asset.expiry_date)}</TableCell>
                             <TableCell>{asset.life_expectancy_years ?? 'N/A'}</TableCell>
