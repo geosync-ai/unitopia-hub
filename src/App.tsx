@@ -5,7 +5,6 @@ import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import MsalAuthProvider from "@/integrations/microsoft/MsalProvider";
 import DivisionProtectedRoute from "@/components/DivisionProtectedRoute";
 import Index from "./pages/Index";
 import News from "./pages/News";
@@ -132,29 +131,18 @@ const AppRoutes = () => {
   );
 };
 
-// Expose the MSAL instance globally for the auth hook to use
-// This is a workaround - in a production app you'd use React context properly
-// This will be set by the MsalAuthProvider when it initializes
-declare global {
-  interface Window {
-    msalInstance: any;
-  }
-}
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light">
       <TooltipProvider>
         <AuthProvider>
-          <MsalAuthProvider>
-            <DivisionProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </DivisionProvider>
-          </MsalAuthProvider>
+          <DivisionProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </DivisionProvider>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
