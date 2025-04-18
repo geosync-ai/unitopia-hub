@@ -1,10 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { useMsal } from '@azure/msal-react';
-import { loginRequest } from '@/integrations/microsoft/msalConfig';
-import { getAccount, getUserProfile, loginWithMicrosoft as loginWithMicrosoftService, diagnoseMsalIssues } from '@/integrations/microsoft/msalService';
-import microsoftAuthConfig from '@/config/microsoft-auth';
 import { getSupabaseClient, notesService } from '@/integrations/supabase/supabaseClient';
+import { signInWithEmail as supabaseSignInWithEmail, setupAuthStateListener, signOut as supabaseSignOut } from '@/integrations/supabase/supabaseAuth';
+import { Provider, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { OrganizationUnit, UserProfile, Division } from '@/types';
 import supabaseConfig from '@/config/supabase';
 
@@ -18,14 +16,14 @@ export interface User {
   role: UserRole;
   unitId?: string;
   unitName?: string;
-  divisionId?: string;  // ID of the user's primary division
-  divisionName?: string; // Name of the user's primary division
-  divisionRole?: DivisionRole; // Role within the division
-  divisionMemberships?: { divisionId: string, role: DivisionRole }[]; // All division memberships
-  accessToken?: string; // For Microsoft Graph API
-  profilePicture?: string; // URL to profile picture
-  notes?: any[]; // User's notes from Supabase
-  isAdmin?: boolean; // Whether the user is an admin
+  divisionId?: string;
+  divisionName?: string;
+  divisionRole?: DivisionRole;
+  divisionMemberships?: { divisionId: string, role: DivisionRole }[];
+  accessToken?: string;
+  profilePicture?: string;
+  notes?: any[];
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -33,130 +31,190 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isManager: boolean;
-  isDirector: boolean; // Whether the user is a director in any division
+  isDirector: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithMicrosoft: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   businessUnits: OrganizationUnit[];
   selectedUnit: string | null;
   setSelectedUnit: (unitId: string | null) => void;
   selectedDivision: string | null;
   setSelectedDivision: (divisionId: string | null) => void;
   userDivisions: Division[];
-  msGraphConfig: MsGraphConfig | null;
   setUser: (user: User | null) => void;
   fetchUserNotes: () => Promise<any[]>;
   addUserNote: (content: string) => Promise<any>;
   fetchUserUnits: () => Promise<OrganizationUnit[]>;
   fetchUserDivisions: (userId: string) => Promise<any[]>;
-  userProfile: UserProfile | null;
   hasAccessToDivision: (divisionId: string) => boolean;
-}
-
-interface MsGraphConfig {
-  clientId: string;
-  authorityUrl: string;
-  redirectUri: string;
-  permissions: string[];
-  apiEndpoint: string;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Default admin for demo purposes only
-const defaultAdmin = {
-  id: '1',
-  email: 'admin@app.com',
-  name: 'Admin User',
-  role: 'admin' as UserRole,
-  unitName: 'IT',
-  isAdmin: true
-};
-
-// List of emails that should receive admin role when authenticating
 const adminEmails = [
   'geosyncsurvey@gmail.com',
   'admin@app.com'
 ];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [businessUnits, setBusinessUnits] = useState<OrganizationUnit[]>([]);
   const [userDivisions, setUserDivisions] = useState<Division[]>([]);
-  const [msGraphConfig, setMsGraphConfig] = useState<MsGraphConfig | null>(null);
-  const [msalInitialized, setMsalInitialized] = useState(false);
-  
-  // Load saved config and user on mount
-  useEffect(() => {
-    // Load Microsoft Graph API configuration
-    const loadMsConfig = async () => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  const createUserObjectFromSupabase = useCallback(async (supabaseUser: SupabaseUser, session: Session | null): Promise<User | null> => {
+    if (!supabaseUser || !supabaseUser.email) return null;
+
+    setIsLoading(true);
+    try {
+      console.log('Constructing User object for:', supabaseUser.email);
+      const role: UserRole = adminEmails.includes(supabaseUser.email.toLowerCase()) ? 'admin' : 'user';
+
+      let userMemberships: any[] = [];
+      let primaryDivision: Division | undefined;
+      let primaryRole: DivisionRole = 'staff';
+
       try {
-        console.log('Loading Microsoft configuration from config file...');
-        
-        // Use the configuration from our config file
-        const config = {
-          clientId: microsoftAuthConfig.clientId,
-          authorityUrl: microsoftAuthConfig.authorityUrl,
-          redirectUri: microsoftAuthConfig.redirectUri,
-          permissions: microsoftAuthConfig.permissions,
-          apiEndpoint: microsoftAuthConfig.apiEndpoint
-        };
-        
-        console.log('Loaded Microsoft config:', config);
-        setMsGraphConfig(config);
-        setMsalInitialized(true);
-        
-        // Also save to localStorage for persistence
-        localStorage.setItem('ms-api-config', JSON.stringify(microsoftAuthConfig));
-        
-      } catch (error) {
-        console.error('Error loading MS config:', error);
-        toast.error('Failed to load Microsoft authentication configuration');
+        userMemberships = await fetchUserDivisions(supabaseUser.id);
+        console.log(`Fetched ${userMemberships.length} memberships for ${supabaseUser.id}`);
+        const primaryMembership = userMemberships.length > 0 ? userMemberships[0] : null;
+        primaryDivision = primaryMembership?.divisions;
+        primaryRole = primaryMembership?.role || 'staff';
+        const divisionsFromMemberships = userMemberships.map(m => m.divisions).filter(Boolean);
+        setUserDivisions(divisionsFromMemberships);
+      } catch (fetchError) {
+        console.error('Error fetching user divisions during user object creation:', fetchError);
+        toast.warning('Could not load division information.');
       }
-    };
 
-    loadMsConfig();
-
-    // Check if user is already logged in
-    const checkExistingSession = async () => {
-      // Check localStorage as fallback for default admin
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-        
-        // Load user units
-        fetchUserUnits().then(units => {
-          // If user has at least one unit and no unit is selected, select the first one
-          if (units.length > 0 && !selectedUnit) {
-            setSelectedUnit(units[0].id);
-            localStorage.setItem('selectedUnit', units[0].id);
-          }
-        });
-      }
-    };
-    
-    checkExistingSession();
-    
-    // Check for saved selected unit in localStorage
-    const savedUnit = localStorage.getItem('selectedUnit');
-    if (savedUnit) {
-      setSelectedUnit(savedUnit);
+      const newUser: User = {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        name: supabaseUser.user_metadata?.full_name || supabaseUser.email,
+        role: role,
+        isAdmin: role === 'admin',
+        divisionId: primaryDivision?.id,
+        divisionName: primaryDivision?.name,
+        divisionRole: primaryRole,
+        divisionMemberships: userMemberships.map(m => ({
+            divisionId: m.divisionId,
+            role: m.role as DivisionRole
+        })),
+        profilePicture: supabaseUser.user_metadata?.avatar_url,
+        accessToken: session?.access_token,
+      };
+      console.log('Constructed User:', newUser);
+      return newUser;
+    } catch (error) {
+        console.error("Error constructing user object:", error);
+        toast.error("Failed to initialize user session.");
+        return null;
+    } finally {
+        setIsLoading(false);
     }
-  }, []);
+  }, [fetchUserDivisions]);
 
-  // Update user object with notes if user exists
+  useEffect(() => {
+    setIsLoading(true);
+    console.log("Setting up Supabase auth state listener...");
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.error("Supabase client not available for auth listener.");
+      setIsLoading(false);
+      return;
+    }
+
+    supabase.auth.getUser().then(async ({ data: { user: initialSupabaseUser } }) => {
+        if (initialSupabaseUser) {
+            console.log("Found initial Supabase user:", initialSupabaseUser.email);
+            const { data: { session } } = await supabase.auth.getSession();
+            const appUser = await createUserObjectFromSupabase(initialSupabaseUser, session);
+            if (appUser) {
+                setUserState(appUser);
+                localStorage.setItem('user', JSON.stringify(appUser));
+                console.log("Initial user session loaded.");
+            } else {
+                 console.error("Failed to create app user from initial Supabase user.");
+                 await supabase.auth.signOut();
+                 localStorage.removeItem('user');
+            }
+        } else {
+            console.log("No initial Supabase user found.");
+            const storedUser = localStorage.getItem('user');
+             if (storedUser) {
+                 console.warn("Found user in local storage but no Supabase session. Clearing local user.");
+                 localStorage.removeItem('user');
+             }
+             setUserState(null);
+        }
+        setIsLoading(false);
+    }).catch(error => {
+        console.error("Error getting initial Supabase user:", error);
+        setIsLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        console.log(`Supabase auth event: ${_event}`);
+        setIsLoading(true);
+        const supabaseUser = session?.user ?? null;
+
+        if (_event === 'SIGNED_IN' && supabaseUser) {
+          console.log('User signed in:', supabaseUser.email);
+          const appUser = await createUserObjectFromSupabase(supabaseUser, session);
+           if (appUser) {
+               setUserState(appUser);
+               localStorage.setItem('user', JSON.stringify(appUser));
+               toast.success('Successfully signed in!');
+           } else {
+                console.error("Failed to create app user after SIGNED_IN event.");
+                await supabase.auth.signOut();
+           }
+        } else if (_event === 'SIGNED_OUT') {
+          console.log('User signed out.');
+          setUserState(null);
+          setUserDivisions([]);
+          localStorage.removeItem('user');
+        } else if (_event === 'TOKEN_REFRESHED' && supabaseUser) {
+            console.log('Token refreshed for:', supabaseUser.email);
+             const appUser = await createUserObjectFromSupabase(supabaseUser, session);
+             if (appUser) {
+                 setUserState(appUser);
+                 localStorage.setItem('user', JSON.stringify(appUser));
+             } else {
+                 console.error("Failed to update app user after TOKEN_REFRESHED event.");
+             }
+        } else if (_event === 'USER_UPDATED' && supabaseUser) {
+             console.log('Supabase user updated:', supabaseUser.email);
+              const appUser = await createUserObjectFromSupabase(supabaseUser, session);
+              if (appUser) {
+                  setUserState(appUser);
+                  localStorage.setItem('user', JSON.stringify(appUser));
+              } else {
+                  console.error("Failed to update app user after USER_UPDATED event.");
+              }
+        }
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      console.log("Unsubscribing from Supabase auth state changes.");
+      listener?.subscription?.unsubscribe();
+    };
+  }, [createUserObjectFromSupabase]);
+
   useEffect(() => {
     const loadUserNotes = async () => {
-      if (user?.email) {
+        if (user?.email && user.notes === undefined) {
+        console.log("Loading notes for:", user.email)
         try {
           const notes = await notesService.getNotes(user.email);
-          setUser({
-            ...user,
-            notes
-          });
+          setUserState(currentUser => currentUser ? { ...currentUser, notes } : null);
         } catch (error) {
           console.error('Error loading user notes:', error);
         }
@@ -166,176 +224,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       loadUserNotes();
     }
-  }, [user?.email]);
+  }, [user]);
 
   const login = async (email: string, password: string) => {
-    // Special case for the default admin (demo only)
-    if (email.toLowerCase() === 'admin@app.com' && password === 'admin') {
-      setUser(defaultAdmin);
-      localStorage.setItem('user', JSON.stringify(defaultAdmin));
-      return Promise.resolve();
+    setIsLoading(true);
+    try {
+      console.log(`Attempting Supabase login for: ${email}`);
+      const authResponseData = await supabaseSignInWithEmail(email, password);
+
+      if (!authResponseData || !authResponseData.user) {
+        console.error('Supabase login error: No user data returned in response');
+        toast.error('Login failed: Could not retrieve user information.');
+        throw new Error('Login failed: No user data returned');
+      }
+
+      console.log('Supabase email login successful for:', authResponseData.user.email);
+
+    } catch (error: any) {
+      console.error('Login function caught error:', error);
+      toast.error(`Login failed: ${error.message || 'An unknown error occurred'}`);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    
-    // For now, we'll just use the default admin for any login attempt
-    // In a real implementation, you would validate credentials against your backend
-    setUser(defaultAdmin);
-    localStorage.setItem('user', JSON.stringify(defaultAdmin));
-    return Promise.resolve();
   };
 
   const loginWithMicrosoft = async () => {
-    if (!msGraphConfig) {
-      console.error('Microsoft authentication is not configured');
-      toast.error('Microsoft authentication is not configured');
-      return;
-    }
-
-    if (!msalInitialized) {
-      console.error('MSAL is not initialized');
-      toast.error('Authentication service is not ready. Please try again later.');
-      return;
-    }
-
-    // Get the MSAL instance from window or context
-    const msalInstance = (typeof window !== 'undefined' && window.msalInstance) 
-      ? window.msalInstance 
-      : null;
-
-    if (!msalInstance) {
-      console.error('MSAL instance not found. Retrying after a short delay...');
-      
-      // Wait a moment and retry once
-      setTimeout(() => {
-        const retryInstance = (typeof window !== 'undefined' && window.msalInstance) 
-          ? window.msalInstance 
-          : null;
-          
-        if (retryInstance) {
-          console.log('MSAL instance found on retry');
-          loginWithMicrosoftService(retryInstance).catch(error => {
-            console.error('Microsoft login retry failed:', error);
-            toast.error('Failed to login with Microsoft');
-          });
-        } else {
-          console.error('MSAL instance still not available after retry');
-          toast.error('Authentication service is not ready. Please refresh the page and try again.');
-        }
-      }, 1000);
-      
-      return;
-    }
-
+    setIsLoading(true);
+    console.log('Initiating Microsoft login via Supabase OAuth...');
     try {
-      console.log('Initiating Microsoft login...');
-      
-      // Use the MSAL service for login
-      await loginWithMicrosoftService(msalInstance);
-      
-      // After successful login, get the account and profile
-      const account = getAccount(msalInstance);
-      if (!account) {
-        console.error('No account found after Microsoft login');
-        toast.error('Failed to get account after login');
-        return;
-      }
-      
-      console.log('Microsoft login successful, fetching user profile');
-      const profile = await getUserProfile(msalInstance);
-      if (!profile) {
-        console.error('Failed to fetch user profile');
-        toast.error('Failed to fetch user profile');
-        return;
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        throw new Error("Supabase client not available.");
       }
 
-      // Construct base user object
-      const baseUser: Partial<User> = {
-        id: account.localAccountId, // Or profile.id if preferred
-        email: account.username,
-        name: profile.displayName || account.name,
-        profilePicture: profile.photo, // Already handled null in getUserProfile
-        accessToken: account.idToken, // Or maybe an access token if needed
-        // Set role based on email
-        role: adminEmails.includes(account.username.toLowerCase()) ? 'admin' : 'user'
-      };
-      
-      // Fetch user division memberships and details
-      let userMemberships: any[] = [];
-      try {
-        console.log('Fetching user divisions immediately after profile retrieval...');
-        // fetchUserDivisions now returns membership details with division info
-        userMemberships = await fetchUserDivisions(baseUser.id!); 
-        console.log('Fetched user memberships:', userMemberships);
-        // Store the detailed membership info if needed, or just the Division objects
-        // Let's assume we want to store Division objects in userDivisions state
-        const divisionsFromMemberships = userMemberships.map(m => m.divisions).filter(Boolean);
-        setUserDivisions(divisionsFromMemberships);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          scopes: 'email offline_access User.Read',
+           redirectTo: window.location.origin
+        },
+      });
 
-      } catch (error) {
-        console.error('Error fetching user divisions during login:', error);
-        toast.error('Failed to load your division information.');
+      if (error) {
+        console.error('Supabase Azure OAuth error:', error.message);
+        toast.error(`Microsoft login failed: ${error.message}`);
+        throw error;
       }
-      
-      // Determine primary division and role from memberships
-      // Assuming the first membership found is the primary one for now
-      // You might need more specific logic (e.g., a flag in the DB)
-      const primaryMembership = userMemberships.length > 0 ? userMemberships[0] : null;
-      const primaryDivision = primaryMembership?.divisions; // Get nested division object
-      const primaryRole = primaryMembership?.role || 'staff'; // Get role from membership
-
-      // Construct the final user object
-      const newUser: User = {
-        ...baseUser,
-        id: baseUser.id!,
-        email: baseUser.email!,
-        name: baseUser.name!,
-        role: baseUser.role!,
-        divisionId: primaryDivision?.id, // Use ID from nested division object
-        divisionName: primaryDivision?.name, // Use Name from nested division object
-        divisionRole: primaryRole as DivisionRole,
-        // Map all memberships for the user object
-        divisionMemberships: userMemberships.map(m => ({ 
-            divisionId: m.divisionId,
-            role: m.role as DivisionRole 
-        })),
-        isAdmin: baseUser.role === 'admin',
-      };
-
-      console.log('Setting user state:', newUser);
-      setUser(newUser);
-      setUserProfile(profile);
-      localStorage.setItem('user', JSON.stringify(newUser));
-
-      // Fetch user units AFTER user state is set 
-      try {
-        console.log('Fetching user units after setting user state...');
-        await fetchUserUnits(); 
-      } catch (error) {
-        console.error('Error fetching user units after login:', error);
-      }
-      
-      console.log('User successfully logged in and profile saved');
-      
-    } catch (error) {
-      console.error('Microsoft login process failed:', error);
-      // diagnoseMsalIssues(); // Call diagnostic helper
-      toast.error('Failed to login with Microsoft');
+      console.log('Redirecting to Microsoft for login...');
+    } catch (error: any) {
+      console.error('Error during Microsoft login initiation:', error);
+      toast.error(`Microsoft login failed: ${error.message || 'An unexpected error occurred'}`);
+      setIsLoading(false);
     }
   };
 
-  // New method to fetch user notes
+  const logout = async () => {
+    setIsLoading(true);
+    console.log("Initiating logout...");
+    try {
+      await supabaseSignOut();
+      toast.success("Successfully signed out.");
+    } catch (error: any) {
+      console.error('Error during logout:', error);
+      toast.error(`Logout failed: ${error.message || 'An unknown error occurred'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchUserNotes = async (): Promise<any[]> => {
     if (!user?.email) {
       console.error('Cannot fetch notes: No user is logged in');
       return [];
     }
-    
+
     try {
       const notes = await notesService.getNotes(user.email);
-      // Update the user object with the notes
-      setUser({
-        ...user,
-        notes
-      });
+      setUserState(currentUser => currentUser ? { ...currentUser, notes } : null);
       return notes;
     } catch (error) {
       console.error('Error fetching notes:', error);
@@ -343,18 +309,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [];
     }
   };
-  
-  // New method to add a user note
+
   const addUserNote = async (content: string) => {
-    if (!user?.email) {
+     if (!user?.email) {
       console.error('Cannot add note: No user is logged in');
       toast.error('You must be logged in to add notes');
       return null;
     }
-    
+
     try {
       const result = await notesService.addNote(user.email, content);
-      // Refresh notes after adding
       await fetchUserNotes();
       toast.success('Note added successfully');
       return result;
@@ -365,8 +329,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Update fetchUserUnits to ensure it sets OrganizationUnit[]
-  const fetchUserUnits = async (): Promise<OrganizationUnit[]> => {
+ const fetchUserUnits = async (): Promise<OrganizationUnit[]> => {
     console.log('Fetching user units...');
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -375,30 +338,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Fetch all organization units for now (adjust query as needed)
       const { data, error } = await supabase
-        .from(supabaseConfig.tables.organization_units) 
-        .select('id, name, description, code, manager'); // Select fields matching OrganizationUnit
+        .from(supabaseConfig.tables.organization_units)
+        .select('id, name, description, code, manager');
 
       if (error) {
         console.error('Error fetching organization units:', error);
         throw error;
       }
-      
+
       console.log('Fetched units data:', data);
 
-      // Map data if necessary (ensure createdAt/updatedAt aren't required by type or handle them)
       const units: OrganizationUnit[] = (data || []).map((unit: any) => ({
           id: unit.id,
           name: unit.name,
           description: unit.description,
           code: unit.code,
           manager: unit.manager,
-          // Add dummy dates if the type strictly requires them and they aren't fetched
-          createdAt: new Date(), 
+          createdAt: new Date(),
           updatedAt: new Date()
       }));
-      
+
       setBusinessUnits(units);
       return units;
     } catch (error) {
@@ -408,9 +368,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Modify fetchUserDivisions to join and return relevant info
-  const fetchUserDivisions = async (userId: string): Promise<any[]> => { // Return type any[] for now
-    if (!userId) {
+  const fetchUserDivisions = async (userId: string): Promise<any[]> => {
+     if (!userId) {
       console.error('Cannot fetch divisions: No user ID provided');
       return [];
     }
@@ -419,30 +378,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Supabase client not available for fetching divisions.');
       return [];
     }
-    
+
     console.log(`Fetching division memberships for user: ${userId}`);
 
     try {
-      // Fetch memberships and join with divisions table
       const { data: memberships, error: membershipError } = await supabase
         .from(supabaseConfig.tables.division_memberships)
-        // Select membership role and all columns from the joined divisions table
         .select(`
           role,
           divisionId: division_id,
           divisions ( id, name, description, code )
         `)
-        .eq('user_id', userId); // Corrected column name likely user_id
-        
+        .eq('user_id', userId);
+
       if (membershipError) {
         console.error('Error fetching division memberships:', membershipError);
         throw membershipError;
       }
-      
+
       console.log('Fetched division memberships with division data:', memberships);
-      
-      // The data should now be an array of objects like: 
-      // { role: 'staff', divisionId: 'uuid', divisions: { id: 'uuid', name: 'Division Name', ... } }
+
       return memberships || [];
 
     } catch (error) {
@@ -451,46 +406,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [];
     }
   };
-  
-  // Helper function to check if user has access to a division
+
   const hasAccessToDivision = (divisionId: string): boolean => {
-    if (!user) return false;
-    
-    // Admins have access to all divisions
+     if (!user) return false;
+
     if (user.isAdmin) return true;
-    
-    // Check if user is a member of the division
+
     return user.divisionMemberships?.some(m => m.divisionId === divisionId) || false;
   };
 
-  const logout = async () => {
-    try {
-      // Clear user data
-      setUser(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('selectedUnit');
-      
-      // If MSAL is initialized, log out from Microsoft
-      if (window.msalInstance) {
-        await window.msalInstance.logoutRedirect();
-      }
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
-  };
-
-  // When selected unit changes, save to localStorage
   useEffect(() => {
     if (selectedUnit) {
       localStorage.setItem('selectedUnit', selectedUnit);
+    } else {
+      localStorage.removeItem('selectedUnit');
     }
   }, [selectedUnit]);
 
-  // Compute derived values
-  const isAuthenticated = !!user;
-  const isAdmin = user?.role === 'admin' || !!user?.isAdmin;
+  const isAuthenticated = !!user && !isLoading;
+  const isAdmin = user?.isAdmin ?? false;
   const isManager = user?.role === 'manager';
   const isDirector = user?.divisionRole === 'director';
+
+  const setUser = (newUser: User | null) => {
+      console.warn("Manually setting user state:", newUser);
+      setUserState(newUser);
+      if (newUser) {
+          localStorage.setItem('user', JSON.stringify(newUser));
+      } else {
+          localStorage.removeItem('user');
+      }
+  };
 
   return (
     <AuthContext.Provider
@@ -509,14 +455,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectedDivision,
         setSelectedDivision,
         userDivisions,
-        msGraphConfig,
         setUser,
         fetchUserNotes,
         addUserNote,
         fetchUserUnits,
         fetchUserDivisions,
-        userProfile,
-        hasAccessToDivision
+        hasAccessToDivision,
+        isLoading,
       }}
     >
       {children}
