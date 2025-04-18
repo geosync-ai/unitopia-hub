@@ -23,8 +23,15 @@ import DeleteModal from '@/components/unit-tabs/modals/DeleteModal';
 import AssetCard from '@/components/assets/AssetCard';
 import HighlightMatch from '@/components/ui/HighlightMatch';
 
+// Define interface for User Profile (adjust based on your actual profile table structure)
+interface UserProfile {
+  full_name?: string;
+  // Add other profile fields if needed
+}
+
 const AssetManagement = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfileName, setUserProfileName] = useState<string | null>(null); // <-- Add state for profile name
   const [userLoading, setUserLoading] = useState(true);
   const { toast } = useToast();
 
@@ -47,38 +54,77 @@ const AssetManagement = () => {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [filterText, setFilterText] = useState('');
 
-  // Fetch user data on mount
+  // Fetch user and profile data on mount
   useEffect(() => {
     let isMounted = true;
     setUserLoading(true);
-    logger.info('AssetManagement Page: Fetching user data...');
+    logger.info('AssetManagement Page: Fetching user and profile data...');
 
-    supabase.auth.getUser()
-      .then(({ data, error }) => {
+    const fetchUserData = async () => {
+      try {
+        // Fetch user
+        const { data: userData, error: userError } = await supabase.auth.getUser();
         if (!isMounted) return;
-        if (error) {
-          logger.error('AssetManagement Page: Error fetching user', error);
-          toast({ title: "Error", description: "Failed to load user information.", variant: "destructive" });
-        } else {
-          logger.success('AssetManagement Page: User data fetched', data.user);
-          setCurrentUser(data.user);
+
+        if (userError) {
+          throw userError;
         }
-        setUserLoading(false);
-      })
-      .catch(err => {
+
+        if (userData.user) {
+          logger.success('AssetManagement Page: User data fetched', userData.user);
+          setCurrentUser(userData.user);
+
+          // Fetch profile using user ID
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles') // Replace 'profiles' with your actual profile table name
+            .select('full_name') // Select the column containing the user's full name
+            .eq('id', userData.user.id)
+            .single(); // Fetch a single record
+
+          if (!isMounted) return;
+
+          if (profileError) {
+            logger.warn('AssetManagement Page: Could not fetch user profile', profileError);
+            // Decide how to handle missing profile: fallback to email or show error?
+            // For now, we'll let it be null and the filter will handle it
+          } else if (profileData) {
+            logger.success('AssetManagement Page: User profile fetched', profileData);
+            setUserProfileName(profileData.full_name || null); // <-- Set profile name state
+          } else {
+            logger.warn('AssetManagement Page: No profile found for user');
+          }
+
+        } else {
+           logger.warn('AssetManagement Page: No user data found.');
+           // Handle case where getUser returns null user without error
+        }
+
+      } catch (err) {
         if (isMounted) {
-          logger.error('AssetManagement Page: Unexpected error fetching user', err);
-          toast({ title: "Error", description: "An unexpected error occurred loading user info.", variant: "destructive" });
+            logger.error('AssetManagement Page: Error fetching user or profile data', err);
+            toast({ title: "Error", description: "Failed to load user information.", variant: "destructive" });
+        }
+      } finally {
+        if (isMounted) {
           setUserLoading(false);
         }
-      });
+      }
+    };
 
-    // Optional: Add listener for sign out
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+    fetchUserData();
+
+    // Auth state change listener remains the same
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
         if (!isMounted) return;
         if (event === 'SIGNED_OUT') {
             logger.info('AssetManagement Page: User signed out.');
-            setCurrentUser(null); // ProtectedRoute will handle redirect
+            setCurrentUser(null);
+            setUserProfileName(null); // Clear profile name on sign out
+        } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+             // Re-fetch user and profile data if auth state changes significantly
+             if(session?.user?.id !== currentUser?.id) {
+                fetchUserData();
+             }
         }
     });
 
@@ -86,17 +132,20 @@ const AssetManagement = () => {
       isMounted = false;
       authListener?.subscription?.unsubscribe();
     };
-  }, [toast]); // Add toast to dependency array
+  }, [toast]); // Keep dependencies minimal, fetchUserData is defined inside
 
   // Log the user object and the assets array before filtering
   console.log('[AssetManagement] Current User object:', currentUser);
+  console.log('[AssetManagement] User Profile Name for filtering:', userProfileName); // <-- Log profile name
   console.log('[AssetManagement] Assets array before filtering:', assets);
 
   // --- Filtering Logic ---
-  const loggedInUserName = currentUser?.user_metadata?.name || currentUser?.email;
-  console.log('[AssetManagement] Logged in user name/email for filtering:', loggedInUserName);
+  // const loggedInUserName = currentUser?.user_metadata?.name || currentUser?.email; // <-- Keep original logic commented out for reference
+  // console.log('[AssetManagement] Logged in user name/email for filtering:', loggedInUserName); // <-- Keep original logic commented out for reference
+
   const myAssets = assets
-    .filter(asset => loggedInUserName && asset.assigned_to === loggedInUserName)
+    // Filter by matching assigned_to with the fetched userProfileName
+    .filter(asset => userProfileName && asset.assigned_to === userProfileName) // <-- Updated filter condition
     .filter(asset => {
       const searchTerm = filterText.toLowerCase();
       if (!searchTerm) return true;
@@ -120,10 +169,11 @@ const AssetManagement = () => {
   const loggedInUserEmail = currentUser?.email;
   // --- End Email for filtering ---
 
-  // Fetch data on mount
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  // Fetch data on mount (refresh might be redundant if useAssetsData fetches initially)
+  // Consider if refresh() is needed here or if useAssetsData handles initial fetch
+  // useEffect(() => {
+  //   refresh();
+  // }, [refresh]);
 
   // --- Modal Handlers ---
 
@@ -154,8 +204,8 @@ const AssetManagement = () => {
     const today = new Date().toISOString().split('T')[0];
     const completeAssetData = {
       ...newAssetData,
-      assigned_to: currentUser?.user_metadata?.name || currentUser?.email, 
-      assigned_to_email: loggedInUserEmail, // Already derived from currentUser
+      assigned_to: userProfileName || currentUser?.email, // <-- Use profile name if available, fallback to email for new assets
+      assigned_to_email: loggedInUserEmail, // Keep email assignment separate
       assigned_date: newAssetData.assigned_date || today,
     } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
     
