@@ -11,9 +11,11 @@ import PersonalKPICards from '@/components/dashboard/PersonalKPICards';
 import PersonalKPIStats from '@/components/dashboard/PersonalKPIStats';
 import { supabase, logger } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
+import { getStaffMemberByEmail } from '@/data/divisions';
 
 const Index = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [displayName, setDisplayName] = useState<string>("User");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,15 +28,27 @@ const Index = () => {
         if (!isMounted) return;
         if (error) {
           logger.error('Index Page: Error fetching user', error);
-        } else {
+          setDisplayName("User");
+        } else if (data.user) {
           logger.success('Index Page: User data fetched', data.user);
           setCurrentUser(data.user);
+          
+          const email = data.user.email;
+          if (email) {
+            const staffMember = getStaffMemberByEmail(email);
+            setDisplayName(staffMember?.name || email);
+          } else {
+            setDisplayName(data.user.user_metadata?.name || "User");
+          }
+        } else {
+           setDisplayName("User");
         }
         setLoading(false);
       })
       .catch(err => {
         if (isMounted) {
           logger.error('Index Page: Unexpected error fetching user', err);
+          setDisplayName("User");
           setLoading(false);
         }
       });
@@ -44,6 +58,16 @@ const Index = () => {
         if (event === 'SIGNED_OUT') {
             logger.info('Index Page: User signed out, clearing user data.');
             setCurrentUser(null);
+            setDisplayName("User");
+        }
+        else if (event === 'SIGNED_IN' && session?.user) {
+            const email = session.user.email;
+             if (email) {
+               const staffMember = getStaffMemberByEmail(email);
+               setDisplayName(staffMember?.name || email);
+             } else {
+               setDisplayName(session.user.user_metadata?.name || "User");
+             }
         }
     });
 
@@ -79,7 +103,7 @@ const Index = () => {
       <WelcomeBanner />
       
       <WelcomeCard 
-        name={currentUser?.user_metadata?.name || currentUser?.email || "User"} 
+        name={displayName}
         date={currentDate}
         greeting="Welcome to the SCPNG Intranet Portal"
         location="MRDC House"
