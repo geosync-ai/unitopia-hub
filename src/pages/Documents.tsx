@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,7 +13,6 @@ import PageLayout from '@/components/layout/PageLayout';
 
 export default function Documents() {
   const { getSharePointDocuments, getOneDriveDocuments, getFolderContents } = useMicrosoftGraph();
-  const { isAuthenticated, loginWithMicrosoft } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,8 +23,6 @@ export default function Documents() {
   const [currentPath, setCurrentPath] = useState<{ id: string; name: string }[]>([]);
 
   const fetchDocuments = async () => {
-    if (!isAuthenticated) return;
-    
     setIsLoading(true);
     setAuthError(false);
     
@@ -62,7 +58,7 @@ export default function Documents() {
 
   useEffect(() => {
     fetchDocuments();
-  }, [isAuthenticated, source]);
+  }, [source]);
 
   useEffect(() => {
     const filtered = documents.filter(doc => 
@@ -73,8 +69,6 @@ export default function Documents() {
 
   const handleReauthenticate = async () => {
     try {
-      await loginWithMicrosoft();
-      setAuthError(false);
       await fetchDocuments();
     } catch (error) {
       console.error('Re-authentication failed:', error);
