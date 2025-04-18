@@ -16,7 +16,7 @@ import {
   LabelList
 } from 'recharts';
 import { useTheme } from "next-themes";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 interface KRAInsightsTabProps {
   kras: Kra[];
@@ -65,7 +65,7 @@ const statusColors: Record<string, string> = {
 export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
   const validKras = Array.isArray(kras) ? kras : [];
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
 
   console.log('[KRAInsightsTab] User:', JSON.stringify(user, null, 2));
   console.log('[KRAInsightsTab] Received kras data:', JSON.stringify(validKras, null, 2));
@@ -96,7 +96,7 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
                     });
     console.log('[KRAInsightsTab] Filtered userAssignedKpis:', assignedKpis);
     return assignedKpis;
-  }, [validKras, user?.id]);
+  }, [validKras, user?.id, user?.email]);
 
   const userKraStatusData = React.useMemo(() => {
     const statusCounts: Record<string, number> = {};
