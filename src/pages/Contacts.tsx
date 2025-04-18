@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Filter, Phone, Mail, MapPin, Plus, RefreshCw, Building, Users, Briefcase, Shield } from 'lucide-react';
 import OrganizationalStructure from '@/components/contacts/OrganizationalStructure';
 import useMicrosoftContacts, { MicrosoftContact } from '@/hooks/useMicrosoftContacts';
-import { useAuth } from '@/hooks/useAuth';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { staffMembers, getStaffMembersByDivision } from '@/data/divisions';
@@ -17,7 +17,7 @@ const Contacts = () => {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const { contacts, isLoading, error, refetch } = useMicrosoftContacts();
-  const { isAuthenticated, loginWithMicrosoft, user, selectedDivision, isAdmin } = useAuth();
+  const { session, user, profile, selectedDivision, isAdmin } = useSupabaseAuth();
   const [allContacts, setAllContacts] = useState<MicrosoftContact[]>([]);
   
   // Update contacts with local staff data if needed
