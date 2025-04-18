@@ -99,6 +99,7 @@ const AppRoutes = () => {
       <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       <Route path="/ai-hub" element={<ProtectedRoute><AIHub /></ProtectedRoute>} />
       <Route path="/unit" element={<ProtectedRoute><Unit /></ProtectedRoute>} />
+      <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
       
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />

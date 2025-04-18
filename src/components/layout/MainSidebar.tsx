@@ -57,6 +57,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: Target, path: '/unit', label: 'Unit' },
     // { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },
+    { icon: Users, path: '/organization', label: 'Organization' },
   ];
   
   // Show admin link only to admins (using temporary isAdmin flag)
