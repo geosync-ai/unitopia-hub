@@ -1,51 +1,99 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase, logger } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Mail, KeyRound, LogIn, Loader2 } from 'lucide-react';
+import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const { user, isAuthenticated, login, loginWithMicrosoft, isLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      console.log('Login Page: Already authenticated, redirecting to home...');
-      navigate('/', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+    logger.info('Initializing login page check');
+    setError(null);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!login) {
-      toast.error('Login service is not available.');
-      return;
-    }
-    try {
-      await login(email, password);
-    } catch (error) {
-      console.error('Login page: Login failed:', error);
-    }
-  };
+    supabase.auth.getUser()
+      .then(({ data, error: checkError }) => {
+        if (checkError) {
+          logger.error('Error checking authentication status', checkError);
+        } else if (data.user) {
+          logger.success('User already authenticated', { userId: data.user.id });
+          navigate('/', { replace: true });
+        } else {
+          logger.info('No authenticated user found, showing login page.');
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        logger.error('Unexpected error in auth check', err);
+        setError('Failed to check authentication status');
+        setLoading(false);
+      });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        logger.info(`Auth state changed: ${event}`, { userId: session?.user?.id });
+        if (event === 'SIGNED_IN' && session?.user) {
+          logger.success('User signed in successfully via OAuth', { userId: session.user.id });
+          navigate('/', { replace: true });
+        } else if (event === 'SIGN_IN_ERROR') {
+            logger.error('Sign in error event received', session);
+            setError('Failed to sign in with Microsoft. Please try again.');
+            setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+            logger.info('User explicitly signed out');
+            setLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      listener?.subscription?.unsubscribe();
+      logger.info('Login page cleanup');
+    };
+  }, [navigate]);
 
   const handleMicrosoftLogin = async () => {
-    if (isLoading) return;
-    if (!loginWithMicrosoft) {
-      toast.error('Microsoft login is not available right now.');
-      return;
-    }
-    console.log('Login.tsx - Microsoft login button clicked - calling loginWithMicrosoft...');
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    logger.info('Initiating Azure sign-in');
+
     try {
-      await loginWithMicrosoft();
-    } catch (error) {
-      console.error('Login.tsx - Microsoft login initiation failed:', error);
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          scopes: 'email',
+          redirectTo: window.location.origin 
+        },
+      });
+
+      if (signInError) {
+        logger.error('Azure login error', signInError);
+        setError(signInError.message || 'An error occurred during Microsoft sign-in.');
+        setLoading(false);
+      }
+    } catch (err: any) {
+      logger.error('Unexpected error during sign-in attempt', err);
+      setError(err.message || 'An unexpected error occurred.');
+      setLoading(false);
     }
+  };
+  
+  const renderError = () => {
+    if (!error) return null;
+    return (
+      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-3 text-sm">
+        <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
+        <div>
+          <p className="text-red-700 font-medium">Login Error</p>
+          <p className="text-red-600 mt-1">{error}</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -60,67 +108,30 @@ export default function Login() {
             <p className="text-gray-500 text-sm text-center">Sign in to access the portal</p>
           </div>
 
-          <Button 
-            variant="outline" 
-            className="w-full mb-4 bg-white border-gray-300 hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-2" 
-            onClick={handleMicrosoftLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" /> 
-            ) : (
-              <svg className="h-5 w-5" viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>
-            )}
-            <span>Sign in with Microsoft</span>
-          </Button>
+           {loading && !error && (
+             <div className="py-6 flex justify-center items-center">
+               <Loader2 className="h-6 w-6 animate-spin text-[#400010]" />
+               <span className="ml-2 text-gray-600">Checking session...</span>
+             </div>
+           )}
+           
+           {renderError()}
 
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-300"></span>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Or continue with email</span>
-            </div>
-           </div>
-
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10"
-                placeholder="your.email@example.com"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="relative">
-               <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10"
-                placeholder="••••••••"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full bg-[#400010] hover:bg-[#500020] text-white flex items-center justify-center gap-2"
-              disabled={isLoading}
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-              <span>Sign in</span>
-            </Button>
-          </form>
+           {!loading && (
+             <Button
+               variant="outline"
+               className="w-full mt-6 bg-white border-gray-300 hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-2"
+               onClick={handleMicrosoftLogin}
+               disabled={loading} 
+             >
+               {loading ? (
+                 <Loader2 className="h-4 w-4 animate-spin" />
+               ) : (
+                 <svg className="h-5 w-5" viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>
+               )}
+               <span>Sign in with Microsoft</span>
+             </Button>
+           )}
 
           <div className="mt-6 border-t pt-4">
              <p className="text-xs text-center text-gray-500">
