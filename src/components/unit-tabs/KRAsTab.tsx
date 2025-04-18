@@ -237,7 +237,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
   const [editingKra, setEditingKra] = useState<Kra | undefined>(undefined);
   const [editingKpiDetails, setEditingKpiDetails] = useState<{ kraId: string; kpi: Kpi } | undefined>(undefined);
-  const [kraToDelete, setKraToDelete] = useState<string | number | null>(null);
+  const [kraToDelete, setKraToDelete] = useState<Kra | null>(null);
   const [filters, setFilters] = useState<KraFiltersState>({
       department: 'all',
       status: 'all',
@@ -551,24 +551,34 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   };
 
   const handleDeleteKra = (kraId: string | number) => {
-    console.log("Requesting delete confirmation for KRA ID:", String(kraId));
-    setKraToDelete(kraId); // Set the ID to open the dialog
+    // --- MODIFIED --- Find the KRA object and store it
+    const kra = krasFromProps.find(k => k.id === kraId);
+    if (kra) {
+      console.log("Requesting delete confirmation for KRA:", kra.title, kra.id);
+      setKraToDelete(kra); // Store the full object
+    } else {
+      console.error("Could not find KRA to delete:", kraId);
+      toast({ title: "Error", description: "Could not find KRA to delete.", variant: "destructive" });
+    }
   };
 
   const confirmDeleteKra = async () => {
-    if (!kraToDelete) return;
+    // --- MODIFIED --- Check for object and ID, get ID from object
+    if (!kraToDelete?.id) return; 
 
-    const idToDelete = String(kraToDelete); // Ensure it's a string for the service
-    console.log("Confirming deletion for KRA ID:", idToDelete);
+    const idToDelete = String(kraToDelete.id); 
+    const kraTitle = kraToDelete.title; // Get title for messages
+    console.log("Confirming deletion for KRA:", kraTitle, idToDelete);
 
     try {
       await krasService.deleteKRA(idToDelete);
       toast({
         title: "KRA Deleted",
-        description: `KRA with ID ${idToDelete} has been successfully deleted.`,
+        // --- MODIFIED --- Use title in success message
+        description: `KRA "${kraTitle}" has been successfully deleted.`, 
       });
-      console.log("[confirmDeleteKra] KRA deleted. Attempting to call onDataRefresh..."); // Add log
-      onDataRefresh?.(); // Refresh data in parent component
+      console.log("[confirmDeleteKra] KRA deleted. Attempting to call onDataRefresh..."); 
+      onDataRefresh?.(); 
     } catch (error: any) {
       console.error("Error deleting KRA:", error);
       toast({
@@ -1028,8 +1038,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the Key Result Area
-                (ID: {kraToDelete}) and all of its associated KPIs.
+                This action cannot be undone. This will permanently delete the Key Result
+                Area <strong>"{kraToDelete?.title}"</strong> and all of its associated KPIs.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
