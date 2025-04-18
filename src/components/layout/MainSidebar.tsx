@@ -69,11 +69,12 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
 
   return (
     <div className="fixed inset-y-0 left-0 w-20 bg-gradient-to-b from-[#400010] to-[#200008] flex flex-col items-center py-6 z-10 shadow-lg dark:from-[#300010] dark:to-black rounded-r-2xl">
-      <div className="mb-10">
-        <div className="text-white font-bold text-center">
-          <div className="mb-1">SCPNG</div>
-          <div className="text-xs">Intranet</div>
-        </div>
+      <div className="mb-8 flex justify-center px-2">
+        <img 
+          src="/images/SCPNG Original Logo.png" 
+          alt="SCPNG Logo" 
+          className="w-16 h-auto"
+        />
       </div>
       
       <div className="flex flex-col items-center space-y-6 mt-4 flex-1">

@@ -101,6 +101,11 @@ export default function Login() {
       <Card className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden">
         <CardContent className="p-6 sm:p-8">
           <div className="flex flex-col items-center mb-6">
+            <img 
+              src="/images/SCPNG Original Logo.png" 
+              alt="SCPNG Logo"
+              className="w-24 h-auto mb-4"
+            />
             <div className="w-16 h-16 bg-[#400010] rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">
               SC
             </div>
