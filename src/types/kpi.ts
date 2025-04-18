@@ -19,7 +19,7 @@ export interface Kpi {
 }
 
 // Define possible KRA statuses
-type KraStatus = 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
+export type KraStatus = 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
 
 // KRA definition
 export interface Kra {

@@ -203,7 +203,7 @@ interface ProcessedRow {
     originalKra: Kra; 
 }
 
-// Define structure for unit data (including ID)
+// Define structure for unit data (if not already defined globally)
 interface UnitData {
   id: string | number;
   name: string;
@@ -215,11 +215,11 @@ interface KRAsTabProps {
   objectivesData: Objective[];
   onSaveObjective: (objective: Objective) => void;
   onDeleteObjective: (objectiveId: string | number) => void;
-  units: UnitData[];
+  units: UnitData[]; // This prop now receives the full list of units from Unit.tsx
   staffMembers?: StaffMember[];
-  onDataRefresh?: () => void; // Add prop for triggering data refresh
-  activeTab: string; // Add prop for controlled tab state
-  onTabChange: (tabValue: string) => void; // Add prop for handling tab change
+  onDataRefresh?: () => void; 
+  activeTab: string; 
+  onTabChange: (tabValue: string) => void; 
 }
 
 export const KRAsTab: React.FC<KRAsTabProps> = ({
@@ -227,11 +227,11 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   objectivesData,
   onSaveObjective,
   onDeleteObjective,
-  units,
+  units, // Receive the full units list here
   staffMembers,
   onDataRefresh,
-  activeTab, // Use prop
-  onTabChange // Use prop
+  activeTab, 
+  onTabChange 
 }) => {
   const kras = krasFromProps; // Use props directly
   const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
@@ -253,7 +253,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     return Array.from(new Set(titles)); // Get unique titles
   }, [kras]);
 
-  const departments = useMemo(() => Array.from(new Set(kras.map(kra => kra.unit || 'Unknown'))).filter(d => d !== 'Unknown'), [kras]);
+  // Derive departments for filtering - Now use the passed units prop
+  const departments = useMemo(() => units.map(u => u.name), [units]); 
   const kpiStatuses: (Kpi['status'] | 'all')[] = ['all', 'not-started', 'on-track', 'in-progress', 'at-risk', 'on-hold', 'completed', 'behind'];
 
   const handleFilterChange = useCallback((filterName: 'department' | 'status', value: string) => {
@@ -332,7 +333,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
               isFirstRowOfKraTitleGroup: isFirstRowInKraTitleGroup,
               kraTitleRowSpan: kraTitleSpan, 
               kpi: kpi,
-              originalKra: kraInstance,
+              originalKra: kraInstance, // Keep original KRA for filtering by unitId
             });
             isFirstRowInObjective = false; 
             isFirstRowInKraTitleGroup = false;
@@ -343,9 +344,13 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
 
     // Apply Filters AFTER grouping and PRE-FILTER span calculation
     const filteredRows = groupedRows.filter(row => {
-      const departmentMatch = filters.department === 'all' || row.originalKra.unit === filters.department;
+      // Filter by Department ID (unitId) now
+      const departmentMatch = filters.department === 'all' || String(row.originalKra.unitId) === filters.department;
       const statusMatch = filters.status === 'all' || (row.kpi.status && row.kpi.status === filters.status);
-      if (row.kpi.name === '-') { return departmentMatch; }
+      if (row.kpi.name === '-') { 
+          // For rows representing only a KRA without KPIs, only filter by department
+          return departmentMatch;
+      }
       return departmentMatch && statusMatch;
     });
     

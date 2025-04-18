@@ -68,6 +68,7 @@ import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { Objective, Kra } from '@/types/kpi';
 import { unitService } from '@/integrations/supabase/unitService'; // Import the unitService
+import { unitManagementService } from '@/integrations/supabase/unitManagementService'; // Import unitManagementService
 
 // Import tab components
 import { TasksTab } from '@/components/unit-tabs/TasksTab';
@@ -82,6 +83,12 @@ const statusOptions = [
   { value: 'review', label: 'Review' },
   { value: 'done', label: 'Done' }
 ];
+
+// Define structure for unit data (if not already defined globally)
+interface UnitData {
+  id: string | number;
+  name: string;
+}
 
 // StatusDropdown Component
 const StatusDropdown: React.FC<{ 
@@ -121,6 +128,11 @@ const Unit = () => {
   const riskState = useRisksData();
   const kraState = useKRAsData();
 
+  // --- State for All Units --- 
+  const [allUnitsData, setAllUnitsData] = useState<UnitData[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState<boolean>(true);
+  const [unitsError, setUnitsError] = useState<Error | null>(null);
+
   // Active Tab State for the main page sections
   const [activeTab, setActiveTab] = useState<string>("overview");
   // Active Tab State for the KRAs section specifically
@@ -146,6 +158,22 @@ const Unit = () => {
     }
   }, [toast]); // Dependency array includes toast
 
+  // --- Unit Fetching Logic --- 
+  const fetchAllUnits = useCallback(async () => {
+    setUnitsLoading(true);
+    setUnitsError(null);
+    try {
+      const fetchedUnits = await unitManagementService.getAllUnits();
+      // Ensure the fetched data matches the UnitData structure if necessary
+      setAllUnitsData(fetchedUnits.map(u => ({ id: u.id, name: u.name }))); 
+    } catch (error) {
+      setUnitsError(error instanceof Error ? error : new Error('Failed to load units'));
+      toast({ title: "Error Loading Units", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+    } finally {
+      setUnitsLoading(false);
+    }
+  }, [toast]);
+
   // --- Modified Objective Handlers --- 
   const handleSaveObjective = useCallback(async (objective: Objective) => {
     // This function is now primarily called AFTER a successful save in KRAsTab
@@ -168,11 +196,12 @@ const Unit = () => {
   // Function to refresh all relevant data
   const handleRefreshAllData = useCallback(() => {
     fetchObjectives();
+    fetchAllUnits(); // Refresh units too
     kraState.refresh?.();
     // Potentially refresh other states if KRA/Objective changes affect them
     // projectState.refresh?.(); 
     // taskState.refresh?.();
-  }, [fetchObjectives, kraState.refresh]);
+  }, [fetchObjectives, fetchAllUnits, kraState.refresh]);
 
   const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
     try {
@@ -192,15 +221,16 @@ const Unit = () => {
   // Effect to load data on mount
   useEffect(() => {
     fetchObjectives(); // Fetch objectives on mount
+    fetchAllUnits(); // Fetch units on mount
     taskState.refresh?.();
     projectState.refresh?.();
     riskState.refresh?.();
     kraState.refresh?.();
-  }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh]); // Dependencies remain the same
+  }, [fetchObjectives, fetchAllUnits, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh]); // Dependencies remain the same
 
-  // Determine if data loading is complete - Include objectivesLoading
-  const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading;
-  const hasDataLoadingError = objectivesError || taskState.error || projectState.error || riskState.error || kraState.error;
+  // Determine if data loading is complete - Include unitsLoading
+  const isDataLoading = unitsLoading || objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading;
+  const hasDataLoadingError = unitsError || objectivesError || taskState.error || projectState.error || riskState.error || kraState.error;
 
   // Main content rendering
   return (
@@ -223,7 +253,8 @@ const Unit = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Display error messages - Include objectivesError */}
+            {/* Display error messages - Include unitsError */}
+            {unitsError && <p>Units Error: {unitsError.message}</p>}
             {objectivesError && <p>Objectives Error: {objectivesError.message}</p>}
             {taskState.error && <p>Tasks Error: {taskState.error.message}</p>}
             {projectState.error && <p>Projects Error: {projectState.error.message}</p>}
@@ -275,12 +306,8 @@ const Unit = () => {
               objectivesData={objectivesData} // Pass REAL objectivesData
               onSaveObjective={handleSaveObjective} 
               onDeleteObjective={handleDeleteObjective}
-              // Derive units from KRA data
-              units={kraState.data 
-                ? Array.from(new Set((kraState.data as Kra[]).map(k => k.unit || 'Unknown')))
-                    .filter(u => u !== 'Unknown')
-                    .map(unitName => ({ id: unitName, name: unitName }))
-                : []} 
+              // --- MODIFIED --- Pass the fetched allUnitsData
+              units={allUnitsData} 
               staffMembers={staffMembers} 
               onDataRefresh={handleRefreshAllData} // Pass refresh handler
               activeTab={kraSectionTab} // Pass active tab state down

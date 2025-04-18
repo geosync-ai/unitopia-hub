@@ -1,6 +1,6 @@
 // src/components/kpi/KpiModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Kra, Kpi, User, Objective } from '@/types/kpi'; // Use the centralized types
+import { Kra, Kpi, User, Objective, KraStatus } from '@/types/kpi'; // Use the centralized types
 import { StaffMember } from '@/types/staff'; // Import StaffMember type
 import KraFormSection from './KraFormSection';
 import KpiInputBlock from './KpiInputBlock';
@@ -37,32 +37,34 @@ const KpiModal: React.FC<KpiModalProps> = ({
   const [formData, setFormData] = useState<Partial<Kra>>({});
   const [kpiBlocks, setKpiBlocks] = useState<Partial<Kpi>[]>([]);
 
+  // Determine if we are adding a new KRA
+  const isAddingNew = !kraData?.id;
+
   // Effect to reset form when kraData changes (for edit) or modal opens for add
   useEffect(() => {
-    console.log("[KpiModal useEffect] Running. isOpen:", isOpen); // Log useEffect trigger
+    console.log("[KpiModal useEffect] Running. isOpen:", isOpen, "isAddingNew:", isAddingNew); 
     if (isOpen) {
-      console.log("[KpiModal useEffect] Modal is open. Received kraData:", kraData); // Log received data
-      if (kraData) {
+      console.log("[KpiModal useEffect] Modal is open. Received kraData:", kraData); 
+      if (kraData && !isAddingNew) {
         // Editing existing KRA
         console.log("[KpiModal useEffect] Editing mode. Setting formData from kraData.");
         setFormData({ ...kraData });
         // Ensure KPI blocks are initialized correctly, using the correct property name 'unitKpis'
         const kpisToSet = kraData.unitKpis ? kraData.unitKpis.map(kpi => ({ ...kpi })) : [{}];
-        console.log("[KpiModal useEffect] Setting kpiBlocks:", kpisToSet); // Log what's being set
+        console.log("[KpiModal useEffect] Setting kpiBlocks:", kpisToSet); 
         setKpiBlocks(kpisToSet);
       } else {
         // Adding new KRA - reset to defaults
         console.log("[KpiModal useEffect] Add mode. Resetting formData and kpiBlocks.");
         setFormData({
           title: '',
-          objectiveId: undefined, // Use objectiveId, initialized to undefined
-          unit: '',
+          objectiveId: undefined, 
+          unitId: undefined, // Reset unitId as well
           startDate: '',
           targetDate: '',
           comments: '',
-          // Initialize other required Kra fields
           department: '',
-          status: 'on-track',
+          status: 'not-started' as KraStatus, // Explicitly cast or ensure type match
           owner: undefined,
         });
         // Ensure default KPI block has assignees array
@@ -73,7 +75,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
       setFormData({});
       setKpiBlocks([]);
     }
-  }, [isOpen, kraData]);
+  }, [isOpen, kraData, isAddingNew]); // Add isAddingNew to dependency array
 
   const handleKraChange = useCallback((field: keyof Kra, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -99,30 +101,30 @@ const KpiModal: React.FC<KpiModalProps> = ({
 
   const handleSubmit = (event?: React.FormEvent) => {
     event?.preventDefault();
-    // TODO: Add validation logic here
+    
     const finalKpiBlocks = kpiBlocks.filter(kpi => kpi.name).map(kpi => {
-        // Remove tempId before submission if it exists
         const { tempId, ...rest } = kpi;
         return rest;
     });
+    
+    // Use unitId from formData when submitting
     const completeFormData = {
       ...formData,
-      id: kraData?.id || `kra_${Date.now()}`, // Ensure ID exists for new or edited
+      id: formData.id || kraData?.id || `kra_${Date.now()}`, // Use existing ID or generate new
       kpis: finalKpiBlocks,
-      // Ensure all required fields are present, using defaults if necessary
+      unitId: formData.unitId, // Make sure unitId is included
+      // Remove redundant/potentially incorrect defaults if already set in formData by KraFormSection
       title: formData.title || 'Untitled KRA',
       objectiveId: formData.objectiveId,
-      unit: formData.unit || 'Default Unit',
-      startDate: formData.startDate || new Date().toISOString().split('T')[0],
-      targetDate: formData.targetDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default target 90 days later
-      department: formData.department || formData.unit || 'Default Dept',
+      startDate: formData.startDate || '',
+      targetDate: formData.targetDate || '',
       status: formData.status || 'not-started',
-      owner: formData.owner || (users.length > 0 ? users[0] : undefined), // Default to first user or undefined
-    } as Kra;
+      owner: formData.owner,
+      // 'unit' and 'department' might be redundant if unitId is primary key
+    } as Partial<Kra>; // Use Partial<Kra> as some fields might still be optional
 
     console.log("Modal Submit:", completeFormData);
-    onSubmit(completeFormData);
-    // onClose(); // onSubmit should handle closing via its own logic in KRAsTab
+    onSubmit(completeFormData as Kra); // Assert as Kra before submission if validation passes
   };
 
   return (
@@ -147,6 +149,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
               objectives={objectives}
               units={units}
               existingKraTitles={existingKraTitles}
+              isAddingNew={isAddingNew} // Pass the flag down
             />
 
             <Separator />
@@ -179,7 +182,7 @@ const KpiModal: React.FC<KpiModalProps> = ({
              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           </DialogClose>
           <Button type="button" onClick={() => handleSubmit()}> 
-            {kraData ? 'Save Changes' : 'Add KRA'}
+            {isAddingNew ? 'Add KRA' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>

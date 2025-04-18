@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Kra, User, Objective } from '@/types/kpi';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"; // For conditional classes
 import { Badge } from "@/components/ui/badge";
 import { StaffMember } from '@/types/staff'; // Import StaffMember
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth
 
 interface KraFormSectionProps {
   formData: Partial<Kra>;
@@ -25,6 +26,7 @@ interface KraFormSectionProps {
   objectives?: Objective[]; // List of objectives for dropdown
   units?: { id: string | number; name: string }[]; // Update units prop type
   existingKraTitles?: string[]; // Add prop for existing titles
+  isAddingNew: boolean; // Add prop to know if we are adding a new KRA
 }
 
 // Simple MultiSelectChip component placeholder for Assignees
@@ -128,8 +130,32 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
   staffMembers = [], // Add default value
   objectives = [],
   units = [],
-  existingKraTitles = [] // Accept prop
+  existingKraTitles = [], // Accept prop
+  isAddingNew, // Destructure the new prop
 }) => {
+
+  const { user } = useAuth(); // Get user from auth context
+
+  // Effect to pre-fill unit when adding a new KRA
+  useEffect(() => {
+    console.log("[KraFormSection useEffect] Running. isAddingNew:", isAddingNew);
+    if (isAddingNew && user && units.length > 0) {
+      const userUnitName = user.unitName || user.divisionName;
+      console.log("[KraFormSection useEffect] User unit/division name:", userUnitName);
+      if (userUnitName) {
+        const defaultUnit = units.find(u => u.name === userUnitName);
+        console.log("[KraFormSection useEffect] Found matching default unit:", defaultUnit);
+        if (defaultUnit) {
+          // Check if the unit field is currently empty before setting
+          if (!formData.unitId) { 
+            console.log(`[KraFormSection useEffect] Setting unitId to: ${defaultUnit.id}`);
+            onChange('unitId', defaultUnit.id); 
+          }
+        }
+      }
+    }
+    // Add formData.unitId to dependencies to prevent unnecessary updates if already set
+  }, [isAddingNew, user, units, onChange, formData.unitId]); 
 
   // Helper to handle date input changes (assuming YYYY-MM-DD format)
   const handleDateChange = (field: 'startDate' | 'targetDate', value: string) => {
@@ -138,6 +164,11 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
   };
 
   const [inputValue, setInputValue] = React.useState(formData.title || '');
+
+  // Reset input value when formData.title changes (e.g., when editing)
+  useEffect(() => {
+      setInputValue(formData.title || '');
+  }, [formData.title]);
 
   return (
     <div className="space-y-4">
@@ -235,8 +266,8 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
         <div className="grid gap-1.5">
           <Label htmlFor="kra-unit">Unit / Department *</Label>
           <Select
-            value={formData.unit || ''}
-            onValueChange={(value) => onChange('unit', value)}
+            value={formData.unitId?.toString() || ''}
+            onValueChange={(value) => onChange('unitId', value)}
             required
           >
             <SelectTrigger id="kra-unit">
