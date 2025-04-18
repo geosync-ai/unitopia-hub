@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DivisionStaffMap from '@/utils/divisionStaffMap'; // Re-add DivisionStaffMap import
-import { useAuth } from './useAuth';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'; // Correct the import path
 import { StaffMember } from '@/types/staff';
 
 // Remove snakeToCamelCase helper if it was added specifically for the Supabase fetch
@@ -10,7 +10,7 @@ export function useStaffByDepartment() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Remove currentUserDepartment state if added
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth(); // Correct the hook usage
 
   useEffect(() => {
     setLoading(true);
