@@ -80,6 +80,30 @@ const camelToSnakeCase = (obj: any): any => {
   );
 };
 
+// Utility to convert snake_case to camelCase
+const snakeToCamelCase = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(snakeToCamelCase);
+  }
+
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => {
+      const camelKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
+      
+      // Recursively convert nested objects
+      if (value !== null && typeof value === 'object') {
+        value = snakeToCamelCase(value);
+      }
+      
+      return [camelKey, value];
+    })
+  );
+};
+
 // Task operations
 export const tasksService = {
   // Get all tasks
@@ -613,8 +637,6 @@ export const krasService = {
     
     let query = supabase
       .from(TABLES.KRAS)
-      // Fetch all KRA columns (*) AND all columns from related KPIs (unit_kpis(*))
-      // ALSO fetch the title from the related objective
       .select(`
         *,
         unit_kpis(*),
@@ -628,10 +650,13 @@ export const krasService = {
       throw error;
     }
     
-    console.log("[krasService.getKRAs] Raw data from Supabase (before conversion):", JSON.stringify(data, null, 2)); // Add log before conversion
+    console.log("[krasService.getKRAs] Raw data from Supabase (before conversion):", JSON.stringify(data, null, 2));
 
-    // Return raw data (nested objects handled by Supabase)
-    return data || [];
+    // --- MODIFIED --- Convert snake_case to camelCase before returning
+    const camelCaseData = snakeToCamelCase(data);
+    console.log("[krasService.getKRAs] Converted data (after conversion):", JSON.stringify(camelCaseData, null, 2)); // Log after conversion
+    
+    return camelCaseData || [];
   },
   
   // Add a new KRA
