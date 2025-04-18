@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useDivisionContext } from './useDivisionContext';
-import { useAuth } from './useAuth';
+// import { useDivisionContext } from './useDivisionContext'; // Temporarily commented out - Hook file missing
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'; // Corrected auth hook import
 import DivisionStaffMap from '../utils/divisionStaffMap';
 
 export interface StaffMember {
@@ -18,8 +18,8 @@ export interface StaffMember {
 export function useDivisionStaff() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const { currentDivisionId } = useDivisionContext();
-  const { user } = useAuth();
+  const currentDivisionId: string | null = null; // Placeholder: Division context hook missing
+  const { user } = useSupabaseAuth(); // Corrected auth hook usage
 
   useEffect(() => {
     setLoading(true);
