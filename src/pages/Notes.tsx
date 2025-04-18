@@ -58,41 +58,28 @@ export default function NotesPage() {
   if (!currentUser) {
       logger.error('Notes Page: No user data found after loading.');
       return (
+          <div className="container mx-auto py-8 px-4">
+              <p>Error: User data could not be loaded. Please try logging in again.</p>
+          </div>
+      );
+  }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-6">Notes</h1>
       
-      {!isAuthenticated ? (
-        <Card>
+      <div>
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Microsoft Auth + Supabase</CardTitle>
+            <CardTitle>Welcome, {currentUser?.user_metadata?.name || currentUser?.email}</CardTitle>
             <CardDescription>
-              Sign in with Microsoft to access your notes stored in Supabase
+              Your notes are synced with Supabase.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <button 
-              onClick={loginWithMicrosoft}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Login with Microsoft
-            </button>
-          </CardContent>
         </Card>
-      ) : (
-        <div>
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Welcome, {user?.name || user?.email}</CardTitle>
-              <CardDescription>
-                You're signed in with Microsoft. Your notes are synced with Supabase.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          
-          <Notes />
-        </div>
-      )}
+        
+        <Notes />
+      </div>
     </div>
   );
 } 
