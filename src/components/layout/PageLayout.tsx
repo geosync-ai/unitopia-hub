@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MainSidebar from './MainSidebar';
-import { Bell, Search, Menu, X, User as UserIcon, LogOut } from 'lucide-react';
+import { Bell, Search, Menu, X, User as UserIcon, LogOut, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ThemeToggle from './ThemeToggle';
 import { supabase, logger } from '@/lib/supabaseClient';
@@ -205,7 +205,10 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
                 <X size={24} />
               </Button>
             </div>
-            <MainSidebar closeMobileSidebar={() => setIsSidebarOpen(false)} />
+            <MainSidebar 
+              closeMobileSidebar={() => setIsSidebarOpen(false)} 
+              handleSignOut={handleSignOut} 
+            />
           </div>
         </div>
       )}

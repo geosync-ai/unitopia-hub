@@ -16,13 +16,23 @@ import {
   Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
 
-const MainSidebar = () => {
+// Add prop type for the logout function
+interface MainSidebarProps {
+  closeMobileSidebar?: () => void; // Optional prop passed from PageLayout for mobile
+  handleSignOut?: () => void; // Optional prop for sign out, passed from PageLayout
+}
+
+// Update component signature to accept props
+const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSignOut }) => {
   const location = useLocation();
-  const { user, isAdmin, logout } = useAuth();
   const [isFirstRender, setIsFirstRender] = useState(true);
   
+  // TODO: Re-implement admin check logic
+  // This needs to fetch user profile/role data from Supabase 
+  // or receive role info via props from PageLayout after it fetches the user.
+  const isAdmin = false; // TEMPORARY: Assume not admin
+
   useEffect(() => {
     // After component mounts, set isFirstRender to false
     // This will prevent animations from restarting on route changes
@@ -40,15 +50,16 @@ const MainSidebar = () => {
     { icon: Bell, path: '/news', label: 'News' },
     { icon: FileText, path: '/documents', label: 'Documents' },
     { icon: MessageSquare, path: '/ai-hub', label: 'AI Hub' },
-    { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
-    { icon: Users, path: '/contacts', label: 'Contacts' },
-    // { icon: BarChart2, path: '/organization', label: 'Organization' }, // Removed
-    { icon: Target, path: '/unit', label: 'Unit' },
-    { icon: Calendar, path: '/calendar', label: 'Calendar' },
+    // --- Temporarily comment out routes needing role/division checks --- 
+    // TODO: Re-enable these based on fetched user role/division
+    // { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
+    // { icon: Users, path: '/contacts', label: 'Contacts' },
+    // { icon: Target, path: '/unit', label: 'Unit' },
+    // { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },
   ];
   
-  // Show admin link only to admins
+  // Show admin link only to admins (using temporary isAdmin flag)
   if (isAdmin) {
     navItems.push({ icon: Database, path: '/admin', label: 'Admin' });
   }
@@ -72,6 +83,8 @@ const MainSidebar = () => {
             <Link 
               key={index} 
               to={item.path}
+              // Add onClick handler to close mobile sidebar if prop exists
+              onClick={closeMobileSidebar}
               className={cn(
                 "flex flex-col items-center text-white/80 hover:text-white transition-colors group", 
                 isActive && "text-white",
@@ -91,15 +104,19 @@ const MainSidebar = () => {
         })}
       </div>
       
-      <button 
-        onClick={logout}
-        className="flex flex-col items-center text-white/80 hover:text-white transition-colors group mt-auto mb-6 icon-hover-effect"
-      >
-        <div className="p-3 rounded-lg group-hover:bg-white/10 transition-colors">
-          <LogOut size={20} />
-        </div>
-        <span className="text-xs mt-1">Logout</span>
-      </button>
+      {/* Use the handleSignOut prop passed from PageLayout */}
+      {handleSignOut && (
+        <button 
+          onClick={handleSignOut} // Use the passed function
+          className="flex flex-col items-center text-white/80 hover:text-white transition-colors group mt-auto mb-6 icon-hover-effect"
+          title="Sign Out" // Add title for accessibility
+        >
+          <div className="p-3 rounded-lg group-hover:bg-white/10 transition-colors">
+            <LogOut size={20} />
+          </div>
+          <span className="text-xs mt-1">Logout</span>
+        </button>
+      )}
     </div>
   );
 };
