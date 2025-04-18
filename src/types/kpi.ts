@@ -35,6 +35,7 @@ export interface Kra {
   department?: string | null; // Consider consolidating with unit
   status?: KraStatus; // Use the defined type
   owner?: User | null;
+  ownerId?: string | number | null; // Add ownerId field
   createdAt?: string; // ISO Date string
   updatedAt?: string; // ISO Date string
   // Add nested objective structure from Supabase query
@@ -45,6 +46,7 @@ export interface Kra {
 export interface User {
   id: string | number;
   name: string;
+  email?: string; // Add email field
   avatarUrl?: string; // Optional avatar image URL
   initials?: string; // Fallback initials
 }

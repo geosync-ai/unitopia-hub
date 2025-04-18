@@ -77,7 +77,7 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
     }
     console.log(`[KRAInsightsTab] Filtering KRAs for owner ID: ${user.id}`);
     const filtered = validKras.filter(kra => {
-      return kra.owner?.id === user.id;
+      return kra.ownerId === user.id;
     });
     console.log('[KRAInsightsTab] Filtered userOwnedKras:', filtered);
     return filtered;
@@ -91,7 +91,8 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
     console.log(`[KRAInsightsTab] Filtering KPIs for assignee ID: ${user.id}`);
     const assignedKpis = validKras.flatMap(kra => kra.unitKpis || [])
                     .filter(kpi => {
-                      return Array.isArray(kpi.assignees) && kpi.assignees.some(assignee => assignee?.id === user.id);
+                      const isAssigned = Array.isArray(kpi.assignees) && kpi.assignees.some(assignee => assignee?.email === user.email);
+                      return isAssigned;
                     });
     console.log('[KRAInsightsTab] Filtered userAssignedKpis:', assignedKpis);
     return assignedKpis;
