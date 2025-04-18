@@ -106,9 +106,6 @@ export default function Login() {
               alt="SCPNG Logo"
               className="w-24 h-auto mb-4"
             />
-            <div className="w-16 h-16 bg-[#400010] rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">
-              SC
-            </div>
             <h1 className="text-2xl font-semibold text-center text-gray-800 mb-1">SCPNG Intranet Portal</h1>
             <p className="text-gray-500 text-sm text-center">Sign in to access the portal</p>
           </div>
