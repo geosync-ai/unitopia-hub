@@ -76,8 +76,8 @@ const AssetManagement = () => {
 
           // Fetch profile using user ID
           const { data: profileData, error: profileError } = await supabase
-            .from('profiles') // Replace 'profiles' with your actual profile table name
-            .select('full_name') // Select the column containing the user's full name
+            .from('staff_memebers') // Replace 'profiles' with your actual profile table name
+            .select('name') // Select the column containing the user's full name
             .eq('id', userData.user.id)
             .single(); // Fetch a single record
 
@@ -89,7 +89,7 @@ const AssetManagement = () => {
             // For now, we'll let it be null and the filter will handle it
           } else if (profileData) {
             logger.success('AssetManagement Page: User profile fetched', profileData);
-            setUserProfileName(profileData.full_name || null); // <-- Set profile name state
+            setUserProfileName(profileData.name || null); // <-- Set profile name state (using 'name' column)
           } else {
             logger.warn('AssetManagement Page: No profile found for user');
           }
