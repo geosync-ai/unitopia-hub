@@ -42,7 +42,7 @@ const MainSidebar = () => {
     { icon: MessageSquare, path: '/ai-hub', label: 'AI Hub' },
     { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
     { icon: Users, path: '/contacts', label: 'Contacts' },
-    { icon: BarChart2, path: '/organization', label: 'Organization' },
+    // { icon: BarChart2, path: '/organization', label: 'Organization' }, // Removed
     { icon: Target, path: '/unit', label: 'Unit' },
     { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },

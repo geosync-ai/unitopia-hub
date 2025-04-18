@@ -241,17 +241,16 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Setup File Button - Functionality might need adjustment */}
-      <div className="flex justify-end">
+      {/* Setup File Button - Removed */}
+      {/* <div className="flex justify-end">
         <Button
           // onClick={() => setupState?.setShowSetupWizard(true)} // Functionality removed/optional
           onClick={() => toast.info("Setup functionality needs review.")} // Placeholder action
           className="flex items-center gap-2"
         >
-          <Settings className="h-4 w-4" />
-          Setup File
+          <Settings className="h-4 w-4" /> Setup File 
         </Button>
-      </div>
+      </div> */}
 
       {/* Local Storage Notice */}
       {isLocalStorage && (
@@ -321,54 +320,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               className="h-2 mt-2" 
               value={kras.reduce((acc, kra) => acc + kra.progress, 0) / kras.length || 0} 
             />
-          </CardContent>
-        </Card>
-
-        {/* Add storage information card with storage type and switch button */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Storage Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xs text-muted-foreground">Storage Type</p>
-                <p className="text-xl font-bold flex items-center">
-                  {isLocalStorage ? (
-                    <>
-                      <span className="text-amber-500">Local Storage</span>
-                      <AlertTriangle className="ml-2 h-4 w-4 text-amber-500" />
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-blue-500">OneDrive</span>
-                      <Cloud className="ml-2 h-4 w-4 text-blue-500" />
-                    </>
-                  )}
-                </p>
-              </div>
-              
-              {isLocalStorage && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowSwitchDialog(true)}
-                  className="flex items-center gap-1"
-                >
-                  <Cloud className="h-4 w-4" />
-                  <span>Switch to OneDrive</span>
-                </Button>
-              )}
-            </div>
-            
-            <div className="mt-4">
-              <p className="text-xs text-muted-foreground">
-                {isLocalStorage 
-                  ? "Your data is currently stored in your browser's local storage. This data will be lost if you clear your browser data."
-                  : "Your data is stored in Microsoft OneDrive and will be preserved even if you clear your browser data."
-                }
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
