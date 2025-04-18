@@ -1,70 +1,135 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { notesService } from '@/integrations/supabase/supabaseClient';
+import React, { useState, useEffect, useCallback } from 'react';
+import { notesService } from '@/integrations/supabase/notesService';
+import { supabase, logger } from '@/lib/supabaseClient';
+import { User } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Note {
   id: string;
   content: string;
-  user_email: string;
+  user_id: string;
   created_at: string;
 }
 
 export default function Notes() {
-  const { user, isAuthenticated, fetchUserNotes, addUserNote } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
 
-  // Load notes when the component mounts or user changes
   useEffect(() => {
-    const loadNotes = async () => {
-      if (isAuthenticated && user?.email) {
-        setIsLoading(true);
-        try {
-          const fetchedNotes = await fetchUserNotes();
-          setNotes(fetchedNotes);
-        } catch (error) {
-          console.error('Error loading notes:', error);
-        } finally {
-          setIsLoading(false);
+    let isMounted = true;
+    setUserLoading(true);
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          logger.error('Notes Component: Error fetching user', error);
+          toast.error('Could not load user session for notes.');
+        } else {
+          setCurrentUser(data.user);
         }
-      }
+        setUserLoading(false);
+      })
+      .catch(err => {
+        if (isMounted) {
+          logger.error('Notes Component: Unexpected error fetching user', err);
+          setUserLoading(false);
+        }
+      });
+      
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+        if (!isMounted) return;
+        if (event === 'SIGNED_OUT') {
+            setCurrentUser(null); 
+        }
+    });
+
+    return () => { 
+        isMounted = false;
+        authListener?.subscription?.unsubscribe();
     };
+  }, []);
 
-    loadNotes();
-  }, [isAuthenticated, user?.email, fetchUserNotes]);
-
-  // Add a new note
-  const handleAddNote = async () => {
-    if (!newNote.trim() || !user?.email) return;
+  const loadNotes = useCallback(async () => {
+    if (!currentUser) {
+      setNotes([]);
+      return;
+    }
     
     setIsLoading(true);
     try {
-      await addUserNote(newNote);
-      setNewNote('');
-      // Notes are already updated in the user context by addUserNote
-      const updatedNotes = await fetchUserNotes();
-      setNotes(updatedNotes);
+      const fetchedNotes = await notesService.getNotesForUser(currentUser.id);
+      setNotes(fetchedNotes || []);
+      logger.success('Notes Component: Notes loaded', { count: fetchedNotes?.length });
     } catch (error) {
-      console.error('Error adding note:', error);
+      logger.error('Notes Component: Error loading notes:', error);
+      toast.error('Failed to load notes.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!userLoading && currentUser) {
+      loadNotes();
+    }
+    if (!userLoading && !currentUser) {
+        setNotes([]);
+        setIsLoading(false);
+    }
+  }, [userLoading, currentUser, loadNotes]);
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !currentUser) return;
+    
+    const userId = currentUser.id;
+    
+    setIsLoading(true);
+    try {
+      const addedNote = await notesService.addNote({
+        content: newNote,
+        user_id: userId,
+      });
+      
+      if (addedNote) {
+        setNotes(prev => [addedNote, ...prev]);
+        setNewNote('');
+        toast.success('Note added successfully!');
+      } else {
+          toast.error('Failed to add note.');
+      }
+    } catch (error) {
+      logger.error('Notes Component: Error adding note:', error);
+      toast.error('An error occurred while adding the note.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="p-6 bg-gray-50 rounded-lg">
-        <p>Please log in to view and manage your notes.</p>
-      </div>
-    );
+  if (userLoading) {
+      return (
+        <div className="p-6 bg-white rounded-lg shadow text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+            <p>Loading user session...</p>
+        </div>
+      );
+  }
+  
+  if (!currentUser) {
+      return (
+        <div className="p-6 bg-gray-100 rounded-lg shadow text-center">
+            <p>Please log in to access your notes.</p>
+        </div>
+      );
   }
 
   return (
     <div className="p-6 bg-white rounded-lg shadow">
       <h2 className="text-2xl font-bold mb-4">Your Notes</h2>
       
-      {/* Add note form */}
       <div className="flex mb-6">
         <input
           type="text"
@@ -83,10 +148,9 @@ export default function Notes() {
         </button>
       </div>
       
-      {/* Notes list */}
-      {isLoading && notes.length === 0 ? (
+      {isLoading ? (
         <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
           <p className="mt-2 text-gray-600">Loading your notes...</p>
         </div>
       ) : notes.length === 0 ? (
