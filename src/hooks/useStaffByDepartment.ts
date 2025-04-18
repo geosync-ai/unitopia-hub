@@ -33,7 +33,11 @@ export function useStaffByDepartment() {
 
   useEffect(() => {
     const fetchStaff = async () => {
-      if (!user?.email) {
+      const userEmail = user?.email?.toLowerCase(); // Use lowercase email for comparison
+      console.log('[useStaffByDepartment] Hook running for user:', userEmail);
+
+      if (!userEmail) {
+        console.log('[useStaffByDepartment] No user email, resetting state.');
         setStaffMembers([]);
         setLoading(false);
         setCurrentUserDepartment(null);
@@ -45,55 +49,64 @@ export function useStaffByDepartment() {
       const supabase = getSupabaseClient();
 
       try {
+        console.log('[useStaffByDepartment] Fetching staff from Supabase...');
         // Fetch all staff members from Supabase
         const { data: allStaffData, error: fetchError } = await supabase
           .from('staff_members')
           .select('*');
 
         if (fetchError) {
-          console.error('Error fetching staff members:', fetchError);
+          console.error('[useStaffByDepartment] Error fetching staff members:', fetchError);
           throw new Error('Failed to load staff members');
         }
         
         if (!allStaffData) {
-            console.warn('No staff data returned from Supabase.');
+            console.warn('[useStaffByDepartment] No staff data returned from Supabase.');
             setStaffMembers([]);
             setCurrentUserDepartment(null);
             setLoading(false);
             return;
         }
+        
+        console.log(`[useStaffByDepartment] Fetched ${allStaffData.length} raw staff records.`);
 
         // Convert fetched data to camelCase
         const allStaffCamelCase = snakeToCamelCase(allStaffData) as StaffMember[];
+        console.log('[useStaffByDepartment] Converted staff data to camelCase:', allStaffCamelCase);
 
-        // Find the current user's staff record and department
-        const currentStaff = allStaffCamelCase.find(staff => staff.email === user.email);
+        // Find the current user's staff record and department (case-insensitive email match)
+        const currentStaff = allStaffCamelCase.find(staff => staff.email?.toLowerCase() === userEmail);
+        console.log('[useStaffByDepartment] Found current staff record:', currentStaff);
+
         const userDepartment = currentStaff?.department || null;
         setCurrentUserDepartment(userDepartment);
+        console.log('[useStaffByDepartment] Determined user department:', userDepartment);
 
         if (!userDepartment) {
-          console.warn(`Could not determine department for user: ${user.email}`);
-          setStaffMembers([]); // Or maybe show all staff? Depends on desired behavior.
+          console.warn(`[useStaffByDepartment] Could not determine department for user: ${userEmail}. Setting empty staff list.`);
+          setStaffMembers([]); 
         } else {
-          // Filter staff to only include those in the same department
+          // Filter staff to only include those in the same department (case-insensitive comparison)
           const departmentStaff = allStaffCamelCase.filter(
-            staff => staff.department === userDepartment
+            staff => staff.department?.toLowerCase() === userDepartment.toLowerCase()
           );
+          console.log(`[useStaffByDepartment] Filtered staff for department "${userDepartment}":`, departmentStaff);
           setStaffMembers(departmentStaff);
         }
 
       } catch (err) {
-        console.error('Error in fetchStaff:', err);
+        console.error('[useStaffByDepartment] Error in fetchStaff:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
         setStaffMembers([]);
         setCurrentUserDepartment(null);
       } finally {
         setLoading(false);
+        console.log('[useStaffByDepartment] Fetch finished.');
       }
     };
 
     fetchStaff();
-  }, [user?.email]);
+  }, [user?.email]); // Dependency remains user?.email
 
   return {
     staffMembers,
