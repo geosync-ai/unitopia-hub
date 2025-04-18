@@ -273,8 +273,13 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     // Group by Objective
     const objectiveGroups = kras.reduce((acc, kra) => {
       const objId = kra.objectiveId || 'no-objective';
+      const objectiveNameFromKra = (kra as any).unit_objectives?.title; 
+      const objectiveName = 
+        objectiveNameFromKra || 
+        objectivesData.find(o => o.id === objId)?.name || 
+        (objId === 'no-objective' ? 'Unassigned' : 'Unknown Objective');
       if (!acc[objId]) {
-        acc[objId] = { name: objectivesData.find(o => o.id === objId)?.name || (objId === 'no-objective' ? 'Unassigned' : 'Unknown Objective'), kras: [] };
+        acc[objId] = { name: objectiveName, kras: [] };
       }
       acc[objId].kras.push(kra);
       return acc;
