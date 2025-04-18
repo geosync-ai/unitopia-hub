@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import WelcomeCard from '@/components/dashboard/WelcomeCard';
 import QuickAccess from '@/components/dashboard/QuickAccess';
@@ -10,12 +9,51 @@ import KPIStatistics from '@/components/dashboard/KPIStatistics';
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 import PersonalKPICards from '@/components/dashboard/PersonalKPICards';
 import PersonalKPIStats from '@/components/dashboard/PersonalKPIStats';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase, logger } from '@/lib/supabaseClient';
+import { User } from '@supabase/supabase-js';
 
 const Index = () => {
-  const { user } = useAuth();
-  
-  // Get current date in proper format
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    logger.info('Index Page: Fetching user data...');
+
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          logger.error('Index Page: Error fetching user', error);
+        } else {
+          logger.success('Index Page: User data fetched', data.user);
+          setCurrentUser(data.user);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        if (isMounted) {
+          logger.error('Index Page: Unexpected error fetching user', err);
+          setLoading(false);
+        }
+      });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (!isMounted) return;
+        if (event === 'SIGNED_OUT') {
+            logger.info('Index Page: User signed out, clearing user data.');
+            setCurrentUser(null);
+        }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+      logger.info('Index Page: Unmounting');
+    };
+  }, []);
+
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -23,37 +61,39 @@ const Index = () => {
     day: 'numeric'
   });
   
-  // Sample event stats for ScheduledEvents component
   const eventStats = [
     { count: 3, label: "Meetings" },
     { count: 2, label: "Tasks Due" },
     { count: 1, label: "Training Sessions" }
   ];
   
+  if (loading) {
+    // You can return a loading indicator here if desired
+    // For now, we'll let the components render potentially without user name briefly
+    // Or return null/a spinner layout
+    // return <PageLayout><div>Loading user data...</div></PageLayout>; 
+  }
+  
   return (
     <PageLayout>
       <WelcomeBanner />
       
       <WelcomeCard 
-        name={user?.name || "User"} 
+        name={currentUser?.user_metadata?.name || currentUser?.email || "User"} 
         date={currentDate}
         greeting="Welcome to the SCPNG Intranet Portal"
         location="MRDC House"
       />
       
-      {/* Personal KPI Cards */}
       <PersonalKPICards />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Personal KPI Stats */}
           <PersonalKPIStats />
           
-          {/* Organizational Overview moved to left side */}
           <OrganizationalOverview />
         </div>
         
-        {/* Quick Access moved to right side */}
         <div>
           <QuickAccess />
         </div>
@@ -61,13 +101,11 @@ const Index = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
-          {/* KPI Statistics */}
           <KPIStatistics />
         </div>
         <NoticeBoard />
       </div>
       
-      {/* Scheduled Events */}
       <ScheduledEvents 
         businessPercentage={75} 
         stats={eventStats} 
