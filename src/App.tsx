@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import Notes from "./pages/Notes";
 import AssetManagement from './pages/AssetManagement';
+import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
 const queryClient = new QueryClient();
 
@@ -117,7 +118,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AppRoutes />
+          <SupabaseAuthProvider>
+            <AppRoutes />
+          </SupabaseAuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
