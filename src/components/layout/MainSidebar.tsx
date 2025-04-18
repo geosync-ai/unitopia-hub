@@ -54,7 +54,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     // TODO: Re-enable these based on fetched user role/division
     // { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
     // { icon: Users, path: '/contacts', label: 'Contacts' },
-    // { icon: Target, path: '/unit', label: 'Unit' },
+    { icon: Target, path: '/unit', label: 'Unit' },
     // { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },
   ];
