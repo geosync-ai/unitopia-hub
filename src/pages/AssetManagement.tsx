@@ -11,7 +11,8 @@ import {
   Loader2, Plus, Edit, Trash2, List, LayoutGrid, Search 
 } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/hooks/useAuth.tsx";
+import { supabase, logger } from '@/lib/supabaseClient'; // Import supabase
+import { User } from '@supabase/supabase-js'; // Import User type
 import { useAssetsData } from '@/hooks/useSupabaseData';
 import { UserAsset } from '@/types';
 
@@ -23,14 +24,15 @@ import AssetCard from '@/components/assets/AssetCard';
 import HighlightMatch from '@/components/ui/HighlightMatch';
 
 const AssetManagement = () => {
-  const { user } = useAuth();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const { toast } = useToast();
 
   // Use the asset data hook
   const { 
     data: assets, 
-    loading, 
-    error, 
+    loading: assetsLoading, 
+    error: assetsError, 
     add: addAsset, 
     update: editAsset, 
     remove: deleteAsset, 
@@ -45,15 +47,56 @@ const AssetManagement = () => {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [filterText, setFilterText] = useState('');
 
+  // Fetch user data on mount
+  useEffect(() => {
+    let isMounted = true;
+    setUserLoading(true);
+    logger.info('AssetManagement Page: Fetching user data...');
+
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          logger.error('AssetManagement Page: Error fetching user', error);
+          toast({ title: "Error", description: "Failed to load user information.", variant: "destructive" });
+        } else {
+          logger.success('AssetManagement Page: User data fetched', data.user);
+          setCurrentUser(data.user);
+        }
+        setUserLoading(false);
+      })
+      .catch(err => {
+        if (isMounted) {
+          logger.error('AssetManagement Page: Unexpected error fetching user', err);
+          toast({ title: "Error", description: "An unexpected error occurred loading user info.", variant: "destructive" });
+          setUserLoading(false);
+        }
+      });
+
+    // Optional: Add listener for sign out
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+        if (!isMounted) return;
+        if (event === 'SIGNED_OUT') {
+            logger.info('AssetManagement Page: User signed out.');
+            setCurrentUser(null); // ProtectedRoute will handle redirect
+        }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [toast]); // Add toast to dependency array
+
   // Log the user object and the assets array before filtering
-  console.log('[AssetManagement] User object from useAuth:', user);
+  console.log('[AssetManagement] Current User object:', currentUser);
   console.log('[AssetManagement] Assets array before filtering:', assets);
 
   // --- Filtering Logic ---
-  const loggedInUserName = user?.name;
-  console.log('[AssetManagement] Logged in user name for filtering:', loggedInUserName);
+  const loggedInUserName = currentUser?.user_metadata?.name || currentUser?.email;
+  console.log('[AssetManagement] Logged in user name/email for filtering:', loggedInUserName);
   const myAssets = assets
-    .filter(asset => asset.assigned_to === loggedInUserName)
+    .filter(asset => loggedInUserName && asset.assigned_to === loggedInUserName)
     .filter(asset => {
       const searchTerm = filterText.toLowerCase();
       if (!searchTerm) return true;
@@ -74,7 +117,7 @@ const AssetManagement = () => {
   // --- End Filtering Logic ---
 
   // --- Email for filtering (keep for when DB is updated) ---
-  const loggedInUserEmail = user?.email;
+  const loggedInUserEmail = currentUser?.email;
   // --- End Email for filtering ---
 
   // Fetch data on mount
@@ -111,8 +154,8 @@ const AssetManagement = () => {
     const today = new Date().toISOString().split('T')[0];
     const completeAssetData = {
       ...newAssetData,
-      assigned_to: user?.name, // Assign current user's name
-      assigned_to_email: loggedInUserEmail, // Still attempt to assign email for new assets
+      assigned_to: currentUser?.user_metadata?.name || currentUser?.email, 
+      assigned_to_email: loggedInUserEmail, // Already derived from currentUser
       assigned_date: newAssetData.assigned_date || today,
     } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
     
@@ -190,6 +233,18 @@ const AssetManagement = () => {
     }
   };
 
+  // Add loading state for user data
+  if (userLoading) {
+    return (
+        <PageLayout>
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading user information...</span>
+            </div>
+        </PageLayout>
+    );
+  }
+
   return (
     <PageLayout>
       <div className="flex justify-between items-start mb-6 gap-4 flex-wrap">
@@ -240,19 +295,19 @@ const AssetManagement = () => {
 
       <Card>
         <CardContent className="p-0">
-          {loading && (
+          {assetsLoading && (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" /> 
               <span className="ml-2 text-muted-foreground">Loading assets...</span>
             </div>
           )}
-          {error && (
+          {assetsError && (
             <div className="text-center py-10 px-4 text-destructive">
-              <p>Error loading assets: {error.message}</p>
+              <p>Error loading assets: {assetsError.message}</p>
               <Button onClick={refresh} variant="outline" className="mt-4">Try Again</Button>
             </div>
           )}
-          {!loading && !error && (
+          {!assetsLoading && !assetsError && (
             <>
               {viewMode === 'table' && (
                 <div className="overflow-x-auto">
