@@ -48,7 +48,7 @@ interface AuthContextType {
   fetchUserNotes: () => Promise<any[]>;
   addUserNote: (content: string) => Promise<any>;
   fetchUserUnits: () => Promise<OrganizationUnit[]>;
-  fetchUserDivisions: () => Promise<Division[]>;
+  fetchUserDivisions: (userId: string) => Promise<any[]>;
   userProfile: UserProfile | null;
   hasAccessToDivision: (divisionId: string) => boolean;
 }
@@ -233,7 +233,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // After successful login, get the account and profile
       const account = getAccount(msalInstance);
-      
       if (!account) {
         console.error('No account found after Microsoft login');
         toast.error('Failed to get account after login');
@@ -241,51 +240,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log('Microsoft login successful, fetching user profile');
-      
-      // Get user profile from Microsoft Graph
       const profile = await getUserProfile(msalInstance);
-      
       if (!profile) {
         console.error('Failed to fetch user profile');
         toast.error('Failed to fetch user profile');
         return;
       }
-      
-      // Create user object from profile
-      const email = profile.mail || profile.userPrincipalName || account.username;
-      const isAdmin = adminEmails.includes(email.toLowerCase());
-      
-      const newUser: User = {
-        id: account.localAccountId || account.homeAccountId,
-        email: email,
-        name: profile.displayName || email,
-        role: isAdmin ? 'admin' : 'user',
-        profilePicture: profile.photo || undefined,
-        isAdmin,
-        accessToken: null // Will be fetched when needed
+
+      // Construct base user object
+      const baseUser: Partial<User> = {
+        id: account.localAccountId, // Or profile.id if preferred
+        email: account.username,
+        name: profile.displayName || account.name,
+        profilePicture: profile.photo, // Already handled null in getUserProfile
+        accessToken: account.idToken, // Or maybe an access token if needed
+        // Set role based on email
+        role: adminEmails.includes(account.username.toLowerCase()) ? 'admin' : 'user'
       };
       
-      // Update user state
+      // Fetch user division memberships and details
+      let userMemberships: any[] = [];
+      try {
+        console.log('Fetching user divisions immediately after profile retrieval...');
+        // fetchUserDivisions now returns membership details with division info
+        userMemberships = await fetchUserDivisions(baseUser.id!); 
+        console.log('Fetched user memberships:', userMemberships);
+        // Store the detailed membership info if needed, or just the Division objects
+        // Let's assume we want to store Division objects in userDivisions state
+        const divisionsFromMemberships = userMemberships.map(m => m.divisions).filter(Boolean);
+        setUserDivisions(divisionsFromMemberships);
+
+      } catch (error) {
+        console.error('Error fetching user divisions during login:', error);
+        toast.error('Failed to load your division information.');
+      }
+      
+      // Determine primary division and role from memberships
+      // Assuming the first membership found is the primary one for now
+      // You might need more specific logic (e.g., a flag in the DB)
+      const primaryMembership = userMemberships.length > 0 ? userMemberships[0] : null;
+      const primaryDivision = primaryMembership?.divisions; // Get nested division object
+      const primaryRole = primaryMembership?.role || 'staff'; // Get role from membership
+
+      // Construct the final user object
+      const newUser: User = {
+        ...baseUser,
+        id: baseUser.id!,
+        email: baseUser.email!,
+        name: baseUser.name!,
+        role: baseUser.role!,
+        divisionId: primaryDivision?.id, // Use ID from nested division object
+        divisionName: primaryDivision?.name, // Use Name from nested division object
+        divisionRole: primaryRole as DivisionRole,
+        // Map all memberships for the user object
+        divisionMemberships: userMemberships.map(m => ({ 
+            divisionId: m.divisionId,
+            role: m.role as DivisionRole 
+        })),
+        isAdmin: baseUser.role === 'admin',
+      };
+
+      console.log('Setting user state:', newUser);
       setUser(newUser);
       setUserProfile(profile);
-      
-      // Save user to localStorage
       localStorage.setItem('user', JSON.stringify(newUser));
+
+      // Fetch user units AFTER user state is set 
+      try {
+        console.log('Fetching user units after setting user state...');
+        await fetchUserUnits(); 
+      } catch (error) {
+        console.error('Error fetching user units after login:', error);
+      }
       
       console.log('User successfully logged in and profile saved');
       
-      // Fetch additional user data from Supabase if needed
-      fetchUserUnits().then(units => {
-        // Select first unit if available
-        if (units.length > 0 && !selectedUnit) {
-          setSelectedUnit(units[0].id);
-          localStorage.setItem('selectedUnit', units[0].id);
-        }
-      });
-      
-      return;
     } catch (error) {
-      console.error('Microsoft login failed:', error);
+      console.error('Microsoft login process failed:', error);
+      // diagnoseMsalIssues(); // Call diagnostic helper
       toast.error('Failed to login with Microsoft');
     }
   };
@@ -333,131 +365,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // New method to fetch user's organizational units
+  // Update fetchUserUnits to ensure it sets OrganizationUnit[]
   const fetchUserUnits = async (): Promise<OrganizationUnit[]> => {
-    if (!user?.id) {
-      console.error('Cannot fetch units: No user is logged in');
+    console.log('Fetching user units...');
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.error('Supabase client not available for fetching units.');
       return [];
     }
-    
+
     try {
-      const supabase = getSupabaseClient();
-      
-      // For admin users, fetch all units
-      if (user.isAdmin || user.role === 'admin') {
-        const { data, error } = await supabase
-          .from('organization_units')
-          .select('*');
-          
-        if (error) throw error;
-        
-        const units = data.map(unit => ({
-          ...unit,
-          createdAt: new Date(unit.created_at),
-          updatedAt: new Date(unit.updated_at)
-        }));
-        
-        setBusinessUnits(units);
-        return units;
-      } 
-      // For regular users, fetch only units they are members of
-      else {
-        const { data, error } = await supabase
-          .from('user_unit_memberships')
-          .select(`
-            unit_id,
-            organization_units!inner(*)
-          `)
-          .eq('user_id', user.id);
-          
-        if (error) throw error;
-        
-        const units = data.map(item => ({
-          ...item.organization_units,
-          id: item.organization_units.id,
-          createdAt: new Date(item.organization_units.created_at),
-          updatedAt: new Date(item.organization_units.updated_at)
-        }));
-        
-        setBusinessUnits(units);
-        return units;
+      // Fetch all organization units for now (adjust query as needed)
+      const { data, error } = await supabase
+        .from(supabaseConfig.tables.organization_units) 
+        .select('id, name, description, code, manager'); // Select fields matching OrganizationUnit
+
+      if (error) {
+        console.error('Error fetching organization units:', error);
+        throw error;
       }
+      
+      console.log('Fetched units data:', data);
+
+      // Map data if necessary (ensure createdAt/updatedAt aren't required by type or handle them)
+      const units: OrganizationUnit[] = (data || []).map((unit: any) => ({
+          id: unit.id,
+          name: unit.name,
+          description: unit.description,
+          code: unit.code,
+          manager: unit.manager,
+          // Add dummy dates if the type strictly requires them and they aren't fetched
+          createdAt: new Date(), 
+          updatedAt: new Date()
+      }));
+      
+      setBusinessUnits(units);
+      return units;
     } catch (error) {
-      console.error('Error fetching user units:', error);
-      toast.error('Failed to load your units');
-      
-      // Fall back to mock business units for demo
-      const mockUnits = [
-        { id: 'hr', name: 'HR', description: 'Human Resources', createdAt: new Date(), updatedAt: new Date() },
-        { id: 'finance', name: 'Finance', description: 'Financial Department', createdAt: new Date(), updatedAt: new Date() },
-        { id: 'it', name: 'IT', description: 'Information Technology', createdAt: new Date(), updatedAt: new Date() }
-      ];
-      
-      setBusinessUnits(mockUnits);
-      return mockUnits;
+      console.error('Failed to fetch user units:', error);
+      toast.error('Failed to load business units');
+      return [];
     }
   };
 
-  // New method to fetch user's divisions
-  const fetchUserDivisions = async (): Promise<Division[]> => {
-    if (!user?.id) {
-      console.error('Cannot fetch divisions: No user is logged in');
+  // Modify fetchUserDivisions to join and return relevant info
+  const fetchUserDivisions = async (userId: string): Promise<any[]> => { // Return type any[] for now
+    if (!userId) {
+      console.error('Cannot fetch divisions: No user ID provided');
+      return [];
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.error('Supabase client not available for fetching divisions.');
       return [];
     }
     
+    console.log(`Fetching division memberships for user: ${userId}`);
+
     try {
-      const supabase = getSupabaseClient();
-      
-      // Fetch division memberships for the user
+      // Fetch memberships and join with divisions table
       const { data: memberships, error: membershipError } = await supabase
         .from(supabaseConfig.tables.division_memberships)
-        .select('*')
-        .eq('userId', user.id);
+        // Select membership role and all columns from the joined divisions table
+        .select(`
+          role,
+          divisionId: division_id,
+          divisions ( id, name, description, code )
+        `)
+        .eq('user_id', userId); // Corrected column name likely user_id
         
       if (membershipError) {
         console.error('Error fetching division memberships:', membershipError);
-        return [];
+        throw membershipError;
       }
       
-      if (!memberships || memberships.length === 0) {
-        return [];
-      }
+      console.log('Fetched division memberships with division data:', memberships);
       
-      // Extract division IDs from memberships
-      const divisionIds = memberships.map(m => m.divisionId);
-      
-      // Fetch divisions using those IDs
-      const { data: divisions, error: divisionsError } = await supabase
-        .from(supabaseConfig.tables.divisions)
-        .select('*')
-        .in('id', divisionIds);
-        
-      if (divisionsError) {
-        console.error('Error fetching divisions:', divisionsError);
-        return [];
-      }
-      
-      // Update user's division memberships
-      setUser({
-        ...user,
-        divisionMemberships: memberships.map(m => ({
-          divisionId: m.divisionId,
-          role: m.role
-        }))
-      });
-      
-      // Update state with fetched divisions
-      setUserDivisions(divisions || []);
-      
-      // If no division is selected yet, select the first one
-      if (divisions && divisions.length > 0 && !selectedDivision) {
-        setSelectedDivision(divisions[0].id);
-        localStorage.setItem('selectedDivision', divisions[0].id);
-      }
-      
-      return divisions || [];
+      // The data should now be an array of objects like: 
+      // { role: 'staff', divisionId: 'uuid', divisions: { id: 'uuid', name: 'Division Name', ... } }
+      return memberships || [];
+
     } catch (error) {
-      console.error('Error in fetchUserDivisions:', error);
+      console.error('Failed to fetch user divisions:', error);
+      toast.error('Failed to load division memberships');
       return [];
     }
   };

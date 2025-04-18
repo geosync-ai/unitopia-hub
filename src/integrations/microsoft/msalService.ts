@@ -234,6 +234,7 @@ export const getUserProfile = async (
     
     // Try to get profile photo if available
     try {
+      console.log('Attempting to fetch user profile photo...');
       const photoResponse = await fetch(`${endpoint}/me/photo/$value`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -241,16 +242,22 @@ export const getUserProfile = async (
       });
       
       if (photoResponse.ok) {
+        console.log('Profile photo response OK.');
         const photoBlob = await photoResponse.blob();
         profile.photo = URL.createObjectURL(photoBlob);
+        console.log('Profile photo set successfully.');
+      } else {
+        console.warn(`Failed to fetch profile photo, status: ${photoResponse.status}`);
+        profile.photo = null;
       }
     } catch (photoError) {
-      console.warn('Unable to retrieve profile photo:', photoError);
+      console.error('Error fetching profile photo:', photoError);
+      profile.photo = null;
     }
     
     return profile;
   } catch (error) {
-    console.error('Error getting user profile:', error);
+    console.error('Error fetching user profile:', error);
     throw error;
   }
 };

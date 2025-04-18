@@ -11,6 +11,7 @@ const supabaseConfig = {
     divisions: "divisions",
     division_memberships: "division_memberships",
     staff_members: "staff_members",
+    organization_units: "organization_units",
     // Unit tables
     unit_tasks: "unit_tasks",
     unit_projects: "unit_projects",
