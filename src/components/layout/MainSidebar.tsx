@@ -52,8 +52,8 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: MessageSquare, path: '/ai-hub', label: 'AI Hub' },
     // --- Temporarily comment out routes needing role/division checks --- 
     // TODO: Re-enable these based on fetched user role/division
-    // { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
-    // { icon: Users, path: '/contacts', label: 'Contacts' },
+    { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
+    { icon: Users, path: '/contacts', label: 'Contacts' },
     { icon: Target, path: '/unit', label: 'Unit' },
     // { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },
