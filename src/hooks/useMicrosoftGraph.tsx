@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { useAuth } from './useAuth';
+import { useSupabaseAuth } from './useSupabaseAuth';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { Client } from '@microsoft/microsoft-graph-client';
@@ -32,7 +32,7 @@ export interface CsvFile {
 }
 
 export const useMicrosoftGraph = () => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const { instance: msalInstance } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
