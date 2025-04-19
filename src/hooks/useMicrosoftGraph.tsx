@@ -21,7 +21,7 @@ export interface Document {
   parentReference?: {
     path: string;
   };
-  source: 'OneDrive';
+  source: 'OneDrive' | 'SharePoint';
 }
 
 export interface CsvFile {
@@ -225,7 +225,7 @@ export const useMicrosoftGraph = () => {
     }
   }, [msalInstance]);
 
-  const getClient = useCallback(async () => {
+  const getClient = useCallback(async (): Promise<Client | null> => {
     const accessToken = await getAccessToken();
     return Client.init({
       authProvider: (done) => {
@@ -234,7 +234,19 @@ export const useMicrosoftGraph = () => {
     });
   }, [getAccessToken]);
 
-  const getOneDriveDocuments = useCallback(async (): Promise<Document[] | null> => {
+  // --- SharePoint Specific Functions (Placeholders) ---
+  const getSharePointDocuments = async (): Promise<Document[] | null> => {
+    console.warn("getSharePointDocuments not implemented yet.");
+    return []; 
+  };
+
+  const getSharePointFolderContents = async (folderId: string): Promise<Document[] | null> => {
+    console.warn(`getSharePointFolderContents not implemented yet for folder: ${folderId}`);
+    return [];
+  };
+
+  // --- OneDrive Specific Functions ---
+  const getOneDriveRootDocuments = useCallback(async (): Promise<Document[] | null> => {
     console.log('Attempting to get OneDrive documents...');
 
     // Guard against multiple concurrent requests
@@ -424,77 +436,44 @@ export const useMicrosoftGraph = () => {
     setIsLoading(false);
     setIsRequestLocked(false);
     return null;
-  }, [isRequestLocked]);
+  }, [checkMsalAuth, getClient, setIsLoading, setLastError, toast]);
 
-  const getFolderContents = useCallback(async (folderId: string, source: string): Promise<Document[] | null> => {
-    console.log(`Getting contents of folder: ${folderId} from ${source}`);
-    setIsLoading(true);
-    
-    // Add retry counter for this function
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        if (source !== 'OneDrive') {
-          throw new Error('Unsupported source. Only OneDrive is supported.');
-        }
+  const getOneDriveFolderContents = useCallback(async (folderId: string): Promise<Document[] | null> => {
+    console.log(`getOneDriveFolderContents called for folderId: ${folderId}`);
+    if (!folderId) {
+      console.error("getOneDriveFolderContents called without a folderId specified.");
+      setLastError("Folder ID is required to fetch folder contents.");
+      toast.error("Cannot fetch folder contents: Folder ID missing.");
+      return null;
+    }
+
+    try {
+      console.log(`getOneDriveFolderContents: Acquiring token for folder ${folderId}`);
+      const client = await getClient();
+      if (!client) {
+        console.error('getOneDriveFolderContents: Client not initialized');
+        setLastError('Client not initialized');
+        return null;
+      }
+
+      console.log(`getOneDriveFolderContents: Using client for folder ${folderId}`);
+
+      // Corrected: Use client.api directly, it handles auth
+      const response = await client.api(`/me/drive/items/${folderId}/children`)
+        .select('id,name,webUrl,lastModifiedDateTime,size,folder,parentReference')
+        .get();
         
-        if (!checkMsalAuth()) {
-          console.error('Authentication check failed');
-          setIsLoading(false);
-          return null;
-        }
-        
-        const accounts = msalInstance.getAllAccounts();
-        
-        // Get token
-        let response;
-        try {
-          response = await msalInstance.acquireTokenSilent({
-            scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All'],
-            account: accounts[0]
-          });
-        } catch (tokenError) {
-          console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
-          
-          try {
-            response = await msalInstance.acquireTokenPopup({
-              scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All']
-            });
-          } catch (interactiveError) {
-            throw new Error(`Failed to acquire authentication token: ${interactiveError.message}`);
-          }
-        }
-        
-        // Get folder contents using Microsoft Graph API
-        const graphEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
-        console.log('Fetching folder contents from endpoint:', graphEndpoint);
-        const result = await fetch(graphEndpoint, {
-          headers: {
-            Authorization: `Bearer ${response.accessToken}`
-          }
-        });
-        
-        if (!result.ok) {
-          const errorText = await result.text();
-          console.error('OneDrive GraphAPI error response:', result.status, errorText);
-          throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
-        }
-        
-        const data = await result.json();
-        console.log(`Retrieved ${data.value?.length || 0} items from folder ${folderId}`);
-        
-        // Filter to only include folders and files we're interested in
-        const filteredItems = data.value.filter(item => 
+      console.log(`OneDrive folder ${folderId} response:`, response);
+
+      if (response && response.value) {
+        // Filter to include all folders
+        const filteredItems = response.value.filter(item => 
           // Include all folders and specific file types
           item.folder || 
-          (item.name && item.name.endsWith('.csv'))
+          (item.name && (item.name.endsWith('.csv') || item.name.endsWith('.xlsx')))
         );
         
-        console.log(`Filtered to ${filteredItems.length} relevant items`);
-        
-        setIsLoading(false);
+        console.log(`getOneDriveFolderContents: Filtered to ${filteredItems.length} relevant items`);
         
         return filteredItems.map((item: any) => ({
           id: item.id,
@@ -506,26 +485,54 @@ export const useMicrosoftGraph = () => {
           parentReference: item.parentReference,
           source: 'OneDrive' as const
         }));
-      } catch (error) {
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          console.error(`Error getting folder contents after ${maxRetries} attempts:`, error);
-          setLastError(`Error getting folder contents: ${error.message}`);
-          toast.error(`Could not access folder: ${error.message}`);
-          return null;
+      } else {
+        // Handle empty folders gracefully or throw error
+         if (response && response.value === undefined) {
+           console.log(`Folder ${folderId} appears to be empty.`);
+           setIsLoading(false);
+           return [];
         }
-        
-        console.warn(`Attempt ${retryCount}/${maxRetries} failed, retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+        throw new Error("Invalid response structure from OneDrive folder fetch");
       }
+    } catch (error: any) {
+      console.error('Error fetching OneDrive folder contents:', error);
+      setLastError(`Error fetching OneDrive folder contents: ${error.message}`);
+      toast.error('Failed to fetch OneDrive folder contents');
+      return null;
     }
-    
-    // This should never be reached if the maxRetries is > 0
-    setIsLoading(false);
-    return null;
-  }, [msalInstance, checkMsalAuth, toast]);
+  }, [checkMsalAuth, getClient, setIsLoading, setLastError, toast]);
 
-  // Create a new folder in OneDrive
+  // --- Generic Functions ---
+  const getFolderContents = useCallback(async (folderId: string, source: 'OneDrive' | 'SharePoint'): Promise<Document[] | null> => {
+    console.log(`getFolderContents called for folderId: ${folderId}, source: ${source}`);
+    if (!source) {
+        console.error("getFolderContents called without a source specified.");
+        setLastError("Source type (OneDrive/SharePoint) is required to fetch folder contents.");
+        toast.error("Cannot fetch folder contents: Source type missing.");
+        return null;
+    }
+    if (!folderId) {
+         console.error("getFolderContents called without a folderId specified.");
+        setLastError("Folder ID is required to fetch folder contents.");
+        toast.error("Cannot fetch folder contents: Folder ID missing.");
+        return null;
+    }
+
+    switch (source) {
+      case 'OneDrive':
+        return getOneDriveFolderContents(folderId);
+      case 'SharePoint':
+        // Call the SharePoint specific function once implemented
+        return getSharePointFolderContents(folderId);
+      default:
+        console.error(`Unsupported source type in getFolderContents: ${source}`);
+        setLastError(`Unsupported source type: ${source}`);
+        toast.error(`Cannot fetch folder contents: Unsupported source ${source}.`);
+        return null;
+    }
+  }, [getOneDriveFolderContents, getSharePointFolderContents]);
+
+  // --- CSV File Specific Functions ---
   const createFolder = useCallback(async (folderName: string, parentFolderId?: string): Promise<Document | null> => {
     console.log(`Creating folder "${folderName}" ${parentFolderId ? `under parent ${parentFolderId}` : 'in root'}`);
     setIsLoading(true);
@@ -612,16 +619,15 @@ export const useMicrosoftGraph = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [msalInstance, checkMsalAuth, toast]);
+  }, [getClient, checkMsalAuth, toast, setIsLoading, setLastError]);
 
-  // Rename a folder in OneDrive
-  const renameFolder = useCallback(async (folderId: string, newName: string): Promise<Document | null> => {
+  const renameFolder = useCallback(async (folderId: string, newName: string): Promise<boolean> => {
     if (!checkMsalAuth()) {
        const status = getAuthStatus();
        const errorMsg = status.error || 'Authentication check failed.';
        setLastError(`Rename folder error: ${errorMsg}`);
        toast.error(`Failed to rename folder: ${errorMsg}`);
-       return null;
+       return false;
     }
     
     setIsLoading(true);
@@ -653,26 +659,16 @@ export const useMicrosoftGraph = () => {
         throw new Error(`Failed Graph API request (${result.status}): ${result.statusText}`);
       }
 
-      const data = await result.json();
-      console.log(`Folder renamed successfully to '${data.name}' (ID: ${data.id})`);
+      console.log(`Folder renamed successfully to '${newName}' (ID: ${folderId})`);
       setIsLoading(false);
-      return {
-        id: data.id,
-        name: data.name,
-        url: data.webUrl || '',
-        lastModified: data.lastModifiedDateTime,
-        size: data.size || 0,
-        isFolder: true,
-        parentReference: data.parentReference,
-        source: 'OneDrive' as const
-      };
+      return true;
     } catch (error) {
       console.error('Error renaming folder:', error);
       const errorMsg = error.message || 'Unknown rename error';
       setLastError(`Rename folder error: ${errorMsg}`);
       toast.error('Failed to rename folder');
       setIsLoading(false);
-      return null;
+      return false;
     }
   }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
@@ -727,316 +723,185 @@ export const useMicrosoftGraph = () => {
   }, [checkMsalAuth, getAuthStatus, msalInstance]);
 
   // Create a new CSV file in OneDrive
-  const createCsvFile = async (fileName: string, initialContent: string = '', parentFolderId?: string | unknown): Promise<CsvFile | null> => {
-    console.log(`Creating CSV file: ${fileName} in folder: ${parentFolderId}`);
-    
-    if (!fileName) {
-      console.error('createCsvFile: No file name provided');
-      setLastError('No file name provided for file creation');
+  const createCsvFile = async (
+    fileName: string, 
+    initialContent: string = '', 
+    parentFolderIdInput?: string | null | unknown
+  ): Promise<CsvFile | null> => {
+    // Ensure parentFolderId is treated as string, defaulting to undefined if not string
+    const parentFolderId: string | undefined = typeof parentFolderIdInput === 'string' ? parentFolderIdInput : undefined;
+    const targetFolderId = parentFolderId || 'root'; // Use 'root' if parentFolderId is undefined
+
+    if (!checkMsalAuth()) {
+      console.error('[CSV CREATE] Auth check failed');
+      setLastError('Authentication required to create file.');
+      toast.error('Authentication failed');
       return null;
     }
-    
-    if (!parentFolderId) {
-      console.error('createCsvFile: No parent folder ID provided');
-      setLastError('No parent folder ID provided for file creation');
+    if (!fileName || fileName.trim() === '') {
+      console.error('[CSV CREATE] Invalid file name');
+      setLastError('File name cannot be empty');
+      toast.error('Invalid file name');
       return null;
     }
-    
-    // Check authentication status first
-    const authStatus = getAuthStatus();
-    if (!authStatus.hasAccounts || !authStatus.isInitialized) {
-      console.error('createCsvFile: Not authenticated', authStatus);
-      setLastError('Not authenticated with Microsoft Graph');
-      throw new Error('Not authenticated with Microsoft Graph');
-    }
-    
+
     setIsLoading(true);
     setLastError(null);
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        console.log(`createCsvFile: Attempt ${retryCount + 1}/${maxRetries} - Creating file ${fileName}`);
-        
-        // First, get a fresh access token to ensure we're authenticated
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-          throw new Error('Failed to get access token');
-        }
-        
-        // Use the fetch API directly instead of the client, which has more reliability issues
-        const folderIdStr = String(parentFolderId);
-        
-        // First create an empty file
-        console.log(`createCsvFile: Creating empty file ${fileName} in folder ${folderIdStr}`);
-        
-        // Try direct approach with fetch API
-        const createEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderIdStr}/children`;
-        console.log(`createCsvFile: Using endpoint: ${createEndpoint}`);
-        
-        const createResponse = await fetch(createEndpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: fileName,
-            file: {},
-            '@microsoft.graph.conflictBehavior': 'replace'
-          })
-        });
-        
-        if (!createResponse.ok) {
-          const errorText = await createResponse.text();
-          console.error(`createCsvFile: Error creating file: ${createResponse.status} ${createResponse.statusText}`, errorText);
-          throw new Error(`Failed to create file: ${createResponse.status} ${createResponse.statusText}`);
-        }
-        
-        // Parse the response to get the file ID
-        const fileData = await createResponse.json();
-        console.log('createCsvFile: File creation response:', fileData);
-        
-        if (!fileData || !fileData.id) {
-          console.error('createCsvFile: No file ID in response');
-          throw new Error('No file ID in response');
-        }
-        
-        // Now update the file content
-        if (initialContent && initialContent.length > 0) {
-          console.log(`createCsvFile: Updating content for file ${fileData.id}`);
-          
-          const contentEndpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileData.id}/content`;
-          console.log(`createCsvFile: Using content endpoint: ${contentEndpoint}`);
-          
-          const contentResponse = await fetch(contentEndpoint, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'text/csv'
-            },
-            body: initialContent
-          });
-          
-          if (!contentResponse.ok) {
-            const errorText = await contentResponse.text();
-            console.error(`createCsvFile: Error updating content: ${contentResponse.status} ${contentResponse.statusText}`, errorText);
-            
-            // Even if content update fails, we still have the file
-            console.log('createCsvFile: Content update failed, but file was created');
-          } else {
-            console.log('createCsvFile: Content updated successfully');
-          }
-        }
-        
-        // Return success with file info
-        const result: CsvFile = {
-          id: fileData.id,
-          name: fileName,
-          url: fileData.webUrl || '',
-          content: initialContent
-        };
-        
-        console.log(`createCsvFile: Successfully created file ${fileName} with ID ${result.id}`);
-        setIsLoading(false);
-        return result;
-        
-      } catch (err) {
-        retryCount++;
-        console.error(`createCsvFile: Attempt ${retryCount}/${maxRetries} failed:`, err);
-        
-        if (retryCount >= maxRetries) {
-          console.error(`createCsvFile: All ${maxRetries} attempts failed for ${fileName}`);
-          setLastError(`Failed to create CSV file: ${err.message}`);
-          
-          // Create a mock file for testing/fallback with local-prefixed ID to distinguish it
-          const mockFile: CsvFile = {
-            id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
-            name: fileName,
-            url: '',
-            content: initialContent
-          };
-          
-          console.log(`createCsvFile: Returning mock file with local ID for fallback:`, mockFile);
-          localStorage.setItem(`mock_file_${mockFile.id}`, initialContent);
-          setIsLoading(false);
-          return mockFile;
-        }
-        
-        // Exponential backoff
-        const delay = Math.pow(2, retryCount) * 1000;
-        console.log(`createCsvFile: Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    
-    setIsLoading(false);
-    return null;
-  };
-
-  // Read content from a CSV file
-  const readCsvFile = async (fileId: string): Promise<string> => {
-    if (!checkMsalAuth()) {
-      throw new Error('No accounts found');
-    }
 
     try {
-      console.log('Reading CSV file with ID:', fileId);
-      
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
+      const client = await getClient();
+      if (!client) throw new Error('Failed to get Graph client');
 
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`;
-      console.log('Using endpoint:', endpoint);
-      
-      const result = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${response.accessToken}`
-        }
-      });
+      // targetFolderId is guaranteed to be a string here ('root' or a valid ID)
+      const endpoint = targetFolderId === 'root'
+        ? `/me/drive/root:/${fileName}:/content`
+        : `/me/drive/items/${targetFolderId}:/${fileName}:/content`;
 
-      if (!result.ok) {
-        const errorText = await result.text();
-        console.error('Failed to read CSV file:', result.status, result.statusText, errorText);
-        throw new Error(`Failed to read CSV file: ${result.statusText}`);
-      }
+      console.log(`[CSV CREATE] Uploading to endpoint: ${endpoint}`);
 
-      const content = await result.text();
-      return content;
-    } catch (error) {
-      console.error('Error reading CSV file:', error);
-      toast.error('Failed to read CSV file');
-      throw error;
+      const response = await client.api(endpoint)
+        .header('Content-Type', 'text/csv')
+        .put(initialContent);
+
+      console.log('[CSV CREATE] File upload response:', response);
+
+      const newFile: CsvFile = {
+        id: response.id,
+        name: response.name,
+        url: response.webUrl,
+      };
+
+      toast.success(`File '${fileName}' created successfully.`);
+      setIsLoading(false);
+      return newFile;
+
+    } catch (error: any) {
+      console.error('[CSV CREATE] Error creating file:', error);
+      setLastError(`Error creating CSV file: ${error.message}`);
+      toast.error(`Failed to create file: ${error.message}`);
+      setIsLoading(false);
+      return null;
     }
   };
 
-  // Update a CSV file with new content
-  const updateCsvFile = async (fileId: string, content: string): Promise<boolean> => {
+  const readCsvFile = async (fileIdInput: string | null | undefined): Promise<string> => {
+    if (typeof fileIdInput !== 'string' || !fileIdInput) { // Stricter check
+      console.error("readCsvFile called with invalid fileId:", fileIdInput);
+      setLastError("Invalid file ID provided.");
+      toast.error("Cannot read file: Invalid file ID.");
+      return ''; 
+    }
+    // Now TypeScript knows fileId is a string
+    const fileId: string = fileIdInput;
+
+    if (!checkMsalAuth()) {
+       console.error('[CSV READ] Auth check failed');
+       setLastError('Authentication required to read file.');
+       toast.error('Authentication failed');
+       return ''; // Return empty string on error
+    }
+
+    setIsLoading(true);
+    setLastError(null);
+
+    try {
+      const client = await getClient();
+      if (!client) throw new Error('Failed to get Graph client');
+
+      // fileId is guaranteed to be a string here
+      const response = await client.api(`/me/drive/items/${fileId}/content`)
+        .header('Accept', 'text/csv, text/plain') // Accept CSV or plain text
+        .get();
+        
+      // MS Graph returns the content directly for .get() on /content
+      // Check if the response is a string (content) or an object (error?)
+      if (typeof response === 'string') {
+          console.log(`[CSV READ] Successfully read content for file ID: ${fileId}`);
+          setIsLoading(false);
+          return response;
+      } else {
+          // If it's not a string, it might be an error object or unexpected format
+          console.warn(`[CSV READ] Unexpected response type for file ${fileId}:`, response);
+          // Attempt to read blob if applicable (might indicate non-text file was requested)
+          if (response instanceof Blob) {
+              try {
+                  const textContent = await response.text();
+                  console.log(`[CSV READ] Read content as Blob text for file ID: ${fileId}`);
+                  setIsLoading(false);
+                  return textContent;
+              } catch (blobError) {
+                  console.error(`[CSV READ] Error reading Blob content for file ${fileId}:`, blobError);
+                  throw new Error('Failed to read file content as text.');
+              }
+          }
+          throw new Error('Unexpected response format when reading file content.');
+      }
+
+    } catch (error: any) {
+      console.error(`[CSV READ] Error reading file ${fileId}:`, error);
+      setLastError(`Error reading CSV file: ${error.message}`);
+      toast.error(`Failed to read file: ${error.message}`);
+      setIsLoading(false);
+      return ''; // Return empty string on error
+    }
+  };
+
+  const updateCsvFile = async (fileIdInput: string | null | undefined, content: string): Promise<boolean> => {
+     if (typeof fileIdInput !== 'string' || !fileIdInput) { // Stricter check
+        console.error("updateCsvFile called with invalid fileId:", fileIdInput);
+        setLastError("Invalid file ID provided.");
+        toast.error("Cannot update file: Invalid file ID.");
+        return false; 
+    }
+    // Now TypeScript knows fileId is a string
+    const fileId: string = fileIdInput;
+
     if (!checkMsalAuth()) {
       console.error('[CSV UPDATE] Authentication check failed');
-      throw new Error('No accounts found');
+      setLastError('Authentication required to update file.');
+      toast.error('Authentication failed');
+      return false;
+    }
+    if (content === undefined || content === null) { // Check for undefined/null content
+      console.error('[CSV UPDATE] Content cannot be null or undefined');
+      setLastError('Content cannot be empty for update.');
+      toast.error('Invalid content for file update');
+      return false;
     }
 
-    if (!fileId || fileId.trim() === '') {
-      console.error('[CSV UPDATE] Invalid file ID');
-      throw new Error('Invalid file ID provided');
-    }
-
-    if (!content) {
-      console.warn('[CSV UPDATE] Empty content provided');
-      content = ''; // Ensure it's at least an empty string
-    }
+    setIsLoading(true);
+    setLastError(null);
 
     try {
-      console.log(`[CSV UPDATE] Updating file with ID: ${fileId}`);
-      console.log(`[CSV UPDATE] Content length: ${content.length} bytes`);
-      
-      console.log('[CSV UPDATE] Acquiring access token');
-      const response = await msalInstance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All']
-      });
-      console.log('[CSV UPDATE] Token acquired successfully');
+      const client = await getClient();
+      if (!client) throw new Error('Failed to get Graph client');
 
-      // Direct content update endpoint
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`;
-      console.log('[CSV UPDATE] Using endpoint:', endpoint);
-      
-      // Show beginning of content for debugging
-      if (content.length > 0) {
-        console.log('[CSV UPDATE] Content preview:', content.substring(0, Math.min(100, content.length)) + '...');
-      }
-      
-      // Add retry mechanism
-      let success = false;
-      let attemptCount = 0;
-      const maxAttempts = 3;
-      let lastError: any = null;
-      
-      while (!success && attemptCount < maxAttempts) {
-        attemptCount++;
-        console.log(`[CSV UPDATE] Attempt ${attemptCount}/${maxAttempts}`);
-        
-        try {
-          const result = await fetch(endpoint, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${response.accessToken}`,
-              'Content-Type': 'text/csv; charset=utf-8'
-            },
-            body: content
-          });
+      // fileId is guaranteed to be a string here
+      const response = await client.api(`/me/drive/items/${fileId}/content`)
+        .header('Content-Type', 'text/csv')
+        .put(content);
 
-          // Handle response errors
-          if (!result.ok) {
-            let errorText = '';
-            try {
-              errorText = await result.text();
-            } catch (e) {
-              errorText = 'Could not read error response';
-            }
-            
-            console.error('[CSV UPDATE] Failed to update file:', result.status, result.statusText, errorText);
-            lastError = new Error(`Failed to update CSV file: ${result.statusText} - ${errorText}`);
-            
-            // If we get a 404, the file doesn't exist
-            if (result.status === 404) {
-              throw new Error(`File with ID ${fileId} not found. It may have been deleted.`);
-            }
-            
-            // Pause before retry
-            if (attemptCount < maxAttempts) {
-              console.log(`[CSV UPDATE] Waiting ${attemptCount * 1000}ms before retry`);
-              await new Promise(resolve => setTimeout(resolve, attemptCount * 1000));
-            }
-          } else {
-            // Success!
-            const updatedFile = await result.json();
-            console.log('[CSV UPDATE] File updated successfully:', updatedFile.name);
-            success = true;
-            
-            // Optionally verify the content was updated
-            try {
-              console.log('[CSV UPDATE] Verifying update');
-              // We'll just verify the file exists and is accessible
-              const verifyResult = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`, {
-                headers: {
-                  'Authorization': `Bearer ${response.accessToken}`
-                }
-              });
-              
-              if (verifyResult.ok) {
-                console.log('[CSV UPDATE] File verification successful');
-              } else {
-                console.warn('[CSV UPDATE] Could not verify file update - verification request failed');
-              }
-            } catch (verifyError) {
-              console.warn('[CSV UPDATE] Error during update verification:', verifyError);
-            }
-          }
-        } catch (error) {
-          console.error(`[CSV UPDATE] Error on attempt ${attemptCount}:`, error);
-          lastError = error;
-          
-          // Pause before retry
-          if (attemptCount < maxAttempts) {
-            console.log(`[CSV UPDATE] Waiting ${attemptCount * 1000}ms before retry`);
-            await new Promise(resolve => setTimeout(resolve, attemptCount * 1000));
-          }
-        }
+      console.log('[CSV UPDATE] File update response:', response);
+
+      // Check if the response indicates success (e.g., has an ID or name)
+      if (response && response.id) {
+        toast.success(`File '${response.name || fileId}' updated successfully.`);
+        setIsLoading(false);
+        return true;
+      } else {
+        console.warn('[CSV UPDATE] Update might have succeeded but response format unexpected:', response);
+        // Assume success if no error thrown, but log warning
+        toast.info('File update completed, but response format was unexpected.');
+        setIsLoading(false);
+        return true; 
       }
-      
-      if (!success) {
-        // If all attempts failed, throw the last error
-        throw lastError || new Error('Failed to update file after multiple attempts');
-      }
-      
-      return success;
-    } catch (error) {
-      console.error('[CSV UPDATE] Error updating file:', error);
-      toast.error('Failed to update CSV file: ' + error.message);
-      throw error;
+
+    } catch (error: any) {
+      console.error(`[CSV UPDATE] Error updating file ${fileId}:`, error);
+      setLastError(`Error updating CSV file: ${error.message}`);
+      toast.error(`Failed to update file: ${error.message}`);
+      setIsLoading(false);
+      return false;
     }
   };
 
@@ -1292,7 +1157,7 @@ export const useMicrosoftGraph = () => {
     getAuthStatus,
     getAccessToken,
     getClient,
-    getOneDriveDocuments,
+    getOneDriveDocuments: getOneDriveRootDocuments,
     getFolderContents,
     createFolder,
     renameFolder,
@@ -1301,7 +1166,9 @@ export const useMicrosoftGraph = () => {
     directFileUpload,
     readCsvFile,
     updateCsvFile,
-    handleLogin
+    handleLogin,
+    getSharePointDocuments,
+    getSharePointFolderContents
   };
 };
 
