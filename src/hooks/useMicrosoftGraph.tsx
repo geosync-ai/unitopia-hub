@@ -4,13 +4,6 @@ import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { Client } from '@microsoft/microsoft-graph-client';
 
-// Declare global Window interface extension for msalInstance
-declare global {
-  interface Window {
-    msalInstance: any;
-  }
-}
-
 export interface Document {
   id: string;
   name: string;
@@ -43,7 +36,7 @@ export const useMicrosoftGraph = () => {
   // Helper function to check if MSAL is properly initialized and has an active account
   const checkMsalAuth = useCallback(() => {
     if (!msalInstance) {
-      console.error('MSAL instance not found');
+      console.error('MSAL instance not found via useMsal hook');
       setLastError('MSAL instance not found - authentication service not initialized');
       return false;
     }
@@ -264,10 +257,9 @@ export const useMicrosoftGraph = () => {
       fetchTimeoutRef.current = null;
     }
     
-    // Basic validation
-    const msalInstance = window.msalInstance;
-    if (!msalInstance) {
-      console.error('MSAL not initialized');
+    // Basic validation - Use the instance from the useMsal hook
+    if (!msalInstance) { 
+      console.error('MSAL not initialized (checked via useMsal instance)');
       setLastError('Microsoft authentication not initialized');
       setIsRequestLocked(false);
       setIsLoading(false);
@@ -436,7 +428,7 @@ export const useMicrosoftGraph = () => {
     setIsLoading(false);
     setIsRequestLocked(false);
     return null;
-  }, [checkMsalAuth, getClient, setIsLoading, setLastError, toast]);
+  }, [checkMsalAuth, getClient, setIsLoading, setLastError, toast, isRequestLocked, msalInstance]);
 
   const getOneDriveFolderContents = useCallback(async (folderId: string): Promise<Document[] | null> => {
     console.log(`getOneDriveFolderContents called for folderId: ${folderId}`);
