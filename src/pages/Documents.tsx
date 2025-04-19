@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph';
+import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph.tsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,126 +11,173 @@ import {
 } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 
+interface PathItem {
+  id: string;
+  name: string;
+  source: 'SharePoint' | 'OneDrive';
+}
+
 export default function Documents() {
-  const { getSharePointDocuments, getOneDriveDocuments, getFolderContents } = useMicrosoftGraph();
+  const { 
+    getSharePointDocuments, 
+    getOneDriveDocuments,
+    getFolderContents, 
+    isLoading, 
+    lastError
+  } = useMicrosoftGraph();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [source, setSource] = useState<'All' | 'SharePoint' | 'OneDrive'>('All');
-  const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-  const [currentPath, setCurrentPath] = useState<{ id: string; name: string }[]>([]);
+  const [currentPath, setCurrentPath] = useState<PathItem[]>([]);
 
-  const fetchDocuments = async () => {
-    setIsLoading(true);
+  const fetchDocuments = async (selectedSource: 'All' | 'SharePoint' | 'OneDrive' = source) => {
     setAuthError(false);
+    setCurrentPath([]);
+    setDocuments([]);
+    setFilteredDocuments([]);
+    console.log(`Fetching documents for source: ${selectedSource}`);
     
     try {
+      let spDocs: Document[] | null = [];
+      let odDocs: Document[] | null = [];
+
+      const fetchPromises: Promise<Document[] | null>[] = [];
+
+      if (selectedSource === 'All' || selectedSource === 'SharePoint') {
+        console.log("Initiating SharePoint fetch...");
+        fetchPromises.push(getSharePointDocuments());
+      }
+      if (selectedSource === 'All' || selectedSource === 'OneDrive') {
+        console.log("Initiating OneDrive fetch...");
+        fetchPromises.push(getOneDriveDocuments());
+      }
+      
+      const results = await Promise.all(fetchPromises);
+      
       let allDocuments: Document[] = [];
-      
-      if (source === 'All' || source === 'SharePoint') {
-        const sharePointDocs = await getSharePointDocuments();
-        if (sharePointDocs) {
-          allDocuments = [...allDocuments, ...sharePointDocs];
+      results.forEach(docs => {
+        if (docs) {
+          allDocuments = [...allDocuments, ...docs];
         }
-      }
-      
-      if (source === 'All' || source === 'OneDrive') {
-        const oneDriveDocs = await getOneDriveDocuments();
-        if (oneDriveDocs) {
-          allDocuments = [...allDocuments, ...oneDriveDocs];
-        }
-      }
+      });
+
+      allDocuments.sort((a, b) => {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        return a.name.localeCompare(b.name);
+      });
       
       setDocuments(allDocuments);
       setFilteredDocuments(allDocuments);
-    } catch (error) {
+      console.log(`Fetched ${allDocuments.length} total documents.`);
+
+    } catch (error: any) {
       console.error('Error fetching documents:', error);
-      if (error instanceof Error && error.message.includes('No accounts found')) {
+      if (error.message?.includes('No account') || error.message?.includes('Authentication')) {
         setAuthError(true);
+        toast.error('Authentication Error: Please re-authenticate.');
+      } else {
+        toast.error(`Failed to fetch documents: ${error.message}`);
       }
-      toast.error('Failed to fetch documents');
     } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDocuments();
+    fetchDocuments(source);
   }, [source]);
 
   useEffect(() => {
+    const lowerCaseQuery = searchQuery.toLowerCase();
     const filtered = documents.filter(doc => 
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+      doc.name.toLowerCase().includes(lowerCaseQuery)
     );
     setFilteredDocuments(filtered);
   }, [searchQuery, documents]);
 
   const handleReauthenticate = async () => {
-    try {
-      await fetchDocuments();
-    } catch (error) {
-      console.error('Re-authentication failed:', error);
-      toast.error('Failed to re-authenticate');
-    }
+    await fetchDocuments(source);
   };
 
-  const toggleFolder = async (folderId: string, isExpanded: boolean) => {
-    const newExpandedFolders = new Set(expandedFolders);
-    if (isExpanded) {
-      newExpandedFolders.add(folderId);
-    } else {
-      newExpandedFolders.delete(folderId);
-    }
-    setExpandedFolders(newExpandedFolders);
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
   };
 
   const navigateToFolder = async (folder: Document) => {
-    if (!folder.isFolder) return;
+    if (!folder.isFolder || !folder.source) return;
     
-    setIsLoading(true);
+    console.log(`Navigating to folder: ${folder.name} (ID: ${folder.id}, Source: ${folder.source})`);
     try {
       const folderContents = await getFolderContents(folder.id, folder.source);
       if (folderContents) {
+        folderContents.sort((a, b) => {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return a.name.localeCompare(b.name);
+        });
         setDocuments(folderContents);
-        setCurrentPath([...currentPath, { id: folder.id, name: folder.name }]);
+        setFilteredDocuments(folderContents);
+        setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name, source: folder.source! }]);
+        setSearchQuery('');
+      } else {
+        setDocuments([]);
+        setFilteredDocuments([]);
+        setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name, source: folder.source! }]);
+        setSearchQuery('');
+        console.log(`Folder ${folder.name} is empty or content couldn't be fetched.`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error navigating to folder:', error);
-      toast.error('Failed to load folder contents');
-    } finally {
-      setIsLoading(false);
+      toast.error(`Failed to load folder contents: ${error.message}`);
     }
   };
 
   const navigateUp = async () => {
-    if (currentPath.length === 0) {
-      await fetchDocuments();
-      setCurrentPath([]);
-      return;
-    }
+    if (currentPath.length === 0) return;
 
     const newPath = [...currentPath];
     newPath.pop();
-    setCurrentPath(newPath);
+    
+    console.log(`Navigating up. New path length: ${newPath.length}`);
 
-    if (newPath.length === 0) {
-      await fetchDocuments();
-    } else {
-      const parentFolder = newPath[newPath.length - 1];
-      setIsLoading(true);
-      try {
-        const folderContents = await getFolderContents(parentFolder.id, 'SharePoint');
+    try {
+      if (newPath.length === 0) {
+        console.log("Navigating up to root view.");
+        await fetchDocuments(source);
+      } else {
+        const parentFolder = newPath[newPath.length - 1];
+        console.log(`Navigating up to parent: ${parentFolder.name} (ID: ${parentFolder.id}, Source: ${parentFolder.source})`);
+        const folderContents = await getFolderContents(parentFolder.id, parentFolder.source);
         if (folderContents) {
+           folderContents.sort((a, b) => {
+             if (a.isFolder && !b.isFolder) return -1;
+             if (!a.isFolder && b.isFolder) return 1;
+             return a.name.localeCompare(b.name);
+           });
           setDocuments(folderContents);
+          setFilteredDocuments(folderContents);
+        } else {
+          setDocuments([]);
+          setFilteredDocuments([]);
+          console.log(`Parent folder ${parentFolder.name} is empty or content couldn't be fetched.`);
         }
-      } catch (error) {
-        console.error('Error navigating up:', error);
-        toast.error('Failed to load parent folder');
-      } finally {
-        setIsLoading(false);
+        setCurrentPath(newPath);
+        setSearchQuery('');
       }
+    } catch (error: any) {
+      console.error('Error navigating up:', error);
+      toast.error(`Failed to load parent folder: ${error.message}`);
     }
   };
 
@@ -220,8 +267,8 @@ export default function Documents() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-[300px]"
             />
-            <Button onClick={fetchDocuments} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <Button onClick={() => fetchDocuments(source)} variant="outline" disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
@@ -237,16 +284,60 @@ export default function Documents() {
         ) : (
           <>
             {currentPath.length > 0 && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Button variant="ghost" size="sm" onClick={navigateUp}>
+              <div className="flex items-center gap-1 text-sm text-gray-600 mb-2 flex-wrap">
+                <Button variant="ghost" size="sm" onClick={navigateUp} disabled={isLoading} className="flex items-center">
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   Back
                 </Button>
                 <span>/</span>
+                <Button 
+                   variant="link" 
+                   size="sm" 
+                   className="text-gray-600 px-1 h-auto py-0" 
+                   onClick={() => fetchDocuments(source)} 
+                   disabled={isLoading}
+                 >
+                   Root ({source})
+                 </Button>
+                 <span>/</span>
                 {currentPath.map((folder, index) => (
-                  <div key={folder.id} className="flex items-center">
-                    <span className="text-gray-900">{folder.name}</span>
-                    {index < currentPath.length - 1 && <span className="mx-2">/</span>}
+                  <div key={folder.id} className="flex items-center gap-1">
+                    {index < currentPath.length - 1 ? (
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="text-gray-600 px-1 h-auto py-0"
+                        onClick={async () => {
+                          const pathSlice = currentPath.slice(0, index + 1);
+                          const targetFolder = pathSlice[pathSlice.length - 1];
+                          setCurrentPath(pathSlice);
+                          try {
+                            const contents = await getFolderContents(targetFolder.id, targetFolder.source);
+                            if (contents) {
+                               contents.sort((a, b) => {
+                                if (a.isFolder && !b.isFolder) return -1;
+                                if (!a.isFolder && b.isFolder) return 1;
+                                return a.name.localeCompare(b.name);
+                              });
+                              setDocuments(contents);
+                              setFilteredDocuments(contents);
+                            } else {
+                              setDocuments([]);
+                              setFilteredDocuments([]);
+                            }
+                            setSearchQuery('');
+                          } catch(error: any) {
+                             toast.error(`Failed to load folder: ${error.message}`);
+                          }
+                        }}
+                        disabled={isLoading}
+                      >
+                        {folder.name}
+                      </Button>
+                    ) : (
+                      <span className="text-gray-900 font-medium px-1">{folder.name}</span>
+                    )}
+                    {index < currentPath.length - 1 && <span className="text-gray-400">/</span>}
                   </div>
                 ))}
               </div>
@@ -262,22 +353,23 @@ export default function Documents() {
                   filteredDocuments.map((doc) => (
                     <div
                       key={doc.id}
-                      className="bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 cursor-pointer"
+                      className="bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 cursor-pointer border border-border"
                       onClick={() => doc.isFolder ? navigateToFolder(doc) : window.open(doc.url, '_blank')}
+                      title={doc.name}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="mt-1">
+                        <div className="mt-1 flex-shrink-0">
                           {doc.isFolder ? (
-                            <Folder className="h-6 w-6 text-blue-500" />
+                            <Folder className="h-6 w-6 text-yellow-500" />
                           ) : (
                             getFileIcon(doc.name)
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">{doc.name}</h3>
+                          <h3 className="font-medium truncate text-sm">{doc.name}</h3>
                           <div className="text-xs text-muted-foreground mt-1">
                             {doc.isFolder ? (
-                              <span>Folder</span>
+                              <span className="italic">Folder</span> 
                             ) : (
                               <>
                                 <span>{formatFileSize(doc.size)}</span>
@@ -287,7 +379,7 @@ export default function Documents() {
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {doc.source}
+                            Source: {doc.source}
                           </div>
                         </div>
                       </div>
@@ -295,7 +387,7 @@ export default function Documents() {
                   ))
                 ) : (
                   <div className="col-span-full text-center py-8 text-gray-500">
-                    No documents found
+                    {searchQuery ? 'No documents match your search.' : 'No documents found in this location.'}
                   </div>
                 )}
               </div>
