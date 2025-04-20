@@ -27,34 +27,9 @@ import AssetManagement from './pages/AssetManagement';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
 // MSAL Imports
-import { PublicClientApplication, EventType, AccountInfo } from '@azure/msal-browser';
 import { MsalProvider, useMsal } from '@azure/msal-react';
-import { msalConfig } from './authConfig'; // Import the MSAL config
-import { InteractionStatus } from '@azure/msal-browser'; // Ensure InteractionStatus is imported
-
-// MSAL Instance (create outside the component)
-const msalInstance = new PublicClientApplication(msalConfig);
-
-// Optional: Event callback to set active account after login
-msalInstance.addEventCallback((event) => {
-  // Check the event type for specific payloads
-  if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
-    // Type assertion for AuthenticationResult payload
-    const payload = event.payload as import('@azure/msal-browser').AuthenticationResult;
-    if (payload.account) {
-      const account = payload.account;
-      console.log("App.tsx: MSAL LOGIN_SUCCESS event, setting active account:", account.username);
-      msalInstance.setActiveAccount(account);
-    } else {
-       console.warn("App.tsx: MSAL LOGIN_SUCCESS event, but payload did not contain account info.");
-    }
-  } else if (event.eventType === EventType.LOGOUT_SUCCESS) {
-     console.log("App.tsx: MSAL LOGOUT_SUCCESS event.");
-     // MSAL handles clearing the active account on logout
-  } else if (event.eventType === EventType.LOGIN_FAILURE) {
-    console.error("App.tsx: MSAL LOGIN_FAILURE event", event.error);
-  }
-});
+import { InteractionStatus } from '@azure/msal-browser';
+import { MsalAuthProvider } from '@/integrations/microsoft/MsalProvider';
 
 const queryClient = new QueryClient();
 
@@ -146,7 +121,7 @@ const AppRoutes = () => {
 
 // Main App component wrapper to handle MSAL initialization state
 const AppContent = () => {
-  const { inProgress } = useMsal(); // Use hook here to get status
+  const { inProgress } = useMsal(); // Keep using useMsal from @azure/msal-react, it gets instance from the provider context
 
   // Show loading indicator while MSAL is initializing or interacting
   if (inProgress !== InteractionStatus.None) {
@@ -176,11 +151,11 @@ const AppContent = () => {
   );
 }
 
-// Top-level App component only provides the MsalProvider
+// Top-level App component now uses the custom MsalAuthProvider
 const App = () => (
-  <MsalProvider instance={msalInstance}>
-     <AppContent /> { /* Render the conditional content */ }
-  </MsalProvider>
+  <MsalAuthProvider>
+     <AppContent />
+  </MsalAuthProvider>
 );
 
 export default App;
