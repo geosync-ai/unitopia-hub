@@ -31,7 +31,10 @@ export default function Documents() {
   const [authError, setAuthError] = useState(false);
   const [currentPath, setCurrentPath] = useState<PathItem[]>([]);
 
+  console.log("Documents component rendered. isAuthenticated:", isAuthenticated, "isLoading:", isLoading);
+
   const fetchDocuments = async () => {
+    console.log("fetchDocuments: Attempting to fetch root documents...");
     setAuthError(false);
     setCurrentPath([]);
     setDocuments([]);
@@ -54,10 +57,10 @@ export default function Documents() {
       
       setDocuments(allDocuments);
       setFilteredDocuments(allDocuments);
-      console.log(`Fetched ${allDocuments.length} OneDrive documents.`);
+      console.log(`fetchDocuments: Successfully fetched ${allDocuments.length} root documents.`);
 
     } catch (error: any) {
-      console.error('Error fetching OneDrive documents:', error);
+      console.error('fetchDocuments: Error fetching OneDrive documents:', error);
       if (error.message?.includes('No account') || error.message?.includes('Authentication')) {
         setAuthError(true);
         toast.error('Authentication Error: Please re-authenticate.');
@@ -68,11 +71,12 @@ export default function Documents() {
   };
 
   useEffect(() => {
+    console.log("Documents useEffect [isAuthenticated] triggered. isAuthenticated:", isAuthenticated);
     if (isAuthenticated) {
-      console.log("User is authenticated via MSAL, fetching documents.");
+      console.log("Documents useEffect: User is authenticated via MSAL, calling fetchDocuments().");
       fetchDocuments();
     } else {
-       console.log("User is NOT authenticated via MSAL, skipping document fetch.");
+       console.log("Documents useEffect: User is NOT authenticated via MSAL, skipping document fetch.");
        setDocuments([]);
        setFilteredDocuments([]);
        setCurrentPath([]);
@@ -98,7 +102,7 @@ export default function Documents() {
   const navigateToFolder = async (folder: Document) => {
     if (!folder.isFolder) return; 
     
-    console.log(`Navigating to folder: ${folder.name} (ID: ${folder.id})`);
+    console.log(`navigateToFolder: Navigating into folder: ${folder.name} (ID: ${folder.id})`);
     try {
       const folderContents = await getFolderContents(folder.id);
       if (folderContents) {
@@ -111,34 +115,35 @@ export default function Documents() {
         setFilteredDocuments(folderContents);
         setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name }]);
         setSearchQuery('');
+        console.log(`navigateToFolder: Successfully loaded contents for folder: ${folder.name}`);
       } else {
         setDocuments([]);
         setFilteredDocuments([]);
         setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name }]);
         setSearchQuery('');
-        console.log(`Folder ${folder.name} is empty or content couldn't be fetched.`);
+        console.log(`navigateToFolder: Folder ${folder.name} is empty or content couldn't be fetched.`);
       }
     } catch (error: any) {
-      console.error('Error navigating to folder:', error);
+      console.error(`navigateToFolder: Error navigating into folder ${folder.name}:`, error);
       toast.error(`Failed to load folder contents: ${error.message}`);
     }
   };
 
   const navigateUp = async () => {
     if (currentPath.length === 0) return;
-
+    console.log("navigateUp: Attempting to navigate up.");
     const newPath = [...currentPath];
     newPath.pop();
     
-    console.log(`Navigating up. New path length: ${newPath.length}`);
+    console.log(`navigateUp: Navigating up. New path length: ${newPath.length}`);
 
     try {
       if (newPath.length === 0) {
-        console.log("Navigating up to root view.");
+        console.log("navigateUp: Navigating to root view.");
         await fetchDocuments();
       } else {
         const parentFolder = newPath[newPath.length - 1];
-        console.log(`Navigating up to parent: ${parentFolder.name} (ID: ${parentFolder.id})`);
+        console.log(`navigateUp: Navigating up to parent: ${parentFolder.name} (ID: ${parentFolder.id})`);
         const folderContents = await getFolderContents(parentFolder.id);
         if (folderContents) {
            folderContents.sort((a, b) => {
@@ -148,16 +153,17 @@ export default function Documents() {
            });
           setDocuments(folderContents);
           setFilteredDocuments(folderContents);
+          console.log(`navigateUp: Successfully loaded contents for parent folder: ${parentFolder.name}`);
         } else {
           setDocuments([]);
           setFilteredDocuments([]);
-          console.log(`Parent folder ${parentFolder.name} is empty or content couldn't be fetched.`);
+          console.log(`navigateUp: Parent folder ${parentFolder.name} is empty or content couldn't be fetched.`);
         }
         setCurrentPath(newPath);
         setSearchQuery('');
       }
     } catch (error: any) {
-      console.error('Error navigating up:', error);
+      console.error('navigateUp: Error navigating up:', error);
       toast.error(`Failed to load parent folder: ${error.message}`);
     }
   };

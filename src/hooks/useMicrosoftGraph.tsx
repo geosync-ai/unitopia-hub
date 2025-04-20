@@ -3,6 +3,7 @@ import { useSupabaseAuth } from './useSupabaseAuth';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { Client } from '@microsoft/microsoft-graph-client';
+import { InteractionRequiredAuthError } from '@azure/msal-browser';
 
 export interface Document {
   id: string;
@@ -52,6 +53,7 @@ export const useMicrosoftGraph = () => {
       msalInstance.setActiveAccount(accounts[0]);
     }
     
+    console.log("checkMsalAuth: MSAL auth check passed.");
     return true;
   }, [msalInstance]);
 
@@ -115,9 +117,10 @@ export const useMicrosoftGraph = () => {
   }, []);
 
   const getAccessToken = useCallback(async () => {
+    console.log("getAccessToken: Starting token acquisition attempt.");
+    // Set loading state specifically for token acquisition if needed, or use general isLoading
+    // setIsLoading(true); 
     try {
-      console.log("getAccessToken: Starting token acquisition");
-      
       // 1. First check if MSAL is properly initialized
       if (!msalInstance) {
         console.error("getAccessToken: MSAL instance is not available");
@@ -149,92 +152,92 @@ export const useMicrosoftGraph = () => {
         'User.Read'
       ];
       
-      console.log(`getAccessToken: Requesting token with OneDrive scopes: ${oneDriveScopes.join(', ')}`);
+      console.log(`getAccessToken: Requesting token for account: ${activeAccount.username} with scopes: ${oneDriveScopes.join(', ')}`);
       
+      // --- Silent Token Acquisition Attempt ---
       try {
-        // Try with OneDrive specific scopes first
+        console.log("getAccessToken: Attempting acquireTokenSilent...");
         const response = await msalInstance.acquireTokenSilent({
           scopes: oneDriveScopes,
           account: activeAccount
         });
-        
-        console.log("getAccessToken: Successfully acquired token with OneDrive scopes");
+        console.log("getAccessToken: Successfully acquired token silently.");
+        // setIsLoading(false);
         return response.accessToken;
-      } catch (specificScopeError) {
-        console.warn("getAccessToken: Failed with specific scopes, trying with default scope", specificScopeError);
+      } catch (silentError) {
+        console.warn("getAccessToken: acquireTokenSilent failed. Error:", silentError);
         
-        // Attempt to get token with popup - the user might need to consent to permissions
-        try {
-          console.log("getAccessToken: Attempting popup token acquisition with OneDrive scopes");
-          const response = await msalInstance.acquireTokenPopup({
-            scopes: oneDriveScopes
-          });
-          
-          console.log("getAccessToken: Successfully acquired token with popup");
-          return response.accessToken;
-        } catch (popupError) {
-          console.error("getAccessToken: Popup token acquisition failed", popupError);
-          
-          // Fall back to .default scope which gets all consented permissions
-          try {
-            const response = await msalInstance.acquireTokenSilent({
-              scopes: ['https://graph.microsoft.com/.default'],
-              account: activeAccount
+        // --- Popup Token Acquisition Attempt ---
+        if (silentError instanceof InteractionRequiredAuthError) {
+           console.log("getAccessToken: Silent acquisition failed due to InteractionRequiredAuthError. Attempting acquireTokenPopup...");
+           try {
+            const response = await msalInstance.acquireTokenPopup({
+              scopes: oneDriveScopes
             });
-            
-            console.log("getAccessToken: Successfully acquired token with default scope");
+            console.log("getAccessToken: Successfully acquired token via popup.");
+            // setIsLoading(false);
             return response.accessToken;
-          } catch (defaultScopeError) {
-            console.error("getAccessToken: Failed with default scope", defaultScopeError);
-            
-            // Final fallback: try interactive token acquisition
-            try {
-              console.log("getAccessToken: Attempting interactive token acquisition");
-              const response = await msalInstance.acquireTokenPopup({
-                scopes: oneDriveScopes
-              });
-              
-              console.log("getAccessToken: Successfully acquired token interactively");
-              return response.accessToken;
-            } catch (interactiveError) {
-              console.error("getAccessToken: Interactive token acquisition failed", interactiveError);
-              throw new Error(`Failed to acquire token interactively: ${interactiveError.message}`);
-            }
+          } catch (popupError) {
+            console.error("getAccessToken: acquireTokenPopup failed. Error:", popupError);
+            // Fall through to the final error throw below
           }
+        } else {
+          console.error("getAccessToken: acquireTokenSilent failed with non-interaction error:", silentError);
+          // Fall through to the final error throw below
         }
+        
+        // If all attempts fail, throw the last significant error
+        console.error("getAccessToken: All token acquisition attempts failed.");
+        // Rethrow the specific error that occurred (silent or popup)
+        throw silentError; // Or handle popupError if you want to prioritize it
       }
-    } catch (err) {
-      console.error('getAccessToken: Fatal error:', err);
-      
+    } catch (err: any) { // Added ': any' for broader error handling
+      console.error('getAccessToken: Catch block reached. Final error:', err);
+      // setIsLoading(false);
       // Create a more user-friendly error
       const errorMessage = err.message || 'Unknown error';
       const userFriendlyError = new Error(
         `Failed to get Microsoft access token: ${errorMessage}. Try logging out and back in.`
       );
-      
       // Preserve the original stack trace for debugging
       userFriendlyError.stack = err.stack;
-      throw userFriendlyError;
+      setLastError(userFriendlyError.message); // Update lastError state
+      throw userFriendlyError; // Rethrow the formatted error
     }
   }, [msalInstance]);
 
   const getClient = useCallback(async (): Promise<Client | null> => {
-    const accessToken = await getAccessToken();
-    return Client.init({
-      authProvider: (done) => {
-        done(null, accessToken);
-      },
-    });
+    console.log("getClient: Attempting to get MS Graph client...");
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+         console.error("getClient: Failed to get access token. Cannot initialize client.");
+         return null;
+      }
+      console.log("getClient: Access token obtained, initializing Graph client.");
+      return Client.init({
+        authProvider: (done) => {
+          done(null, accessToken);
+        },
+      });
+    } catch (error) {
+        console.error("getClient: Error during access token retrieval or client initialization:", error);
+        setLastError(`Failed to initialize connection: ${error.message}`);
+        return null;
+    }
   }, [getAccessToken]);
 
   // --- OneDrive Specific Functions ---
   const getOneDriveRootDocuments = useCallback(async (): Promise<Document[] | null> => {
-    console.log('Attempting to get OneDrive documents...');
+    console.log('getOneDriveRootDocuments: Attempting to get root documents...');
+    setIsLoading(true);
+    setLastError(null);
 
     // Use checkMsalAuth which already checks for instance and accounts
     if (!checkMsalAuth()) {
-      console.error('getOneDriveRootDocuments: Auth check failed.');
-      // setLastError is handled by checkMsalAuth
+      console.error('getOneDriveRootDocuments: Auth check failed via checkMsalAuth.');
+      setIsLoading(false);
+      // setLastError is handled by checkMsalAuth or getAccessToken
       return null; 
     }
 
@@ -263,59 +266,34 @@ export const useMicrosoftGraph = () => {
     }
     
     try {
-      // Use getClient() to get authenticated client
+      console.log("getOneDriveRootDocuments: Getting Graph client...");
       const client = await getClient();
       if (!client) {
-        // getClient handles its own errors/toast messages
-        setIsRequestLocked(false);
+        console.error("getOneDriveRootDocuments: Failed to get Graph client.");
+        // setLastError should be handled by getClient
         setIsLoading(false);
-        return null; 
+        return null;
       }
-
-      console.log('Using Graph Client to fetch OneDrive root children...');
-      const response = await client.api('/me/drive/root/children')
-        .select('id,name,webUrl,lastModifiedDateTime,size,folder,parentReference')
-        .get();
-
-      console.log('OneDrive root response:', response);
-
-      if (response && response.value) {
-        // Process the response (filtering logic might need review)
-        const filteredItems = response.value.filter(item => 
-           // Original filter: Include all folders and specific file types
-           item.folder || 
-           (item.name && (item.name.endsWith('.csv') || item.name.endsWith('.xlsx')))
-           // Consider if you want to show ALL files/folders now?
-           // Example: return true; // to show everything
-         );
-        
-        console.log(`Filtered to ${filteredItems.length} relevant items`);
-        setIsLoading(false);
-        setIsRequestLocked(false);
-        
-        return filteredItems.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          url: item.webUrl || '',
-          lastModified: item.lastModifiedDateTime || new Date().toISOString(),
-          size: item.size || 0,
-          isFolder: !!item.folder,
-          parentReference: item.parentReference,
-          source: 'OneDrive' as const
-        }));
-      } else {
-        // Handle case where value is missing or empty
-        if (response && response.value === undefined) {
-           console.log('OneDrive root appears to be empty or has no parsable items.');
-           setIsLoading(false);
-           setIsRequestLocked(false);
-           return []; // Return empty array for empty root
-        }
-        throw new Error("Invalid response structure from OneDrive root fetch");
-      }
+      console.log("getOneDriveRootDocuments: Graph client obtained. Calling Graph API for root drive items...");
+      const response = await client.api('/me/drive/root/children').select('id,name,webUrl,lastModifiedDateTime,size,folder,parentReference').get();
+      console.log("getOneDriveRootDocuments: Graph API response received.");
+      const documents: Document[] = response.value.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        url: item.webUrl,
+        lastModified: item.lastModifiedDateTime,
+        size: item.size,
+        isFolder: !!item.folder,
+        parentReference: item.parentReference,
+        source: 'OneDrive',
+      }));
+      console.log(`getOneDriveRootDocuments: Processed ${documents.length} items.`);
+      setIsLoading(false);
+      setIsRequestLocked(false);
+      return documents;
     } catch (error: any) {
-      console.error('Error fetching OneDrive root documents:', error);
-      setLastError(`Error fetching OneDrive documents: ${error.message}`);
+      console.error('getOneDriveRootDocuments: Error fetching documents:', error);
+      setLastError(`Failed to get OneDrive documents: ${error.message || 'Unknown error'}`);
       toast.error(`Failed to fetch OneDrive documents: ${error.message}`);
       setIsLoading(false);
       setIsRequestLocked(false);
