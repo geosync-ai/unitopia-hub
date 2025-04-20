@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph.tsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,8 +21,10 @@ export default function Documents() {
     getOneDriveDocuments,
     getFolderContents, 
     isLoading, 
-    lastError
+    lastError,
+    handleLogin
   } = useMicrosoftGraph();
+  const isAuthenticated = useIsAuthenticated();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,8 +68,16 @@ export default function Documents() {
   };
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (isAuthenticated) {
+      console.log("User is authenticated via MSAL, fetching documents.");
+      fetchDocuments();
+    } else {
+       console.log("User is NOT authenticated via MSAL, skipping document fetch.");
+       setDocuments([]);
+       setFilteredDocuments([]);
+       setCurrentPath([]);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const lowerCaseQuery = searchQuery.toLowerCase();
@@ -77,7 +88,11 @@ export default function Documents() {
   }, [searchQuery, documents]);
 
   const handleReauthenticate = async () => {
-    await fetchDocuments();
+    if (!isAuthenticated) {
+      await handleLogin();
+    } else {
+      await fetchDocuments(); 
+    }
   };
 
   const navigateToFolder = async (folder: Document) => {
@@ -207,6 +222,21 @@ export default function Documents() {
     });
   };
 
+  if (!isAuthenticated && !isLoading) {
+    return (
+      <PageLayout>
+        <div className="flex flex-col items-center justify-center p-8 bg-card rounded-lg shadow-sm">
+          <h1 className="text-xl font-semibold mb-4">Access OneDrive Documents</h1>
+          <p className="text-muted-foreground mb-6">Please sign in with your Microsoft account to view your documents.</p>
+          <Button onClick={handleLogin} variant="default" disabled={isLoading}> 
+            Sign In with Microsoft
+          </Button>
+          {lastError && <p className="text-red-500 mt-4 text-sm">Error: {lastError}</p>}
+        </div>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
@@ -233,8 +263,8 @@ export default function Documents() {
         {authError ? (
           <div className="flex flex-col items-center justify-center p-8 bg-red-50 rounded-lg">
             <p className="text-red-600 mb-4">Authentication error. Please re-authenticate to access your documents.</p>
-            <Button onClick={handleReauthenticate} variant="default">
-              Re-authenticate
+            <Button onClick={handleLogin} variant="default" disabled={isLoading}>
+              Re-authenticate with Microsoft
             </Button>
           </div>
         ) : (

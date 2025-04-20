@@ -231,7 +231,22 @@ export const useMicrosoftGraph = () => {
   const getOneDriveRootDocuments = useCallback(async (): Promise<Document[] | null> => {
     console.log('Attempting to get OneDrive documents...');
 
-    // Guard against multiple concurrent requests
+    // Use checkMsalAuth which already checks for instance and accounts
+    if (!checkMsalAuth()) {
+      console.error('getOneDriveRootDocuments: Auth check failed.');
+      // setLastError is handled by checkMsalAuth
+      return null; 
+    }
+
+    // Add specific check for active account
+    if (!msalInstance.getActiveAccount()) {
+        console.error('getOneDriveRootDocuments: No active account found in MSAL instance.');
+        setLastError('No active Microsoft account. Please sign in.');
+        // We might not need setIsRequestLocked here if we return null immediately
+        return null;
+    }
+
+    // Guard against multiple concurrent requests (Keep this)
     if (isRequestLocked) {
       console.log('Request already in progress, skipping duplicate request');
       return null;
@@ -239,6 +254,7 @@ export const useMicrosoftGraph = () => {
     
     setIsRequestLocked(true);
     setIsLoading(true);
+    setLastError(null); // Clear previous errors
     
     // Clear any existing fetch timeout
     if (fetchTimeoutRef.current) {
@@ -246,177 +262,65 @@ export const useMicrosoftGraph = () => {
       fetchTimeoutRef.current = null;
     }
     
-    // Basic validation - Use the instance from the useMsal hook
-    if (!msalInstance) { 
-      console.error('MSAL not initialized (checked via useMsal instance)');
-      setLastError('Microsoft authentication not initialized');
-      setIsRequestLocked(false);
+    try {
+      // Use getClient() to get authenticated client
+      const client = await getClient();
+      if (!client) {
+        // getClient handles its own errors/toast messages
+        setIsRequestLocked(false);
+        setIsLoading(false);
+        return null; 
+      }
+
+      console.log('Using Graph Client to fetch OneDrive root children...');
+      const response = await client.api('/me/drive/root/children')
+        .select('id,name,webUrl,lastModifiedDateTime,size,folder,parentReference')
+        .get();
+
+      console.log('OneDrive root response:', response);
+
+      if (response && response.value) {
+        // Process the response (filtering logic might need review)
+        const filteredItems = response.value.filter(item => 
+           // Original filter: Include all folders and specific file types
+           item.folder || 
+           (item.name && (item.name.endsWith('.csv') || item.name.endsWith('.xlsx')))
+           // Consider if you want to show ALL files/folders now?
+           // Example: return true; // to show everything
+         );
+        
+        console.log(`Filtered to ${filteredItems.length} relevant items`);
+        setIsLoading(false);
+        setIsRequestLocked(false);
+        
+        return filteredItems.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          url: item.webUrl || '',
+          lastModified: item.lastModifiedDateTime || new Date().toISOString(),
+          size: item.size || 0,
+          isFolder: !!item.folder,
+          parentReference: item.parentReference,
+          source: 'OneDrive' as const
+        }));
+      } else {
+        // Handle case where value is missing or empty
+        if (response && response.value === undefined) {
+           console.log('OneDrive root appears to be empty or has no parsable items.');
+           setIsLoading(false);
+           setIsRequestLocked(false);
+           return []; // Return empty array for empty root
+        }
+        throw new Error("Invalid response structure from OneDrive root fetch");
+      }
+    } catch (error: any) {
+      console.error('Error fetching OneDrive root documents:', error);
+      setLastError(`Error fetching OneDrive documents: ${error.message}`);
+      toast.error(`Failed to fetch OneDrive documents: ${error.message}`);
       setIsLoading(false);
-      toast.error('Authentication service not initialized. Please refresh the page and try again.');
+      setIsRequestLocked(false);
       return null;
     }
-    
-    // Add retry counter
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        // Get accounts safely
-        let accounts: any[] = [];
-        try {
-          accounts = msalInstance.getAllAccounts();
-          console.log('Found accounts:', accounts.length, accounts.map((a: any) => ({ username: a.username })));
-        } catch (accountError) {
-          console.error('Error getting accounts:', accountError);
-          setLastError(`Error getting accounts: ${accountError.message}`);
-          setIsRequestLocked(false);
-          setIsLoading(false);
-          return null;
-        }
-        
-        if (!accounts || accounts.length === 0) {
-          console.log('No accounts found, cannot fetch OneDrive documents');
-          setLastError('No Microsoft account found. Please sign in first.');
-          setIsRequestLocked(false);
-          setIsLoading(false);
-          return null;
-        }
-        
-        // Set active account if not already set
-        if (!msalInstance.getActiveAccount() && accounts.length > 0) {
-          console.log('Setting active account to:', accounts[0].username);
-          msalInstance.setActiveAccount(accounts[0]);
-        }
-
-        // Set the request lock to prevent duplicate requests
-        setHasFetchAttempted(true);
-        setLastError(null);
-
-        // Try to acquire token with retry mechanism
-        let response;
-        try {
-          // Add more debug logging
-          console.log('Attempting silent token acquisition with scopes: User.Read, Files.Read.All, Files.ReadWrite.All');
-          
-          response = await msalInstance.acquireTokenSilent({
-            scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All'],
-            account: accounts[0]
-          });
-          
-          console.log('Silent token acquisition successful:', response ? 'Token obtained' : 'No response');
-        } catch (tokenError) {
-          console.warn('Silent token acquisition failed, trying interactive fallback:', tokenError);
-          
-          // Try interactive acquisition as fallback
-          try {
-            console.log('Attempting interactive token acquisition');
-            response = await msalInstance.acquireTokenPopup({
-              scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All']
-            });
-            console.log('Interactive token acquisition successful:', response ? 'Token obtained' : 'No response');
-          } catch (interactiveError) {
-            console.error('Interactive token acquisition failed:', interactiveError);
-            throw new Error(`Failed to acquire authentication token: ${interactiveError.message || 'Unknown error'}`);
-          }
-        }
-        
-        if (!response || !response.accessToken) {
-          console.error('No access token received:', response);
-          throw new Error('Failed to obtain access token');
-        }
-        
-        console.log('Token acquired successfully for OneDrive');
-
-        // Use Microsoft Graph endpoint to get root items
-        const graphEndpoint = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
-        console.log('Fetching OneDrive from endpoint:', graphEndpoint);
-        
-        try {
-          const result = await fetch(graphEndpoint, {
-            headers: {
-              'Authorization': `Bearer ${response.accessToken}`,
-              'Accept': 'application/json'
-            }
-          });
-
-          console.log('Graph API response status:', result.status, result.statusText);
-          
-          if (!result.ok) {
-            let errorDetails = '';
-            try {
-              const errorText = await result.text();
-              errorDetails = errorText;
-              console.error('OneDrive GraphAPI error response:', result.status, errorText);
-            } catch (e) {
-              console.error('Failed to parse error response:', e);
-            }
-            
-            throw new Error(`Failed Graph API request (${result.status}): ${result.statusText} ${errorDetails}`);
-          }
-
-          const data = await result.json();
-          console.log(`Retrieved ${data.value?.length || 0} OneDrive items:`, data.value ? data.value.map(item => ({ name: item.name, isFolder: !!item.folder })) : 'No items');
-          
-          if (!data.value) {
-            console.error('Unexpected API response format, missing value property:', data);
-            throw new Error('Invalid API response format');
-          }
-          
-          // Filter to include all folders
-          const filteredItems = data.value.filter(item => 
-            // Include all folders and specific file types
-            item.folder || 
-            (item.name && (item.name.endsWith('.csv') || item.name.endsWith('.xlsx')))
-          );
-          
-          console.log(`Filtered to ${filteredItems.length} relevant items`);
-          
-          setIsLoading(false);
-          setIsRequestLocked(false);
-          
-          return filteredItems.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            url: item.webUrl || item['@microsoft.graph.downloadUrl'] || '',
-            lastModified: item.lastModifiedDateTime || new Date().toISOString(),
-            size: item.size || 0,
-            isFolder: item.folder !== undefined,
-            parentReference: item.parentReference,
-            source: 'OneDrive' as const
-          }));
-        } catch (fetchError) {
-          console.error('Error during API fetch:', fetchError);
-          setLastError(`API request failed: ${fetchError.message || 'Unknown error'}`);
-          throw fetchError;
-        }
-      } catch (error) {
-        retryCount++;
-        console.error(`OneDrive documents fetch attempt ${retryCount}/${maxRetries} failed:`, error);
-        
-        if (retryCount >= maxRetries) {
-          const errorMsg = error.message || 'Unknown fetch error';
-          setLastError(`OneDrive documents error: ${errorMsg}`);
-          
-          // Set a timeout before allowing another request
-          fetchTimeoutRef.current = setTimeout(() => {
-            console.log('Fetch request lock released after timeout');
-            setIsRequestLocked(false);
-          }, 5000); // 5 second cooldown before allowing next request
-          
-          setIsRequestLocked(false);
-          setIsLoading(false);
-          return null;
-        }
-        
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
-      }
-    }
-    
-    setIsLoading(false);
-    setIsRequestLocked(false);
-    return null;
   }, [checkMsalAuth, getClient, setIsLoading, setLastError, toast, isRequestLocked, msalInstance]);
 
   const getOneDriveFolderContents = useCallback(async (folderId: string): Promise<Document[] | null> => {
