@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useMsal } from '@azure/msal-react';
 import { notesService } from '@/integrations/supabase/notesService';
 import { supabase, logger } from '@/lib/supabaseClient';
-import { User } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,86 +16,60 @@ export default function Notes() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    setUserLoading(true);
-    supabase.auth.getUser()
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (error) {
-          logger.error('Notes Component: Error fetching user', error);
-          toast.error('Could not load user session for notes.');
-        } else {
-          setCurrentUser(data.user);
-        }
-        setUserLoading(false);
-      })
-      .catch(err => {
-        if (isMounted) {
-          logger.error('Notes Component: Unexpected error fetching user', err);
-          setUserLoading(false);
-        }
-      });
-      
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-        if (!isMounted) return;
-        if (event === 'SIGNED_OUT') {
-            setCurrentUser(null); 
-        }
-    });
-
-    return () => { 
-        isMounted = false;
-        authListener?.subscription?.unsubscribe();
-    };
-  }, []);
+  const { accounts, inProgress } = useMsal();
+  const account = accounts[0];
+  const userLoading = inProgress !== "none";
 
   const loadNotes = useCallback(async () => {
-    if (!currentUser) {
+    const userIdentifier = account?.username;
+    if (!userIdentifier) {
       setNotes([]);
+      setIsLoading(false);
+      logger.info('Notes Component: No user identifier found, skipping notes load.');
       return;
     }
     
     setIsLoading(true);
     try {
-      const fetchedNotes = await notesService.getNotesForUser(currentUser.id);
+      logger.info('Notes Component: Loading notes for user', { userIdentifier });
+      const fetchedNotes = await notesService.getNotesForUser(userIdentifier);
       setNotes(fetchedNotes || []);
-      logger.success('Notes Component: Notes loaded', { count: fetchedNotes?.length });
+      logger.success('Notes Component: Notes loaded', { count: fetchedNotes?.length, user: userIdentifier });
     } catch (error) {
       logger.error('Notes Component: Error loading notes:', error);
       toast.error('Failed to load notes.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]);
+  }, [account?.username]);
 
   useEffect(() => {
-    if (!userLoading && currentUser) {
+    if (!userLoading && account?.username) {
       loadNotes();
-    }
-    if (!userLoading && !currentUser) {
+    } else if (!userLoading && !account) {
         setNotes([]);
         setIsLoading(false);
+        logger.info('Notes Component: No MSAL account, clearing notes.');
     }
-  }, [userLoading, currentUser, loadNotes]);
+  }, [userLoading, account, loadNotes]);
 
   const handleAddNote = async () => {
-    if (!newNote.trim() || !currentUser) return;
-    
-    const userId = currentUser.id;
+    const userIdentifier = account?.username;
+    if (!newNote.trim() || !userIdentifier) {
+      toast.info('Cannot add note without being logged in or empty content.');
+      return;
+    }
     
     setIsLoading(true);
     try {
+      logger.info('Notes Component: Adding note for user', { userIdentifier, content: newNote });
       const addedNote = await notesService.addNote({
         content: newNote,
-        user_id: userId,
+        user_id: userIdentifier,
       });
       
       if (addedNote) {
-        setNotes(prev => [addedNote, ...prev]);
+        setNotes(prev => [addedNote as Note, ...prev]);
         setNewNote('');
         toast.success('Note added successfully!');
       } else {
@@ -118,7 +92,7 @@ export default function Notes() {
       );
   }
   
-  if (!currentUser) {
+  if (!account) {
       return (
         <div className="p-6 bg-gray-100 rounded-lg shadow text-center">
             <p>Please log in to access your notes.</p>
@@ -148,7 +122,7 @@ export default function Notes() {
         </button>
       </div>
       
-      {isLoading ? (
+      {isLoading && notes.length === 0 ? (
         <div className="text-center py-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
           <p className="mt-2 text-gray-600">Loading your notes...</p>

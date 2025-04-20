@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useMsal } from '@azure/msal-react';
 import { supabase, logger } from '@/lib/supabaseClient';
-import { User } from '@supabase/supabase-js';
 import { toast } from '@/components/ui/use-toast';
 import { 
   tasksService, 
@@ -24,6 +24,7 @@ export function useSupabaseData<T extends { id?: string }>(
   const [data, setData] = useState<T[]>(initialData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { accounts } = useMsal();
 
   // Get the appropriate fetch method based on entity type
   const getFetchMethod = useCallback((): FetchFunction => {
@@ -136,10 +137,8 @@ export function useSupabaseData<T extends { id?: string }>(
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {
-    // Fetch user inside the function
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      logger.error('useSupabaseData - add: No user logged in', userError);
+    if (accounts.length === 0) {
+      logger.error('useSupabaseData - add: No MSAL user logged in');
       toast({
         title: "Error",
         description: "You must be logged in to add items",
@@ -149,7 +148,7 @@ export function useSupabaseData<T extends { id?: string }>(
     }
     
     try {
-      logger.info(`[useSupabaseData - add ${entityType}] Data being sent:`, JSON.stringify(item, null, 2));
+      logger.info(`[useSupabaseData - add ${entityType}] Attempting to add item`, item);
       const addMethod = getAddMethod();
       // Add user info if needed by the service, e.g., item.created_by = user.id
       const newItem = await addMethod(item);
@@ -178,14 +177,12 @@ export function useSupabaseData<T extends { id?: string }>(
       
       return null;
     }
-  }, [entityType, getAddMethod]);
+  }, [entityType, getAddMethod, accounts]);
 
   // Update an item
   const update = useCallback(async (id: string, updateData: Partial<T>) => {
-    // Fetch user inside the function
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      logger.error('useSupabaseData - update: No user logged in', userError);
+    if (accounts.length === 0) {
+      logger.error('useSupabaseData - update: No MSAL user logged in');
       toast({
         title: "Error",
         description: "You must be logged in to update items",
@@ -219,14 +216,12 @@ export function useSupabaseData<T extends { id?: string }>(
       });
       return null;
     }
-  }, [entityType, getUpdateMethod]);
+  }, [entityType, getUpdateMethod, accounts]);
 
   // Delete an item
   const remove = useCallback(async (id: string) => {
-    // Fetch user inside the function
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      logger.error('useSupabaseData - remove: No user logged in', userError);
+    if (accounts.length === 0) {
+      logger.error('useSupabaseData - remove: No MSAL user logged in');
       toast({
         title: "Error",
         description: "You must be logged in to delete items",
@@ -255,7 +250,7 @@ export function useSupabaseData<T extends { id?: string }>(
       });
       return false;
     }
-  }, [entityType, getDeleteMethod]);
+  }, [entityType, getDeleteMethod, accounts]);
 
   // Function to manually trigger a refresh
   const refresh = useCallback(() => {

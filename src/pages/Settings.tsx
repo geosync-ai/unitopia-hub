@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useMsal } from '@azure/msal-react';
 import PageLayout from '@/components/layout/PageLayout';
 import { 
   Card, 
@@ -21,7 +22,6 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { supabase, logger } from '@/lib/supabaseClient';
-import { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { 
   Bell, 
@@ -37,8 +37,10 @@ import {
 } from 'lucide-react';
 
 const Settings = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const { accounts, inProgress } = useMsal();
+  const account = accounts[0];
+  const userLoading = inProgress !== "none";
+
   const [activeTab, setActiveTab] = useState('profile');
   
   const [settings, setSettings] = useState({
@@ -71,55 +73,22 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    let isMounted = true;
-    setUserLoading(true);
-    logger.info('Settings Page: Fetching user data...');
-
-    supabase.auth.getUser()
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (error) {
-          logger.error('Settings Page: Error fetching user', error);
-          toast.error('Failed to load user data.');
-        } else if (data.user) {
-          logger.success('Settings Page: User data fetched', data.user);
-          setCurrentUser(data.user);
-          setSettings(prevSettings => ({
-            ...prevSettings,
-            profile: {
-              ...prevSettings.profile,
-              name: data.user?.user_metadata?.name || data.user?.email || '',
-              email: data.user?.email || ''
-            }
-          }));
-        } else {
-          logger.warn('Settings Page: No user found');
-          toast.error('User session not found. Please login again.');
+    logger.info('Settings Page: Checking MSAL authentication state...');
+    if (!userLoading && account) {
+      logger.success('Settings Page: MSAL user identified', account);
+      setSettings(prevSettings => ({
+        ...prevSettings,
+        profile: {
+          ...prevSettings.profile,
+          name: account.name || account.username || '',
+          email: account.username || ''
         }
-        setUserLoading(false);
-      })
-      .catch(err => {
-        if (isMounted) {
-          logger.error('Settings Page: Unexpected error fetching user', err);
-          toast.error('An error occurred while loading user data.');
-          setUserLoading(false);
-        }
-      });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-        if (!isMounted) return;
-        if (event === 'SIGNED_OUT') {
-            logger.info('Settings Page: User signed out, clearing user data.');
-            setCurrentUser(null);
-        }
-    });
-
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-      logger.info('Settings Page: Unmounting');
-    };
-  }, []);
+      }));
+    } else if (!userLoading && !account) {
+      logger.warn('Settings Page: No MSAL account found');
+      toast.error('User session not found. Please login again.');
+    }
+  }, [account, userLoading]);
   
   const handleSave = (settingType: keyof typeof settings) => {
     logger.info(`Saving ${settingType} settings`, settings[settingType]);
@@ -152,9 +121,9 @@ const Settings = () => {
             <div className="space-y-6">
               <div className="flex flex-col items-center text-center">
                 <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-2xl mb-2">
-                  {currentUser?.user_metadata?.name?.charAt(0) || currentUser?.email?.charAt(0)?.toUpperCase() || 'U'}
+                  {userLoading ? '...' : (account?.name?.charAt(0) || account?.username?.charAt(0)?.toUpperCase() || 'U')}
                 </div>
-                <h3 className="font-medium">{currentUser?.user_metadata?.name || currentUser?.email}</h3>
+                <h3 className="font-medium">{userLoading ? 'Loading...' : (account?.name || account?.username)}</h3>
                 <p className="text-sm text-gray-500">{/* Role Placeholder - Fetch from profile */}</p>
                 <p className="text-xs text-muted-foreground mt-1">{/* Unit Placeholder - Fetch from profile */}</p>
               </div>
@@ -162,7 +131,7 @@ const Settings = () => {
               <div className="space-y-2">
                 <div className="text-sm flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{currentUser?.email}</span>
+                  <span className="text-muted-foreground">{userLoading ? '...' : account?.username}</span>
                 </div>
                 <div className="text-sm flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
