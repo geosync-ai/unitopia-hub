@@ -1,8 +1,8 @@
 import { Configuration, LogLevel } from '@azure/msal-browser';
 
 // Find your Client ID and Tenant ID in the Azure portal under App registrations -> your app -> Overview
-const clientId = "YOUR_AZURE_APP_CLIENT_ID"; // Replace with your actual Client ID
-const tenantId = "YOUR_TENANT_ID"; // Replace with your actual Tenant ID or use 'common'/'organizations'/'consumers'
+const clientId = "28deadd7-2b9d-4fd1-9d64-2f16cab6d65c"; // Replace with your actual Client ID
+const tenantId = "b173aac7-6781-4d49-a037-d874bd4a09ab"; // Replace with your actual Tenant ID or use 'common'/'organizations'/'consumers'
 
 // Ensure this redirectUri matches exactly what's configured in your Azure app registration under Authentication -> Web
 const redirectUri = window.location.origin; 
@@ -41,7 +41,7 @@ export const msalConfig: Configuration = {
         }
       },
       // Log level can be set to Error, Warning, Info, or Verbose
-      // logLevel: LogLevel.Verbose // Uncomment for detailed MSAL logs during development
+      logLevel: LogLevel.Verbose // Uncomment for detailed MSAL logs during development
     },
   },
 };
