@@ -34,13 +34,6 @@ import { msalConfig } from './authConfig'; // Import the MSAL config
 // MSAL Instance (create outside the component)
 const msalInstance = new PublicClientApplication(msalConfig);
 
-// Optional: Account selection logic - set active account if available on load
-const accounts = msalInstance.getAllAccounts();
-if (accounts.length > 0) {
-  console.log("App.tsx: Setting active MSAL account on load:", accounts[0].username);
-  msalInstance.setActiveAccount(accounts[0]);
-}
-
 // Optional: Event callback to set active account after login
 msalInstance.addEventCallback((event) => {
   // Check the event type for specific payloads
