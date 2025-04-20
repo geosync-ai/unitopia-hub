@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, Dispatch, SetStateAction } from 'react';
 import { toast } from 'sonner';
 import { User, Session } from '@supabase/supabase-js';
 import {
@@ -20,6 +20,7 @@ interface SupabaseAuthContextType {
   loginWithProvider: (provider: 'google' | 'github' | 'azure') => Promise<void>;
   logout: () => Promise<void>;
   error: string | null;
+  setUser: Dispatch<SetStateAction<User | null>>;
 }
 
 // Create context
@@ -177,7 +178,8 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     loginWithEmail,
     loginWithProvider,
     logout,
-    error
+    error,
+    setUser
   };
 
   return (

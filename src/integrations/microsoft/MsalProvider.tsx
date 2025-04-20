@@ -9,6 +9,7 @@ import {
 } from '@azure/msal-browser';
 import { MsalProvider as MsalReactProvider } from '@azure/msal-react';
 import msalConfig, { updateMsalConfig, loginRequest } from './msalConfig';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth.tsx';
 import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
@@ -43,6 +44,18 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
   const [authError, setAuthError] = useState<Error | null>(null);
   const [forceSignIn, setForceSignIn] = useState(false);
   
+  // Get setUser from Supabase Auth context
+  let setUser: ((user: any | null) => void) | undefined = undefined;
+  try {
+    // Destructure only setUser from the context
+    const supabaseAuth = useSupabaseAuth();
+    setUser = supabaseAuth.setUser; // Assuming setUser exists in the context - CHECK useSupabaseAuth.tsx if this fails
+  } catch (error) {
+    // This catch block might indicate MsalAuthProvider is rendered outside SupabaseAuthProvider
+    // which could be a structural issue in App.tsx or similar.
+    console.warn('SupabaseAuth context not available in MsalAuthProvider. setUser functionality will be limited.');
+  }
+  
   useEffect(() => {
     const initializeMsal = async () => {
       if (isInitializing || isInitialized) return;
@@ -70,7 +83,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           localStorage.removeItem('msalLoginAttempts');
         }
         
-        // Update config with the exact redirect URI from the config, NOT the window location
+        // Use microsoftAuthConfig directly for MSAL config
         const configToUse = updateMsalConfig({
           ...microsoftAuthConfig
         });
@@ -95,21 +108,18 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
           }
         });
         
-        // Initialize MSAL with proper error handling
+        // Initialize MSAL
         try {
           await instance.initialize();
           console.log('MSAL initialized successfully');
         } catch (initError) {
           console.error('MSAL initialization error:', initError);
-          // Continue despite initialization error - the instance can still be used
         }
         
         setMsalInstanceState(instance);
         setMsalInstance(instance);
         setIsInitialized(true);
 
-        // Still set global instance for backward compatibility
-        // This will be removed in a future version once all components use the context
         if (typeof window !== 'undefined') {
           (window as any).msalInstance = instance;
         }
@@ -381,7 +391,7 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     if (!isInitialized && !isInitializing) {
       initializeMsal();
     }
-  }, [isInitialized, isInitializing, setUser, msGraphConfig]);
+  }, [isInitialized, isInitializing, setUser]);
 
   // Provide context value for consumers
   const contextValue = {
