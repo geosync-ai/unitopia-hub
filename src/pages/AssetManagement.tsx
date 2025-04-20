@@ -60,23 +60,27 @@ const AssetManagement = () => {
   console.log('[AssetManagement] Assets array before filtering:', assets);
 
   // --- Filtering Logic ---
-  const myAssets = useMemo(() => assets
-    // Filter by matching assigned_to with the derived userNameForFiltering
-    .filter(asset => userNameForFiltering && asset.assigned_to === userNameForFiltering) 
-    .filter(asset => {
-      const searchTerm = filterText.toLowerCase();
-      if (!searchTerm) return true;
-      
-      return (
-        asset.name?.toLowerCase().includes(searchTerm) ||
-        asset.type?.toLowerCase().includes(searchTerm) ||
-        asset.condition?.toLowerCase().includes(searchTerm) ||
-        asset.vendor?.toLowerCase().includes(searchTerm) ||
-        asset.unit?.toLowerCase().includes(searchTerm) ||
-        asset.division?.toLowerCase().includes(searchTerm) ||
-        asset.assigned_to?.toLowerCase().includes(searchTerm)
-      );
-    }), [assets, userNameForFiltering, filterText]); // <-- Add dependencies
+  const myAssets = useMemo(() => {
+    const isAdmin = account?.username === 'admin@scpng.gov.pg';
+    
+    return assets
+      // Filter by assigned_to ONLY if the user is NOT the admin
+      .filter(asset => isAdmin || (userNameForFiltering && asset.assigned_to === userNameForFiltering))
+      .filter(asset => {
+        const searchTerm = filterText.toLowerCase();
+        if (!searchTerm) return true;
+        
+        return (
+          asset.name?.toLowerCase().includes(searchTerm) ||
+          asset.type?.toLowerCase().includes(searchTerm) ||
+          asset.condition?.toLowerCase().includes(searchTerm) ||
+          asset.vendor?.toLowerCase().includes(searchTerm) ||
+          asset.unit?.toLowerCase().includes(searchTerm) ||
+          asset.division?.toLowerCase().includes(searchTerm) ||
+          asset.assigned_to?.toLowerCase().includes(searchTerm)
+        );
+      })
+  }, [assets, userNameForFiltering, filterText, account]);
 
   console.log(`[AssetManagement] Filter text: "${filterText}"`);
   console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
