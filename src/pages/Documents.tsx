@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMsal, useIsAuthenticated } from "@azure/msal-react";
+import { useMsal } from "@azure/msal-react";
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph.tsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,14 +24,13 @@ export default function Documents() {
     lastError,
     handleLogin
   } = useMicrosoftGraph();
-  const isAuthenticated = useIsAuthenticated();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [authError, setAuthError] = useState(false);
   const [currentPath, setCurrentPath] = useState<PathItem[]>([]);
 
-  console.log("Documents component rendered. isAuthenticated:", isAuthenticated, "isLoading:", isLoading);
+  console.log("Documents component rendered. isLoading:", isLoading);
 
   const fetchDocuments = async () => {
     console.log("fetchDocuments: Attempting to fetch root documents...");
@@ -71,17 +70,11 @@ export default function Documents() {
   };
 
   useEffect(() => {
-    console.log("Documents useEffect [isAuthenticated] triggered. isAuthenticated:", isAuthenticated);
-    if (isAuthenticated) {
-      console.log("Documents useEffect: User is authenticated via MSAL, calling fetchDocuments().");
-      fetchDocuments();
-    } else {
-       console.log("Documents useEffect: User is NOT authenticated via MSAL, skipping document fetch.");
-       setDocuments([]);
-       setFilteredDocuments([]);
-       setCurrentPath([]);
-    }
-  }, [isAuthenticated]);
+    console.log("Documents useEffect[] triggered. Calling fetchDocuments().");
+    fetchDocuments();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const lowerCaseQuery = searchQuery.toLowerCase();
@@ -92,9 +85,7 @@ export default function Documents() {
   }, [searchQuery, documents]);
 
   const handleReauthenticate = async () => {
-    if (!isAuthenticated) {
-      await handleLogin();
-    } else {
+    if (!authError) {
       await fetchDocuments(); 
     }
   };
