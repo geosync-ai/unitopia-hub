@@ -3,7 +3,7 @@ import { useSupabaseAuth } from './useSupabaseAuth';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { Client } from '@microsoft/microsoft-graph-client';
-import { InteractionRequiredAuthError } from '@azure/msal-browser';
+import { InteractionRequiredAuthError, InteractionStatus } from '@azure/msal-browser';
 
 export interface Document {
   id: string;
@@ -27,15 +27,20 @@ export interface CsvFile {
 
 export const useMicrosoftGraph = () => {
   const { user } = useSupabaseAuth();
-  const { instance: msalInstance } = useMsal();
+  const { instance: msalInstance, inProgress } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [isRequestLocked, setIsRequestLocked] = useState(false);
   const [hasFetchAttempted, setHasFetchAttempted] = useState(false);
   const fetchTimeoutRef = useRef<any>(null);
 
-  // Helper function to check if MSAL is properly initialized and has an active account
   const checkMsalAuth = useCallback(() => {
+    if (inProgress !== InteractionStatus.None) {
+      console.warn('checkMsalAuth: MSAL interaction is in progress. Status:', inProgress);
+      setLastError('Authentication system busy, please wait.');
+      return false;
+    }
+
     if (!msalInstance) {
       console.error('MSAL instance not found via useMsal hook');
       setLastError('MSAL instance not found - authentication service not initialized');
@@ -44,7 +49,7 @@ export const useMicrosoftGraph = () => {
     
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length === 0) {
-      console.error('No accounts found');
+      console.error('No accounts found in MSAL instance.');
       return false;
     }
     
@@ -55,7 +60,7 @@ export const useMicrosoftGraph = () => {
     
     console.log("checkMsalAuth: MSAL auth check passed.");
     return true;
-  }, [msalInstance]);
+  }, [msalInstance, inProgress]);
 
   /**
    * Gets current Microsoft authentication status
@@ -118,8 +123,12 @@ export const useMicrosoftGraph = () => {
 
   const getAccessToken = useCallback(async () => {
     console.log("getAccessToken: Starting token acquisition attempt.");
-    // Set loading state specifically for token acquisition if needed, or use general isLoading
-    // setIsLoading(true); 
+    
+    if (inProgress !== InteractionStatus.None) {
+      console.warn('getAccessToken: MSAL interaction is in progress. Aborting token acquisition. Status:', inProgress);
+      throw new Error('MSAL is busy. Please try again shortly.');
+    }
+
     try {
       // 1. First check if MSAL is properly initialized
       if (!msalInstance) {
@@ -137,12 +146,15 @@ export const useMicrosoftGraph = () => {
       
       if (!activeAccount) {
         console.error("getAccessToken: No active account found");
-        throw new Error('No account found - please login first');
       }
       
-      console.log(`getAccessToken: Using account ${activeAccount.username}`);
+      if (activeAccount) {
+          console.log(`getAccessToken: Using account ${activeAccount.username}`);
+      } else {
+          console.warn("getAccessToken: No active account set, acquireTokenSilent may fail or prompt interaction.");
+      }
       
-      // 4. Try with specific OneDrive scopes (more limited, but explicitly for files)
+      // 4. Define scopes
       const oneDriveScopes = [
         'Files.Read',
         'Files.Read.All',
@@ -152,7 +164,7 @@ export const useMicrosoftGraph = () => {
         'User.Read'
       ];
       
-      console.log(`getAccessToken: Requesting token for account: ${activeAccount.username} with scopes: ${oneDriveScopes.join(', ')}`);
+      console.log(`getAccessToken: Requesting token scopes: ${oneDriveScopes.join(', ')}`);
       
       // --- Silent Token Acquisition Attempt ---
       try {
@@ -162,7 +174,6 @@ export const useMicrosoftGraph = () => {
           account: activeAccount
         });
         console.log("getAccessToken: Successfully acquired token silently.");
-        // setIsLoading(false);
         return response.accessToken;
       } catch (silentError) {
         console.warn("getAccessToken: acquireTokenSilent failed. Error:", silentError);
@@ -175,7 +186,6 @@ export const useMicrosoftGraph = () => {
               scopes: oneDriveScopes
             });
             console.log("getAccessToken: Successfully acquired token via popup.");
-            // setIsLoading(false);
             return response.accessToken;
           } catch (popupError) {
             console.error("getAccessToken: acquireTokenPopup failed. Error:", popupError);
@@ -193,7 +203,6 @@ export const useMicrosoftGraph = () => {
       }
     } catch (err: any) { // Added ': any' for broader error handling
       console.error('getAccessToken: Catch block reached. Final error:', err);
-      // setIsLoading(false);
       // Create a more user-friendly error
       const errorMessage = err.message || 'Unknown error';
       const userFriendlyError = new Error(
@@ -204,7 +213,7 @@ export const useMicrosoftGraph = () => {
       setLastError(userFriendlyError.message); // Update lastError state
       throw userFriendlyError; // Rethrow the formatted error
     }
-  }, [msalInstance]);
+  }, [msalInstance, inProgress]);
 
   const getClient = useCallback(async (): Promise<Client | null> => {
     console.log("getClient: Attempting to get MS Graph client...");
@@ -233,7 +242,6 @@ export const useMicrosoftGraph = () => {
     setIsLoading(true);
     setLastError(null);
 
-    // Use checkMsalAuth which already checks for instance and accounts
     if (!checkMsalAuth()) {
       console.error('getOneDriveRootDocuments: Auth check failed via checkMsalAuth.');
       setIsLoading(false);
@@ -241,7 +249,6 @@ export const useMicrosoftGraph = () => {
       return null; 
     }
 
-    // Add specific check for active account
     if (!msalInstance.getActiveAccount()) {
         console.error('getOneDriveRootDocuments: No active account found in MSAL instance.');
         setLastError('No active Microsoft account. Please sign in.');
@@ -249,7 +256,6 @@ export const useMicrosoftGraph = () => {
         return null;
     }
 
-    // Guard against multiple concurrent requests (Keep this)
     if (isRequestLocked) {
       console.log('Request already in progress, skipping duplicate request');
       return null;
