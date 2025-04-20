@@ -28,8 +28,9 @@ import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
 // MSAL Imports
 import { PublicClientApplication, EventType, AccountInfo } from '@azure/msal-browser';
-import { MsalProvider } from '@azure/msal-react';
+import { MsalProvider, useMsal } from '@azure/msal-react';
 import { msalConfig } from './authConfig'; // Import the MSAL config
+import { InteractionStatus } from '@azure/msal-browser'; // Ensure InteractionStatus is imported
 
 // MSAL Instance (create outside the component)
 const msalInstance = new PublicClientApplication(msalConfig);
@@ -143,21 +144,42 @@ const AppRoutes = () => {
   );
 };
 
+// Main App component wrapper to handle MSAL initialization state
+const AppContent = () => {
+  const { inProgress } = useMsal(); // Use hook here to get status
+
+  // Show loading indicator while MSAL is initializing or interacting
+  if (inProgress !== InteractionStatus.None) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-gray-600">Initializing Authentication...</span>
+      </div>
+    );
+  }
+
+  // Render the main app content only when MSAL is idle
+  return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <SupabaseAuthProvider>
+                <AppRoutes />
+              </SupabaseAuthProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+  );
+}
+
+// Top-level App component only provides the MsalProvider
 const App = () => (
   <MsalProvider instance={msalInstance}>
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <SupabaseAuthProvider>
-              <AppRoutes />
-            </SupabaseAuthProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+     <AppContent /> { /* Render the conditional content */ }
   </MsalProvider>
 );
 
