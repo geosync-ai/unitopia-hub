@@ -9,7 +9,6 @@ import {
 } from '@azure/msal-browser';
 import { MsalProvider as MsalReactProvider } from '@azure/msal-react';
 import msalConfig, { updateMsalConfig, loginRequest } from './msalConfig';
-import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
@@ -44,16 +43,6 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
   const [authError, setAuthError] = useState<Error | null>(null);
   const [forceSignIn, setForceSignIn] = useState(false);
   
-  // Safely try to use the auth context if available, but don't error if it's not
-  let authContextValue: { setUser?: any, msGraphConfig?: any } = {};
-  try {
-    authContextValue = useAuth();
-  } catch (error) {
-    console.warn('Auth context not available yet in MsalAuthProvider. This is okay if AuthProvider comes after MsalAuthProvider.');
-  }
-  
-  const { setUser, msGraphConfig } = authContextValue;
-
   useEffect(() => {
     const initializeMsal = async () => {
       if (isInitializing || isInitialized) return;
