@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,9 @@ import {
   Loader2, Plus, Edit, Trash2, List, LayoutGrid, Search 
 } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
-import { supabase, logger } from '@/lib/supabaseClient'; // Import supabase
-import { User } from '@supabase/supabase-js'; // Import User type
+import { logger } from '@/lib/supabaseClient'; // Keep logger if used elsewhere
 import { useAssetsData } from '@/hooks/useSupabaseData';
+import { useAuth } from '@/hooks/useAuth'; // <--- Import the MSAL auth hook
 import { UserAsset } from '@/types';
 
 // Import modal components
@@ -23,16 +23,8 @@ import DeleteModal from '@/components/unit-tabs/modals/DeleteModal';
 import AssetCard from '@/components/assets/AssetCard';
 import HighlightMatch from '@/components/ui/HighlightMatch';
 
-// Define interface for User Profile (adjust based on your actual profile table structure)
-interface UserProfile {
-  full_name?: string;
-  // Add other profile fields if needed
-}
-
 const AssetManagement = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userProfileName, setUserProfileName] = useState<string | null>(null); // <-- Add state for profile name
-  const [userLoading, setUserLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth(); // <-- Use MSAL auth hook
   const { toast } = useToast();
 
   // Use the asset data hook
@@ -54,98 +46,19 @@ const AssetManagement = () => {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [filterText, setFilterText] = useState('');
 
-  // Fetch user and profile data on mount
-  useEffect(() => {
-    let isMounted = true;
-    setUserLoading(true);
-    logger.info('AssetManagement Page: Fetching user and profile data...');
-
-    const fetchUserData = async () => {
-      try {
-        // Fetch user
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (!isMounted) return;
-
-        if (userError) {
-          throw userError;
-        }
-
-        if (userData.user) {
-          logger.success('AssetManagement Page: User data fetched', userData.user);
-          setCurrentUser(userData.user);
-
-          // Fetch profile using user ID
-          const { data: profileData, error: profileError } = await supabase
-            .from('staff_members') 
-            .select('name') // Select the column containing the user's full name
-            .eq('email', userData.user.email) // <-- Match using email instead of id
-            .single(); // Fetch a single record
-
-          if (!isMounted) return;
-
-          if (profileError) {
-            logger.warn('AssetManagement Page: Could not fetch user profile', profileError);
-            // Decide how to handle missing profile: fallback to email or show error?
-            // For now, we'll let it be null and the filter will handle it
-          } else if (profileData) {
-            logger.success('AssetManagement Page: User profile fetched', profileData);
-            setUserProfileName(profileData.name || null); // <-- Set profile name state (using 'name' column)
-          } else {
-            logger.warn('AssetManagement Page: No profile found for user');
-          }
-
-        } else {
-           logger.warn('AssetManagement Page: No user data found.');
-           // Handle case where getUser returns null user without error
-        }
-
-      } catch (err) {
-        if (isMounted) {
-            logger.error('AssetManagement Page: Error fetching user or profile data', err);
-            toast({ title: "Error", description: "Failed to load user information.", variant: "destructive" });
-        }
-      } finally {
-        if (isMounted) {
-          setUserLoading(false);
-        }
-      }
-    };
-
-    fetchUserData();
-
-    // Auth state change listener remains the same
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (!isMounted) return;
-        if (event === 'SIGNED_OUT') {
-            logger.info('AssetManagement Page: User signed out.');
-            setCurrentUser(null);
-            setUserProfileName(null); // Clear profile name on sign out
-        } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
-             // Re-fetch user and profile data if auth state changes significantly
-             if(session?.user?.id !== currentUser?.id) {
-                fetchUserData();
-             }
-        }
-    });
-
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-    };
-  }, [toast]); // Keep dependencies minimal, fetchUserData is defined inside
+  // --- Derive user name for filtering directly from MSAL user --- 
+  // Check your MSAL user object structure for the correct display name property
+  const userNameForFiltering = useMemo(() => user?.name || null, [user]);
 
   // Log the user object and the assets array before filtering
-  console.log('[AssetManagement] Current User object:', currentUser);
-  console.log('[AssetManagement] User Profile Name for filtering:', userProfileName); // <-- Log profile name
+  console.log('[AssetManagement] MSAL User object:', user);
+  console.log('[AssetManagement] User Name for filtering:', userNameForFiltering); 
   console.log('[AssetManagement] Assets array before filtering:', assets);
 
   // --- Filtering Logic ---
-  // const loggedInUserName = currentUser?.user_metadata?.name || currentUser?.email; // <-- Keep original logic commented out for reference
-  // console.log('[AssetManagement] Logged in user name/email for filtering:', loggedInUserName); // <-- Keep original logic commented out for reference
-
-  const myAssets = assets
-    // Filter by matching assigned_to with the fetched userProfileName
-    .filter(asset => userProfileName && asset.assigned_to === userProfileName) // <-- Updated filter condition
+  const myAssets = useMemo(() => assets
+    // Filter by matching assigned_to with the derived userNameForFiltering
+    .filter(asset => userNameForFiltering && asset.assigned_to === userNameForFiltering) 
     .filter(asset => {
       const searchTerm = filterText.toLowerCase();
       if (!searchTerm) return true;
@@ -159,21 +72,15 @@ const AssetManagement = () => {
         asset.division?.toLowerCase().includes(searchTerm) ||
         asset.assigned_to?.toLowerCase().includes(searchTerm)
       );
-    });
+    }), [assets, userNameForFiltering, filterText]); // <-- Add dependencies
 
   console.log(`[AssetManagement] Filter text: "${filterText}"`);
   console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
   // --- End Filtering Logic ---
 
-  // --- Email for filtering (keep for when DB is updated) ---
-  const loggedInUserEmail = currentUser?.email;
+  // --- Email for filtering (derive from MSAL user) ---
+  const loggedInUserEmail = useMemo(() => user?.email || null, [user]);
   // --- End Email for filtering ---
-
-  // Fetch data on mount (refresh might be redundant if useAssetsData fetches initially)
-  // Consider if refresh() is needed here or if useAssetsData handles initial fetch
-  // useEffect(() => {
-  //   refresh();
-  // }, [refresh]);
 
   // --- Modal Handlers ---
 
@@ -204,7 +111,7 @@ const AssetManagement = () => {
     const today = new Date().toISOString().split('T')[0];
     const completeAssetData = {
       ...newAssetData,
-      assigned_to: userProfileName || currentUser?.email, // <-- Use profile name if available, fallback to email for new assets
+      assigned_to: userNameForFiltering, // <-- Use derived name from MSAL user
       assigned_to_email: loggedInUserEmail, // Keep email assignment separate
       assigned_date: newAssetData.assigned_date || today,
     } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
@@ -213,35 +120,36 @@ const AssetManagement = () => {
       toast({ title: "Error", description: "Asset name is required.", variant: "destructive" });
       return;
     }
-    // Keep the email check for new assets, assuming it *should* be there going forward
-    if (!completeAssetData.assigned_to_email) {
-        toast({ title: "Error", description: "Assignee email could not be determined.", variant: "destructive" });
+    // Check for name instead of email for assignment, matching filtering logic
+    if (!completeAssetData.assigned_to) {
+        toast({ title: "Error", description: "Assignee name could not be determined from logged in user.", variant: "destructive" });
         return;
     }
 
     try {
-      await addAsset(completeAssetData as any);
+      // Note: Ensure addAsset in useSupabaseData doesn't implicitly rely on Supabase auth
+      await addAsset(completeAssetData as any); 
       toast({ title: "Asset Added", description: "New asset has been added successfully." });
       handleCloseModals();
-      refresh();
+      refresh(); // Refresh data from Supabase
     } catch (err) {
-      console.error("Error adding asset:", err);
+      logger.error("Error adding asset:", err);
       toast({ title: "Error Adding Asset", description: err instanceof Error ? err.message : "Could not add asset.", variant: "destructive" });
     }
   };
 
-  // Use Partial<UserAsset> for updates
   const handleSaveEdit = async (updatedAssetData: Partial<UserAsset>) => {
     if (!selectedAsset) return;
     try {
-      // Add last_updated_by if needed
+      // Add last_updated_by using MSAL user's email/name if needed by backend
       const dataToSave = loggedInUserEmail ? { ...updatedAssetData, last_updated_by: loggedInUserEmail } : updatedAssetData;
+      // Note: Ensure editAsset in useSupabaseData doesn't implicitly rely on Supabase auth
       await editAsset(selectedAsset.id, dataToSave);
       toast({ title: "Asset Updated", description: "Asset details have been updated." });
       handleCloseModals();
-      refresh();
+      refresh(); // Refresh data from Supabase
     } catch (err) {
-      console.error("Error updating asset:", err);
+      logger.error("Error updating asset:", err);
       toast({ title: "Error Updating Asset", description: err instanceof Error ? err.message : "Could not update asset.", variant: "destructive" });
     }
   };
@@ -249,12 +157,13 @@ const AssetManagement = () => {
   const handleConfirmDelete = async () => {
     if (!selectedAsset) return;
     try {
+      // Note: Ensure deleteAsset in useSupabaseData doesn't implicitly rely on Supabase auth
       await deleteAsset(selectedAsset.id);
       toast({ title: "Asset Deleted", description: "Asset has been removed successfully." });
       handleCloseModals();
-      refresh();
+      refresh(); // Refresh data from Supabase
     } catch (err) {
-      console.error("Error deleting asset:", err);
+      logger.error("Error deleting asset:", err);
       toast({ title: "Error Deleting Asset", description: err instanceof Error ? err.message : "Could not delete asset.", variant: "destructive" });
     }
   };
@@ -283,13 +192,25 @@ const AssetManagement = () => {
     }
   };
 
-  // Add loading state for user data
-  if (userLoading) {
+  // Use authLoading for the main loading state
+  if (authLoading) { // Changed from userLoading
     return (
         <PageLayout>
             <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <span className="ml-2 text-muted-foreground">Loading user information...</span>
+            </div>
+        </PageLayout>
+    );
+  }
+
+  // Handle case where MSAL user is not available after loading
+  if (!authLoading && !user) {
+     return (
+        <PageLayout>
+            <div className="text-center py-10 px-4 text-destructive">
+              <p>User not authenticated. Please log in.</p>
+              {/* Optionally add a login button here */}
             </div>
         </PageLayout>
     );
@@ -393,7 +314,11 @@ const AssetManagement = () => {
                       {myAssets.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={23} className="h-24 text-center text-muted-foreground">
-                            {filterText ? `No assets found matching "${filterText}".` : "No assets assigned to you."}
+                            {filterText 
+                              ? `No assets found matching "${filterText}".` 
+                              : userNameForFiltering 
+                                ? `No assets found assigned to ${userNameForFiltering}.` 
+                                : "Could not determine user for filtering."}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -482,7 +407,11 @@ const AssetManagement = () => {
                 <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {myAssets.length === 0 ? (
                     <p className="col-span-full text-center text-muted-foreground py-10">
-                      {filterText ? `No assets found matching "${filterText}".` : "No assets assigned to you."}
+                      {filterText 
+                        ? `No assets found matching "${filterText}".` 
+                        : userNameForFiltering
+                          ? `No assets found assigned to ${userNameForFiltering}.`
+                          : "Could not determine user for filtering."}
                     </p>
                   ) : (
                     myAssets.map((asset) => (
