@@ -6,9 +6,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 
+// MSAL Imports
+import { useMsal } from "@azure/msal-react";
+import { InteractionStatus } from "@azure/msal-browser"; // To check interaction status
+import { loginRequest } from '../authConfig'; // Import scopes
+
 export default function Login() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { instance, inProgress } = useMsal(); // Get MSAL instance and interaction status
+  const [loading, setLoading] = useState(true); // Keep general loading for initial check
+  const [msalLoading, setMsalLoading] = useState(false); // Specific loading for MSAL interaction
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,53 +40,56 @@ export default function Login() {
         setLoading(false);
       });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        logger.info(`Auth state changed: ${event}`, { userId: session?.user?.id });
-        if (event === 'SIGNED_IN' && session?.user) {
-          logger.success('User signed in successfully via OAuth', { userId: session.user.id });
-          navigate('/', { replace: true });
-        } else if (event === 'SIGN_IN_ERROR') {
-            logger.error('Sign in error event received', session);
-            setError('Failed to sign in with Microsoft. Please try again.');
-            setLoading(false);
-        } else if (event === 'SIGNED_OUT') {
-            logger.info('User explicitly signed out');
-            setLoading(false);
-        }
-      }
-    );
-
-    return () => {
-      listener?.subscription?.unsubscribe();
-      logger.info('Login page cleanup');
-    };
+    logger.info('Login page cleanup');
   }, [navigate]);
 
   const handleMicrosoftLogin = async () => {
-    if (loading) return;
-    setLoading(true);
+    if (inProgress !== InteractionStatus.None || msalLoading) {
+      logger.info('MSAL interaction already in progress or loading.');
+      return;
+    }
+    setMsalLoading(true);
     setError(null);
-    logger.info('Initiating Azure sign-in');
+    logger.info('Initiating MSAL loginPopup');
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: 'azure',
-        options: {
-          scopes: 'email',
-          redirectTo: window.location.origin 
-        },
-      });
+      const msalResponse = await instance.loginPopup(loginRequest);
+      logger.success('MSAL login successful', { username: msalResponse.account?.username });
 
-      if (signInError) {
-        logger.error('Azure login error', signInError);
-        setError(signInError.message || 'An error occurred during Microsoft sign-in.');
-        setLoading(false);
+      if (msalResponse.idToken) {
+        logger.info('MSAL ID Token obtained, attempting Supabase signInWithIdToken');
+        
+        const { data: supabaseData, error: supabaseError } = await supabase.auth.signInWithIdToken({
+          provider: 'azure',
+          token: msalResponse.idToken,
+        });
+
+        if (supabaseError) {
+          logger.error('Supabase signInWithIdToken error', supabaseError);
+          setError(supabaseError.message || 'Failed to sign into Supabase after Microsoft login.');
+        } else if (supabaseData.user) {
+          logger.success('Supabase signInWithIdToken successful', { userId: supabaseData.user.id });
+          toast.success("Signed in successfully");
+          navigate('/', { replace: true });
+        } else {
+          logger.error('Supabase signInWithIdToken successful but no user data returned');
+          setError('Failed to establish application session after Microsoft login.');
+        }
+      } else {
+        logger.error('MSAL login succeeded but no ID Token was returned.');
+        setError('Authentication failed: Missing identity information from Microsoft.');
       }
-    } catch (err: any) {
-      logger.error('Unexpected error during sign-in attempt', err);
-      setError(err.message || 'An unexpected error occurred.');
-      setLoading(false);
+    } catch (msalError: any) {
+      logger.error('MSAL loginPopup error', msalError);
+      if (msalError.errorCode === 'user_cancelled') {
+        setError('Microsoft sign-in was cancelled.');
+      } else if (msalError.errorCode === 'popup_window_error') {
+        setError('Popup window blocked or closed. Please allow popups for this site.');
+      } else {
+        setError(msalError.message || 'An error occurred during Microsoft sign-in.');
+      }
+    } finally {
+      setMsalLoading(false);
     }
   };
   
@@ -124,9 +134,9 @@ export default function Login() {
                variant="outline"
                className="w-full mt-6 bg-white border-gray-300 hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-2"
                onClick={handleMicrosoftLogin}
-               disabled={loading} 
+               disabled={inProgress !== InteractionStatus.None || msalLoading}
              >
-               {loading ? (
+               {msalLoading || inProgress !== InteractionStatus.None ? (
                  <Loader2 className="h-4 w-4 animate-spin" />
                ) : (
                  <svg className="h-5 w-5" viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>
