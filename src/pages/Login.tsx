@@ -59,10 +59,23 @@ export default function Login() {
       if (msalResponse.idToken) {
         logger.info('MSAL ID Token obtained, attempting Supabase signInWithIdToken');
         
-        const { data: supabaseData, error: supabaseError } = await supabase.auth.signInWithIdToken({
-          provider: 'azure',
+        // Extract nonce from ID token claims if it exists
+        const nonce = (msalResponse.idTokenClaims as { nonce?: string })?.nonce;
+        if (nonce) {
+            logger.info('Nonce found in ID token claims');
+        } else {
+            logger.warn('Nonce NOT found in ID token claims. Supabase sign-in might fail if nonce was expected.');
+        }
+
+        const signInOptions = {
+          provider: 'azure' as const, // Ensure provider type is specific
           token: msalResponse.idToken,
-        });
+          nonce: nonce // Pass the nonce explicitly (will be undefined if not found)
+        };
+        
+        logger.info('Calling Supabase signInWithIdToken with options:', { provider: signInOptions.provider, hasToken: !!signInOptions.token, hasNonce: !!signInOptions.nonce });
+        
+        const { data: supabaseData, error: supabaseError } = await supabase.auth.signInWithIdToken(signInOptions);
 
         if (supabaseError) {
           logger.error('Supabase signInWithIdToken error', supabaseError);
