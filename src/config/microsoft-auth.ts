@@ -20,7 +20,7 @@ const microsoftAuthConfig = {
     "https://unitopia-hub.vercel.app/",
     "https://unitopia-hub.vercel.app"
   ],
-  authority: `https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab`,
+  authorityUrl: `https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab`,
   test_success: true,
   last_confirmed: "2025-04-07T08:19:35.145Z"
 };
@@ -36,7 +36,7 @@ if (typeof window !== 'undefined') {
   // Log the final MSAL config that will be used
   console.log('Using MSAL config:', {
     clientId: microsoftAuthConfig.clientId,
-    authority: microsoftAuthConfig.authority,
+    authority: microsoftAuthConfig.authorityUrl,
     redirectUri: microsoftAuthConfig.redirectUri, 
     postLogoutRedirectUri: microsoftAuthConfig.redirectUri
   });
