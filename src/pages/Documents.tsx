@@ -222,21 +222,6 @@ export default function Documents() {
     });
   };
 
-  if (!isAuthenticated && !isLoading) {
-    return (
-      <PageLayout>
-        <div className="flex flex-col items-center justify-center p-8 bg-card rounded-lg shadow-sm">
-          <h1 className="text-xl font-semibold mb-4">Access OneDrive Documents</h1>
-          <p className="text-muted-foreground mb-6">Please sign in with your Microsoft account to view your documents.</p>
-          <Button onClick={handleLogin} variant="default" disabled={isLoading}> 
-            Sign In with Microsoft
-          </Button>
-          {lastError && <p className="text-red-500 mt-4 text-sm">Error: {lastError}</p>}
-        </div>
-      </PageLayout>
-    );
-  }
-
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
