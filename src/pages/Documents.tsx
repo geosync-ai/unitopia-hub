@@ -2,24 +2,21 @@ import { useState, useEffect } from 'react';
 import { useMicrosoftGraph, Document } from '@/hooks/useMicrosoftGraph.tsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
   FileText, FileSpreadsheet, Presentation, FileImage, 
   File, FileArchive, FileCode, Video, Music,
-  Folder, ChevronRight, ChevronDown, ArrowLeft, RefreshCw
+  Folder, ArrowLeft, RefreshCw
 } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 
 interface PathItem {
   id: string;
   name: string;
-  source: 'SharePoint' | 'OneDrive';
 }
 
 export default function Documents() {
   const { 
-    getSharePointDocuments, 
     getOneDriveDocuments,
     getFolderContents, 
     isLoading, 
@@ -28,41 +25,23 @@ export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [source, setSource] = useState<'All' | 'SharePoint' | 'OneDrive'>('All');
   const [authError, setAuthError] = useState(false);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [currentPath, setCurrentPath] = useState<PathItem[]>([]);
 
-  const fetchDocuments = async (selectedSource: 'All' | 'SharePoint' | 'OneDrive' = source) => {
+  const fetchDocuments = async () => {
     setAuthError(false);
     setCurrentPath([]);
     setDocuments([]);
     setFilteredDocuments([]);
-    console.log(`Fetching documents for source: ${selectedSource}`);
+    console.log(`Fetching OneDrive root documents...`);
     
     try {
-      let spDocs: Document[] | null = [];
-      let odDocs: Document[] | null = [];
-
-      const fetchPromises: Promise<Document[] | null>[] = [];
-
-      if (selectedSource === 'All' || selectedSource === 'SharePoint') {
-        console.log("Initiating SharePoint fetch...");
-        fetchPromises.push(getSharePointDocuments());
-      }
-      if (selectedSource === 'All' || selectedSource === 'OneDrive') {
-        console.log("Initiating OneDrive fetch...");
-        fetchPromises.push(getOneDriveDocuments());
-      }
-      
-      const results = await Promise.all(fetchPromises);
+      const odDocs = await getOneDriveDocuments();
       
       let allDocuments: Document[] = [];
-      results.forEach(docs => {
-        if (docs) {
-          allDocuments = [...allDocuments, ...docs];
-        }
-      });
+      if (odDocs) {
+        allDocuments = [...odDocs];
+      }
 
       allDocuments.sort((a, b) => {
         if (a.isFolder && !b.isFolder) return -1;
@@ -72,23 +51,22 @@ export default function Documents() {
       
       setDocuments(allDocuments);
       setFilteredDocuments(allDocuments);
-      console.log(`Fetched ${allDocuments.length} total documents.`);
+      console.log(`Fetched ${allDocuments.length} OneDrive documents.`);
 
     } catch (error: any) {
-      console.error('Error fetching documents:', error);
+      console.error('Error fetching OneDrive documents:', error);
       if (error.message?.includes('No account') || error.message?.includes('Authentication')) {
         setAuthError(true);
         toast.error('Authentication Error: Please re-authenticate.');
       } else {
         toast.error(`Failed to fetch documents: ${error.message}`);
       }
-    } finally {
     }
   };
 
   useEffect(() => {
-    fetchDocuments(source);
-  }, [source]);
+    fetchDocuments();
+  }, []);
 
   useEffect(() => {
     const lowerCaseQuery = searchQuery.toLowerCase();
@@ -99,27 +77,15 @@ export default function Documents() {
   }, [searchQuery, documents]);
 
   const handleReauthenticate = async () => {
-    await fetchDocuments(source);
-  };
-
-  const toggleFolder = (folderId: string) => {
-    setExpandedFolders(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(folderId)) {
-        newSet.delete(folderId);
-      } else {
-        newSet.add(folderId);
-      }
-      return newSet;
-    });
+    await fetchDocuments();
   };
 
   const navigateToFolder = async (folder: Document) => {
-    if (!folder.isFolder || !folder.source) return;
+    if (!folder.isFolder) return; 
     
-    console.log(`Navigating to folder: ${folder.name} (ID: ${folder.id}, Source: ${folder.source})`);
+    console.log(`Navigating to folder: ${folder.name} (ID: ${folder.id})`);
     try {
-      const folderContents = await getFolderContents(folder.id, folder.source);
+      const folderContents = await getFolderContents(folder.id);
       if (folderContents) {
         folderContents.sort((a, b) => {
           if (a.isFolder && !b.isFolder) return -1;
@@ -128,12 +94,12 @@ export default function Documents() {
         });
         setDocuments(folderContents);
         setFilteredDocuments(folderContents);
-        setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name, source: folder.source! }]);
+        setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name }]);
         setSearchQuery('');
       } else {
         setDocuments([]);
         setFilteredDocuments([]);
-        setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name, source: folder.source! }]);
+        setCurrentPath(prevPath => [...prevPath, { id: folder.id, name: folder.name }]);
         setSearchQuery('');
         console.log(`Folder ${folder.name} is empty or content couldn't be fetched.`);
       }
@@ -154,11 +120,11 @@ export default function Documents() {
     try {
       if (newPath.length === 0) {
         console.log("Navigating up to root view.");
-        await fetchDocuments(source);
+        await fetchDocuments();
       } else {
         const parentFolder = newPath[newPath.length - 1];
-        console.log(`Navigating up to parent: ${parentFolder.name} (ID: ${parentFolder.id}, Source: ${parentFolder.source})`);
-        const folderContents = await getFolderContents(parentFolder.id, parentFolder.source);
+        console.log(`Navigating up to parent: ${parentFolder.name} (ID: ${parentFolder.id})`);
+        const folderContents = await getFolderContents(parentFolder.id);
         if (folderContents) {
            folderContents.sort((a, b) => {
              if (a.isFolder && !b.isFolder) return -1;
@@ -244,30 +210,20 @@ export default function Documents() {
   return (
     <PageLayout>
       <div className="mb-6 animate-fade-in">
-        <h1 className="text-2xl font-bold mb-2">Documents</h1>
-        <p className="text-gray-500">Access and manage your SharePoint and OneDrive documents</p>
+        <h1 className="text-2xl font-bold mb-2">OneDrive Documents</h1>
+        <p className="text-gray-500">Access and manage your OneDrive documents</p>
       </div>
       
       <div className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Select value={source} onValueChange={(value: 'All' | 'SharePoint' | 'OneDrive') => setSource(value)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Documents</SelectItem>
-                <SelectItem value="SharePoint">SharePoint</SelectItem>
-                <SelectItem value="OneDrive">OneDrive</SelectItem>
-              </SelectContent>
-            </Select>
             <Input
-              placeholder="Search documents..."
+              placeholder="Search OneDrive..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-[300px]"
             />
-            <Button onClick={() => fetchDocuments(source)} variant="outline" disabled={isLoading}>
+            <Button onClick={fetchDocuments} variant="outline" disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -294,10 +250,10 @@ export default function Documents() {
                    variant="link" 
                    size="sm" 
                    className="text-gray-600 px-1 h-auto py-0" 
-                   onClick={() => fetchDocuments(source)} 
+                   onClick={fetchDocuments} 
                    disabled={isLoading}
                  >
-                   Root ({source})
+                   OneDrive Root
                  </Button>
                  <span>/</span>
                 {currentPath.map((folder, index) => (
@@ -312,7 +268,7 @@ export default function Documents() {
                           const targetFolder = pathSlice[pathSlice.length - 1];
                           setCurrentPath(pathSlice);
                           try {
-                            const contents = await getFolderContents(targetFolder.id, targetFolder.source);
+                            const contents = await getFolderContents(targetFolder.id);
                             if (contents) {
                                contents.sort((a, b) => {
                                 if (a.isFolder && !b.isFolder) return -1;
@@ -377,9 +333,6 @@ export default function Documents() {
                                 <span>{formatDate(doc.lastModified)}</span>
                               </>
                             )}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Source: {doc.source}
                           </div>
                         </div>
                       </div>

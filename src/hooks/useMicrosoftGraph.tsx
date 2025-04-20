@@ -14,7 +14,7 @@ export interface Document {
   parentReference?: {
     path: string;
   };
-  source: 'OneDrive' | 'SharePoint';
+  source: 'OneDrive';
 }
 
 export interface CsvFile {
@@ -226,17 +226,6 @@ export const useMicrosoftGraph = () => {
       },
     });
   }, [getAccessToken]);
-
-  // --- SharePoint Specific Functions (Placeholders) ---
-  const getSharePointDocuments = async (): Promise<Document[] | null> => {
-    console.warn("getSharePointDocuments not implemented yet.");
-    return []; 
-  };
-
-  const getSharePointFolderContents = async (folderId: string): Promise<Document[] | null> => {
-    console.warn(`getSharePointFolderContents not implemented yet for folder: ${folderId}`);
-    return [];
-  };
 
   // --- OneDrive Specific Functions ---
   const getOneDriveRootDocuments = useCallback(async (): Promise<Document[] | null> => {
@@ -494,37 +483,14 @@ export const useMicrosoftGraph = () => {
     }
   }, [checkMsalAuth, getClient, setIsLoading, setLastError, toast]);
 
-  // --- Generic Functions ---
-  const getFolderContents = useCallback(async (folderId: string, source: 'OneDrive' | 'SharePoint'): Promise<Document[] | null> => {
-    console.log(`getFolderContents called for folderId: ${folderId}, source: ${source}`);
-    if (!source) {
-        console.error("getFolderContents called without a source specified.");
-        setLastError("Source type (OneDrive/SharePoint) is required to fetch folder contents.");
-        toast.error("Cannot fetch folder contents: Source type missing.");
-        return null;
-    }
-    if (!folderId) {
-         console.error("getFolderContents called without a folderId specified.");
-        setLastError("Folder ID is required to fetch folder contents.");
-        toast.error("Cannot fetch folder contents: Folder ID missing.");
-        return null;
-    }
+  // --- Generic Functions (Now OneDrive specific) ---
+  const getFolderContents = useCallback(async (folderId: string): Promise<Document[] | null> => {
+    console.log(`getFolderContents (OneDrive) called for folderId: ${folderId}`);
+    // Directly call the OneDrive specific function
+    return getOneDriveFolderContents(folderId);
+  }, [getOneDriveFolderContents]); // Depend only on the OneDrive function
 
-    switch (source) {
-      case 'OneDrive':
-        return getOneDriveFolderContents(folderId);
-      case 'SharePoint':
-        // Call the SharePoint specific function once implemented
-        return getSharePointFolderContents(folderId);
-      default:
-        console.error(`Unsupported source type in getFolderContents: ${source}`);
-        setLastError(`Unsupported source type: ${source}`);
-        toast.error(`Cannot fetch folder contents: Unsupported source ${source}.`);
-        return null;
-    }
-  }, [getOneDriveFolderContents, getSharePointFolderContents]);
-
-  // --- CSV File Specific Functions ---
+  // --- CSV/Folder Management Functions (Assume they target OneDrive) ---
   const createFolder = useCallback(async (folderName: string, parentFolderId?: string): Promise<Document | null> => {
     console.log(`Creating folder "${folderName}" ${parentFolderId ? `under parent ${parentFolderId}` : 'in root'}`);
     setIsLoading(true);
@@ -1158,9 +1124,7 @@ export const useMicrosoftGraph = () => {
     directFileUpload,
     readCsvFile,
     updateCsvFile,
-    handleLogin,
-    getSharePointDocuments,
-    getSharePointFolderContents
+    handleLogin
   };
 };
 
