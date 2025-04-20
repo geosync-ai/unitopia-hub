@@ -32,13 +32,23 @@ export default function Login() {
 
       if (msalResponse.idToken) {
         // MSAL login was successful, ID token is present.
-        // We are no longer attempting to sign into Supabase with this token.
         
-        // TODO: Decide how to store/manage the MSAL user state (e.g., in MsalContext or a dedicated user context)
-        // For now, we have msalResponse.account and potentially idTokenClaims available.
-        
-        logger.info('MSAL login successful. Skipping Supabase signInWithIdToken.');
-        
+        // --- ADDED SUPABASE SIGN-IN --- 
+        logger.info('Attempting Supabase signInWithIdToken...');
+        const { data: supaData, error: supaError } = await supabase.auth.signInWithIdToken({
+          provider: 'azure', // Specify the provider
+          token: msalResponse.idToken // Pass the ID token from MSAL
+        });
+
+        if (supaError) {
+          logger.error('Supabase signInWithIdToken error', supaError);
+          setError(`Failed to establish session with application services: ${supaError.message}`);
+          setMsalLoading(false); // Ensure loading stops on error
+          return; // Stop execution if Supabase sign-in fails
+        }
+        logger.success('Supabase session established successfully', { user: supaData.user });
+        // --- END ADDED SUPABASE SIGN-IN ---
+
         toast.success("Signed in successfully via Microsoft");
         navigate('/', { replace: true }); // Navigate to the main app
       } else {
