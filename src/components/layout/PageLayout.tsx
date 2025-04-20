@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useMsal } from "@azure/msal-react";
 import MainSidebar from './MainSidebar';
 import { Bell, Search, Menu, X, User as UserIcon, LogOut, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ThemeToggle from './ThemeToggle';
 import { supabase, logger } from '@/lib/supabaseClient';
-import { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -24,8 +24,9 @@ interface PageLayoutProps {
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
   const { toast } = useToast();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const { instance, accounts, inProgress } = useMsal();
+  const account = accounts[0];
+  const userLoading = inProgress !== "none";
   const isMobile = useIsMobile();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
@@ -36,43 +37,6 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
     }
   }, [isMobile]);
 
-  useEffect(() => {
-    let isMounted = true;
-    setUserLoading(true);
-    logger.info('PageLayout: Fetching user data...');
-
-    supabase.auth.getUser()
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (error) {
-          logger.error('PageLayout: Error fetching user', error);
-        } else {
-          logger.success('PageLayout: User data fetched', data.user);
-          setCurrentUser(data.user);
-        }
-        setUserLoading(false);
-      })
-      .catch(err => {
-        if (isMounted) {
-          logger.error('PageLayout: Unexpected error fetching user', err);
-          setUserLoading(false);
-        }
-      });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (!isMounted) return;
-      logger.info(`PageLayout: Auth state changed: ${event}`);
-      if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
-
   const handleNotificationClick = () => {
     toast({
       title: "Notifications",
@@ -81,25 +45,19 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
   };
 
   const handleSignOut = async () => {
-    logger.info('PageLayout: Initiating sign out');
+    logger.info('PageLayout: Initiating MSAL sign out');
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        logger.error('PageLayout: Error signing out', error);
-        toast({ title: "Sign Out Error", description: error.message, variant: "destructive" });
-      } else {
-        logger.success('PageLayout: User signed out successfully');
-        setCurrentUser(null);
-        navigate('/login', { replace: true });
-        toast({ title: "Signed Out", description: "You have been signed out successfully." });
-      }
-    } catch (err) {
-      logger.error('PageLayout: Unexpected error during sign out', err);
-      toast({ title: "Sign Out Error", description: "An unexpected error occurred.", variant: "destructive" });
+      await instance.logoutPopup();
+      logger.success('PageLayout: MSAL User signed out successfully');
+      navigate('/login', { replace: true });
+      toast({ title: "Signed Out", description: "You have been signed out successfully." });
+    } catch (error) {
+      logger.error('PageLayout: Error during MSAL sign out', error);
+      toast({ title: "Sign Out Error", description: "An error occurred during sign out.", variant: "destructive" });
     }
   };
 
-  const getInitials = (name?: string | null, email?: string | null): string => {
+  const getInitials = (name?: string | null, username?: string | null): string => {
     if (name) {
       const names = name.split(' ');
       if (names.length > 1) {
@@ -107,8 +65,8 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
       }
       return names[0][0].toUpperCase();
     }
-    if (email) {
-      return email[0].toUpperCase();
+    if (username) {
+      return username[0].toUpperCase();
     }
     return 'U';
   };
@@ -159,7 +117,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
                       {userLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        getInitials(currentUser?.user_metadata?.name, currentUser?.email)
+                        getInitials(account?.name, account?.username)
                       )}
                     </AvatarFallback>
                   </Avatar>
@@ -169,10 +127,10 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {userLoading ? "Loading..." : currentUser?.user_metadata?.name || "User"}
+                      {userLoading ? "Loading..." : account?.name || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {userLoading ? "..." : currentUser?.email}
+                      {userLoading ? "..." : account?.username}
                     </p>
                   </div>
                 </DropdownMenuLabel>

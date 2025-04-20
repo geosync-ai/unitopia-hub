@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useMsal } from '@azure/msal-react';
 import PageLayout from '@/components/layout/PageLayout';
 import WelcomeCard from '@/components/dashboard/WelcomeCard';
 import QuickAccess from '@/components/dashboard/QuickAccess';
@@ -10,73 +11,44 @@ import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 import PersonalKPICards from '@/components/dashboard/PersonalKPICards';
 import PersonalKPIStats from '@/components/dashboard/PersonalKPIStats';
 import { supabase, logger } from '@/lib/supabaseClient';
-import { User } from '@supabase/supabase-js';
 import { getStaffMemberByEmail } from '@/data/divisions';
 
 const Index = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [displayName, setDisplayName] = useState<string>("User");
   const [loading, setLoading] = useState(true);
+  const { accounts } = useMsal();
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    logger.info('Index Page: Fetching user data...');
+    logger.info('Index Page: Checking MSAL authentication state...');
 
-    supabase.auth.getUser()
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (error) {
-          logger.error('Index Page: Error fetching user', error);
-          setDisplayName("User");
-        } else if (data.user) {
-          logger.success('Index Page: User data fetched', data.user);
-          setCurrentUser(data.user);
-          
-          const email = data.user.email;
-          if (email) {
-            const staffMember = getStaffMemberByEmail(email);
-            setDisplayName(staffMember?.name || email);
-          } else {
-            setDisplayName(data.user.user_metadata?.name || "User");
-          }
-        } else {
-           setDisplayName("User");
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        if (isMounted) {
-          logger.error('Index Page: Unexpected error fetching user', err);
-          setDisplayName("User");
-          setLoading(false);
-        }
-      });
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      const name = account.name || account.username || "User";
+      const email = account.username;
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (!isMounted) return;
-        if (event === 'SIGNED_OUT') {
-            logger.info('Index Page: User signed out, clearing user data.');
-            setCurrentUser(null);
-            setDisplayName("User");
-        }
-        else if (event === 'SIGNED_IN' && session?.user) {
-            const email = session.user.email;
-             if (email) {
-               const staffMember = getStaffMemberByEmail(email);
-               setDisplayName(staffMember?.name || email);
-             } else {
-               setDisplayName(session.user.user_metadata?.name || "User");
-             }
-        }
-    });
+      logger.success('Index Page: MSAL user identified', { name, email });
+      
+      if (email) {
+          const staffMember = getStaffMemberByEmail(email);
+          setDisplayName(staffMember?.name || name);
+      } else {
+          setDisplayName(name);
+      }
+      
+    } else {
+       logger.info('Index Page: No MSAL account found.');
+       setDisplayName("User");
+    }
+
+    setLoading(false);
 
     return () => {
       isMounted = false;
-      authListener?.subscription?.unsubscribe();
       logger.info('Index Page: Unmounting');
     };
-  }, []);
+  }, [accounts]);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
