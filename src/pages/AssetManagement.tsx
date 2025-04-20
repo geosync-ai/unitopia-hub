@@ -13,7 +13,8 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { logger } from '@/lib/supabaseClient'; // Keep logger if used elsewhere
 import { useAssetsData } from '@/hooks/useSupabaseData';
-import { useAuth } from '@/hooks/useAuth'; // <--- Import the MSAL auth hook
+import { useMsal } from '@azure/msal-react'; // <--- Import useMsal from msal-react
+import { InteractionStatus } from '@azure/msal-browser'; // Import InteractionStatus if needed for loading
 import { UserAsset } from '@/types';
 
 // Import modal components
@@ -24,7 +25,10 @@ import AssetCard from '@/components/assets/AssetCard';
 import HighlightMatch from '@/components/ui/HighlightMatch';
 
 const AssetManagement = () => {
-  const { user, loading: authLoading } = useAuth(); // <-- Use MSAL auth hook
+  const { instance, accounts, inProgress } = useMsal(); // <-- Use MSAL hook
+  const account = useMemo(() => accounts[0], [accounts]); // Get the first (active) account
+  const authLoading = useMemo(() => inProgress !== InteractionStatus.None, [inProgress]); // Determine loading state
+  
   const { toast } = useToast();
 
   // Use the asset data hook
@@ -46,12 +50,12 @@ const AssetManagement = () => {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [filterText, setFilterText] = useState('');
 
-  // --- Derive user name for filtering directly from MSAL user --- 
-  // Check your MSAL user object structure for the correct display name property
-  const userNameForFiltering = useMemo(() => user?.name || null, [user]);
+  // --- Derive user name for filtering directly from MSAL account --- 
+  // Ensure 'account.name' matches the value in your 'assigned_to' column ('John Sarwom')
+  const userNameForFiltering = useMemo(() => account?.name || null, [account]);
 
   // Log the user object and the assets array before filtering
-  console.log('[AssetManagement] MSAL User object:', user);
+  console.log('[AssetManagement] MSAL Account object:', account);
   console.log('[AssetManagement] User Name for filtering:', userNameForFiltering); 
   console.log('[AssetManagement] Assets array before filtering:', assets);
 
@@ -78,8 +82,9 @@ const AssetManagement = () => {
   console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
   // --- End Filtering Logic ---
 
-  // --- Email for filtering (derive from MSAL user) ---
-  const loggedInUserEmail = useMemo(() => user?.email || null, [user]);
+  // --- Email for filtering (derive from MSAL account) ---
+  // Ensure 'account.username' holds the email address
+  const loggedInUserEmail = useMemo(() => account?.username || null, [account]);
   // --- End Email for filtering ---
 
   // --- Modal Handlers ---
@@ -111,8 +116,8 @@ const AssetManagement = () => {
     const today = new Date().toISOString().split('T')[0];
     const completeAssetData = {
       ...newAssetData,
-      assigned_to: userNameForFiltering, // <-- Use derived name from MSAL user
-      assigned_to_email: loggedInUserEmail, // Keep email assignment separate
+      assigned_to: userNameForFiltering,
+      assigned_to_email: loggedInUserEmail, 
       assigned_date: newAssetData.assigned_date || today,
     } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
     
@@ -120,18 +125,16 @@ const AssetManagement = () => {
       toast({ title: "Error", description: "Asset name is required.", variant: "destructive" });
       return;
     }
-    // Check for name instead of email for assignment, matching filtering logic
     if (!completeAssetData.assigned_to) {
         toast({ title: "Error", description: "Assignee name could not be determined from logged in user.", variant: "destructive" });
         return;
     }
 
     try {
-      // Note: Ensure addAsset in useSupabaseData doesn't implicitly rely on Supabase auth
       await addAsset(completeAssetData as any); 
       toast({ title: "Asset Added", description: "New asset has been added successfully." });
       handleCloseModals();
-      refresh(); // Refresh data from Supabase
+      refresh();
     } catch (err) {
       logger.error("Error adding asset:", err);
       toast({ title: "Error Adding Asset", description: err instanceof Error ? err.message : "Could not add asset.", variant: "destructive" });
@@ -141,13 +144,11 @@ const AssetManagement = () => {
   const handleSaveEdit = async (updatedAssetData: Partial<UserAsset>) => {
     if (!selectedAsset) return;
     try {
-      // Add last_updated_by using MSAL user's email/name if needed by backend
       const dataToSave = loggedInUserEmail ? { ...updatedAssetData, last_updated_by: loggedInUserEmail } : updatedAssetData;
-      // Note: Ensure editAsset in useSupabaseData doesn't implicitly rely on Supabase auth
       await editAsset(selectedAsset.id, dataToSave);
       toast({ title: "Asset Updated", description: "Asset details have been updated." });
       handleCloseModals();
-      refresh(); // Refresh data from Supabase
+      refresh();
     } catch (err) {
       logger.error("Error updating asset:", err);
       toast({ title: "Error Updating Asset", description: err instanceof Error ? err.message : "Could not update asset.", variant: "destructive" });
@@ -157,11 +158,10 @@ const AssetManagement = () => {
   const handleConfirmDelete = async () => {
     if (!selectedAsset) return;
     try {
-      // Note: Ensure deleteAsset in useSupabaseData doesn't implicitly rely on Supabase auth
       await deleteAsset(selectedAsset.id);
       toast({ title: "Asset Deleted", description: "Asset has been removed successfully." });
       handleCloseModals();
-      refresh(); // Refresh data from Supabase
+      refresh();
     } catch (err) {
       logger.error("Error deleting asset:", err);
       toast({ title: "Error Deleting Asset", description: err instanceof Error ? err.message : "Could not delete asset.", variant: "destructive" });
@@ -192,20 +192,20 @@ const AssetManagement = () => {
     }
   };
 
-  // Use authLoading for the main loading state
-  if (authLoading) { // Changed from userLoading
+  // Use authLoading derived from useMsal
+  if (authLoading) {
     return (
         <PageLayout>
             <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Loading user information...</span>
+                <span className="ml-2 text-muted-foreground">Initializing Authentication...</span>
             </div>
         </PageLayout>
     );
   }
 
-  // Handle case where MSAL user is not available after loading
-  if (!authLoading && !user) {
+  // Handle case where MSAL account is not available after loading
+  if (!authLoading && !account) {
      return (
         <PageLayout>
             <div className="text-center py-10 px-4 text-destructive">
