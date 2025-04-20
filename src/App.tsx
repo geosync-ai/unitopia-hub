@@ -27,69 +27,37 @@ import AssetManagement from './pages/AssetManagement';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
 // MSAL Imports
-import { MsalProvider, useMsal } from '@azure/msal-react';
+import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { InteractionStatus } from '@azure/msal-browser';
 import { MsalAuthProvider } from '@/integrations/microsoft/MsalProvider';
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [userSession, setUserSession] = useState<User | null>(null);
+  // Use MSAL hooks for authentication status
+  const { inProgress, accounts } = useMsal();
+  const isAuthenticated = useIsAuthenticated(); // Simple boolean check based on accounts
   const location = useLocation();
 
-  useEffect(() => {
-    let isMounted = true;
-    logger.info('ProtectedRoute: Checking session...');
-
-    supabase.auth.getSession()
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (error) {
-          logger.error('ProtectedRoute: Error getting session', error);
-        } else {
-          logger.info('ProtectedRoute: Session data', data.session);
-          setUserSession(data.session?.user ?? null);
-        }
-        setSessionLoading(false);
-      })
-      .catch(err => {
-        if (isMounted) {
-            logger.error('ProtectedRoute: Unexpected error getting session', err);
-            setSessionLoading(false);
-        }
-      });
-      
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (!isMounted) return;
-        logger.info(`ProtectedRoute: Auth state changed: ${event}`, session);
-        setUserSession(session?.user ?? null);
-        if (event === 'SIGNED_OUT') {
-            setSessionLoading(false);
-        }
-    });
-
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-      logger.info('ProtectedRoute: Unmounting');
-    };
-  }, []);
-
-  if (sessionLoading) {
+  // Show loading indicator while MSAL is initializing or interacting
+  if (inProgress !== InteractionStatus.None) {
+    logger.info('ProtectedRoute: MSAL in progress...', { status: inProgress });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-gray-600">Checking Authentication...</span> 
       </div>
     );
   }
 
-  if (!userSession) {
-    logger.warn('ProtectedRoute: No session, redirecting to login.', { from: location.pathname });
+  // If MSAL is idle and user is NOT authenticated, redirect to login
+  if (!isAuthenticated) {
+    logger.warn('ProtectedRoute: MSAL user not authenticated, redirecting to login.', { from: location.pathname });
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  logger.success('ProtectedRoute: Access granted.', { userId: userSession.id });
+  // If MSAL is idle and user IS authenticated, grant access
+  logger.success('ProtectedRoute: MSAL access granted.', { username: accounts[0]?.username });
   return <>{children}</>;
 };
 
@@ -121,9 +89,8 @@ const AppRoutes = () => {
 
 // Main App component wrapper to handle MSAL initialization state
 const AppContent = () => {
-  const { inProgress } = useMsal(); // Keep using useMsal from @azure/msal-react, it gets instance from the provider context
+  const { inProgress } = useMsal();
 
-  // Show loading indicator while MSAL is initializing or interacting
   if (inProgress !== InteractionStatus.None) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -133,7 +100,6 @@ const AppContent = () => {
     );
   }
 
-  // Render the main app content only when MSAL is idle
   return (
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="light">
