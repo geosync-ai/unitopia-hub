@@ -1,6 +1,7 @@
 // Microsoft Graph API configuration
 const microsoftAuthConfig = {
-  clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
+  clientId: "28deadd7-2b9d-4fd1-9d64-2f16cab6d65c",
+  tenantId: "b173aac7-6781-4d49-a037-d874bd4a09ab",
   confirmed: true,
   apiEndpoint: "https://graph.microsoft.com/v1.0",
   last_tested: "2025-04-07T08:19:35.145Z",
@@ -14,12 +15,12 @@ const microsoftAuthConfig = {
     "Sites.ReadWrite.All"
   ],
   // HARDCODED APPROVED URI - this MUST match exactly what's in Azure AD
-  redirectUri: "https://unitopia-hub.vercel.app/",
+  redirectUri: typeof window !== 'undefined' ? window.location.origin : 'https://localhost:3000',
   approvedRedirectUris: [
     "https://unitopia-hub.vercel.app/",
     "https://unitopia-hub.vercel.app"
   ],
-  authorityUrl: "https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab",
+  authority: `https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab`,
   test_success: true,
   last_confirmed: "2025-04-07T08:19:35.145Z"
 };
@@ -35,7 +36,7 @@ if (typeof window !== 'undefined') {
   // Log the final MSAL config that will be used
   console.log('Using MSAL config:', {
     clientId: microsoftAuthConfig.clientId,
-    authority: microsoftAuthConfig.authorityUrl,
+    authority: microsoftAuthConfig.authority,
     redirectUri: microsoftAuthConfig.redirectUri, 
     postLogoutRedirectUri: microsoftAuthConfig.redirectUri
   });
