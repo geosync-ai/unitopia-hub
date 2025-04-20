@@ -107,7 +107,7 @@ const snakeToCamelCase = (obj: any): any => {
 // Task operations
 export const tasksService = {
   // Get all tasks
-  getTasks: async (userEmail?: string, divisionId?: string) => {
+  getTasks: async (divisionId?: string) => {
     const supabase = getSupabaseClient();
     
     let query = supabase
@@ -215,8 +215,7 @@ export const tasksService = {
 // Project operations
 export const projectsService = {
   // Get all projects
-  getProjects: async (userEmail?: string, divisionId?: string) => {
-    console.log(`[projectsService.getProjects] Fetching projects with userEmail: ${userEmail}, divisionId: ${divisionId}`); // Log input parameters
+  getProjects: async (divisionId?: string) => {
     const supabase = getSupabaseClient();
     
     let query = supabase
@@ -229,9 +228,6 @@ export const projectsService = {
     }
     
     const { data, error } = await query;
-
-    console.log(`[projectsService.getProjects] Raw data from Supabase:`, data); // Log raw data
-    console.log(`[projectsService.getProjects] Error from Supabase:`, error); // Log error
     
     if (error) {
       console.error('Error fetching projects:', error);
@@ -355,26 +351,16 @@ export const risksService = {
   },
   
   // Get all risks
-  getRisks: async (userEmail?: string, divisionId?: string) => {
+  getRisks: async (divisionId?: string) => {
     const supabase = getSupabaseClient();
     
     let query = supabase
       .from(TABLES.RISKS)
       .select('*');
     
-    // Filter by owner if userEmail is provided (optional, adjust as needed)
-    // if (userEmail) {
-    //   query = query.eq('owner', userEmail); 
-    // }
-
     // Filter by division_id if divisionId is provided
     if (divisionId) {
       query = query.eq('division_id', divisionId);
-    } else {
-      // Optional: Handle case where no division is selected?
-      // Maybe fetch only risks with null division_id or apply different logic?
-      // For now, if no divisionId, it fetches all risks (potentially filtered by userEmail above)
-      console.warn('[risksService.getRisks] No divisionId provided, fetching all risks (potentially filtered by owner).');
     }
     
     const { data, error } = await query;
@@ -632,7 +618,7 @@ export const assetsService = {
 // KRA operations
 export const krasService = {
   // Get all KRAs
-  getKRAs: async (userEmail?: string) => {
+  getKRAs: async () => {
     const supabase = getSupabaseClient();
     
     let query = supabase
@@ -641,7 +627,7 @@ export const krasService = {
         *,
         unit_kpis(*),
         unit_objectives ( title )
-      `); 
+      `);
     
     const { data, error } = await query;
     
@@ -650,11 +636,8 @@ export const krasService = {
       throw error;
     }
     
-    console.log("[krasService.getKRAs] Raw data from Supabase (before conversion):", JSON.stringify(data, null, 2));
-
     // --- MODIFIED --- Convert snake_case to camelCase before returning
     const camelCaseData = snakeToCamelCase(data);
-    console.log("[krasService.getKRAs] Converted data (after conversion):", JSON.stringify(camelCaseData, null, 2)); // Log after conversion
     
     return camelCaseData || [];
   },

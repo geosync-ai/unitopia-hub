@@ -100,33 +100,33 @@ export function useSupabaseData<T extends { id?: string }>(
   // Fetch data from Supabase
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null); // Reset error state at the beginning
     try {
-      // Fetch user inside the function to ensure freshness
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        logger.error('useSupabaseData: Error fetching user or no user logged in', userError);
-        throw new Error('User not authenticated');
-      }
-      
       const fetchMethod = getFetchMethod();
-      logger.info(`[useSupabaseData - fetchData] Fetching ${entityType} with user: ${user.email}`);
-      const fetchedData = await fetchMethod(user.email);
+      logger.info(`[useSupabaseData - fetchData] Fetching ${entityType}...`); // Updated log message
+
+      // Call fetchMethod without user email if it's not strictly needed
+      // The service methods themselves might need adjustment if they *require* an email
+      const fetchedData = await fetchMethod(); // Removed user.email
+
       setData(fetchedData as T[]);
-      setError(null);
+      // setError(null); // Error is reset at the beginning
     } catch (err) {
       logger.error(`Error fetching ${entityType}:`, err);
       setError(err instanceof Error ? err : new Error(String(err)));
-      setData([]);
-      
+      setData([]); // Clear data on error
+
       // Log the specific error to console for debugging
+      if (err && typeof err === 'object' && 'message' in err) {
+        console.error(`[useSupabaseData - fetchData] Fetch error for ${entityType}: ${err.message}`);
+      }
       if (err && typeof err === 'object' && 'code' in err) {
-        console.log(`Database error [${(err as any).code}]: ${(err as any).message}`);
-        
+        console.error(`[useSupabaseData - fetchData] Database error code: ${(err as any).code}`);
         // Special handling for common errors
         if ((err as any).code === '42703') { // Column does not exist
-          console.log('Column name mismatch. Check camelCase vs snake_case in queries.');
-        } else if ((err as any).code === '42P01') { // Table does not exist 
-          console.log('Table does not exist. Ensure you\'ve created the required tables in Supabase.');
+          console.warn('[useSupabaseData - fetchData] Column name mismatch detected. Check camelCase vs snake_case in your Supabase queries and data handling.');
+        } else if ((err as any).code === '42P01') { // Table does not exist
+          console.warn('[useSupabaseData - fetchData] Table does not exist. Ensure you have created the required tables in Supabase.');
         }
       }
     } finally {
