@@ -26,6 +26,42 @@ import Notes from "./pages/Notes";
 import AssetManagement from './pages/AssetManagement';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
+// MSAL Imports
+import { PublicClientApplication, EventType, AccountInfo } from '@azure/msal-browser';
+import { MsalProvider } from '@azure/msal-react';
+import { msalConfig } from './authConfig'; // Import the MSAL config
+
+// MSAL Instance (create outside the component)
+const msalInstance = new PublicClientApplication(msalConfig);
+
+// Optional: Account selection logic - set active account if available on load
+const accounts = msalInstance.getAllAccounts();
+if (accounts.length > 0) {
+  console.log("App.tsx: Setting active MSAL account on load:", accounts[0].username);
+  msalInstance.setActiveAccount(accounts[0]);
+}
+
+// Optional: Event callback to set active account after login
+msalInstance.addEventCallback((event) => {
+  // Check the event type for specific payloads
+  if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
+    // Type assertion for AuthenticationResult payload
+    const payload = event.payload as import('@azure/msal-browser').AuthenticationResult;
+    if (payload.account) {
+      const account = payload.account;
+      console.log("App.tsx: MSAL LOGIN_SUCCESS event, setting active account:", account.username);
+      msalInstance.setActiveAccount(account);
+    } else {
+       console.warn("App.tsx: MSAL LOGIN_SUCCESS event, but payload did not contain account info.");
+    }
+  } else if (event.eventType === EventType.LOGOUT_SUCCESS) {
+     console.log("App.tsx: MSAL LOGOUT_SUCCESS event.");
+     // MSAL handles clearing the active account on logout
+  } else if (event.eventType === EventType.LOGIN_FAILURE) {
+    console.error("App.tsx: MSAL LOGIN_FAILURE event", event.error);
+  }
+});
+
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -115,19 +151,21 @@ const AppRoutes = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <SupabaseAuthProvider>
-            <AppRoutes />
-          </SupabaseAuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <MsalProvider instance={msalInstance}>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <SupabaseAuthProvider>
+              <AppRoutes />
+            </SupabaseAuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </MsalProvider>
 );
 
 export default App;
