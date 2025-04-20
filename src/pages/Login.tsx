@@ -57,37 +57,16 @@ export default function Login() {
       logger.success('MSAL login successful', { username: msalResponse.account?.username });
 
       if (msalResponse.idToken) {
-        logger.info('MSAL ID Token obtained, attempting Supabase signInWithIdToken');
+        // MSAL login was successful, ID token is present.
+        // We are no longer attempting to sign into Supabase with this token.
         
-        // Extract nonce from ID token claims if it exists
-        const nonce = (msalResponse.idTokenClaims as { nonce?: string })?.nonce;
-        if (nonce) {
-            logger.info('Nonce found in ID token claims');
-        } else {
-            logger.warn('Nonce NOT found in ID token claims. Supabase sign-in might fail if nonce was expected.');
-        }
-
-        const signInOptions = {
-          provider: 'azure' as const, // Ensure provider type is specific
-          token: msalResponse.idToken,
-          nonce: nonce // Pass the nonce explicitly (will be undefined if not found)
-        };
+        // TODO: Decide how to store/manage the MSAL user state (e.g., in MsalContext or a dedicated user context)
+        // For now, we have msalResponse.account and potentially idTokenClaims available.
         
-        logger.info('Calling Supabase signInWithIdToken with options:', { provider: signInOptions.provider, hasToken: !!signInOptions.token, hasNonce: !!signInOptions.nonce });
+        logger.info('MSAL login successful. Skipping Supabase signInWithIdToken.');
         
-        const { data: supabaseData, error: supabaseError } = await supabase.auth.signInWithIdToken(signInOptions);
-
-        if (supabaseError) {
-          logger.error('Supabase signInWithIdToken error', supabaseError);
-          setError(supabaseError.message || 'Failed to sign into Supabase after Microsoft login.');
-        } else if (supabaseData.user) {
-          logger.success('Supabase signInWithIdToken successful', { userId: supabaseData.user.id });
-          toast.success("Signed in successfully");
-          navigate('/', { replace: true });
-        } else {
-          logger.error('Supabase signInWithIdToken successful but no user data returned');
-          setError('Failed to establish application session after Microsoft login.');
-        }
+        toast.success("Signed in successfully via Microsoft");
+        navigate('/', { replace: true }); // Navigate to the main app
       } else {
         logger.error('MSAL login succeeded but no ID Token was returned.');
         setError('Authentication failed: Missing identity information from Microsoft.');
