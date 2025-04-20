@@ -1,6 +1,6 @@
 // Microsoft Graph API configuration
 const microsoftAuthConfig = {
-  clientId: "28deadd7-2b9d-4fd1-9d64-2f16cab6d65c",
+  clientId: "648a96d7-e3f5-4e13-8084-ba0b74dbb56f",
   tenantId: "b173aac7-6781-4d49-a037-d874bd4a09ab",
   confirmed: true,
   apiEndpoint: "https://graph.microsoft.com/v1.0",
