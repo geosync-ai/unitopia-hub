@@ -503,31 +503,28 @@ export const risksService = {
 
 // Asset operations
 export const assetsService = {
-  // Get all assets
+  // Get all assets - Now using Edge Function
   getAssets: async () => {
     const supabase = getSupabaseClient();
-    console.log('[assetsService.getAssets] Starting fetch...'); // Log start
-    
-    let query = supabase
-      .from(TABLES.ASSETS)
-      .select('*');
+    console.log('[assetsService.getAssets] Invoking edge function get-assets...');
     
     try {
-      console.log('[assetsService.getAssets] Executing query...'); // Log before query
-      const { data, error } = await query;
+      // Invoke the Edge Function instead of direct table access
+      const { data, error } = await supabase.functions.invoke('get-assets');
       
-      // Log the raw response from Supabase
-      console.log('[assetsService.getAssets] Raw Supabase response:', { data, error });
+      console.log('[assetsService.getAssets] Edge function response:', { data, error });
 
       if (error) {
-        console.error('[assetsService.getAssets] Supabase query error:', error);
+        console.error('[assetsService.getAssets] Edge function invocation error:', error);
         throw error;
       }
       
-      // Return raw data
-      return data || [];
+      // Assuming the function returns the array of assets directly in `data`
+      // Add type assertion if needed, e.g., return (data as YourAssetType[]) || [];
+      return data || []; 
     } catch (err) {
-      console.error('[assetsService.getAssets] Error in try-catch block:', err);
+      console.error('[assetsService.getAssets] Error invoking edge function:', err);
+      // Consider re-throwing or returning a specific error structure
       return [];
     }
   },
