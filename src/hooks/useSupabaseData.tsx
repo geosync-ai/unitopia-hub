@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { supabase, logger } from '@/lib/supabaseClient';
 import { toast } from '@/components/ui/use-toast';
+import { loginRequest } from '@/authConfig'; // Import MSAL request scopes
 import { 
   tasksService, 
   projectsService, 
@@ -24,7 +25,7 @@ export function useSupabaseData<T extends { id?: string }>(
   const [data, setData] = useState<T[]>(initialData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { accounts } = useMsal();
+  const { instance, accounts } = useMsal();
 
   // Get the appropriate fetch method based on entity type
   const getFetchMethod = useCallback((): FetchFunction => {
@@ -101,39 +102,61 @@ export function useSupabaseData<T extends { id?: string }>(
   // Fetch data from Supabase
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setError(null); // Reset error state at the beginning
+    setError(null);
+    let fetchedData: any[] = [];
+    let fetchError: Error | null = null;
+
     try {
       const fetchMethod = getFetchMethod();
-      logger.info(`[useSupabaseData - fetchData] Fetching ${entityType}...`); // Updated log message
+      logger.info(`[useSupabaseData - fetchData] Fetching ${entityType}...`);
 
-      // Call fetchMethod without user email if it's not strictly needed
-      // The service methods themselves might need adjustment if they *require* an email
-      const fetchedData = await fetchMethod(); // Removed user.email
-
-      setData(fetchedData as T[]);
-      // setError(null); // Error is reset at the beginning
-    } catch (err) {
-      logger.error(`Error fetching ${entityType}:`, err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setData([]); // Clear data on error
-
-      // Log the specific error to console for debugging
-      if (err && typeof err === 'object' && 'message' in err) {
-        console.error(`[useSupabaseData - fetchData] Fetch error for ${entityType}: ${err.message}`);
-      }
-      if (err && typeof err === 'object' && 'code' in err) {
-        console.error(`[useSupabaseData - fetchData] Database error code: ${(err as any).code}`);
-        // Special handling for common errors
-        if ((err as any).code === '42703') { // Column does not exist
-          console.warn('[useSupabaseData - fetchData] Column name mismatch detected. Check camelCase vs snake_case in your Supabase queries and data handling.');
-        } else if ((err as any).code === '42P01') { // Table does not exist
-          console.warn('[useSupabaseData - fetchData] Table does not exist. Ensure you have created the required tables in Supabase.');
+      if (entityType === 'assets') {
+        logger.info(`[useSupabaseData - fetchData] Asset fetch requires MSAL token.`);
+        if (accounts[0]) { // Check if user is logged in via MSAL
+          try {
+            const tokenResponse = await instance.acquireTokenSilent({
+              ...loginRequest, // Use scopes defined in your config
+              account: accounts[0]
+            });
+            logger.info(`[useSupabaseData - fetchData] MSAL token acquired successfully.`);
+            // Call fetchMethod (assetsService.getAssets) with the token
+            fetchedData = await fetchMethod(tokenResponse.accessToken);
+          } catch (tokenError: any) { // Catch token acquisition error
+            logger.error('[useSupabaseData - fetchData] MSAL acquireTokenSilent error:', tokenError);
+            // Potentially trigger interactive login if silent fails (e.g., consent required)
+            if (tokenError.name === "InteractionRequiredAuthError" || tokenError.name === "BrowserAuthError") {
+              // Consider handling interaction_required errors, maybe by setting an error state
+              fetchError = new Error('Could not get authentication token silently. Interaction required.');
+            } else {
+              fetchError = tokenError instanceof Error ? tokenError : new Error('Failed to acquire auth token');
+            }
+          }
+        } else {
+          logger.warn('[useSupabaseData - fetchData] No MSAL account found for asset fetch.');
+          fetchError = new Error('User not authenticated via MSAL.');
+          // Optionally call fetchMethod without token to let Edge Function handle anon (if designed to)
+          // fetchedData = await fetchMethod(); 
         }
+      } else {
+        // For other entity types, call fetchMethod without token
+        fetchedData = await fetchMethod();
       }
+
+      // If fetch was successful (or not attempted due to token error handled above)
+      if (!fetchError) {
+         setData(fetchedData as T[]);
+      }
+
+    } catch (err) {
+      // Catch errors from the fetchMethod call itself
+      logger.error(`[useSupabaseData - fetchData] Error during ${entityType} fetch:`, err);
+      fetchError = err instanceof Error ? err : new Error(String(err));
+      setData([]); // Clear data on error
     } finally {
+      setError(fetchError); // Set final error state
       setLoading(false);
     }
-  }, [entityType, getFetchMethod]);
+  }, [entityType, getFetchMethod, instance, accounts]);
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {

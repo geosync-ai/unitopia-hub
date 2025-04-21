@@ -504,13 +504,24 @@ export const risksService = {
 // Asset operations
 export const assetsService = {
   // Get all assets - Now using Edge Function
-  getAssets: async () => {
+  getAssets: async (accessToken?: string) => {
     const supabase = getSupabaseClient();
     console.log('[assetsService.getAssets] Invoking edge function get-assets...');
     
     try {
-      // Invoke the Edge Function instead of direct table access
-      const { data, error } = await supabase.functions.invoke('get-assets');
+      // Prepare options, including headers if accessToken is provided
+      const options: { headers?: { [key: string]: string } } = {};
+      if (accessToken) {
+        options.headers = {
+          'Authorization': `Bearer ${accessToken}`
+        };
+        console.log('[assetsService.getAssets] Passing Authorization header.');
+      } else {
+        console.warn('[assetsService.getAssets] No access token provided. Function will likely receive anon role.');
+      }
+
+      // Invoke the Edge Function with options
+      const { data, error } = await supabase.functions.invoke('get-assets', options); // Pass options
       
       console.log('[assetsService.getAssets] Edge function response:', { data, error });
 
