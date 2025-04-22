@@ -323,6 +323,13 @@ export const handleRedirectResponse = async (
 
       // --- Log user login to Supabase ---
       try {
+        // Add detailed logging before insert
+        console.log('[Login Log] Attempting to log login for MSAL account:', response.account);
+        const sessionData = await supabase.auth.getSession();
+        console.log('[Login Log] Current Supabase session data:', sessionData);
+        console.log('[Login Log] Using user_id:', response.account.localAccountId);
+        console.log('[Login Log] Using user_email:', response.account.username);
+        
         const { error: logError } = await supabase
           .from('user_login_log')
           .insert({ 
