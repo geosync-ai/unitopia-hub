@@ -7,7 +7,7 @@ console.log("Initializing log-msal-login function");
 serve(async (req) => {
   // This is needed if you're planning to invoke your function from a browser.
   if (req.method === "OPTIONS") {
-    console.log("Handling OPTIONS request");
+    console.log("Handling OPTIONS requests");
     return new Response("ok", { headers: corsHeaders });
   }
 
