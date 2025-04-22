@@ -45,25 +45,32 @@ serve(async (req) => {
     });
     console.log("Supabase Admin client created");
 
-    // --- Find Supabase User ID by Email ---
-    console.log(`Looking up user by email: ${user_email}`);
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('email', user_email)
-      .single(); // Expect only one user per email
+    // --- Find Supabase User ID by Email via RPC ---
+    console.log(`Looking up user via RPC by email: ${user_email}`);
+    const { data: rpcData, error: rpcError } = await supabaseAdmin
+      .rpc('get_user_id_by_email', { p_user_email: user_email }); // Pass email as argument
+      // Note: .single() might not be needed/valid after rpc()
 
-    if (userError || !userData) {
-      console.error("Error finding user by email:", userError);
-      const errorMessage = userData ? "User not found." : userError?.message || "Database query error";
+    if (rpcError) {
+      console.error("Error calling RPC get_user_id_by_email:", rpcError);
       return new Response(
-        JSON.stringify({ error: `Failed to find user: ${errorMessage}` }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 } // Use 404 if user not found
+        JSON.stringify({ error: `RPC Error: ${rpcError.message}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
+    // The data returned by the RPC function *is* the user ID (or null)
+    const supabaseUserId = rpcData; 
+
+    if (!supabaseUserId) {
+      console.error("User not found via RPC for email:", user_email);
+      return new Response(
+        JSON.stringify({ error: `User not found for email` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
       );
     }
     
-    const supabaseUserId = userData.id;
-    console.log(`Found Supabase User ID: ${supabaseUserId}`);
+    console.log(`Found Supabase User ID via RPC: ${supabaseUserId}`);
     // --- End Find User ID ---
 
     // Insert data into the log table using the *found* Supabase User ID
