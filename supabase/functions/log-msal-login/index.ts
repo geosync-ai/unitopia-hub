@@ -49,6 +49,7 @@ serve(async (req) => {
     console.log(`Looking up user by email: ${user_email}`);
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
+      .schema('auth')
       .select('id')
       .eq('email', user_email)
       .single(); // Expect only one user per email
