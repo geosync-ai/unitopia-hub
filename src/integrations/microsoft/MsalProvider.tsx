@@ -13,6 +13,7 @@ import { useSupabaseAuth } from '@/hooks/useSupabaseAuth.tsx';
 import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
+import { supabase } from '@/lib/supabaseClient';
 
 // Define admin emails that match the ones in useAuth.tsx
 const ADMIN_EMAILS = ['geosyncsurvey@gmail.com', 'admin@scpng.com'];
@@ -98,6 +99,41 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             const result = event.payload as AuthenticationResult;
             if (result && result.account) {
               instance.setActiveAccount(result.account);
+              
+              // --- Log user login to Supabase (Event Callback) ---
+              const account = result.account;
+              if (account && account.localAccountId && account.username) {
+                console.log('[Login Log - Event] Attempting to log login for MSAL account:', account);
+                
+                // Use async/await inside the event handler
+                const logLogin = async () => {
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    console.log('[Login Log - Event] Current Supabase session data:', session);
+
+                    const { error: logError } = await supabase
+                      .from('user_login_log')
+                      .insert({ 
+                        user_id: account.localAccountId, // Still assuming this maps to auth.users.id
+                        user_email: account.username 
+                      });
+
+                    if (logError) {
+                      console.error('[Login Log - Event] Error logging user login to Supabase:', logError);
+                    } else {
+                      console.log('[Login Log - Event] User login logged successfully to user_login_log table.');
+                    }
+                  } catch (error) {
+                     console.error('[Login Log - Event] Caught exception during login logging:', error);
+                  }
+                };
+                
+                logLogin(); // Call the async function
+
+              } else {
+                console.warn('[Login Log - Event] Account details missing, cannot log login.', account);
+              }
+              // --- End log user login ---
             }
           } else if (event.eventType === EventType.LOGIN_FAILURE) {
             console.error('Login failure event detected:', event.error);
