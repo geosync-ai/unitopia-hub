@@ -12,17 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, user_email } = await req.json();
-    console.log("Received data:", { user_id, user_email });
+    // Only expect user_email from the client now
+    const { user_email } = await req.json(); 
+    console.log("Received data:", { user_email });
 
-    if (!user_id || !user_email) {
-      console.error("Missing user_id or user_email in request body");
+    if (!user_email) {
+      console.error("Missing user_email in request body");
       return new Response(
-        JSON.stringify({ error: "Missing user_id or user_email" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        },
+        JSON.stringify({ error: "Missing user_email" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
@@ -47,25 +45,42 @@ serve(async (req) => {
     });
     console.log("Supabase Admin client created");
 
-    // Insert data into the log table using Admin client (bypasses RLS)
-    const { error } = await supabaseAdmin.from("user_login_log").insert({
-      user_id: user_id,       // Use the ID received from the client (MSAL localAccountId)
+    // --- Find Supabase User ID by Email ---
+    console.log(`Looking up user by email: ${user_email}`);
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', user_email)
+      .single(); // Expect only one user per email
+
+    if (userError || !userData) {
+      console.error("Error finding user by email:", userError);
+      const errorMessage = userData ? "User not found." : userError?.message || "Database query error";
+      return new Response(
+        JSON.stringify({ error: `Failed to find user: ${errorMessage}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 } // Use 404 if user not found
+      );
+    }
+    
+    const supabaseUserId = userData.id;
+    console.log(`Found Supabase User ID: ${supabaseUserId}`);
+    // --- End Find User ID ---
+
+    // Insert data into the log table using the *found* Supabase User ID
+    const { error: insertError } = await supabaseAdmin.from("user_login_log").insert({
+      user_id: supabaseUserId, // Use the ID found in auth.users
       user_email: user_email,
-      // login_timestamp is handled by default value in the table schema
     });
 
-    if (error) {
-      console.error("Error inserting into user_login_log:", error);
+    if (insertError) {
+      console.error("Error inserting into user_login_log:", insertError);
       return new Response(
-        JSON.stringify({ error: "Database error: " + error.message }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        },
+        JSON.stringify({ error: "Database insert error: " + insertError.message }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
 
-    console.log("Successfully logged user login:", { user_id, user_email });
+    console.log("Successfully logged user login:", { user_id: supabaseUserId, user_email });
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

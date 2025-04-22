@@ -101,18 +101,9 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             const result = event.payload as AuthenticationResult;
             if (result && result.account) {
               instance.setActiveAccount(result.account);
-              // Store the account info in sessionStorage to signal the Supabase listener
-              try {
-                sessionStorage.setItem('pendingMsalLoginAccount', JSON.stringify(result.account));
-                console.log('[MsalAuthProvider] Stored pending MSAL account info in sessionStorage.');
-              } catch (e) {
-                console.error('[MsalAuthProvider] Failed to store pending MSAL account in sessionStorage:', e);
-              }
             }
           } else if (event.eventType === EventType.LOGIN_FAILURE) {
             console.error('Login failure event detected:', event.error);
-            // Clear any pending signal on failure
-            sessionStorage.removeItem('pendingMsalLoginAccount');
           } else if (event.eventType === EventType.HANDLE_REDIRECT_START) {
             console.log('Starting redirect handling...');
           } else if (event.eventType === EventType.HANDLE_REDIRECT_END) {
