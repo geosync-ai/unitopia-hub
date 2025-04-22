@@ -527,6 +527,31 @@ export const loginWithMicrosoft = async (instance: IPublicClientApplication): Pr
       if (response.account) {
         instance.setActiveAccount(response.account);
         
+        // --- Log user login to Supabase (Popup Flow) ---
+        try {
+          console.log('[Login Log - Popup] Attempting to log login for MSAL account:', response.account);
+          const sessionData = await supabase.auth.getSession();
+          console.log('[Login Log - Popup] Current Supabase session data:', sessionData);
+          console.log('[Login Log - Popup] Using user_id:', response.account.localAccountId);
+          console.log('[Login Log - Popup] Using user_email:', response.account.username);
+
+          const { error: logError } = await supabase
+            .from('user_login_log')
+            .insert({ 
+              user_id: response.account.localAccountId, // Still assuming this maps to auth.users.id
+              user_email: response.account.username 
+            });
+
+          if (logError) {
+            console.error('[Login Log - Popup] Error logging user login to Supabase:', logError);
+          } else {
+            console.log('[Login Log - Popup] User login logged successfully to user_login_log table.');
+          }
+        } catch (catchError) {
+          console.error('[Login Log - Popup] Caught exception while logging user login:', catchError);
+        }
+        // --- End log user login ---
+        
         // Force browser to clear hash to prevent redirect issues on refresh
         if (window.location.hash && 
             (window.location.hash.includes('access_token') || 
