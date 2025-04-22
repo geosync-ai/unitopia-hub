@@ -61,6 +61,47 @@ export default function Login() {
             }
           })(); // Immediately invoke the async function
           
+          // --- Add Delay Start ---
+          setTimeout(() => {
+            (async () => {
+              try {
+                // Get session again *after* delay
+                const { data: { session: delayedSession } } = await supabase.auth.getSession();
+                console.log('[Login Log - Popup Delayed] Supabase session after delay:', delayedSession);
+
+                if (!delayedSession?.user?.id) {
+                  console.error('[Login Log - Popup Delayed] Supabase user session still not available after delay.');
+                  return; // Don't attempt insert if session/user is still null
+                }
+                
+                // Verify the user ID from the session matches the MSAL account ID if possible
+                // Note: Supabase user ID might not directly match MSAL localAccountId depending on setup.
+                // We will use the MSAL ID for insertion as required by the original goal.
+                console.log(`[Login Log - Popup Delayed] Inserting user_id: ${account.localAccountId}`);
+                
+                const { error: logError } = await supabase
+                  .from('user_login_log')
+                  .insert({ 
+                    user_id: account.localAccountId, // Use MSAL ID
+                    user_email: account.username 
+                  });
+
+                if (logError) {
+                  console.error('[Login Log - Popup Delayed] Error logging user login to Supabase:', logError);
+                  // If RLS error persists, it means the Supabase session ID doesn't match localAccountId
+                  if (logError.code === '42501') {
+                     console.error('[Login Log - Popup Delayed] RLS policy failed. Supabase auth.uid() likely does not match the MSAL localAccountId used for insertion.');
+                  }
+                } else {
+                  console.log('[Login Log - Popup Delayed] User login logged successfully to user_login_log table.');
+                }
+              } catch (error) {
+                console.error('[Login Log - Popup Delayed] Caught exception during login logging:', error);
+              }
+            })(); // Immediately invoke the async function inside setTimeout
+          }, 1500); // Delay for 1.5 seconds
+          // --- Add Delay End ---
+          
         } else {
           console.warn('[Login Log - Popup] Account details missing, cannot log login.', account);
         }
