@@ -111,52 +111,51 @@ export function useSupabaseData<T extends { id?: string }>(
       logger.info(`[useSupabaseData - fetchData] Fetching ${entityType}...`);
 
       if (entityType === 'assets') {
-        logger.info(`[useSupabaseData - fetchData] Asset fetch requires MSAL token.`);
-        if (accounts[0]) { // Check if user is logged in via MSAL
+        logger.info(`[useSupabaseData - fetchData] Asset fetch requires logged-in user email.`);
+        const account = accounts[0];
+
+        if (account?.username) {
+          const userEmail = account.username;
+          logger.info(`[useSupabaseData - fetchData] Invoking get-my-assets function for email: ${userEmail}`);
           try {
-            const tokenResponse = await instance.acquireTokenSilent({
-              ...loginRequest, // Use scopes defined in your config
-              account: accounts[0]
+            const { data: functionData, error: functionError } = await supabase.functions.invoke('get-my-assets', { 
+              body: { user_email: userEmail }
             });
-            logger.info(`[useSupabaseData - fetchData] MSAL token acquired successfully.`);
-            // Call fetchMethod (assetsService.getAssets) with the token
-            fetchedData = await fetchMethod(tokenResponse.accessToken);
-          } catch (tokenError: any) { // Catch token acquisition error
-            logger.error('[useSupabaseData - fetchData] MSAL acquireTokenSilent error:', tokenError);
-            // Potentially trigger interactive login if silent fails (e.g., consent required)
-            if (tokenError.name === "InteractionRequiredAuthError" || tokenError.name === "BrowserAuthError") {
-              // Consider handling interaction_required errors, maybe by setting an error state
-              fetchError = new Error('Could not get authentication token silently. Interaction required.');
+
+            if (functionError) {
+              logger.error('[useSupabaseData - fetchData] Error invoking get-my-assets function:', functionError);
+              fetchError = new Error(`Failed to fetch assets: ${functionError.message}`);
+              fetchedData = [];
             } else {
-              fetchError = tokenError instanceof Error ? tokenError : new Error('Failed to acquire auth token');
+              logger.info(`[useSupabaseData - fetchData] Successfully fetched assets via function.`);
+              fetchedData = Array.isArray(functionData) ? functionData : [];
             }
+          } catch (invokeErr) {
+            logger.error('[useSupabaseData - fetchData] Exception invoking get-my-assets function:', invokeErr);
+            fetchError = invokeErr instanceof Error ? invokeErr : new Error('Failed to invoke asset fetch function');
+            fetchedData = [];
           }
         } else {
-          logger.warn('[useSupabaseData - fetchData] No MSAL account found for asset fetch.');
-          fetchError = new Error('User not authenticated via MSAL.');
-          // Optionally call fetchMethod without token to let Edge Function handle anon (if designed to)
-          // fetchedData = await fetchMethod(); 
+          logger.warn('[useSupabaseData - fetchData] No MSAL account/username found for asset fetch.');
+          fetchError = new Error('User not authenticated or email missing.');
+          fetchedData = [];
         }
       } else {
-        // For other entity types, call fetchMethod without token
+        logger.info(`[useSupabaseData - fetchData] Fetching non-asset entity type: ${entityType}`);
         fetchedData = await fetchMethod();
       }
 
-      // If fetch was successful (or not attempted due to token error handled above)
-      if (!fetchError) {
-         setData(fetchedData as T[]);
-      }
+      setData(fetchedData as T[]);
 
     } catch (err) {
-      // Catch errors from the fetchMethod call itself
-      logger.error(`[useSupabaseData - fetchData] Error during ${entityType} fetch:`, err);
+      logger.error(`[useSupabaseData - fetchData] Error during ${entityType} fetch process:`, err);
       fetchError = err instanceof Error ? err : new Error(String(err));
-      setData([]); // Clear data on error
+      setData([]);
     } finally {
-      setError(fetchError); // Set final error state
+      setError(fetchError);
       setLoading(false);
     }
-  }, [entityType, getFetchMethod, instance, accounts]);
+  }, [entityType, getFetchMethod, accounts]);
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {

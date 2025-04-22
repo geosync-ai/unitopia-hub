@@ -51,25 +51,24 @@ const AssetManagement = () => {
   const [filterText, setFilterText] = useState('');
 
   // --- Derive user name for filtering directly from MSAL account --- 
-  // Ensure 'account.name' matches the value in your 'assigned_to' column ('John Sarwom')
+  // This is now mainly used for display or potentially for the 'add' action
   const userNameForFiltering = useMemo(() => account?.name || null, [account]);
 
-  // Log the user object and the assets array before filtering
+  // Log the user object and the raw assets array from the hook
   console.log('[AssetManagement] MSAL Account object:', account);
-  console.log('[AssetManagement] User Name for filtering:', userNameForFiltering); 
-  console.log('[AssetManagement] Assets array before filtering:', assets);
+  console.log('[AssetManagement] User Name (for display/add):', userNameForFiltering); 
+  console.log('[AssetManagement] Assets array (already filtered by hook):', assets);
 
-  // --- Filtering Logic ---
-  const myAssets = useMemo(() => {
-    const isAdmin = account?.username === 'admin@scpng.gov.pg';
-    
-    return assets
-      // Filter by assigned_to ONLY if the user is NOT the admin
-      .filter(asset => isAdmin || (userNameForFiltering && asset.assigned_to === userNameForFiltering))
-      .filter(asset => {
+  // --- Filtering Logic (Client-side) --- 
+  // Apply *additional* filtering based on the search input text
+  const filteredAssets = useMemo(() => {
+    // Data is already filtered by assigned_to_email via the Edge Function
+    // Now, apply the text filter on the pre-filtered data
+    return assets.filter(asset => {
         const searchTerm = filterText.toLowerCase();
-        if (!searchTerm) return true;
+        if (!searchTerm) return true; // No text filter applied
         
+        // Check various fields for the search term
         return (
           asset.name?.toLowerCase().includes(searchTerm) ||
           asset.type?.toLowerCase().includes(searchTerm) ||
@@ -77,13 +76,15 @@ const AssetManagement = () => {
           asset.vendor?.toLowerCase().includes(searchTerm) ||
           asset.unit?.toLowerCase().includes(searchTerm) ||
           asset.division?.toLowerCase().includes(searchTerm) ||
-          asset.assigned_to?.toLowerCase().includes(searchTerm)
+          asset.assigned_to?.toLowerCase().includes(searchTerm) || // Keep filtering by assigned_to locally if needed
+          asset.serial_number?.toLowerCase().includes(searchTerm) || // Example: Add serial number search
+          asset.notes?.toLowerCase().includes(searchTerm) // Example: Add notes search
         );
-      })
-  }, [assets, userNameForFiltering, filterText, account]);
+      });
+  }, [assets, filterText]); // Depend only on assets (from hook) and filterText
 
-  console.log(`[AssetManagement] Filter text: "${filterText}"`);
-  console.log('[AssetManagement] Assets array AFTER filtering:', myAssets);
+  console.log(`[AssetManagement] Text Filter: "${filterText}"`);
+  console.log('[AssetManagement] Assets array AFTER text filtering:', filteredAssets);
   // --- End Filtering Logic ---
 
   // --- Email for filtering (derive from MSAL account) ---
@@ -315,18 +316,16 @@ const AssetManagement = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {myAssets.length === 0 ? (
+                      {filteredAssets.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={23} className="h-24 text-center text-muted-foreground">
                             {filterText 
                               ? `No assets found matching "${filterText}".` 
-                              : userNameForFiltering 
-                                ? `No assets found assigned to ${userNameForFiltering}.` 
-                                : "Could not determine user for filtering."}
+                              : "No assets assigned to you were found."}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        myAssets.map((asset) => (
+                        filteredAssets.map((asset) => (
                           <TableRow key={asset.id}>
                             <TableCell className="sticky left-0 bg-background z-10">
                               <Avatar className="h-10 w-10">
@@ -409,16 +408,14 @@ const AssetManagement = () => {
 
               {viewMode === 'card' && (
                 <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {myAssets.length === 0 ? (
+                  {filteredAssets.length === 0 ? (
                     <p className="col-span-full text-center text-muted-foreground py-10">
-                      {filterText 
-                        ? `No assets found matching "${filterText}".` 
-                        : userNameForFiltering
-                          ? `No assets found assigned to ${userNameForFiltering}.`
-                          : "Could not determine user for filtering."}
+                       {filterText 
+                         ? `No assets found matching "${filterText}".` 
+                         : "No assets assigned to you were found."} 
                     </p>
                   ) : (
-                    myAssets.map((asset) => (
+                    filteredAssets.map((asset) => (
                       <AssetCard 
                         key={asset.id} 
                         asset={asset} 
