@@ -38,29 +38,6 @@ export default function Login() {
         if (account && account.localAccountId && account.username) {
           console.log('[Login Log - Popup] Attempting to log login for MSAL account:', account);
           
-          // Use async/await for clarity
-          (async () => {
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              console.log('[Login Log - Popup] Current Supabase session data:', session);
-              
-              const { error: logError } = await supabase
-                .from('user_login_log')
-                .insert({ 
-                  user_id: account.localAccountId, // Assuming this maps to auth.users.id
-                  user_email: account.username 
-                });
-
-              if (logError) {
-                console.error('[Login Log - Popup] Error logging user login to Supabase:', logError);
-              } else {
-                console.log('[Login Log - Popup] User login logged successfully to user_login_log table.');
-              }
-            } catch (error) {
-              console.error('[Login Log - Popup] Caught exception during login logging:', error);
-            }
-          })(); // Immediately invoke the async function
-          
           // --- Add Delay Start ---
           setTimeout(() => {
             (async () => {
