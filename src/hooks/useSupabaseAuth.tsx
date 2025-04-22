@@ -9,6 +9,8 @@ import {
   getCurrentSession,
   setupAuthStateListener
 } from '@/integrations/supabase/supabaseAuth';
+import { AccountInfo } from '@azure/msal-browser';
+import { supabase } from '@/lib/supabaseClient';
 
 // Auth context type
 interface SupabaseAuthContextType {
@@ -51,9 +53,44 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         
         // Listen for auth state changes
         const subscription = setupAuthStateListener((event, session) => {
+          console.log('[SupabaseAuthProvider] Auth event:', event);
           setSession(session);
           setUser(session?.user || null);
           
+          // --- Check for Pending MSAL Login ---
+          if (event === 'SIGNED_IN' && session?.user) {
+            try {
+              const pendingAccountStr = sessionStorage.getItem('pendingMsalLoginAccount');
+              if (pendingAccountStr) {
+                console.log('[SupabaseAuthProvider] Found pending MSAL login signal.');
+                sessionStorage.removeItem('pendingMsalLoginAccount'); // Clear signal immediately
+                
+                const msalAccount: AccountInfo = JSON.parse(pendingAccountStr);
+                
+                if (msalAccount?.username) {
+                  console.log(`[SupabaseAuthProvider] Invoking Edge Function for user ${session.user.id} with MSAL email ${msalAccount.username}`);
+                  supabase.functions.invoke('log-msal-login', { 
+                    body: { user_id: session.user.id, user_email: msalAccount.username }
+                  }).then(({ data, error: functionError }) => {
+                    if (functionError) {
+                      console.error('[SupabaseAuthProvider] Error invoking log-msal-login function:', functionError);
+                    } else {
+                      console.log('[SupabaseAuthProvider] Successfully invoked log-msal-login function.', data);
+                    }
+                  }).catch(invokeError => {
+                    console.error('[SupabaseAuthProvider] Caught exception invoking function:', invokeError);
+                  });
+                } else {
+                  console.warn('[SupabaseAuthProvider] Pending MSAL info was missing username.');
+                }
+              }
+            } catch (e) {
+              console.error('[SupabaseAuthProvider] Error processing pending MSAL login signal:', e);
+              sessionStorage.removeItem('pendingMsalLoginAccount'); // Ensure cleanup on error
+            }
+          }
+          // --- End Check ---
+
           // Handle different auth events
           switch (event) {
             case 'SIGNED_IN':
@@ -76,7 +113,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         
         return () => {
           // Clean up subscription
-          subscription.unsubscribe();
+          subscription?.unsubscribe();
         };
       } catch (err) {
         if (err instanceof Error) {
