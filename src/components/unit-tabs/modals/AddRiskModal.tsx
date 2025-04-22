@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { Risk } from '@/types';
+import { Risk, StaffMember, Project } from '@/types';
 import { ChecklistItem } from '@/components/ChecklistSection';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
@@ -33,7 +33,9 @@ import { risksService } from '@/integrations/supabase/unitService';
 interface AddRiskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (risk: Risk) => void;
+  onAddRisk: (risk: Omit<Risk, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  staffMembers: StaffMember[];
+  projects: Project[];
 }
 
 // Internal type for the form state with string dates
@@ -51,6 +53,7 @@ interface RiskFormState {
   createdAt: string;
   updatedAt: string;
   checklist: ChecklistItem[];
+  project_name?: string;
 }
 
 const defaultFormState: RiskFormState = {
@@ -66,17 +69,21 @@ const defaultFormState: RiskFormState = {
   mitigationPlan: '',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  checklist: []
+  checklist: [],
+  project_name: '',
 };
 
-const AddRiskModal = ({
+const AddRiskModal: React.FC<AddRiskModalProps> = ({
   open,
   onOpenChange,
-  onAdd
-}: AddRiskModalProps) => {
+  onAddRisk,
+  staffMembers,
+  projects
+}) => {
   const [formState, setFormState] = useState<RiskFormState>({ ...defaultFormState });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const loading = false;
   
   // Calculate checklist completion percentage
   const calculateCompletionPercentage = (): number => {
@@ -208,20 +215,12 @@ const AddRiskModal = ({
       : 'low';
       
     // Create a well-formed risk object with explicit type casting to ensure database compatibility
-    const riskToAdd: Risk = {
-      id: formState.id || crypto.randomUUID(),
-      title: formState.title.trim(),
-      description: formState.description || '',
-      owner: formState.owner.trim(),
-      category: formState.category.trim(),
-      status: formState.status as Risk['status'],
+    const riskToAdd: Omit<Risk, 'id' | 'createdAt' | 'updatedAt'> = {
+      ...formState,
+      identificationDate: new Date(formState.identificationDate),
       impact: formState.impact as Risk['impact'],
       likelihood: safelikelihood as 'low' | 'medium' | 'high' | 'very-high',
-      identificationDate: new Date(formState.identificationDate),
-      mitigationPlan: formState.mitigationPlan || '',
-      createdAt: new Date(formState.createdAt),
-      updatedAt: new Date(formState.updatedAt),
-      checklist: formState.checklist || []
+      project_id: projects.find(p => p.name === formState.project_name)?.id || null,
     };
     
     // Log the risk object for debugging in-depth
@@ -235,7 +234,7 @@ const AddRiskModal = ({
     );
     
     try {
-      onAdd(riskToAdd);
+      onAddRisk(riskToAdd);
       
       toast({
         title: "Success",
@@ -318,16 +317,31 @@ const AddRiskModal = ({
             </div>
 
             {/* Owner */}
-            <div className="grid gap-1.5">
-              <Label htmlFor="risk-owner">Owner <span className="text-red-500">*</span></Label>
-              <Input 
-                id="risk-owner"
-                name="owner"
-                placeholder="Responsible person or team" 
-                value={formState.owner} 
-                onChange={handleChange}
-              />
-              {errors.owner && <p className="text-red-500 text-sm">{errors.owner}</p>}
+            <div className="grid gap-2">
+              <Label htmlFor="risk-owner">Owner <span className="text-destructive">*</span></Label>
+              <Select 
+                name="owner" 
+                value={formState.owner}
+                onValueChange={(value) => handleSelectChange('owner', value)}
+              >
+                <SelectTrigger id="risk-owner" className={loading ? "opacity-50" : ""}>
+                  <SelectValue placeholder="Select owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="_loading" disabled>Loading staff...</SelectItem>
+                  ) : staffMembers && staffMembers.length > 0 ? (
+                    staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.name}> 
+                        {staff.name} ({staff.job_title})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.owner && <p className="text-sm text-destructive mt-1">{errors.owner}</p>}
             </div>
 
             {/* Category */}
@@ -454,6 +468,32 @@ const AddRiskModal = ({
                 onChange={handleChange}
                 rows={3}
               />
+            </div>
+
+            {/* Related Project */}
+            <div className="grid gap-2">
+              <Label htmlFor="risk-project">Related Project (Optional)</Label>
+              <Select 
+                name="project_name"
+                value={formState.project_name || ''}
+                onValueChange={(value) => handleSelectChange('project_name', value)}
+              >
+                <SelectTrigger id="risk-project">
+                  <SelectValue placeholder="Select related project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {projects && projects.length > 0 ? (
+                    projects.map((project) => (
+                      <SelectItem key={project.id} value={project.name}> 
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_projects" disabled>No projects available</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div> {/* End grid layout */}
 

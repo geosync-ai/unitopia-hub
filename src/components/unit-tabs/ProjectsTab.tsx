@@ -190,6 +190,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             addProject(project);
             setShowAddModal(false);
           }}
+          staffMembers={staffMembers}
           // objectives={objectives} // Pass if needed
         />
       )}
@@ -203,6 +204,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           onSave={(updatedProject) => {
             editProject(selectedProject.id, updatedProject);
           }}
+          staffMembers={staffMembers}
           // objectives={objectives} // Pass if needed
         />
       )}

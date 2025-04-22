@@ -227,6 +227,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
           open={showAddModal}
           onOpenChange={setShowAddModal}
           onSubmit={addTask}
+          staffMembers={staffMembers}
         />
       )}
       
@@ -236,6 +237,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks, addTask, editTask, de
           onOpenChange={setShowEditModal}
           task={selectedTask}
           onSave={(updatedTask) => editTask(selectedTask.id, updatedTask)}
+          staffMembers={staffMembers}
         />
       )}
       

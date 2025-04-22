@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -13,25 +13,32 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ChecklistSection from '@/components/ChecklistSection';
-import { Task } from '@/types';
+import { Task, StaffMember } from '@/types';
 import { toast } from "@/components/ui/use-toast";
-import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 
 interface EditTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task;
   onSave: (updatedTask: Task) => void;
+  staffMembers: StaffMember[];
 }
 
 const EditTaskModal: React.FC<EditTaskModalProps> = ({
   open,
   onOpenChange,
   task,
-  onSave
+  onSave,
+  staffMembers
 }) => {
-  const { staffMembers, loading, currentUserDepartment } = useStaffByDepartment();
+  const loading = false;
+  const currentUserDepartment = staffMembers?.[0]?.department || 'Unknown';
+  
   const [editedTask, setEditedTask] = useState<Task>({...task});
+
+  useEffect(() => {
+    setEditedTask({...task});
+  }, [task]);
 
   const handleUpdateTask = () => {
     // Basic validation
@@ -113,7 +120,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                     <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.email}>
+                      <SelectItem key={staff.id} value={staff.name}>
                         {staff.name} ({staff.job_title})
                       </SelectItem>
                     ))

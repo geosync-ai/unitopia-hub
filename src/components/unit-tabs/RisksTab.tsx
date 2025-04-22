@@ -248,7 +248,9 @@ export const RisksTab: React.FC<RisksTabProps> = ({
         <AddRiskModal
           open={showAddModal}
           onOpenChange={setShowAddModal}
-          onAdd={handleAddRisk}
+          onAddRisk={handleAddRisk}
+          staffMembers={staffMembers}
+          projects={projects}
         />
       )}
       
@@ -257,8 +259,9 @@ export const RisksTab: React.FC<RisksTabProps> = ({
           open={showEditModal}
           onOpenChange={setShowEditModal}
           risk={selectedRisk}
+          onSave={(updatedRisk) => editRisk(selectedRisk.id, updatedRisk)}
+          staffMembers={staffMembers}
           projects={projects}
-          onEdit={(updatedRisk) => editRisk(selectedRisk.id, updatedRisk)}
         />
       )}
       

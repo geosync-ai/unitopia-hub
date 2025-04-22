@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { Risk } from '@/types';
+import { Risk, Project } from '@/types';
+import { StaffMember } from '@/types/staff';
 import { ChecklistItem } from '@/components/ChecklistSection';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
@@ -32,9 +33,10 @@ interface EditRiskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   risk: Risk | null;
-  projects?: { id: string, name: string }[];
+  projects?: Project[];
   onEdit?: (updatedRisk: Risk) => void;
-  onSave?: (updatedRisk: Risk) => void;
+  onSave?: (updatedRisk: Partial<Risk>) => void;
+  staffMembers: StaffMember[];
 }
 
 // Internal type for the form state with string dates
@@ -52,6 +54,7 @@ interface RiskFormState {
   createdAt: string;
   updatedAt: string;
   checklist: ChecklistItem[];
+  project_name?: string;
 }
 
 const emptyFormState: RiskFormState = {
@@ -67,7 +70,8 @@ const emptyFormState: RiskFormState = {
   mitigationPlan: '',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  checklist: []
+  checklist: [],
+  project_name: undefined
 };
 
 const EditRiskModal: React.FC<EditRiskModalProps> = ({
@@ -76,11 +80,13 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
   risk,
   projects = [],
   onEdit,
-  onSave
+  onSave,
+  staffMembers
 }) => {
   const [formState, setFormState] = useState<RiskFormState>({ ...emptyFormState });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const loading = false;
   
   // Calculate checklist completion percentage
   const calculateCompletionPercentage = (): number => {
@@ -102,6 +108,9 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
         return new Date().toISOString(); // Fallback
       };
 
+      // Find the project name from the projects list based on risk.project_id
+      const associatedProjectName = projects.find(p => p.id === risk.project_id)?.name;
+
       setFormState({
         id: risk.id || '',
         title: risk.title || '',
@@ -115,10 +124,11 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
         mitigationPlan: risk.mitigationPlan || '',
         createdAt: getDateString(risk.createdAt),
         updatedAt: new Date().toISOString(), // Keep this as current time for update
-        checklist: risk.checklist || []
+        checklist: risk.checklist || [],
+        project_name: associatedProjectName || undefined
       });
     }
-  }, [risk]);
+  }, [risk, projects]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -225,44 +235,38 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
   const handleSave = () => {
     if (!validate()) return;
     
-    // Ensure likelihood is one of the allowed values
-    const validLikelihoods = ['low', 'medium', 'high', 'very-high'];
-    const safelikelihood = validLikelihoods.includes(formState.likelihood) 
-      ? formState.likelihood 
-      : 'low';
-      
-    // Create a well-formed risk object with explicit type casting to ensure database compatibility
-    const updatedRisk: Risk = {
+    // Convert RiskFormState back to Partial<Risk> for saving
+    const riskToSave: Partial<Risk> = {
+      // Only include fields that are part of the Risk type
       id: formState.id,
-      title: formState.title.trim(),
-      description: formState.description || '',
-      owner: formState.owner.trim(),
-      category: formState.category.trim(),
-      status: formState.status as Risk['status'],
-      impact: formState.impact as Risk['impact'],
-      likelihood: safelikelihood as Risk['likelihood'],
+      title: formState.title,
+      description: formState.description,
+      owner: formState.owner,
+      category: formState.category,
+      status: formState.status,
+      impact: formState.impact,
+      likelihood: formState.likelihood,
       identificationDate: new Date(formState.identificationDate),
-      mitigationPlan: formState.mitigationPlan || '',
-      createdAt: new Date(formState.createdAt),
-      updatedAt: new Date(formState.updatedAt),
-      checklist: formState.checklist || []
+      mitigationPlan: formState.mitigationPlan,
+      // Don't include createdAt, let the DB handle it or keep original
+      updatedAt: new Date(), // Set updatedAt to now
+      checklist: formState.checklist,
+      // Map project name back to project_id for saving
+      project_id: projects.find(p => p.name === formState.project_name)?.id || null, 
     };
     
-    // Log the risk object for debugging
-    console.log('Risk being updated:', JSON.stringify(updatedRisk));
-    
-    // Call the appropriate callback
-    if (onEdit) {
-      onEdit(updatedRisk);
-    } else if (onSave) {
-      onSave(updatedRisk);
+    // Use onSave callback 
+    if (onSave) {
+      onSave(riskToSave);
+    } else if (onEdit) {
+      // If using onEdit, ensure it can handle Partial<Risk> or cast carefully
+      onEdit(riskToSave as Risk);
     }
     
     toast({
-      title: "Success",
-      description: "Risk updated successfully",
+      title: "Risk Updated",
+      description: "The risk details have been successfully updated.",
     });
-    
     onOpenChange(false);
   };
 
@@ -321,15 +325,30 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
               />
             </div>
             
-            <div>
-              <Label htmlFor="owner" className="mb-2">Owner <span className="text-destructive">*</span></Label>
-              <Input
-                id="owner"
-                name="owner"
-                value={formState.owner || ''}
-                onChange={handleChange}
-                className={errors.owner ? 'border-destructive' : ''}
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="risk-owner">Owner <span className="text-destructive">*</span></Label>
+              <Select 
+                name="owner" 
+                value={formState.owner}
+                onValueChange={(value) => handleSelectChange('owner', value)}
+              >
+                <SelectTrigger id="risk-owner" className={loading ? "opacity-50" : ""}>
+                  <SelectValue placeholder="Select owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loading ? (
+                    <SelectItem value="_loading" disabled>Loading staff...</SelectItem>
+                  ) : staffMembers && staffMembers.length > 0 ? (
+                    staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.name}> 
+                        {staff.name} ({staff.job_title})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
               {errors.owner && <p className="text-sm text-destructive mt-1">{errors.owner}</p>}
             </div>
             
@@ -505,12 +524,37 @@ const EditRiskModal: React.FC<EditRiskModalProps> = ({
                 )}
               </div>
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="risk-project">Related Project (Optional)</Label>
+              <Select 
+                name="project_name"
+                value={formState.project_name || ''} 
+                onValueChange={(value) => handleSelectChange('project_name', value)}
+              >
+                <SelectTrigger id="risk-project">
+                  <SelectValue placeholder="Select related project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {projects && projects.length > 0 ? (
+                    projects.map((project) => (
+                      <SelectItem key={project.id} value={project.name}> 
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="_no_projects" disabled>No projects available</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="submit" onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave}>Save Changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

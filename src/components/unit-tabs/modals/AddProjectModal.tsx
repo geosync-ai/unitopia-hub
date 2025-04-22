@@ -13,10 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ChecklistSection from '@/components/ChecklistSection';
-import { Project } from '@/types';
+import { Project, StaffMember } from '@/types';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
-import { useDivisionStaff } from '@/hooks/useDivisionStaff';
 
 interface AddProjectModalProps {
   open: boolean;
@@ -25,6 +24,7 @@ interface AddProjectModalProps {
   project?: Partial<Project>;
   onProjectChange?: (project: Partial<Project>) => void;
   onSave?: () => void;
+  staffMembers: StaffMember[];
 }
 
 const AddProjectModal: React.FC<AddProjectModalProps> = ({
@@ -33,9 +33,11 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
   onAddProject,
   project,
   onProjectChange,
-  onSave
+  onSave,
+  staffMembers
 }) => {
-  const { staffMembers, loading } = useDivisionStaff();
+  const loading = false;
+  
   const defaultProject: Partial<Project> = {
     id: `project-${Date.now()}`,
     name: '',
@@ -138,8 +140,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
                     <SelectItem value="_loading">Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.email}>
-                        {staff.name} ({staff.jobTitle})
+                      <SelectItem key={staff.id} value={staff.name}>
+                        {staff.name} ({staff.job_title})
                       </SelectItem>
                     ))
                   ) : (

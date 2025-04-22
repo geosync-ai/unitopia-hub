@@ -15,20 +15,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ChecklistSection from '@/components/ChecklistSection';
 import { Task } from '@/types';
 import { toast } from "@/components/ui/use-toast";
-import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
+import { StaffMember } from '@/types/staff';
 
 interface AddTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (task: Omit<Task, 'id'>) => void;
+  staffMembers: StaffMember[];
 }
 
 const AddTaskModal: React.FC<AddTaskModalProps> = ({
   open,
   onOpenChange,
-  onSubmit
+  onSubmit,
+  staffMembers
 }) => {
-  const { staffMembers, loading, currentUserDepartment } = useStaffByDepartment();
+  const loading = false;
+  const currentUserDepartment = staffMembers?.[0]?.department || 'Unknown';
   
   const [newTask, setNewTask] = useState<Omit<Task, 'id'>>({
     title: '',
@@ -47,19 +50,25 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       toast({
         title: "Error",
         description: "Task title is required",
+        variant: "destructive"
       });
       return;
     }
+    if (!newTask.assignee) {
+        toast({
+            title: "Error",
+            description: "Assignee is required",
+            variant: "destructive"
+        });
+        return;
+    }
     
-    // Create a copy with properly formatted dates
     const taskToSubmit = {
       ...newTask,
-      // Ensure dueDate is a string
       dueDate: typeof newTask.dueDate === 'string' 
         ? newTask.dueDate 
         : (newTask.dueDate as Date)?.toISOString?.()?.split('T')[0] || null,
       
-      // Ensure startDate is a proper date object or null
       startDate: newTask.startDate instanceof Date 
         ? newTask.startDate 
         : typeof newTask.startDate === 'string' && newTask.startDate 
@@ -67,10 +76,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
           : null
     };
     
-    // Add the task - keep the checklist property now that we're adding it to the database
     onSubmit(taskToSubmit);
     
-    // Reset form and close modal
     setNewTask({
       title: '',
       description: '',
@@ -127,7 +134,6 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 <Select 
                   value={newTask.assignee}
                   onValueChange={(value) => {
-                    const selectedStaff = staffMembers.find(staff => staff.email === value);
                     setNewTask({...newTask, assignee: value});
                   }}
                 >
@@ -139,7 +145,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                       <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
                     ) : staffMembers && staffMembers.length > 0 ? (
                       staffMembers.map((staff) => (
-                        <SelectItem key={staff.id} value={staff.email}>
+                        <SelectItem key={staff.id} value={staff.name}>
                           {staff.name} ({staff.job_title})
                         </SelectItem>
                       ))

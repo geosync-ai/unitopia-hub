@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -14,9 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ChecklistSection from '@/components/ChecklistSection';
 import { Project } from '@/types';
+import { StaffMember } from '@/types/staff';
 import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
-import { useDivisionStaff } from '@/hooks/useDivisionStaff';
 
 interface EditProjectModalProps {
   open: boolean;
@@ -24,6 +24,7 @@ interface EditProjectModalProps {
   project: Project | null;
   onProjectChange: (project: Project) => void;
   onSave?: (project: Project) => void;
+  staffMembers: StaffMember[];
 }
 
 const EditProjectModal: React.FC<EditProjectModalProps> = ({
@@ -31,17 +32,23 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
   onOpenChange,
   project,
   onProjectChange,
-  onSave
+  onSave,
+  staffMembers
 }) => {
-  const { staffMembers, loading: staffLoading } = useDivisionStaff();
-  
-  // Don't render anything if project is null
-  if (!project) {
+  const staffLoading = false;
+
+  const [editedProject, setEditedProject] = useState<Project | null>(project);
+
+  useEffect(() => {
+    setEditedProject(project);
+  }, [project]);
+
+  if (!editedProject) {
     return null;
   }
   
   const handleSave = () => {
-    if (!project.name) {
+    if (!editedProject.name) {
       toast({
         title: "Error",
         description: "Project name is required",
@@ -49,7 +56,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
       return;
     }
 
-    if (!project.manager) {
+    if (!editedProject.manager) {
       toast({
         title: "Error",
         description: "Project manager is required",
@@ -57,9 +64,8 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
       return;
     }
 
-    // Save the project
     if (onSave) {
-      onSave(project);
+      onSave(editedProject);
     }
     
     toast({
@@ -67,15 +73,11 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
       description: "Project updated successfully",
     });
     
-    // Close the modal
     onOpenChange(false);
   };
 
   const handleChange = (field: string, value: any) => {
-    onProjectChange({
-      ...project,
-      [field]: value
-    });
+    setEditedProject(prev => prev ? { ...prev, [field]: value } : null);
   };
 
   return (
@@ -93,7 +95,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
             <Input 
               id="project-title" 
               placeholder="Project Name" 
-              value={project.name || ''} 
+              value={editedProject.name || ''} 
               onChange={(e) => handleChange('name', e.target.value)}
             />
           </div>
@@ -102,7 +104,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
             <Textarea 
               id="project-description" 
               placeholder="Project Description" 
-              value={project.description || ''} 
+              value={editedProject.description || ''} 
               onChange={(e) => handleChange('description', e.target.value)}
             />
           </div>
@@ -110,12 +112,12 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-manager">Manager <span className="text-destructive">*</span></Label>
               <Select 
-                value={project.manager || ''}
+                value={editedProject.manager || ''}
                 onValueChange={(value) => handleChange('manager', value)}
               >
                 <SelectTrigger id="project-manager" className={staffLoading ? "opacity-50" : ""}>
                   <SelectValue placeholder="Select manager">
-                    {staffMembers.find(staff => staff.email === project.manager)?.name || "Select manager"}
+                    {editedProject.manager || "Select manager"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -123,7 +125,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
                     <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.email}> 
+                      <SelectItem key={staff.id} value={staff.name}> 
                         {staff.name} ({staff.job_title})
                       </SelectItem>
                     ))
@@ -136,7 +138,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-status">Status</Label>
               <Select 
-                value={project.status || 'planned'}
+                value={editedProject.status || 'planned'}
                 onValueChange={(value: 'planned' | 'in-progress' | 'completed' | 'on-hold') => 
                   handleChange('status', value)
                 }
@@ -157,14 +159,14 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-start-date">Start Date</Label>
               <DatePicker 
-                date={project.startDate} 
+                date={editedProject.startDate} 
                 setDate={(date) => handleChange('startDate', date)} 
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-end-date">End Date</Label>
               <DatePicker 
-                date={project.endDate} 
+                date={editedProject.endDate} 
                 setDate={(date) => handleChange('endDate', date)} 
               />
             </div>
@@ -176,7 +178,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 id="project-budget" 
                 placeholder="Total Budget" 
                 type="number"
-                value={project.budget || ''} 
+                value={editedProject.budget || ''} 
                 onChange={(e) => handleChange('budget', e.target.value ? Number(e.target.value) : undefined)}
               />
             </div>
@@ -186,7 +188,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 id="project-budget-spent" 
                 placeholder="Amount Spent" 
                 type="number"
-                value={project.budgetSpent || ''}
+                value={editedProject.budgetSpent || ''}
                 onChange={(e) => handleChange('budgetSpent', e.target.value ? Number(e.target.value) : undefined)}
               />
             </div>
@@ -199,7 +201,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 type="number"
                 min="1"
                 max="100"
-                value={project.progress || 1} 
+                value={editedProject.progress || 1} 
                 onChange={(e) => {
                   const value = parseInt(e.target.value, 10);
                   handleChange('progress', value < 1 ? 1 : value);
@@ -212,7 +214,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
         
         <div className="border-t pt-4 mt-2">
           <ChecklistSection 
-            items={project.checklist || []}
+            items={editedProject.checklist || []}
             onChange={(items) => handleChange('checklist', items)}
           />
         </div>
