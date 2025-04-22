@@ -10,6 +10,7 @@ import {
 } from '@azure/msal-browser';
 import { loginRequest } from './msalConfig';
 import microsoftAuthConfig from '@/config/microsoft-auth';
+import { supabase } from '@/lib/supabaseClient';
 
 // MSAL instance cache
 let msalInstanceRef: IPublicClientApplication | null = null;
@@ -319,6 +320,25 @@ export const handleRedirectResponse = async (
       
       // Set the account as active
       instance.setActiveAccount(response.account);
+
+      // --- Log user login to Supabase ---
+      try {
+        const { error: logError } = await supabase
+          .from('user_login_log')
+          .insert({ 
+            user_id: response.account.localAccountId, // Assuming this maps to auth.users.id
+            user_email: response.account.username 
+          });
+
+        if (logError) {
+          console.error('Error logging user login to Supabase:', logError);
+        } else {
+          console.log('User login logged successfully to user_login_log table.');
+        }
+      } catch (catchError) {
+        console.error('Caught exception while logging user login:', catchError);
+      }
+      // --- End log user login ---
       
       return response;
     } else {
