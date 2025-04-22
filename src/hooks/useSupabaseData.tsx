@@ -159,11 +159,14 @@ export function useSupabaseData<T extends { id?: string }>(
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {
-    if (accounts.length === 0) {
-      logger.error('useSupabaseData - add: No MSAL user logged in');
+    const account = accounts[0]; // Get the current MSAL account
+    const userEmail = account?.username; // Get the email (username)
+
+    if (!userEmail) { // Check if email exists
+      logger.error('useSupabaseData - add: No MSAL user email found');
       toast({
-        title: "Error",
-        description: "You must be logged in to add items",
+        title: "Authentication Error",
+        description: "Could not determine user email. Please log in again.",
         variant: "destructive"
       });
       return null;
@@ -172,8 +175,17 @@ export function useSupabaseData<T extends { id?: string }>(
     try {
       logger.info(`[useSupabaseData - add ${entityType}] Attempting to add item`, item);
       const addMethod = getAddMethod();
-      // Add user info if needed by the service, e.g., item.created_by = user.id
-      const newItem = await addMethod(item);
+
+      // Prepare the data with the assigned email
+      const itemWithEmail = { 
+        ...item, 
+        assigned_to_email: userEmail 
+      };
+      
+      logger.info(`[useSupabaseData - add ${entityType}] Item with email:`, itemWithEmail);
+
+      // Pass the modified item to the specific add method
+      const newItem = await addMethod(itemWithEmail);
       
       if (newItem) {
         setData(prev => [...prev, newItem as unknown as T]);
