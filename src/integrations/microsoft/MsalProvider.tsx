@@ -44,6 +44,8 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
   const [isInitializing, setIsInitializing] = useState(false);
   const [authError, setAuthError] = useState<Error | null>(null);
   const [forceSignIn, setForceSignIn] = useState(false);
+  // Add state to hold account info after MSAL login
+  const [pendingMsalAccount, setPendingMsalAccount] = useState<AccountInfo | null>(null);
   
   // Get setUser from Supabase Auth context
   let setUser: ((user: any | null) => void) | undefined = undefined;
@@ -95,10 +97,13 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         // Register event callbacks
         instance.addEventCallback((event: EventMessage) => {
           if (event.eventType === EventType.LOGIN_SUCCESS) {
-            console.log('Login success event detected');
+            console.log('[MsalAuthProvider] Login success event detected');
             const result = event.payload as AuthenticationResult;
             if (result && result.account) {
               instance.setActiveAccount(result.account);
+              // Store the account info to be used by the Supabase listener
+              console.log('[MsalAuthProvider] Storing pending MSAL account info.');
+              setPendingMsalAccount(result.account);
             }
           } else if (event.eventType === EventType.LOGIN_FAILURE) {
             console.error('Login failure event detected:', event.error);
@@ -392,7 +397,59 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     if (!isInitialized && !isInitializing) {
       initializeMsal();
     }
-  }, [isInitialized, isInitializing, setUser]);
+
+    // --- Add Supabase Auth Listener Here ---
+    if (isInitialized && msalInstance) { // Only run when MSAL is ready
+      console.log('[MsalAuthProvider] Setting up Supabase auth listener.');
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[MsalAuthProvider] Supabase auth state changed:', event);
+
+        // Check if Supabase signed in AND we have pending MSAL info
+        if (event === 'SIGNED_IN' && session?.user && pendingMsalAccount) {
+          console.log(`[MsalAuthProvider] Supabase SIGNED_IN event detected for user ${session.user.id} while pending MSAL account exists.`);
+          
+          const accountToLog = pendingMsalAccount; // Capture state before clearing
+          setPendingMsalAccount(null); // Clear the pending state immediately
+
+          if (accountToLog.username) { // Check needed fields
+            console.log(`[MsalAuthProvider] Invoking Edge Function with Supabase User ID: ${session.user.id} and MSAL email: ${accountToLog.username}`);
+            try {
+              const { data, error: functionError } = await supabase.functions.invoke(
+                'log-msal-login',
+                {
+                  body: {
+                    user_id: session.user.id, // <<< Use Supabase User ID
+                    user_email: accountToLog.username // Use stored MSAL email
+                  }
+                }
+              );
+
+              if (functionError) {
+                console.error('[MsalAuthProvider] Error invoking log-msal-login function:', functionError);
+              } else {
+                console.log('[MsalAuthProvider] Successfully invoked log-msal-login function.', data);
+              }
+            } catch (invokeError) {
+              console.error('[MsalAuthProvider] Caught exception invoking function:', invokeError);
+            }
+          } else {
+            console.warn('[MsalAuthProvider] MSAL username missing in stored account info.');
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('[MsalAuthProvider] Supabase SIGNED_OUT event detected.');
+          setPendingMsalAccount(null); // Clear pending state on sign out
+        }
+      });
+
+      // Cleanup listener
+      return () => {
+        console.log('[MsalAuthProvider] Cleaning up Supabase auth listener.');
+        authListener?.subscription?.unsubscribe();
+      };
+    }
+    // --- End Supabase Auth Listener ---
+
+  }, [isInitialized, isInitializing, setUser, msalInstance, pendingMsalAccount]); // Add msalInstance and pendingMsalAccount to dependency array
 
   // Provide context value for consumers
   const contextValue = {

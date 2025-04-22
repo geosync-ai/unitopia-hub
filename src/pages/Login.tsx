@@ -16,9 +16,6 @@ export default function Login() {
   const { instance, inProgress } = useMsal(); // Get MSAL instance and interaction status
   const [msalLoading, setMsalLoading] = useState(false); // Specific loading for MSAL interaction
   const [error, setError] = useState<string | null>(null);
-  // Add state for MSAL completion
-  const [isMsalLoginComplete, setIsMsalLoginComplete] = useState(false);
-  const [msalAccountInfo, setMsalAccountInfo] = useState<AccountInfo | null>(null);
 
   const handleMicrosoftLogin = async () => {
     if (inProgress !== InteractionStatus.None || msalLoading) {
@@ -27,21 +24,14 @@ export default function Login() {
     }
     setMsalLoading(true);
     setError(null);
-    setIsMsalLoginComplete(false); // Reset flag on new attempt
-    setMsalAccountInfo(null);
     logger.info('Initiating MSAL loginPopup');
 
     try {
       const msalResponse = await instance.loginPopup(loginRequest);
       logger.success('MSAL login successful', { username: msalResponse.account?.username });
 
-      // Store account info and set flag instead of navigating or calling function immediately
+      // Navigate immediately after successful MSAL login
       if (msalResponse.account) {
-        setMsalAccountInfo(msalResponse.account);
-        setIsMsalLoginComplete(true); 
-        // Navigation and function call will happen in the useEffect hook below
-
-        // Navigate immediately after successful MSAL login
         toast.success("Signed in successfully via Microsoft");
         navigate('/', { replace: true }); // Navigate to the main app
       } else {
@@ -57,70 +47,11 @@ export default function Login() {
       } else {
         setError(msalError.message || 'An error occurred during Microsoft sign-in.');
       }
-      setIsMsalLoginComplete(false); // Ensure flag is false on error
-      setMsalAccountInfo(null);
     } finally {
       setMsalLoading(false);
     }
   };
 
-  // New useEffect to listen for Supabase auth state changes after MSAL login
-  useEffect(() => {
-    // Only proceed if MSAL login finished successfully
-    if (!isMsalLoginComplete || !msalAccountInfo) {
-      return;
-    }
-
-    console.log('[Login Auth Listener] MSAL login complete, listening for Supabase SIGNED_IN event.');
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Login Auth Listener] Supabase auth state changed:', event, session);
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log('[Login Auth Listener] Supabase SIGNED_IN event detected for user:', session.user.id);
-        
-        // Now we have the Supabase user ID, invoke the function
-        if (msalAccountInfo?.username) { // Use MSAL username, Supabase ID
-          console.log(`[Login Auth Listener] Invoking Edge Function with Supabase User ID: ${session.user.id}`);
-          try {
-            const { data, error: functionError } = await supabase.functions.invoke(
-              'log-msal-login',
-              {
-                body: {
-                  user_id: session.user.id, // <<< Use Supabase User ID
-                  user_email: msalAccountInfo.username // Use MSAL email
-                }
-              }
-            );
-
-            if (functionError) {
-              console.error('[Login Auth Listener] Error invoking log-msal-login function:', functionError);
-            } else {
-              console.log('[Login Auth Listener] Successfully invoked log-msal-login function.', data);
-            }
-          } catch (invokeError) {
-            console.error('[Login Auth Listener] Caught exception invoking function:', invokeError);
-          }
-        } else {
-          console.warn('[Login Auth Listener] MSAL username missing when trying to invoke function.');
-        }
-
-        // Now navigate after Supabase session is confirmed and function is invoked (or attempted)
-        // toast.success("Signed in successfully via Microsoft & Supabase");
-        // navigate('/', { replace: true });
-
-      } else if (event === 'SIGNED_OUT') {
-        console.log('[Login Auth Listener] Supabase SIGNED_OUT event detected.');
-      }
-    });
-
-    // Cleanup listener on component unmount or when MSAL state changes
-    return () => {
-      console.log('[Login Auth Listener] Cleaning up Supabase auth listener.');
-      authListener?.subscription?.unsubscribe(); // Correct way to unsubscribe
-    };
-  }, [isMsalLoginComplete, msalAccountInfo, navigate]); // Dependencies for the effect
-  
   const renderError = () => {
     if (!error) return null;
     return (
