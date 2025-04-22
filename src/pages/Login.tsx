@@ -8,7 +8,7 @@ import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 // MSAL Imports
 import { useMsal } from "@azure/msal-react";
-import { InteractionStatus } from "@azure/msal-browser"; // To check interaction status
+import { InteractionStatus, type AccountInfo } from "@azure/msal-browser"; // To check interaction status, Add AccountInfo type
 import { loginRequest } from '../authConfig'; // Import scopes
 
 export default function Login() {
@@ -40,6 +40,10 @@ export default function Login() {
         setMsalAccountInfo(msalResponse.account);
         setIsMsalLoginComplete(true); 
         // Navigation and function call will happen in the useEffect hook below
+
+        // Navigate immediately after successful MSAL login
+        toast.success("Signed in successfully via Microsoft");
+        navigate('/', { replace: true }); // Navigate to the main app
       } else {
         logger.error('MSAL login succeeded but account info was missing.');
         setError('Authentication failed: Missing account information from Microsoft.');
@@ -102,8 +106,8 @@ export default function Login() {
         }
 
         // Now navigate after Supabase session is confirmed and function is invoked (or attempted)
-        toast.success("Signed in successfully via Microsoft & Supabase");
-        navigate('/', { replace: true }); 
+        // toast.success("Signed in successfully via Microsoft & Supabase");
+        // navigate('/', { replace: true });
 
       } else if (event === 'SIGNED_OUT') {
         console.log('[Login Auth Listener] Supabase SIGNED_OUT event detected.');
@@ -113,7 +117,7 @@ export default function Login() {
     // Cleanup listener on component unmount or when MSAL state changes
     return () => {
       console.log('[Login Auth Listener] Cleaning up Supabase auth listener.');
-      authListener?.unsubscribe();
+      authListener?.subscription?.unsubscribe(); // Correct way to unsubscribe
     };
   }, [isMsalLoginComplete, msalAccountInfo, navigate]); // Dependencies for the effect
   
