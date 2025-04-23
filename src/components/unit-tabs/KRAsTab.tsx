@@ -200,7 +200,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   }, []);
 
   const processedRows = useMemo((): ProcessedRow[] => {
-    // --- TEMPORARY SIMPLIFICATION FOR DEBUGGING ---
+    /* --- TEMPORARY SIMPLIFICATION FOR DEBUGGING ---
     const flatRows: ProcessedRow[] = [];
     console.log("[KRAsTab] Objectives Data for Lookup:", objectivesData); // Log objectives data
     (krasFromProps || []).forEach(kra => {
@@ -249,77 +249,100 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
 
     console.log("[KRAsTab] Simplified Processed rows:", filteredRows); 
     return filteredRows;
-    // --- END TEMPORARY SIMPLIFICATION ---
+     --- END TEMPORARY SIMPLIFICATION --- */
     
-    /* --- ORIGINAL COMPLEX LOGIC (COMMENTED OUT) ---
+    // --- ORIGINAL COMPLEX LOGIC (RESTORED and UPDATED) ---
     const groupedRows: ProcessedRow[] = []; 
+    console.log("[KRAsTab] Using complex grouping logic. Objectives:", objectivesData);
+    console.log("[KRAsTab] KRAs received:", krasFromProps);
 
-    // Group by Objective
-    const objectiveGroups = kras.reduce((acc, kra) => {
-        // ... (original objective grouping logic) ...
+    // Filter KRAs based on department FIRST (if applicable)
+    const departmentFilteredKras = filters.department === 'all' 
+        ? krasFromProps
+        : krasFromProps.filter(kra => kra.unit === filters.department);
+
+    console.log("[KRAsTab] KRAs after department filter:", departmentFilteredKras);
+
+    // Group by Objective ID (using objective_id)
+    const objectiveGroups = departmentFilteredKras.reduce((acc, kra) => {
+        // Use objective_id, default to 'unassigned' if null/undefined
+        const objIdKey = kra.objective_id ? String(kra.objective_id) : 'unassigned'; 
+        if (!acc[objIdKey]) {
+            const objective = objectivesData.find(o => String(o.id) === objIdKey);
+            acc[objIdKey] = {
+                // Use found objective name or default
+                name: objective?.name || (objIdKey !== 'unassigned' ? 'Unknown Objective' : 'Unassigned'), 
+                kras: [],
+            };
+        }
+        acc[objIdKey].kras.push(kra);
+        return acc;
     }, {} as Record<string, { name: string; kras: Kra[] }>);
 
-    Object.values(objectiveGroups).forEach(objectiveGroup => {
-        let objectiveSpan = 0; 
+    console.log("[KRAsTab] Grouped by Objective:", objectiveGroups);
+
+    Object.entries(objectiveGroups).forEach(([objectiveIdKey, objectiveGroup]) => {
         let isFirstRowInObjective = true;
-      
+        let objectiveRows: ProcessedRow[] = []; // Collect rows for this objective group first
+
         // Group by KRA Title within Objective
         const kraTitleGroups = objectiveGroup.kras.reduce((acc, kra) => {
-            // ... (original KRA title grouping logic) ...
+            const titleKey = kra.title || 'Untitled KRA'; // Handle untitled KRAs
+            if (!acc[titleKey]) {
+                acc[titleKey] = [];
+            }
+            acc[titleKey].push(kra);
+            return acc;
         }, {} as Record<string, Kra[]>);
 
-        // Calculate objective span 
-        Object.values(kraTitleGroups).forEach(krasWithSameTitle => {
-            // ... (original objective span calculation) ...
-        });
-
         Object.entries(kraTitleGroups).forEach(([kraTitle, krasWithSameTitle]) => {
-            let kraTitleSpan = 0; 
             let isFirstRowInKraTitleGroup = true;
-        
-            // Calculate KRA title span 
-            krasWithSameTitle.forEach(kra => {
-                // ... (original KRA title span calculation) ...
-            });
+            let kraTitleRows: ProcessedRow[] = []; // Collect rows for this KRA title group
 
             krasWithSameTitle.forEach(kraInstance => {
-                const kraKpis = (kraInstance as any).unitKpis && (kraInstance as any).unitKpis.length > 0 
-                                ? (kraInstance as any).unitKpis 
-                                : [{ id: `no-kpi-${kraInstance.id}`, name: '-' } as Kpi];
+                const kpis = (kraInstance.unitKpis && kraInstance.unitKpis.length > 0)
+                                ? kraInstance.unitKpis
+                                : [{ id: `no-kpi-${kraInstance.id}`, name: '-' } as Kpi]; // Placeholder if no KPIs
 
-                kraKpis.forEach((kpi: Kpi) => {
-                    groupedRows.push({
-                        objectiveId: kraInstance.objectiveId,
-                        objectiveName: objectiveGroup.name,
-                        isFirstRowOfObjective: isFirstRowInObjective,
-                        objectiveRowSpan: objectiveSpan, 
-                        kraTitle: kraTitle,
-                        isFirstRowOfKraTitleGroup: isFirstRowInKraTitleGroup,
-                        kraTitleRowSpan: kraTitleSpan, 
-                        kpi: kpi,
-                        originalKra: kraInstance, 
-                    });
-                    isFirstRowInObjective = false; 
-                    isFirstRowInKraTitleGroup = false;
+                kpis.forEach((kpi: Kpi) => {
+                    // Apply KPI status filter here
+                    const statusMatch = filters.status === 'all' || (kpi.status && kpi.status === filters.status);
+                    if (kpi.name === '-' || statusMatch) { // Always include placeholder or if status matches
+                         kraTitleRows.push({
+                            // Use objective_id from the KRA instance
+                            objectiveId: kraInstance.objective_id, 
+                            objectiveName: objectiveGroup.name,
+                            isFirstRowOfObjective: false, // Will be set later
+                            objectiveRowSpan: 0, // Will be set later
+                            kraTitle: kraTitle,
+                            isFirstRowOfKraTitleGroup: false, // Will be set later
+                            kraTitleRowSpan: 0, // Will be set later
+                            kpi: kpi,
+                            originalKra: kraInstance,
+                        });
+                    }
                 });
             });
+
+            // Set span and first row flag for the KRA title group
+            if (kraTitleRows.length > 0) {
+                kraTitleRows[0].isFirstRowOfKraTitleGroup = true;
+                kraTitleRows[0].kraTitleRowSpan = kraTitleRows.length;
+                objectiveRows.push(...kraTitleRows); // Add rows for this title to the objective group
+            }
         });
+
+        // Set span and first row flag for the Objective group
+        if (objectiveRows.length > 0) {
+            objectiveRows[0].isFirstRowOfObjective = true;
+            objectiveRows[0].objectiveRowSpan = objectiveRows.length;
+            groupedRows.push(...objectiveRows); // Add rows for this objective to the final list
+        }
     });
 
-    // Apply Filters AFTER grouping and PRE-FILTER span calculation
-    const filteredRows = groupedRows.filter(row => {
-      // Filter by Department NAME string now
-      const departmentMatch = filters.department === 'all' || row.originalKra.unit === filters.department;
-      const statusMatch = filters.status === 'all' || (row.kpi.status && row.kpi.status === filters.status);
-      if (row.kpi.name === '-') { 
-          return departmentMatch;
-      }
-      return departmentMatch && statusMatch;
-    });
-    
-    console.log("[KRAsTab] Processed rows (spans calculated before filtering):", filteredRows);
-    return filteredRows; 
-    */
+    console.log("[KRAsTab] Processed rows with grouping:", groupedRows);
+    return groupedRows;
+    // --- END ORIGINAL COMPLEX LOGIC ---
 
   }, [krasFromProps, objectivesData, filters.department, filters.status]); // Update dependencies
 
