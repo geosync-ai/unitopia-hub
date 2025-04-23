@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
 
-console.log("Function 'get-my-objectives' starting up...");
+console.log("Function 'get-my-projects' starting up...");
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -21,7 +21,7 @@ serve(async (req: Request) => {
 
     // Get user email from request body
     const { user_email } = await req.json();
-    console.log(`Received request for objectives for email: ${user_email}`);
+    console.log(`Received request for projects for email: ${user_email}`);
 
     if (!user_email) {
       console.error("User email not provided.");
@@ -31,22 +31,19 @@ serve(async (req: Request) => {
       });
     }
 
-    // Query the unit_objectives table
+    // Query the unit_projects table
     // Assuming 'assigned_to_email' or similar exists and is relevant
-    // IMPORTANT: Objectives might be linked differently (e.g., via division_id or KRA/KPI, or maybe all are visible?)
-    // Adjust this query based on how objectives should be filtered for a specific user.
-    // If all objectives should be returned, remove the .eq() filter.
     const { data, error } = await supabaseClient
-      .from("unit_objectives") // <<< Changed table name
+      .from("unit_projects") // <<< Changed table name
       .select("*") 
-      .eq("assigned_to_email", user_email); // <<< VERY LIKELY NEEDS CHANGING for objectives
+      .eq("assigned_to_email", user_email); // <<< Check if this column is correct for projects
 
     if (error) {
       console.error("Supabase query error:", error);
       throw error;
     }
 
-    console.log(`Successfully fetched ${data?.length ?? 0} objectives for ${user_email}`);
+    console.log(`Successfully fetched ${data?.length ?? 0} projects for ${user_email}`);
 
     // Return the data
     return new Response(JSON.stringify(data || []), {
