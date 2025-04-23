@@ -17,7 +17,8 @@ serve(async (req) => {
 
   try {
     // 1. Extract user email from the request body
-    const { user_email } = await req.json(); 
+    const body = await req.json();
+    const user_email = body?.user_email; 
     console.log("[get-my-kras] Received data:", { user_email });
 
     if (!user_email) {
@@ -54,8 +55,35 @@ serve(async (req) => {
       console.log(`[get-my-kras] Admin user (${user_email}) detected. Fetching all KRAs.`);
       // Admins see all KRAs
     } else {
-      console.log(`[get-my-kras] Non-admin user (${user_email}). Fetching KRAs where assigned_to_email matches.`);
-      query = query.eq("assigned_to_email", user_email);
+      console.log(`[get-my-kras] Non-admin user (${user_email}). Fetching unit...`);
+      // Fetch user's unit from staff_members
+      const { data: staffData, error: staffError } = await supabaseAdmin
+        .from("staff_members")
+        .select("unit")
+        .eq("email", user_email)
+        .single();
+
+      if (staffError) {
+        console.error(`[get-my-kras] Error fetching unit for ${user_email}:`, staffError);
+        return new Response(JSON.stringify([]), {
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+           status: 200,
+         });
+      }
+
+      const userUnit = staffData?.unit;
+
+      if (!userUnit) {
+         console.warn(`[get-my-kras] Unit not found for user ${user_email}. Returning empty KRAs.`);
+         return new Response(JSON.stringify([]), {
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+           status: 200,
+         });
+      }
+
+      console.log(`[get-my-kras] User ${user_email} belongs to unit: ${userUnit}. Filtering KRAs by unit.`);
+      // Filter by unit instead of assigned_to_email
+      query = query.eq("unit", userUnit); 
     }
 
     // 4. Execute the query

@@ -11,6 +11,11 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Initializing get-my-assets function");
 
+const ADMIN_EMAILS = [
+  "admin@scpng.gov.pg",
+  "admin@scpng1.onmicrosoft.com",
+];
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -20,7 +25,8 @@ serve(async (req) => {
 
   try {
     // 1. Extract user email from the request body
-    const { user_email } = await req.json(); 
+    const body = await req.json(); 
+    const user_email = body?.user_email;
     console.log("[get-my-assets] Received data:", { user_email });
 
     if (!user_email) {
@@ -51,26 +57,62 @@ serve(async (req) => {
     });
     console.log("[get-my-assets] Supabase Admin client created");
 
-    // 3. Query the assets table, filtering by assigned_to_email
-    console.log(`[get-my-assets] Fetching assets for email: ${user_email}`);
-    const { data: assets, error: dbError } = await supabaseAdmin
-      .from("assets") // Assuming your table name is 'assets'
-      .select("*")    // Select all columns for now
-      .eq("assigned_to_email", user_email); // Filter by the email
+    // 3. Build the query based on user role
+    let query = supabaseAdmin.from("assets").select("*"); // Target table is 'assets'
 
-    if (dbError) {
-      console.error("[get-my-assets] Database error fetching assets:", dbError);
+    const isAdmin = ADMIN_EMAILS.includes(user_email.toLowerCase());
+
+    if (isAdmin) {
+      console.log(`[get-my-assets] Admin user (${user_email}) detected. Fetching all assets.`);
+      // Admins see all assets
+    } else {
+      console.log(`[get-my-assets] Non-admin user (${user_email}). Fetching unit...`);
+      // Fetch user's unit from staff_members
+      const { data: staffData, error: staffError } = await supabaseAdmin
+        .from("staff_members")
+        .select("unit")
+        .eq("email", user_email)
+        .single();
+
+      if (staffError) {
+        console.error(`[get-my-assets] Error fetching unit for ${user_email}:`, staffError);
+        return new Response(JSON.stringify([]), {
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+           status: 200,
+         });
+      }
+
+      const userUnit = staffData?.unit;
+
+      if (!userUnit) {
+         console.warn(`[get-my-assets] Unit not found for user ${user_email}. Returning empty assets.`);
+         return new Response(JSON.stringify([]), {
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+           status: 200,
+         });
+      }
+
+      console.log(`[get-my-assets] User ${user_email} belongs to unit: ${userUnit}. Filtering assets by unit.`);
+      // Filter by unit 
+      query = query.eq("unit", userUnit); 
+    }
+
+    // 4. Execute the query
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[get-my-assets] Database error fetching assets:", error);
       return new Response(
-        JSON.stringify({ error: "Database query error: " + dbError.message }),
+        JSON.stringify({ error: "Database query error: " + error.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
 
-    console.log(`[get-my-assets] Found ${assets?.length ?? 0} assets for ${user_email}`);
+    console.log(`[get-my-assets] Found ${data?.length ?? 0} assets for ${user_email} (Admin: ${isAdmin}).`);
 
-    // 4. Return the filtered assets
+    // 5. Return the filtered data
     return new Response(
-      JSON.stringify(assets || []), // Return assets or empty array if null/undefined
+      JSON.stringify(data || []), 
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
 
