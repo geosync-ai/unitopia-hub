@@ -225,15 +225,16 @@ const Unit = () => {
     kpiState.refresh?.();
   }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh, kpiState.refresh]);
 
-  // --- Combine KRAs and KPIs ---
+  // --- Combine KRAs and KPIs --- 
+  /* // --- TEMPORARILY COMMENT OUT COMBINING LOGIC ---
   const combinedKras = useMemo(() => {
-    const kras = (kraState.data || []).map(kra => ensureStringId(kra));
-    const kpis = (kpiState.data || []).map(kpi => ensureStringId(kpi));
+    const kras = (kraState.data || []).map(kra => ensureStringId(kra)); 
+    const kpis = (kpiState.data || []).map(kpi => ensureStringId(kpi)); 
 
     const kpisByKraId: Record<string, Kpi[]> = {};
 
     kpis.forEach(kpi => {
-      const kraIdStr = kpi.kra_id?.toString();
+      const kraIdStr = kpi.kra_id?.toString(); 
       if (kraIdStr) {
         if (!kpisByKraId[kraIdStr]) {
           kpisByKraId[kraIdStr] = [];
@@ -247,6 +248,7 @@ const Unit = () => {
       unitKpis: kra.id ? kpisByKraId[kra.id] || [] : []
     }));
   }, [kraState.data, kpiState.data]);
+  */ // --- END TEMPORARY COMMENT OUT ---
 
   // Determine if data loading is complete
   const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading || kpiState.loading;
@@ -301,7 +303,8 @@ const Unit = () => {
               projects={projectState.data}
               tasks={taskState.data}
               risks={riskState.data}
-              kras={combinedKras}
+              // kras={combinedKras} // Pass raw KRAs for debugging
+              kras={kraState.data || []} // Pass raw KRAs for debugging
               objectives={objectivesData}
             />
           </TabsContent>
@@ -323,7 +326,8 @@ const Unit = () => {
           {/* KRAs Tab */}
           <TabsContent value="kras" className="space-y-6">
             <KRAsTab
-              kras={combinedKras}
+              // kras={combinedKras} // Pass raw KRAs for debugging
+              kras={kraState.data || []} // Pass raw KRAs for debugging
               objectivesData={objectivesData}
               onSaveObjective={handleSaveObjective}
               onDeleteObjective={handleDeleteObjective}

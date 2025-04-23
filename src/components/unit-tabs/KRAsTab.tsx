@@ -200,77 +200,99 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   }, []);
 
   const processedRows = useMemo((): ProcessedRow[] => {
+    // --- TEMPORARY SIMPLIFICATION FOR DEBUGGING ---
+    const flatRows: ProcessedRow[] = [];
+    (krasFromProps || []).forEach(kra => {
+        // Basic objective lookup
+        const objective = objectivesData.find(o => o.id === kra.objectiveId);
+        const objectiveName = objective?.name || (kra.objectiveId ? 'Unknown Objective' : 'Unassigned');
+        const kpis = kra.unitKpis && kra.unitKpis.length > 0 ? kra.unitKpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
+
+        kpis.forEach((kpi, index) => {
+            // Simple flat structure - ignoring spans and grouping for now
+            flatRows.push({
+                objectiveId: kra.objectiveId,
+                objectiveName: objectiveName,
+                isFirstRowOfObjective: index === 0, // Simplified: first kpi is first row
+                objectiveRowSpan: 1, // Simplified
+                kraTitle: kra.title,
+                isFirstRowOfKraTitleGroup: index === 0, // Simplified
+                kraTitleRowSpan: 1, // Simplified
+                kpi: kpi,
+                originalKra: kra,
+            });
+        });
+    });
+
+    // Apply filters
+    const filteredRows = flatRows.filter(row => {
+        const departmentMatch = filters.department === 'all' || row.originalKra.unit === filters.department;
+        // Use optional chaining for status as kpi might be a placeholder
+        const statusMatch = filters.status === 'all' || (row.kpi?.status && row.kpi.status === filters.status);
+        // If it's a placeholder KPI row, only check department
+        if (row.kpi.name === '-') { 
+            return departmentMatch;
+        }
+        return departmentMatch && statusMatch;
+    });
+
+    console.log("[KRAsTab] Simplified Processed rows:", filteredRows); 
+    return filteredRows;
+    // --- END TEMPORARY SIMPLIFICATION ---
+    
+    /* --- ORIGINAL COMPLEX LOGIC (COMMENTED OUT) ---
     const groupedRows: ProcessedRow[] = []; 
 
     // Group by Objective
     const objectiveGroups = kras.reduce((acc, kra) => {
-      const objId = kra.objectiveId || 'no-objective';
-      const objectiveNameFromKra = (kra as any).unit_objectives?.title; 
-      const objectiveName = 
-        objectiveNameFromKra || 
-        objectivesData.find(o => o.id === objId)?.name || 
-        (objId === 'no-objective' ? 'Unassigned' : 'Unknown Objective');
-      if (!acc[objId]) {
-        acc[objId] = { name: objectiveName, kras: [] };
-      }
-      acc[objId].kras.push(kra);
-      return acc;
+        // ... (original objective grouping logic) ...
     }, {} as Record<string, { name: string; kras: Kra[] }>);
 
     Object.values(objectiveGroups).forEach(objectiveGroup => {
-      let objectiveSpan = 0; 
-      let isFirstRowInObjective = true;
+        let objectiveSpan = 0; 
+        let isFirstRowInObjective = true;
       
-      // Group by KRA Title within Objective
-      const kraTitleGroups = objectiveGroup.kras.reduce((acc, kra) => {
-         const kraTitle = kra.title || 'Untitled KRA';
-         if (!acc[kraTitle]) {
-             acc[kraTitle] = [];
-         }
-         acc[kraTitle].push(kra);
-         return acc;
-      }, {} as Record<string, Kra[]>);
+        // Group by KRA Title within Objective
+        const kraTitleGroups = objectiveGroup.kras.reduce((acc, kra) => {
+            // ... (original KRA title grouping logic) ...
+        }, {} as Record<string, Kra[]>);
 
-      // Calculate objective span (sum of rows for all KRAs in this objective)
-      Object.values(kraTitleGroups).forEach(krasWithSameTitle => {
-          krasWithSameTitle.forEach(kra => {
-              const kpis = (kra as any).unitKpis || [];
-              objectiveSpan += Math.max(kpis.length, 1); 
-          });
-      });
+        // Calculate objective span 
+        Object.values(kraTitleGroups).forEach(krasWithSameTitle => {
+            // ... (original objective span calculation) ...
+        });
 
-      Object.entries(kraTitleGroups).forEach(([kraTitle, krasWithSameTitle]) => {
-        let kraTitleSpan = 0; 
-        let isFirstRowInKraTitleGroup = true;
+        Object.entries(kraTitleGroups).forEach(([kraTitle, krasWithSameTitle]) => {
+            let kraTitleSpan = 0; 
+            let isFirstRowInKraTitleGroup = true;
         
-        // Calculate KRA title span (sum of rows for KRAs with this title in this objective)
-        krasWithSameTitle.forEach(kra => {
-             const kpis = (kra as any).unitKpis || [];
-             kraTitleSpan += Math.max(kpis.length, 1);
-        });
-
-        krasWithSameTitle.forEach(kraInstance => {
-          const kraKpis = (kraInstance as any).unitKpis && (kraInstance as any).unitKpis.length > 0 
-                         ? (kraInstance as any).unitKpis 
-                         : [{ id: `no-kpi-${kraInstance.id}`, name: '-' } as Kpi];
-
-          kraKpis.forEach((kpi: Kpi) => {
-            groupedRows.push({
-              objectiveId: kraInstance.objectiveId,
-              objectiveName: objectiveGroup.name,
-              isFirstRowOfObjective: isFirstRowInObjective,
-              objectiveRowSpan: objectiveSpan, 
-              kraTitle: kraTitle,
-              isFirstRowOfKraTitleGroup: isFirstRowInKraTitleGroup,
-              kraTitleRowSpan: kraTitleSpan, 
-              kpi: kpi,
-              originalKra: kraInstance, // Keep original KRA for filtering by unitId
+            // Calculate KRA title span 
+            krasWithSameTitle.forEach(kra => {
+                // ... (original KRA title span calculation) ...
             });
-            isFirstRowInObjective = false; 
-            isFirstRowInKraTitleGroup = false;
-          });
+
+            krasWithSameTitle.forEach(kraInstance => {
+                const kraKpis = (kraInstance as any).unitKpis && (kraInstance as any).unitKpis.length > 0 
+                                ? (kraInstance as any).unitKpis 
+                                : [{ id: `no-kpi-${kraInstance.id}`, name: '-' } as Kpi];
+
+                kraKpis.forEach((kpi: Kpi) => {
+                    groupedRows.push({
+                        objectiveId: kraInstance.objectiveId,
+                        objectiveName: objectiveGroup.name,
+                        isFirstRowOfObjective: isFirstRowInObjective,
+                        objectiveRowSpan: objectiveSpan, 
+                        kraTitle: kraTitle,
+                        isFirstRowOfKraTitleGroup: isFirstRowInKraTitleGroup,
+                        kraTitleRowSpan: kraTitleSpan, 
+                        kpi: kpi,
+                        originalKra: kraInstance, 
+                    });
+                    isFirstRowInObjective = false; 
+                    isFirstRowInKraTitleGroup = false;
+                });
+            });
         });
-      });
     });
 
     // Apply Filters AFTER grouping and PRE-FILTER span calculation
@@ -286,8 +308,9 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     
     console.log("[KRAsTab] Processed rows (spans calculated before filtering):", filteredRows);
     return filteredRows; 
+    */
 
-  }, [kras, filters.department, filters.status, objectivesData]);
+  }, [krasFromProps, objectivesData, filters.department, filters.status]); // Update dependencies
 
   const handleOpenAddKraModal = () => {
     setEditingKra(undefined);
