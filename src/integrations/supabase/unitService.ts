@@ -891,13 +891,12 @@ export const kpisService = {
   }
 };
 
-// Define the service object (assuming one exists, otherwise create it)
-export const unitService = { // Or whatever your service object is named
-  
-  // --- ADD THIS FUNCTION ---
-  getAllObjectives: async (): Promise<Objective[]> => {
+// Objective operations
+export const objectivesService = {
+  // Get all Objectives
+  getObjectives: async (): Promise<Objective[]> => {
     const supabase = getSupabaseClient();
-    console.log("[unitService] Fetching all objectives...");
+    console.log("[objectivesService] Fetching all objectives...");
     try {
       const { data, error } = await supabase
         .from(TABLES.OBJECTIVES)
@@ -905,45 +904,115 @@ export const unitService = { // Or whatever your service object is named
         .order('created_at', { ascending: true }); // Optional: order them
 
       if (error) {
-        console.error("[unitService] Error fetching objectives:", error);
+        console.error("[objectivesService] Error fetching objectives:", error);
         throw error;
       }
 
-      console.log(`[unitService] Fetched ${data?.length || 0} objectives.`);
+      console.log(`[objectivesService] Fetched ${data?.length || 0} objectives.`);
 
-      // Map snake_case (DB: title) to camelCase (Frontend: name)
-      return data ? data.map(dbObjective => ({
-        id: dbObjective.id, // uuid
-        name: dbObjective.title, // Map title to name
-        description: dbObjective.description,
-        // Map other fields if needed (e.g., status, unit_name)
-      })) : [];
+      // Convert snake_case to camelCase before returning
+      // NOTE: The original mapping of title -> name is removed here,
+      // assuming the frontend/hook expects the direct DB field names (title)
+      // after snakeToCamelCase conversion.
+      // If 'name' is required upstream, the mapping should happen there or be kept here.
+      const camelCaseData = snakeToCamelCase(data);
+      
+      return camelCaseData || [];
+
     } catch (error) {
-      console.error("[unitService] Unexpected error in getAllObjectives:", error);
+      console.error("[objectivesService] Unexpected error in getObjectives:", error);
       throw error; // Re-throw the error to be handled by the calling component
     }
+  },
+
+  // Add a new Objective
+  addObjective: async (objective: any) => {
+    const supabase = getSupabaseClient();
+    
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseObjective = camelToSnakeCase(objective);
+    
+    // Ensure Objective has created_at and updated_at
+    const objectiveWithTimestamps = {
+      ...snakeCaseObjective,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Ensure division_id is present
+    if (!objectiveWithTimestamps.division_id) {
+      const currentDivisionId = localStorage.getItem('current_division_id');
+      if (currentDivisionId) {
+        objectiveWithTimestamps.division_id = currentDivisionId;
+      }
+    }
+    
+    console.log('Prepared Objective data for insertion:', objectiveWithTimestamps);
+    
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.OBJECTIVES)
+        .insert([objectiveWithTimestamps])
+        .select();
+      
+      if (error) {
+        console.error('Error adding Objective:', error);
+        throw error;
+      }
+      
+      // Convert snake_case back to camelCase for frontend consistency
+      return data ? snakeToCamelCase(data[0]) : null;
+    } catch (error) {
+      console.error('Failed to create Objective:', error);
+      throw error;
+    }
+  },
+
+  // Update an Objective
+  updateObjective: async (id: string, objective: any) => {
+    const supabase = getSupabaseClient();
+    
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseObjective = camelToSnakeCase(objective);
+    
+    // Add updated_at timestamp
+    const objectiveWithTimestamp = {
+      ...snakeCaseObjective,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from(TABLES.OBJECTIVES)
+      .update(objectiveWithTimestamp)
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Error updating Objective:', error);
+      throw error;
+    }
+    
+    // Convert snake_case back to camelCase for frontend consistency
+    return data ? snakeToCamelCase(data[0]) : null;
   },
 
   // Delete an objective
   deleteObjective: async (id: string) => {
     const supabase = getSupabaseClient();
-    console.log(`[unitService] Deleting objective with ID: ${id}`);
+    console.log(`[objectivesService] Deleting objective with ID: ${id}`);
     const { error } = await supabase
       .from(TABLES.OBJECTIVES)
       .delete()
       .eq('id', id);
       
     if (error) {
-      console.error(`[unitService] Error deleting objective ID ${id}:`, error);
+      console.error(`[objectivesService] Error deleting objective ID ${id}:`, error);
       throw error;
     }
     
-    console.log(`[unitService] Objective ID ${id} deleted successfully.`);
+    console.log(`[objectivesService] Objective ID ${id} deleted successfully.`);
     return true;
-  },
-  // --- END ADDED FUNCTION ---
-
-  // ... other existing service functions (tasksService, projectsService, etc.) ...
+  }
 };
 
 // Export individual services if structured that way
