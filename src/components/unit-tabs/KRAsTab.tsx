@@ -202,9 +202,18 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const processedRows = useMemo((): ProcessedRow[] => {
     // --- TEMPORARY SIMPLIFICATION FOR DEBUGGING ---
     const flatRows: ProcessedRow[] = [];
+    console.log("[KRAsTab] Objectives Data for Lookup:", objectivesData); // Log objectives data
     (krasFromProps || []).forEach(kra => {
-        // Basic objective lookup
-        const objective = objectivesData.find(o => o.id === kra.objectiveId);
+        console.log(`[KRAsTab] Processing KRA: ${kra.title}, Objective ID from KRA: ${kra.objectiveId}`); // Log KRA info
+        // Basic objective lookup with detailed logging
+        const objective = objectivesData.find(o => {
+           // Log comparison details
+           const isMatch = o.id === kra.objectiveId;
+           console.log(`  Comparing KRA objectiveId (${kra.objectiveId}, type: ${typeof kra.objectiveId}) with Objective ID (${o.id}, type: ${typeof o.id}) => Match: ${isMatch}`);
+           return isMatch;
+        });
+        console.log('[KRAsTab] Found Objective:', objective); // Log the result of find
+
         const objectiveName = objective?.name || (kra.objectiveId ? 'Unknown Objective' : 'Unassigned');
         const kpis = kra.unitKpis && kra.unitKpis.length > 0 ? kra.unitKpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
 
