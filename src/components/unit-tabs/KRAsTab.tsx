@@ -286,7 +286,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
 
             acc[objIdKey] = {
                 // Use found objective name or default
-                name: objective?.name || (objIdKey !== 'unassigned' ? 'Unknown Objective' : 'Unassigned'), 
+                name: objective?.title || (objIdKey !== 'unassigned' ? 'Unknown Objective' : 'Unassigned'), 
                 kras: [],
             };
             // Log the name assigned
