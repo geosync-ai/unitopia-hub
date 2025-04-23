@@ -267,13 +267,30 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     const objectiveGroups = departmentFilteredKras.reduce((acc, kra) => {
         // Use objective_id, default to 'unassigned' if null/undefined
         const objIdKey = kra.objective_id ? String(kra.objective_id) : 'unassigned'; 
+        
+        // Log the KRA being processed and the key derived
+        console.log(`[KRAsTab Reduce] Processing KRA: ${kra.title} (ID: ${kra.id}), Objective ID: ${kra.objective_id}, Derived Key: ${objIdKey}`);
+
         if (!acc[objIdKey]) {
-            const objective = objectivesData.find(o => String(o.id) === objIdKey);
+            // Log before the find operation
+            console.log(`[KRAsTab Reduce] Looking for Objective with ID Key: ${objIdKey}`);
+            const objective = objectivesData.find(o => {
+                const isMatch = String(o.id) === objIdKey;
+                // Log details of each comparison within find (can be verbose)
+                // console.log(`  [Find Compare] Objective ID: ${o.id} (String: ${String(o.id)}) === Key: ${objIdKey} => ${isMatch}`);
+                return isMatch;
+            });
+            
+            // Log the result of the find operation
+            console.log(`[KRAsTab Reduce] Find result for Key ${objIdKey}:`, objective);
+
             acc[objIdKey] = {
                 // Use found objective name or default
                 name: objective?.name || (objIdKey !== 'unassigned' ? 'Unknown Objective' : 'Unassigned'), 
                 kras: [],
             };
+            // Log the name assigned
+            console.log(`[KRAsTab Reduce] Assigned Name for Key ${objIdKey}: ${acc[objIdKey].name}`);
         }
         acc[objIdKey].kras.push(kra);
         return acc;
