@@ -175,7 +175,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   });
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
-  const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ name: '', description: '' });
+  const [newObjectiveData, setNewObjectiveData] = useState<Partial<Objective>>({ title: '', description: '' });
   const { toast } = useToast();
 
   // Derive unique KRA titles for the Combobox
@@ -604,20 +604,20 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
 
   const handleOpenAddObjectiveModal = () => {
     setEditingObjective(undefined);
-    setNewObjectiveData({ name: '', description: '' });
+    setNewObjectiveData({ title: '', description: '' });
     setIsObjectiveModalOpen(true);
   };
 
   const handleOpenEditObjectiveModal = (objective: Objective) => {
     setEditingObjective(objective);
-    setNewObjectiveData({ name: objective.name, description: objective.description });
+    setNewObjectiveData({ title: objective.title, description: objective.description });
     setIsObjectiveModalOpen(true);
   };
 
   const handleCloseObjectiveModal = () => {
     setIsObjectiveModalOpen(false);
     setEditingObjective(undefined);
-    setNewObjectiveData({ name: '', description: '' });
+    setNewObjectiveData({ title: '', description: '' });
   };
 
   const handleObjectiveFormChange = (field: keyof Objective, value: string) => {
@@ -627,7 +627,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const handleSaveObjective = async () => {
     const supabase = getSupabaseClient();
     const objectivePayload = {
-      title: newObjectiveData.name,
+      title: newObjectiveData.title,
       description: newObjectiveData.description,
     };
 
@@ -684,7 +684,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
       if (savedObjectiveData) {
         const savedObjectiveForUI: Objective = {
           id: savedObjectiveData.id,
-          name: savedObjectiveData.title,
+          title: savedObjectiveData.title,
           description: savedObjectiveData.description,
         };
 
@@ -982,7 +982,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
               </TabsContent>
 
               <TabsContent value="timeline">
-                <KRATimelineTab kras={kras} />
+                <KRATimelineTab kras={kras} objectives={objectivesData} />
               </TabsContent>
 
               <TabsContent value="insights">
@@ -1018,8 +1018,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                 </Label>
                 <Input
                   id="objective-name"
-                  value={newObjectiveData.name || ''}
-                  onChange={(e) => handleObjectiveFormChange('name', e.target.value)}
+                  value={newObjectiveData.title || ''}
+                  onChange={(e) => handleObjectiveFormChange('title', e.target.value)}
                   className="col-span-3"
                   required
                 />

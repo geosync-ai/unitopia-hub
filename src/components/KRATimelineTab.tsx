@@ -4,34 +4,35 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { Kra, Kpi } from '@/types/kpi';
+import { Kra, Kpi, Objective } from '@/types/kpi';
 
 interface KRATimelineTabProps {
   kras: Kra[];
+  objectives: Objective[];
 }
 
-const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
+const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras, objectives }) => {
   const [currentViewMode, setCurrentViewMode] = useState<'quarters' | 'months' | 'weeks'>('quarters');
 
   // --- Preprocessing for Grouping --- 
   const firstObjectiveMap = new Map<string | number, string>();
-  const firstKraTitleMap = new Map<string, string>(); // Key: objectiveId-kraTitle
+  const firstKraTitleMap = new Map<string, string>(); // Key: objective_id-kraTitle
   const lastObjectiveMap = new Map<string | number, string>(); // To find the last KRA for an objective
   const lastKraTitleMap = new Map<string, string>(); // To find the last KRA for a title group
 
   kras.forEach(kra => {
-    // Track first occurrence of each objectiveId
-    if (kra.objectiveId && !firstObjectiveMap.has(kra.objectiveId)) {
-      firstObjectiveMap.set(kra.objectiveId, kra.id as string);
+    // Track first occurrence of each objective_id
+    if (kra.objective_id && !firstObjectiveMap.has(kra.objective_id)) {
+      firstObjectiveMap.set(kra.objective_id, kra.id as string);
     }
     // Track first occurrence of each KRA title *within* an objective
-    const kraTitleKey = `${kra.objectiveId}-${kra.title}`;
+    const kraTitleKey = `${kra.objective_id}-${kra.title}`;
     if (kra.title && !firstKraTitleMap.has(kraTitleKey)) {
       firstKraTitleMap.set(kraTitleKey, kra.id as string);
     }
     // Track last KRA for each objective (will be overwritten until the last one)
-    if (kra.objectiveId) {
-        lastObjectiveMap.set(kra.objectiveId, kra.id as string);
+    if (kra.objective_id) {
+        lastObjectiveMap.set(kra.objective_id, kra.id as string);
     }
     // Track last KRA for each title group (will be overwritten)
     if (kra.title) { // Check if title exists
@@ -254,11 +255,11 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                   const kpisExist = kra.unitKpis && kra.unitKpis.length > 0;
 
                   // --- Grouping Checks ---
-                  const isFirstForObjective = kra.objectiveId ? firstObjectiveMap.get(kra.objectiveId) === kra.id : false;
-                  const kraTitleKey = `${kra.objectiveId}-${kra.title}`;
+                  const isFirstForObjective = kra.objective_id ? firstObjectiveMap.get(kra.objective_id) === kra.id : false;
+                  const kraTitleKey = `${kra.objective_id}-${kra.title}`;
                   const isFirstForKraTitle = kra.title ? firstKraTitleMap.get(kraTitleKey) === kra.id : false;
                   // Check if it's the last KRA for this objective
-                  const isLastForObjective = kra.objectiveId ? lastObjectiveMap.get(kra.objectiveId) === kra.id : false;
+                  const isLastForObjective = kra.objective_id ? lastObjectiveMap.get(kra.objective_id) === kra.id : false;
                   // Check if it's the last KRA for this title group
                   const isLastForKraTitle = kra.title ? lastKraTitleMap.get(kraTitleKey) === kra.id : false;
                   // Calculate date range for the KRA based on its KPIs
@@ -271,10 +272,12 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras }) => {
                       <div className={`w-48 px-4 py-3 shrink-0 flex flex-col border-r border-gray-200 ${isFirstForObjective ? 'border-t border-gray-200' : ''} ${isLastForObjective ? 'border-b border-gray-200' : ''}`}>
                         {isFirstForObjective && (
                           <span className="font-medium text-gray-900 block truncate text-sm mb-1">
-                            {kra.unitObjectives?.title 
-                              ? kra.unitObjectives.title 
-                              : (kra.objectiveId ? `Obj ID: ${kra.objectiveId}` : 'N/A')
-                            }
+                            {(() => {
+                              // Find objective in the objectives array
+                              const objective = objectives.find(o => String(o.id) === String(kra.objective_id));
+                              // Return title if found, otherwise fallback
+                              return objective?.title || (kra.objective_id ? `Obj ID: ${kra.objective_id}` : 'N/A');
+                            })()}
                           </span>
                         )}
                         {/* Use a div with margin for spacing */}
