@@ -225,6 +225,32 @@ const Unit = () => {
     kpiState.refresh?.();
   }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh, kpiState.refresh]);
 
+  // --- Combine KRAs and KPIs --- 
+  const combinedKras = useMemo(() => {
+    // Ensure IDs are strings for consistent comparison
+    const kras = (kraState.data || []).map(kra => ensureStringId(kra)); 
+    const kpis = (kpiState.data || []).map(kpi => ensureStringId(kpi)); 
+
+    const kpisByKraId: Record<string, Kpi[]> = {};
+
+    kpis.forEach(kpi => {
+      // Use optional chaining and nullish coalescing for safety
+      const kraIdStr = kpi.kra_id?.toString(); 
+      if (kraIdStr) {
+        if (!kpisByKraId[kraIdStr]) {
+          kpisByKraId[kraIdStr] = [];
+        }
+        kpisByKraId[kraIdStr].push(kpi);
+      }
+    });
+
+    return kras.map(kra => ({
+      ...kra,
+      // Use kra.id (which is now guaranteed string or undefined) for lookup
+      unitKpis: kra.id ? (kpisByKraId[kra.id] || []) : [] 
+    }));
+  }, [kraState.data, kpiState.data]);
+
   // Determine if data loading is complete
   const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading || kpiState.loading;
   // Determine if there was an error
@@ -279,7 +305,7 @@ const Unit = () => {
               tasks={taskState.data}
               risks={riskState.data}
               // kras={combinedKras} // Pass raw KRAs for debugging
-              kras={kraState.data || []} // Pass raw KRAs for debugging
+              kras={combinedKras} // Pass the combined data structure
               objectives={objectivesData}
             />
           </TabsContent>
@@ -302,7 +328,7 @@ const Unit = () => {
           <TabsContent value="kras" className="space-y-6">
             <KRAsTab
               // kras={combinedKras} // Pass raw KRAs for debugging
-              kras={kraState.data || []} // Pass raw KRAs for debugging
+              kras={combinedKras} // Pass the combined data structure
               objectivesData={objectivesData}
               onSaveObjective={handleSaveObjective}
               onDeleteObjective={handleDeleteObjective}
