@@ -10,7 +10,7 @@ interface AreaChartProps {
 
 const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="1001%" height="100%">
       <RechartsAreaChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" />
