@@ -8,154 +8,164 @@ import {
   projectsService, 
   risksService, 
   assetsService, 
-  krasService 
+  krasService,
+  kpisService,
+  objectivesService
 } from '@/integrations/supabase/unitService';
 
-// Define types for the different service methods
-type FetchFunction = (userEmail?: string, divisionId?: string) => Promise<any[]>;
-type AddFunction = (item: any) => Promise<any>;
-type UpdateFunction = (id: string, item: any) => Promise<any>;
+// Define the type for the 'id' field, assuming it's always string or undefined
+interface Identifiable {
+  id?: string;
+  assigned_to_email?: string | null; // Ensure this is defined for all T
+}
+
+// Define more specific function types
+type FetchFunction<T> = () => Promise<T[]>; // Standard fetch (now less used)
+type FetchWithEmailFunction = (userEmail: string) => Promise<any[]>; // Function-based fetch
+type AddFunction<T> = (item: T) => Promise<T>;
+type UpdateFunction<T> = (id: string, item: Partial<T>) => Promise<T>;
 type DeleteFunction = (id: string) => Promise<boolean>;
 
-// Generic hook for Supabase CRUD operations
-export function useSupabaseData<T extends { id?: string }>(
-  entityType: 'tasks' | 'projects' | 'risks' | 'assets' | 'kras',
+// Type guard for MSAL account info
+interface MsalAccountInfo {
+  homeAccountId?: string;
+  environment?: string;
+  tenantId?: string;
+  username?: string; // This typically holds the email
+  localAccountId?: string;
+  name?: string;
+}
+
+function isMsalAccountInfo(account: any): account is MsalAccountInfo {
+  return account && typeof account.username === 'string';
+}
+
+// Define the possible entity types
+type EntityType = 'tasks' | 'projects' | 'risks' | 'assets' | 'kras' | 'kpis' | 'objectives'; // Added kpis, objectives
+
+// Extend the generic type to include assigned_to_email
+export function useSupabaseData<T extends Identifiable>(
+  entityType: EntityType,
   initialData: T[] = []
 ) {
   const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const { instance, accounts } = useMsal();
+  const { accounts } = useMsal(); // Get MSAL accounts
 
-  // Get the appropriate fetch method based on entity type
-  const getFetchMethod = useCallback((): FetchFunction => {
+  // Memoize helper functions for CRUD operations
+  const getFetchMethod = useCallback((): FetchFunction<T> => {
     switch (entityType) {
-      case 'tasks':
-        return tasksService.getTasks;
-      case 'projects':
-        return projectsService.getProjects;
-      case 'risks':
-        return risksService.getRisks;
-      case 'assets':
-        return assetsService.getAssets;
-      case 'kras':
-        return krasService.getKRAs;
-      default:
-        throw new Error(`Unknown entity type: ${entityType}`);
+      case 'tasks': return tasksService.getTasks;
+      case 'projects': return projectsService.getProjects;
+      case 'risks': return risksService.getRisks;
+      case 'assets': return assetsService.getAssets;
+      case 'kras': return krasService.getKRAs;
+      case 'kpis': return kpisService.getKPIs;
+      case 'objectives': return objectivesService.getObjectives;
+      default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
 
   // Get the appropriate add method based on entity type
-  const getAddMethod = useCallback((): AddFunction => {
+  const getAddMethod = useCallback((): AddFunction<T> => {
     switch (entityType) {
-      case 'tasks':
-        return tasksService.addTask;
-      case 'projects':
-        return projectsService.addProject;
-      case 'risks':
-        return risksService.addRisk;
-      case 'assets':
-        return assetsService.addAsset;
-      case 'kras':
-        return krasService.addKRA;
-      default:
-        throw new Error(`Unknown entity type: ${entityType}`);
+      case 'tasks': return tasksService.addTask;
+      case 'projects': return projectsService.addProject;
+      case 'risks': return risksService.addRisk;
+      case 'assets': return assetsService.addAsset;
+      case 'kras': return krasService.addKRA;
+      case 'kpis': return kpisService.addKPI;
+      case 'objectives': return objectivesService.addObjective;
+      default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
 
   // Get the appropriate update method based on entity type
-  const getUpdateMethod = useCallback((): UpdateFunction => {
+  const getUpdateMethod = useCallback((): UpdateFunction<T> => {
     switch (entityType) {
-      case 'tasks':
-        return tasksService.updateTask;
-      case 'projects':
-        return projectsService.updateProject;
-      case 'risks':
-        return risksService.updateRisk;
-      case 'assets':
-        return assetsService.updateAsset;
-      case 'kras':
-        return krasService.updateKRA;
-      default:
-        throw new Error(`Unknown entity type: ${entityType}`);
+      case 'tasks': return tasksService.updateTask;
+      case 'projects': return projectsService.updateProject;
+      case 'risks': return risksService.updateRisk;
+      case 'assets': return assetsService.updateAsset;
+      case 'kras': return krasService.updateKRA;
+      case 'kpis': return kpisService.updateKPI;
+      case 'objectives': return objectivesService.updateObjective;
+      default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
 
   // Get the appropriate delete method based on entity type
   const getDeleteMethod = useCallback((): DeleteFunction => {
     switch (entityType) {
-      case 'tasks':
-        return tasksService.deleteTask;
-      case 'projects':
-        return projectsService.deleteProject;
-      case 'risks':
-        return risksService.deleteRisk;
-      case 'assets':
-        return assetsService.deleteAsset;
-      case 'kras':
-        return krasService.deleteKRA;
-      default:
-        throw new Error(`Unknown entity type: ${entityType}`);
+      case 'tasks': return tasksService.deleteTask;
+      case 'projects': return projectsService.deleteProject;
+      case 'risks': return risksService.deleteRisk;
+      case 'assets': return assetsService.deleteAsset;
+      case 'kras': return krasService.deleteKRA;
+      case 'kpis': return kpisService.deleteKPI;
+      case 'objectives': return objectivesService.deleteObjective;
+      default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
 
-  // Fetch data from Supabase
+  // Main data fetching logic
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    let fetchedData: any[] = [];
+    let fetchedData: T[] = [];
     let fetchError: Error | null = null;
 
-    try {
-      const fetchMethod = getFetchMethod();
-      logger.info(`[useSupabaseData - fetchData] Fetching ${entityType}...`);
-
-      if (entityType === 'assets') {
-        logger.info(`[useSupabaseData - fetchData] Asset fetch requires logged-in user email.`);
-        const account = accounts[0];
-
-        if (account?.username) {
-          const userEmail = account.username;
-          logger.info(`[useSupabaseData - fetchData] Invoking get-my-assets function for email: ${userEmail}`);
-          try {
-            const { data: functionData, error: functionError } = await supabase.functions.invoke('get-my-assets', { 
-              body: { user_email: userEmail }
-            });
-
-            if (functionError) {
-              logger.error('[useSupabaseData - fetchData] Error invoking get-my-assets function:', functionError);
-              fetchError = new Error(`Failed to fetch assets: ${functionError.message}`);
-              fetchedData = [];
-            } else {
-              logger.info(`[useSupabaseData - fetchData] Successfully fetched assets via function.`);
-              fetchedData = Array.isArray(functionData) ? functionData : [];
-            }
-          } catch (invokeErr) {
-            logger.error('[useSupabaseData - fetchData] Exception invoking get-my-assets function:', invokeErr);
-            fetchError = invokeErr instanceof Error ? invokeErr : new Error('Failed to invoke asset fetch function');
-            fetchedData = [];
-          }
-        } else {
-          logger.warn('[useSupabaseData - fetchData] No MSAL account/username found for asset fetch.');
-          fetchError = new Error('User not authenticated or email missing.');
-          fetchedData = [];
-        }
-      } else {
-        logger.info(`[useSupabaseData - fetchData] Fetching non-asset entity type: ${entityType}`);
-        fetchedData = await fetchMethod();
-      }
-
-      setData(fetchedData as T[]);
-
-    } catch (err) {
-      logger.error(`[useSupabaseData - fetchData] Error during ${entityType} fetch process:`, err);
-      fetchError = err instanceof Error ? err : new Error(String(err));
+    // All entity types now require the user's email for function invocation
+    const account = accounts[0];
+    if (!account || !isMsalAccountInfo(account) || !account.username) {
+      logger.warn(`[useSupabaseData - fetchData ${entityType}] No MSAL account/username found.`);
+      fetchError = new Error('User not authenticated or email missing.');
       setData([]);
+      setError(fetchError);
+      setLoading(false);
+      return;
+    }
+
+    const userEmail = account.username;
+    const functionNameMap: Record<EntityType, string> = {
+      tasks: 'get-my-tasks',
+      projects: 'get-my-projects',
+      risks: 'get-my-risks',
+      assets: 'get-my-assets',
+      kras: 'get-my-kras',
+      kpis: 'get-my-kpis',
+      objectives: 'get-my-objectives',
+    };
+    const functionName = functionNameMap[entityType];
+
+    logger.info(`[useSupabaseData - fetchData ${entityType}] Invoking ${functionName} for email: ${userEmail}`);
+
+    try {
+      const { data: functionData, error: functionError } = await supabase.functions.invoke(
+        functionName,
+        { body: { user_email: userEmail } }
+      );
+
+      if (functionError) {
+        logger.error(`[useSupabaseData - fetchData ${entityType}] Error invoking ${functionName}:`, functionError);
+        fetchError = new Error(`Failed to fetch ${entityType}: ${functionError.message}`);
+        fetchedData = [];
+      } else {
+        logger.info(`[useSupabaseData - fetchData ${entityType}] Successfully fetched ${entityType} via function ${functionName}. Count: ${functionData?.length ?? 0}`);
+        // Ensure the data is always an array, even if the function returns null/undefined
+        fetchedData = Array.isArray(functionData) ? functionData as T[] : [];
+      }
+    } catch (invokeErr) {
+      logger.error(`[useSupabaseData - fetchData ${entityType}] Exception invoking ${functionName}:`, invokeErr);
+      fetchError = invokeErr instanceof Error ? invokeErr : new Error(`Failed to invoke ${entityType} fetch function`);
+      fetchedData = [];
     } finally {
+      setData(fetchedData);
       setError(fetchError);
       setLoading(false);
     }
-  }, [entityType, getFetchMethod, accounts]);
+  }, [entityType, accounts]); // Removed getFetchMethod as it's no longer used here
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {
@@ -184,8 +194,8 @@ export function useSupabaseData<T extends { id?: string }>(
       
       logger.info(`[useSupabaseData - add ${entityType}] Item with email:`, itemWithEmail);
 
-      // Pass the modified item to the specific add method
-      const newItem = await addMethod(itemWithEmail);
+      // Pass the modified item to the specific add method with type assertion
+      const newItem = await addMethod(itemWithEmail as T);
       
       if (newItem) {
         setData(prev => [...prev, newItem as unknown as T]);
