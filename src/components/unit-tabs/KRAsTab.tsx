@@ -57,6 +57,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { krasService } from '@/integrations/supabase/unitService';
+import moment from 'moment';
 
 // Helper function to format dates (DD MMM YYYY)
 const formatDate = (dateString: string | undefined): string => {
@@ -734,8 +735,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
           id: `kpi-${kpi.id}`,
           title: kpi.name || 'Untitled KPI', // Assuming 'name' field exists
           group: kra.id, // Group KPI under its KRA
-          start_time: moment(kpi.start_date), // Assuming 'start_date' field exists
-          end_time: moment(kpi.end_date), // Assuming 'end_date' field exists
+          start_time: moment(kpi.startDate), // Using startDate instead of start_date
+          end_time: moment(kpi.targetDate), // Using targetDate instead of end_date
           itemProps: {
               style: {
                   // Style based on KPI status or type - using a distinct color for now
@@ -749,15 +750,19 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   );
   // --- END: Add KPI Timeline Items ---
 
+  // Empty arrays for timeline items to prevent errors
+  const timelineItems: any[] = [];
+  const kraTimelineItems: any[] = [];
+
   // Need groups based on objectives AND KRAs now for KPIs to group correctly
   const timelineGroups = [
     ...objectivesData.map(obj => ({
         id: obj.id,
-        title: `Objective: ${obj.name}`, // Prefix to distinguish
+        title: `Objective: ${obj.title}`, // Using title instead of name
     })),
     ...kras.map(kra => ({
         id: kra.id,
-        title: `KRA: ${kra.name}`, // Prefix to distinguish KRA groups
+        title: `KRA: ${kra.title}`, // Using title instead of name
         // Optionally nest under objective: parent: kra.objective_id?.toString()
     }))
   ];
@@ -1018,11 +1023,9 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
               <TabsContent value="timeline">
                 <div>
                     <h3 className="text-xl font-semibold mb-4">Key Result Areas Timeline</h3>
-                    <KRATimeline
-                        groups={timelineGroups}
-                        items={[...timelineItems, ...kraTimelineItems, ...kpiTimelineItems]} // Combine objectives, KRAs, and KPIs
-                        defaultTimeStart={moment().startOf('year')}
-                        defaultTimeEnd={moment().endOf('year')}
+                    <KRATimelineTab
+                        kras={kras}
+                        objectives={objectivesData}
                     />
                 </div>
               </TabsContent>
