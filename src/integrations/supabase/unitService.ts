@@ -759,6 +759,138 @@ export const krasService = {
   }
 };
 
+// KPI operations
+export const kpisService = {
+  // Get all KPIs
+  getKPIs: async () => {
+    const supabase = getSupabaseClient();
+    
+    let query = supabase
+      .from(TABLES.KPIS)
+      .select(`
+        *,
+        unit_kras ( title )
+      `);
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching KPIs:', error);
+      throw error;
+    }
+    
+    // Convert snake_case to camelCase before returning
+    const camelCaseData = snakeToCamelCase(data);
+    
+    return camelCaseData || [];
+  },
+  
+  // Add a new KPI
+  addKPI: async (kpi: any) => {
+    const supabase = getSupabaseClient();
+    
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseKpi = camelToSnakeCase(kpi);
+    
+    // Ensure KPI has created_at and updated_at
+    const kpiWithTimestamps = {
+      ...snakeCaseKpi,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Ensure status is a valid enum value for the DB
+    if (kpiWithTimestamps.status) {
+      const validStatuses = ['on-track', 'at-risk', 'off-track', 'completed', 'pending'];
+      if (!validStatuses.includes(kpiWithTimestamps.status)) {
+        const statusMapping: Record<string, string> = {
+          'At Risk': 'at-risk',
+          'On Track': 'on-track',
+          'Off Track': 'off-track',
+          'Completed': 'completed',
+          'Pending': 'pending',
+          'Draft': 'pending'
+        };
+        kpiWithTimestamps.status = statusMapping[kpiWithTimestamps.status] || 'pending';
+      }
+    } else {
+      kpiWithTimestamps.status = 'pending'; // Default status
+    }
+    
+    // Ensure division_id is present
+    if (!kpiWithTimestamps.division_id) {
+      const currentDivisionId = localStorage.getItem('current_division_id');
+      if (currentDivisionId) {
+        kpiWithTimestamps.division_id = currentDivisionId;
+      }
+    }
+    
+    console.log('Prepared KPI data for insertion:', kpiWithTimestamps);
+    
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.KPIS)
+        .insert([kpiWithTimestamps])
+        .select();
+      
+      if (error) {
+        console.error('Error adding KPI:', error);
+        throw error;
+      }
+      
+      // Convert snake_case back to camelCase for frontend consistency
+      return data ? snakeToCamelCase(data[0]) : null;
+    } catch (error) {
+      console.error('Failed to create KPI:', error);
+      throw error;
+    }
+  },
+  
+  // Update a KPI
+  updateKPI: async (id: string, kpi: any) => {
+    const supabase = getSupabaseClient();
+    
+    // Convert camelCase properties to snake_case for DB
+    const snakeCaseKpi = camelToSnakeCase(kpi);
+    
+    // Add updated_at timestamp
+    const kpiWithTimestamp = {
+      ...snakeCaseKpi,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from(TABLES.KPIS)
+      .update(kpiWithTimestamp)
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Error updating KPI:', error);
+      throw error;
+    }
+    
+    // Convert snake_case back to camelCase for frontend consistency
+    return data ? snakeToCamelCase(data[0]) : null;
+  },
+  
+  // Delete a KPI
+  deleteKPI: async (id: string) => {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from(TABLES.KPIS)
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting KPI:', error);
+      throw error;
+    }
+    
+    return true;
+  }
+};
+
 // Define the service object (assuming one exists, otherwise create it)
 export const unitService = { // Or whatever your service object is named
   
