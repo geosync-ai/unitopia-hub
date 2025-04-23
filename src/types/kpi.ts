@@ -26,7 +26,8 @@ export type KraStatus = 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pe
 export interface Kra {
   id: string | number; // Allow number for potential legacy or other integrations
   title: string;
-  objectiveId?: string | number | null;
+  // objectiveId?: string | number | null; // Commenting out old field
+  objective_id?: string | number | null; // <-- ADDED: Foreign key using underscore convention
   unit?: string | null; // Unit or Department name
   unitId?: string | number | null; // FK to a potential 'units' table
   startDate?: string; // ISO Date string

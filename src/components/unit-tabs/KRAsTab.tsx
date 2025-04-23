@@ -120,18 +120,18 @@ interface KraFiltersState {
 // Updated structure for processed rows supporting two-level grouping
 interface ProcessedRow {
     // Objective Info
-    objectiveId: string | number | null; 
-    objectiveName: string; 
-    isFirstRowOfObjective: boolean; 
-    objectiveRowSpan: number; 
+    objectiveId: string | number | null | undefined; // Allow undefined as it might not exist
+    objectiveName: string;
+    isFirstRowOfObjective: boolean;
+    objectiveRowSpan: number;
     // KRA Info (grouped by Title)
     kraTitle: string;
-    isFirstRowOfKraTitleGroup: boolean; 
-    kraTitleRowSpan: number; 
+    isFirstRowOfKraTitleGroup: boolean;
+    kraTitleRowSpan: number;
     // KPI Info
-    kpi: Kpi; 
+    kpi: Kpi;
     // Original KRA object
-    originalKra: Kra; 
+    originalKra: Kra;
 }
 
 // Define structure for unit data (if not already defined globally)
@@ -204,23 +204,25 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     const flatRows: ProcessedRow[] = [];
     console.log("[KRAsTab] Objectives Data for Lookup:", objectivesData); // Log objectives data
     (krasFromProps || []).forEach(kra => {
-        console.log(`[KRAsTab] Processing KRA: ${kra.title}, Objective ID from KRA: ${kra.objectiveId}`); // Log KRA info
+        console.log(`[KRAsTab] Processing KRA: ${kra.title}, Objective ID from KRA: ${kra.objective_id}`); // Log KRA info with correct field
         // Basic objective lookup with detailed logging
         const objective = objectivesData.find(o => {
-           // Log comparison details
-           const isMatch = o.id === kra.objectiveId;
-           console.log(`  Comparing KRA objectiveId (${kra.objectiveId}, type: ${typeof kra.objectiveId}) with Objective ID (${o.id}, type: ${typeof o.id}) => Match: ${isMatch}`);
+           // Log comparison details using objective_id
+           // Compare as strings for safety, handling potential null/undefined on kra.objective_id
+           const isMatch = String(o.id) === String(kra.objective_id);
+           console.log(`  Comparing KRA objective_id (${kra.objective_id}, type: ${typeof kra.objective_id}) with Objective ID (${o.id}, type: ${typeof o.id}) => Match: ${isMatch}`);
            return isMatch;
         });
         console.log('[KRAsTab] Found Objective:', objective); // Log the result of find
 
-        const objectiveName = objective?.name || (kra.objectiveId ? 'Unknown Objective' : 'Unassigned');
+        // Use objective_id to determine if assigned
+        const objectiveName = objective?.name || (kra.objective_id ? 'Unknown Objective' : 'Unassigned');
         const kpis = kra.unitKpis && kra.unitKpis.length > 0 ? kra.unitKpis : [{ id: `no-kpi-${kra.id}`, name: '-' } as Kpi];
 
         kpis.forEach((kpi, index) => {
             // Simple flat structure - ignoring spans and grouping for now
             flatRows.push({
-                objectiveId: kra.objectiveId,
+                objectiveId: kra.objective_id, // Use correct field
                 objectiveName: objectiveName,
                 isFirstRowOfObjective: index === 0, // Simplified: first kpi is first row
                 objectiveRowSpan: 1, // Simplified
