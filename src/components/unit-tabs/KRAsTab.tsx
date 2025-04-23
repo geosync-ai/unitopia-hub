@@ -280,6 +280,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
     }, {} as Record<string, { name: string; kras: Kra[] }>);
 
     console.log("[KRAsTab] Grouped by Objective:", objectiveGroups);
+    // Add logging here to see objectivesData right before the loop
+    console.log("[KRAsTab] objectivesData available inside useMemo:", JSON.stringify(objectivesData));
 
     Object.entries(objectiveGroups).forEach(([objectiveIdKey, objectiveGroup]) => {
         let isFirstRowInObjective = true;
