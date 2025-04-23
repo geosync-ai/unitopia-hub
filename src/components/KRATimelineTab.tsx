@@ -315,7 +315,12 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras, objectives }) => 
                             const kpiColorClass = getKpiStatusColorClass(kpi.status);
                             const kpiProgress = getKpiProgress(kpi);
 
+                            // Log values for debugging
+                            console.log(`[Timeline KPI Debug] KRA: ${kra.title}, KPI: ${kpi.name}, Start: ${kpi.startDate}, ParsedStart: ${kpiStartDate}, Target: ${kpi.targetDate}, ParsedTarget: ${kpiTargetDate}, Width: ${kpiWidth}`);
+
                             if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
+                               // Log why it's not rendering
+                               console.log(`  -> KPI bar skipped (Invalid Dates or Zero Width)`);
                               return <React.Fragment key={kpi.id || `kpi-${kraIndex}-${kpiIndex}-frag`}></React.Fragment>; 
                             }
 
