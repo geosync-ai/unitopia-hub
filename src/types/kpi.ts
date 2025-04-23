@@ -3,6 +3,7 @@
 export interface Kpi {
   tempId?: string; // For React keys before saving
   id: string | number; // Or use UUIDs
+  kra_id?: string | number | null; // <<< ADDED: Foreign key to link to KRA
   name: string;
   description?: string; // Add description field
   target: number;
