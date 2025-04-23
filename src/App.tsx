@@ -52,7 +52,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   // If MSAL is idle and user is NOT authenticated, redirect to login
   if (!isAuthenticated) {
-    logger.warn('ProtectedRoute: MSAL user not authenticated, redirecting to login.', { from: location.pathname });
+    logger.warn('ProtectedRoutes: MSAL user not authenticated, redirecting to login.', { from: location.pathname });
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

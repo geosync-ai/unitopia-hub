@@ -57,6 +57,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { krasService } from '@/integrations/supabase/unitService';
+import moment from 'moment';
 
 // Helper function to format dates (DD MMM YYYY)
 const formatDate = (dateString: string | undefined): string => {
@@ -728,6 +729,40 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   const addButtonLabel = activeTab === 'objectives' ? 'Add Objective' : 'Add KRA';
   const handleAddButtonClick = activeTab === 'objectives' ? handleOpenAddObjectiveModal : handleOpenAddKraModal;
 
+  // --- START: Add KPI Timeline Items ---
+  const kpiTimelineItems = kras.flatMap(kra =>
+      (kra.unitKpis || []).map(kpi => ({
+          id: `kpi-${kpi.id}`,
+          title: kpi.name || 'Untitled KPI', // Assuming 'name' field exists
+          group: kra.id, // Group KPI under its KRA
+          start_time: moment(kpi.start_date), // Assuming 'start_date' field exists
+          end_time: moment(kpi.end_date), // Assuming 'end_date' field exists
+          itemProps: {
+              style: {
+                  // Style based on KPI status or type - using a distinct color for now
+                  background: '#2196F3', // Example blue color for KPIs
+                  color: 'white',
+                  borderLeft: '3px solid #1976D2', // Add a border to distinguish
+              },
+          },
+          details: `KPI: ${kpi.description || 'No description'}`, // Assuming 'description' field exists
+      }))
+  );
+  // --- END: Add KPI Timeline Items ---
+
+  // Need groups based on objectives AND KRAs now for KPIs to group correctly
+  const timelineGroups = [
+    ...objectivesData.map(obj => ({
+        id: obj.id,
+        title: `Objective: ${obj.name}`, // Prefix to distinguish
+    })),
+    ...kras.map(kra => ({
+        id: kra.id,
+        title: `KRA: ${kra.name}`, // Prefix to distinguish KRA groups
+        // Optionally nest under objective: parent: kra.objective_id?.toString()
+    }))
+  ];
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -982,7 +1017,15 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
               </TabsContent>
 
               <TabsContent value="timeline">
-                <KRATimelineTab kras={kras} objectives={objectivesData} />
+                <div>
+                    <h3 className="text-xl font-semibold mb-4">Key Result Areas Timeline</h3>
+                    <KRATimeline
+                        groups={timelineGroups}
+                        items={[...timelineItems, ...kraTimelineItems, ...kpiTimelineItems]} // Combine objectives, KRAs, and KPIs
+                        defaultTimeStart={moment().startOf('year')}
+                        defaultTimeEnd={moment().endOf('year')}
+                    />
+                </div>
               </TabsContent>
 
               <TabsContent value="insights">
