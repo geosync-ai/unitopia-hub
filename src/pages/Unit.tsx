@@ -147,6 +147,22 @@ const Unit = () => {
   const [objectivesLoading, setObjectivesLoading] = useState<boolean>(true);
   const [objectivesError, setObjectivesError] = useState<Error | null>(null);
 
+  // --- Objective Fetching Logic (Moved Up) ---
+  const fetchObjectives = useCallback(async () => {
+     setObjectivesLoading(true);
+     setObjectivesError(null);
+     try {
+       const fetchedObjectives = await objectivesService.getObjectives();
+       const objectivesWithStringIds = fetchedObjectives.map(obj => ensureStringId(obj));
+       setObjectivesData(objectivesWithStringIds);
+     } catch (error) {
+       setObjectivesError(error instanceof Error ? error : new Error('Failed to load objectives'));
+       toast({ title: "Error Loading Objectives", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+     } finally {
+       setObjectivesLoading(false);
+     }
+  }, [toast]);
+
   // --- Function to refresh all relevant data ---
   const handleRefreshAllData = useCallback(() => {
     fetchObjectives();
@@ -156,6 +172,32 @@ const Unit = () => {
     projectState.refresh?.();
     riskState.refresh?.();
   }, [fetchObjectives, kraState.refresh, kpiState.refresh, taskState.refresh, projectState.refresh, riskState.refresh]);
+
+  // --- Modified Objective Handlers (Moved Down) ---
+  const handleSaveObjective = useCallback(async (objective: Objective) => {
+    const objectiveWithStringId = ensureStringId(objective);
+    setObjectivesData(prev => {
+      const existingIndex = prev.findIndex(o => o.id === objectiveWithStringId.id);
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex] = objectiveWithStringId;
+        return updated;
+      } else {
+        return [...prev, objectiveWithStringId];
+      }
+    });
+    await fetchObjectives(); // Re-fetch after saving locally for potential updates from DB
+  }, [fetchObjectives]);
+
+  const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
+    try {
+      await objectivesService.deleteObjective(String(objectiveId));
+      toast({ title: "Objective Deleted", description: `Objective ID ${objectiveId} deleted successfully.` });
+      handleRefreshAllData(); // Refresh all data after deletion
+    } catch (error) {
+      toast({ title: "Error Deleting Objective", description: error instanceof Error ? error.message : "An unexpected error occurred.", variant: "destructive" });
+    }
+  }, [toast, handleRefreshAllData, fetchObjectives]); // Added fetchObjectives just in case, though handleRefresh calls it
 
   // --- Derive Departments from DivisionStaffMap ---
   const derivedUnits = useMemo((): UnitData[] => {
@@ -173,48 +215,6 @@ const Unit = () => {
     }
   }, []);
 
-  // --- Objective Fetching Logic ---
-  const fetchObjectives = useCallback(async () => {
-     setObjectivesLoading(true);
-     setObjectivesError(null);
-     try {
-       const fetchedObjectives = await objectivesService.getObjectives();
-       const objectivesWithStringIds = fetchedObjectives.map(obj => ensureStringId(obj));
-       setObjectivesData(objectivesWithStringIds);
-     } catch (error) {
-       setObjectivesError(error instanceof Error ? error : new Error('Failed to load objectives'));
-       toast({ title: "Error Loading Objectives", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
-     } finally {
-       setObjectivesLoading(false);
-     }
-  }, [toast]);
-
-  // --- Modified Objective Handlers ---
-  const handleSaveObjective = useCallback(async (objective: Objective) => {
-    const objectiveWithStringId = ensureStringId(objective);
-    setObjectivesData(prev => {
-      const existingIndex = prev.findIndex(o => o.id === objectiveWithStringId.id);
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex] = objectiveWithStringId;
-        return updated;
-      } else {
-        return [...prev, objectiveWithStringId];
-      }
-    });
-    await fetchObjectives();
-  }, [fetchObjectives]);
-
-  const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
-    try {
-      await objectivesService.deleteObjective(String(objectiveId));
-      toast({ title: "Objective Deleted", description: `Objective ID ${objectiveId} deleted successfully.` });
-      handleRefreshAllData(); // Now uses the function defined above
-    } catch (error) {
-      toast({ title: "Error Deleting Objective", description: error instanceof Error ? error.message : "An unexpected error occurred.", variant: "destructive" });
-    }
-  }, [toast, handleRefreshAllData]);
-
   // --- Effect to load data on mount ---
   useEffect(() => {
     fetchObjectives();
@@ -224,31 +224,6 @@ const Unit = () => {
     kraState.refresh?.();
     kpiState.refresh?.();
   }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh, kpiState.refresh]);
-
-  // --- Combine KRAs and KPIs --- 
-  /* // --- TEMPORARILY COMMENT OUT COMBINING LOGIC ---
-  const combinedKras = useMemo(() => {
-    const kras = (kraState.data || []).map(kra => ensureStringId(kra)); 
-    const kpis = (kpiState.data || []).map(kpi => ensureStringId(kpi)); 
-
-    const kpisByKraId: Record<string, Kpi[]> = {};
-
-    kpis.forEach(kpi => {
-      const kraIdStr = kpi.kra_id?.toString(); 
-      if (kraIdStr) {
-        if (!kpisByKraId[kraIdStr]) {
-          kpisByKraId[kraIdStr] = [];
-        }
-        kpisByKraId[kraIdStr].push(kpi);
-      }
-    });
-
-    return kras.map(kra => ({
-      ...kra,
-      unitKpis: kra.id ? kpisByKraId[kra.id] || [] : []
-    }));
-  }, [kraState.data, kpiState.data]);
-  */ // --- END TEMPORARY COMMENT OUT ---
 
   // Determine if data loading is complete
   const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading || kpiState.loading;
