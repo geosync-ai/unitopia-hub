@@ -776,11 +776,11 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                             kraTitleRowSpan, 
                             kraTitle 
                           } = row;
-                          const targetQuarter = getQuarter(kpi.targetDate);
+                          const targetQuarter = getQuarter(kpi?.targetDate);
                           const isFirstKpiOfOriginalKra = (originalKra as any).unitKpis?.[0]?.id === kpi.id || (!kpi.id && !(originalKra as any).unitKpis?.length); 
 
                           return (
-                            <TableRow key={`${originalKra.id}-${kpi.id || rowIndex}`}>
+                            <TableRow key={`${originalKra.id}-${kpi?.id || rowIndex}`}>
                               {isFirstRowOfObjective && (
                                 <TableCell className="align-top border-r text-sm font-medium" rowSpan={objectiveRowSpan}>
                                   {objectiveName}
@@ -792,18 +792,18 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                                 </TableCell>
                               )}
                               {/* KPI Cells */}
-                              <TableCell className="align-top text-sm">{kpi.name !== '-' ? kpi.name : <span className="text-muted-foreground">-</span>}</TableCell>
-                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi.startDate)}</TableCell>
-                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi.targetDate)}</TableCell>
+                              <TableCell className="align-top text-sm">{kpi?.name !== '-' ? kpi?.name : <span className="text-muted-foreground">-</span>}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi?.startDate)}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi?.targetDate)}</TableCell>
                               <TableCell className="align-top text-sm">{targetQuarter}</TableCell>
-                              <TableCell className="align-top text-sm">{kpi.target ?? '-'}</TableCell>
-                              <TableCell className="align-top text-sm">{kpi.actual ?? '-'}</TableCell>
+                              <TableCell className="align-top text-sm">{kpi?.target ?? '-'}</TableCell>
+                              <TableCell className="align-top text-sm">{kpi?.actual ?? '-'}</TableCell>
                               <TableCell className="align-top whitespace-nowrap">
-                                {kpi.status ? <StatusBadge status={kpi.status} /> : <span className="text-muted-foreground">-</span>}
+                                {kpi?.status ? <StatusBadge status={kpi.status} /> : <span className="text-muted-foreground">-</span>}
                               </TableCell>
-                              <TableCell className="align-top text-sm whitespace-nowrap">{formatCurrency(kpi.costAssociated)}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatCurrency(kpi?.costAssociated)}</TableCell>
                               <TableCell className="align-top">
-                                {kpi.assignees && kpi.assignees.length > 0 ? (
+                                {kpi?.assignees && kpi.assignees.length > 0 ? (
                                   <div className="flex -space-x-2 overflow-hidden">
                                     {(kpi.assignees as any[]).map((assignee: any, index: number) => ( 
                                       <Tooltip key={assignee.id || `assignee-${index}`}>
@@ -819,25 +819,27 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                                   </div>
                                 ) : <span className="text-muted-foreground">-</span>}
                               </TableCell>
-                              <TableCell className="align-top text-xs text-muted-foreground">{kpi.comments || '-'}</TableCell>
+                              <TableCell className="align-top text-xs text-muted-foreground">{kpi?.comments || '-'}</TableCell>
                               <TableCell className="align-top text-right sticky right-0 bg-card border-l px-2 py-1 whitespace-nowrap align-middle">
                                 <div className="flex justify-end items-center space-x-1">
-                                  <TooltipProvider delayDuration={100}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="p-1 h-auto"
-                                          onClick={() => handleOpenEditKpiModal(row.originalKra.id, row.kpi)}
-                                          aria-label="Edit KPI"
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Edit KPI</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  {kpi && kpi.id && kpi.name !== '-' && (
+                                    <TooltipProvider delayDuration={100}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="p-1 h-auto"
+                                            onClick={() => handleOpenEditKpiModal(row.originalKra.id, row.kpi)}
+                                            aria-label="Edit KPI"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Edit KPI</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
