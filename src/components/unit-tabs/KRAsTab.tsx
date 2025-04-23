@@ -57,7 +57,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { krasService } from '@/integrations/supabase/unitService';
-import moment from 'moment';
 
 // Helper function to format dates (DD MMM YYYY)
 const formatDate = (dateString: string | undefined): string => {
