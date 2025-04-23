@@ -56,6 +56,6 @@ export interface User {
 // Add Objective interface
 export interface Objective {
   id: string | number;
-  name: string;
+  title: string;
   description?: string; // Optional description
 } 

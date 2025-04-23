@@ -963,7 +963,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                       ) : (
                         objectivesData.map((objective) => (
                           <TableRow key={objective.id}>
-                            <TableCell className="font-medium">{objective.name}</TableCell>
+                            <TableCell className="font-medium">{objective.title}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{objective.description || '-'}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditObjectiveModal(objective)}>
