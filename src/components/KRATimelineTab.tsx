@@ -104,8 +104,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras, objectives }) => 
     let maxTargetDate: Date | null = null;
 
     kpis.forEach(kpi => {
-      const startDate = parseDate(kpi.startDate);
-      const targetDate = parseDate(kpi.targetDate);
+      const startDate = parseDate(kpi.start_date || kpi.startDate);
+      const targetDate = parseDate(kpi.target_date || kpi.targetDate);
 
       if (startDate) {
         if (!minStartDate || startDate < minStartDate) {
@@ -249,8 +249,8 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras, objectives }) => 
 
               <div className="relative z-0">
                 {kras.map((kra, kraIndex) => {
-                  const kraStartDate = parseDate(kra.startDate);
-                  const kraTargetDate = parseDate(kra.targetDate);
+                  const kraStartDate = parseDate(kra.start_date || kra.startDate);
+                  const kraTargetDate = parseDate(kra.target_date || kra.targetDate);
                   const kraProgress = getKraProgress(kra.unitKpis || []);
                   const kpisExist = kra.unitKpis && kra.unitKpis.length > 0;
 
@@ -308,15 +308,15 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras, objectives }) => 
                         {/* Container for KPI Bars - ensure z-index is not needed if background removed */}
                         <div className={`relative ${kpisExist ? 'py-3 h-full' : 'h-full'}`}> {/* Removed z-10 */}
                           {kra.unitKpis && kra.unitKpis.map((kpi, kpiIndex) => {
-                            const kpiStartDate = parseDate(kpi.startDate);
-                            const kpiTargetDate = parseDate(kpi.targetDate);
+                            const kpiStartDate = parseDate(kpi.start_date || kpi.startDate);
+                            const kpiTargetDate = parseDate(kpi.target_date || kpi.targetDate);
                             const kpiStartPosition = calculatePosition(kpiStartDate);
                             const kpiWidth = calculateWidth(kpiStartDate, kpiTargetDate);
                             const kpiColorClass = getKpiStatusColorClass(kpi.status);
                             const kpiProgress = getKpiProgress(kpi);
 
                             // Log values for debugging
-                            console.log(`[Timeline KPI Debug] KRA: ${kra.title}, KPI: ${kpi.name}, Start: ${kpi.startDate}, ParsedStart: ${kpiStartDate}, Target: ${kpi.targetDate}, ParsedTarget: ${kpiTargetDate}, Width: ${kpiWidth}`);
+                            console.log(`[Timeline KPI Debug] KRA: ${kra.title}, KPI: ${kpi.name}, Start: ${kpi.start_date || kpi.startDate}, ParsedStart: ${kpiStartDate}, Target: ${kpi.target_date || kpi.targetDate}, ParsedTarget: ${kpiTargetDate}, Width: ${kpiWidth}`);
 
                             if (!kpiStartDate || !kpiTargetDate || kpiWidth <= 0) {
                                // Log why it's not rendering
@@ -352,7 +352,7 @@ const KRATimelineTab: React.FC<KRATimelineTabProps> = ({ kras, objectives }) => 
                                   <TooltipContent side="top" align="center" className="z-[100]">
                                     <p className="font-semibold">{kpi.name}</p>
                                     <p className="text-xs text-muted-foreground">
-                                      {kpi.startDate ? new Date(kpi.startDate).toLocaleDateString() : '?'} - {kpi.targetDate ? new Date(kpi.targetDate).toLocaleDateString() : '?'} 
+                                      {kpi.start_date || kpi.startDate ? new Date(kpi.start_date || kpi.startDate).toLocaleDateString() : '?'} - {kpi.target_date || kpi.targetDate ? new Date(kpi.target_date || kpi.targetDate).toLocaleDateString() : '?'} 
                                     </p>
                                     <p className="text-xs">Status: {kpi.status}</p>
                                     <p className="text-xs">Progress: {kpiProgress}%</p>

@@ -891,7 +891,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                             kraTitleRowSpan, 
                             kraTitle 
                           } = row;
-                          const targetQuarter = getQuarter(kpi?.targetDate);
+                          const targetQuarter = getQuarter(kpi?.target_date || kpi?.targetDate);
                           const isFirstKpiOfOriginalKra = (originalKra as any).unitKpis?.[0]?.id === kpi.id || (!kpi.id && !(originalKra as any).unitKpis?.length); 
 
                           return (
@@ -908,8 +908,8 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
                               )}
                               {/* KPI Cells */}
                               <TableCell className="align-top text-sm">{kpi?.name !== '-' ? kpi?.name : <span className="text-muted-foreground">-</span>}</TableCell>
-                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi?.startDate)}</TableCell>
-                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi?.targetDate)}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi?.start_date || kpi?.startDate)}</TableCell>
+                              <TableCell className="align-top text-sm whitespace-nowrap">{formatDate(kpi?.target_date || kpi?.targetDate)}</TableCell>
                               <TableCell className="align-top text-sm">{targetQuarter}</TableCell>
                               <TableCell className="align-top text-sm">{kpi?.target ?? '-'}</TableCell>
                               <TableCell className="align-top text-sm">{kpi?.actual ?? '-'}</TableCell>

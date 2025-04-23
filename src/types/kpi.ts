@@ -9,7 +9,9 @@ export interface Kpi {
   target: number;
   actual?: number;
   startDate?: string; // Add KPI start date
+  start_date?: string; // Snake case variant
   targetDate?: string; // Add KPI target date (or 'dueDate')
+  target_date?: string; // Snake case variant
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold' | 'at-risk' | 'on-track' | 'behind';
   comments?: string;
   assignees?: User[]; // Add assignees to KPI
@@ -31,7 +33,9 @@ export interface Kra {
   unit?: string | null; // Unit or Department name
   unitId?: string | number | null; // FK to a potential 'units' table
   startDate?: string; // ISO Date string
+  start_date?: string; // Snake case variant
   targetDate?: string; // ISO Date string
+  target_date?: string; // Snake case variant
   unitKpis?: Kpi[]; // Renamed from kpis for clarity
   description?: string | null;
   department?: string | null; // Consider consolidating with unit
