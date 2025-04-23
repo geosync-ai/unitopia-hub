@@ -63,7 +63,7 @@ import { OrganizationUnit } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { Objective, Kra } from '@/types/kpi';
-import { unitService } from '@/integrations/supabase/unitService'; // Import the unitService
+import { objectivesService } from '@/integrations/supabase/unitService'; // Import the objectivesService
 import DivisionStaffMap from '@/utils/divisionStaffMap'; // Import DivisionStaffMap
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'; // Import the correct auth hook
 
@@ -160,7 +160,8 @@ const Unit = () => {
     setObjectivesLoading(true);
     setObjectivesError(null);
     try {
-      const fetchedObjectives = await unitService.getAllObjectives();
+      // const fetchedObjectives = await unitService.getAllObjectives(); // Use objectivesService instead
+      const fetchedObjectives = await objectivesService.getObjectives();
       setObjectivesData(fetchedObjectives);
     } catch (error) {
       setObjectivesError(error instanceof Error ? error : new Error('Failed to load objectives'));
@@ -205,7 +206,8 @@ const Unit = () => {
   const handleDeleteObjective = useCallback(async (objectiveId: string | number) => {
     try {
       // Assume unitService has a deleteObjective method
-      await unitService.deleteObjective(String(objectiveId)); 
+      // await unitService.deleteObjective(String(objectiveId)); // Use objectivesService instead
+      await objectivesService.deleteObjective(String(objectiveId)); 
       toast({ title: "Objective Deleted", description: `Objective ID ${objectiveId} deleted successfully.` });
       handleRefreshAllData(); // Refresh data after successful deletion
     } catch (error) {
