@@ -1,31 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Plus, 
   LayoutGrid, 
-  Columns, 
   Filter, 
-  SlidersHorizontal, 
-  Check,
-  Calendar as CalendarIcon,
   Search,
-  X,
-  PlusSquare,
   Trash2,
   Bell,
-  Moon,
-  Sun,
   User as UserIcon,
   LogOut,
   LayoutDashboard,
-  Grid3X3,
-  AlertTriangle,
-  Ticket,
-  Kanban,
-  LayoutIcon,
-  Grid2X2Icon,
-  MoreHorizontal,
-  ChevronDown
+  Kanban
 } from 'lucide-react';
 import TicketCard from './TicketCard';
 import TicketDialog from './TicketDialog';
@@ -43,13 +28,9 @@ import {
   DragOverlay
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-  rectSortingStrategy,
-  rectSwappingStrategy
+  verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
@@ -62,9 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { CSS } from '@dnd-kit/utilities';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   AlertDialog, 
@@ -74,29 +53,20 @@ import {
   AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
+  AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import ThemeToggle from '../layout/ThemeToggle';
 import { useToast } from "@/hooks/use-toast";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 
-// Add UserNav component directly in this file
-const UserNav: React.FC = () => {
+// UserNav component
+const UserNav = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="" alt="User" />
             <AvatarFallback>SC</AvatarFallback>
           </Avatar>
         </Button>
@@ -122,19 +92,19 @@ const UserNav: React.FC = () => {
   );
 };
 
-// Type for the board data structure
-interface BoardData {
-  [key: string]: TicketCardProps[]; 
-}
-
-// Define the Bucket interface
-interface Bucket {
-  id: string;
+// Type for ticket data
+export interface TicketData {
+  id?: string;
   title: string;
+  description?: string;
+  priority: "High" | "Medium" | "Low";
+  status?: string;
+  dueDate?: Date | null;
+  assigneeId?: string;
 }
 
-// Fix the TicketCardProps interface to include all required properties
-interface TicketCardProps {
+// Type for ticket props
+export interface TicketCardProps {
   id: string;
   title: string;
   description?: string;
@@ -154,20 +124,31 @@ interface TicketCardProps {
   className?: string;
 }
 
-// Define interface for ticket data
-interface TicketData {
-  id: string;
-  title: string;
-  description?: string;
-  status?: string;
-  priority: "High" | "Medium" | "Low";
-  type?: string;
-  assigneeId?: string;
-  createdAt?: string;
-  dueDate?: Date | null;
+// Type for the board data structure
+interface BoardData {
+  [key: string]: TicketCardProps[]; 
 }
 
-// Ensure all IDs are strings in initial data
+// Define the Bucket interface
+interface Bucket {
+  id: string;
+  title: string;
+}
+
+// Type for item to delete
+interface ItemToDelete {
+  type: 'ticket' | 'group';
+  id: string;
+  name?: string; // For display in confirmation
+}
+
+// Define column type
+type BoardColumnId = string;
+
+// View modes
+type ViewMode = 'board' | 'grid';
+
+// Sample initial data
 const initialBoardData: BoardData = {
   todo: [
     { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo' },
@@ -181,17 +162,14 @@ const initialBoardData: BoardData = {
   ]
 };
 
-// Define column type based on sample data keys
-type BoardColumnId = string; // Ensure column IDs are treated as strings
-
-// Ensure bucket IDs are strings
+// Initial buckets
 const initialBuckets = [
   { id: 'todo', title: 'TO DO' },
   { id: 'inprogress', title: 'IN PROGRESS' },
   { id: 'done', title: 'DONE' }
 ];
 
-// Ensure filter IDs are strings
+// Initial filters
 const initialFilters = {
   priority: [
     { id: 'high', label: 'High Priority', checked: false },
@@ -205,17 +183,7 @@ const initialFilters = {
   ]
 };
 
-// View modes
-type ViewMode = 'board' | 'grid';
-
-// Type for item to delete
-interface ItemToDelete {
-  type: 'ticket' | 'group';
-  id: string;
-  name?: string; // For display in confirmation
-}
-
-// Add these components to replace the Board/Grid views
+// Board lane component with improved drop handling for empty groups
 const BoardLane = ({ 
   id, 
   title,
@@ -223,6 +191,7 @@ const BoardLane = ({
   onAddTicket, 
   onEditTicket, 
   onDeleteTicket,
+  onDeleteGroup,
   isOver = false
 }: { 
   id: string; 
@@ -231,6 +200,7 @@ const BoardLane = ({
   onAddTicket: () => void;
   onEditTicket: (ticketId: string) => void;
   onDeleteTicket: (ticketId: string) => void;
+  onDeleteGroup: (groupId: string) => void;
   isOver?: boolean;
 }) => {
   const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
@@ -240,7 +210,18 @@ const BoardLane = ({
     <div className="w-80 flex-shrink-0 flex flex-col bg-muted/30 dark:bg-muted/20 rounded-lg overflow-hidden">
       <div className="p-3 font-medium flex items-center justify-between bg-muted/50 dark:bg-muted/30">
         <h3>{title}</h3>
-        <Badge variant="outline" className="ml-2">{tickets.length}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="ml-2">{tickets.length}</Badge>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600"
+            onClick={() => onDeleteGroup(id)}
+            title="Delete Group"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
       <div 
         className={cn(
@@ -287,7 +268,7 @@ const BoardLane = ({
   );
 };
 
-// Improve the GridView implementation
+// Grid view component
 const GridView: React.FC<{
   tickets: BoardData;
   onEditTicket: (id: string) => void;
@@ -334,133 +315,9 @@ const GridView: React.FC<{
   );
 };
 
-// Add SortableTicket component for the grid view
-const SortableTicket = ({ id, ...props }: TicketCardProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-  
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TicketCard id={id} {...props} />
-    </div>
-  );
-};
-
-// Add NotificationBell component
-const NotificationBell = () => {
-  const { toast } = useToast();
-  
-  const handleClick = () => {
-    toast({
-      title: "Notifications",
-      description: "You have no new notifications",
-    });
-  };
-  
-  return (
-    <Button variant="ghost" size="icon" onClick={handleClick}>
-      <Bell className="h-5 w-5" />
-    </Button>
-  );
-};
-
-// Remove existing BoardControls component and replace with a simpler one without view toggle
-const BoardControls = () => {
-  return (
-    <div className="mb-6 flex flex-col space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-grow max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search tickets..."
-            className="pl-8"
-          />
-        </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem checked>
-              High Priority
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked>
-              Medium Priority
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked>
-              Low Priority
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Filter by Assignee</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem checked>
-              Alice
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked>
-              Bob
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked>
-              Charlie
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        
-        <Button variant="outline" size="sm">
-          <SlidersHorizontal className="mr-2 h-4 w-4" />
-          Sort
-        </Button>
-        
-        <Button onClick={() => handleCreateTicket()}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Ticket
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// Create ViewToggle component to be used in the header
-const ViewToggle: React.FC<{
-  activeView: ViewMode;
-  setActiveView: (view: ViewMode) => void;
-}> = ({ activeView, setActiveView }) => {
-  return (
-    <div className="flex items-center border rounded-md overflow-hidden">
-      <Button
-        variant={activeView === "board" ? "default" : "ghost"}
-        size="sm"
-        className="rounded-none px-3"
-        onClick={() => setActiveView("board")}
-      >
-        <Kanban className="mr-2 h-4 w-4" />
-        Board
-      </Button>
-      <Button
-        variant={activeView === "grid" ? "default" : "ghost"}
-        size="sm"
-        className="rounded-none px-3"
-        onClick={() => setActiveView("grid")}
-      >
-        <LayoutGrid className="mr-2 h-4 w-4" />
-        Grid
-      </Button>
-    </div>
-  );
-};
-
+// Main TicketManager component
 const TicketManager: React.FC = () => {
-  // State for the board data (start with sample)
+  // State for the board data
   const [boardData, setBoardData] = useState<BoardData>(initialBoardData);
   const [buckets, setBuckets] = useState(initialBuckets);
   const [viewMode, setViewMode] = useState<ViewMode>('board');
@@ -495,7 +352,7 @@ const TicketManager: React.FC = () => {
     })
   );
 
-  // Find ticket helper function (ticketId is always string)
+  // Find ticket helper function
   const findTicketAndColumn = (ticketId: string): { columnId: BoardColumnId, index: number, ticket: TicketCardProps } | null => {
     for (const columnId in boardData) {
       const index = boardData[columnId as BoardColumnId].findIndex(t => t.id === ticketId);
@@ -510,21 +367,22 @@ const TicketManager: React.FC = () => {
     return null;
   }
 
-  // Define handler to open dialog for creating a new ticket
+  // Handler to open dialog for creating a new ticket
   const handleCreateTicket = () => {
+    setEditingTicket(null);
+    setTargetColumnForNewTicket(null);
+    setIsDialogOpen(true);
+  };
+
+  // Handler to open dialog for creating a new ticket in a specific column
+  const handleCreateTicketInColumn = (columnId: string) => {
+    console.log("Creating ticket in column:", columnId);
+    setTargetColumnForNewTicket(columnId);
     setEditingTicket(null);
     setIsDialogOpen(true);
   };
 
-  // Handler to open dialog for creating a new ticket IN A SPECIFIC COLUMN (columnId is string)
-  const handleCreateTicketInColumn = (columnId: string) => {
-    console.log("Creating ticket in column:", columnId);
-    setTargetColumnForNewTicket(columnId); // Set target column before opening
-    setEditingTicket(null); // Set to null for creation mode
-    setIsDialogOpen(true);
-  };
-
-  // Updated handleEditTicket (ticketId is string)
+  // Handler to edit a ticket
   const handleEditTicket = (ticketId: string) => {
     const itemInfo = findTicketAndColumn(ticketId);
     if (itemInfo) {
@@ -534,8 +392,8 @@ const TicketManager: React.FC = () => {
         title: ticket.title,
         description: ticket.description,
         priority: ticket.priority,
-        status: columnId, // Use the column ID as status
-        dueDate: ticket.dueDate ? new Date(ticket.dueDate) : null, // Adjust parsing if needed
+        status: columnId,
+        dueDate: ticket.dueDate ? new Date(ticket.dueDate) : null,
       };
       setEditingTicket(ticketToEdit);
       setIsDialogOpen(true);
@@ -591,7 +449,7 @@ const TicketManager: React.FC = () => {
     return filteredData;
   };
 
-  // Implemented submit handler for local state
+  // Submit handler for ticket form
   const handleTicketSubmit = (ticketData: TicketData) => {
     console.log('Submitting ticket:', ticketData);
     setBoardData((prevBoard) => {
@@ -606,7 +464,6 @@ const TicketManager: React.FC = () => {
             priority: ticketData.priority,
             dueDate: ticketData.dueDate ? format(ticketData.dueDate, "MMM d") : undefined,
             status: targetColumn,
-            // Map other fields if needed
         };
 
         if (ticketData.id) { // Update
@@ -627,13 +484,12 @@ const TicketManager: React.FC = () => {
                     break; 
                 }
             }
-             if (!updated) console.error("Ticket to update not found:", ticketData.id);
+            if (!updated) console.error("Ticket to update not found:", ticketData.id);
         } else { // Create
-             newBoard[targetColumn].push(cardData);
+            newBoard[targetColumn].push(cardData);
         }
         return newBoard;
     });
-    // TODO: Add API call to persist the change
     setIsDialogOpen(false);
     setTargetColumnForNewTicket(null); // Reset target column on close
   };
@@ -658,33 +514,18 @@ const TicketManager: React.FC = () => {
       }
     });
   };
-
-  // Clear all filters
-  const clearFilters = () => {
-    setSearchQuery('');
-    setActiveFilters([]);
-    setFilters(initialFilters);
-  };
   
   // Add a new bucket/column
   const addBucket = () => {
-    // TODO: Modify this later for inline renaming on add
     const newBucketId = `new-bucket-${Date.now()}`;
-    const newBucket = { id: newBucketId, title: 'New Bucket' }; // Default name for now
+    const newBucket = { id: newBucketId, title: 'New Bucket' };
     setBuckets(prev => [...prev, newBucket]);
     setBoardData(prev => ({ ...prev, [newBucketId]: [] }));
   };
 
-  // Start renaming a column
-  const handleColumnHeaderDoubleClick = (columnId: string, currentTitle: string) => {
-    setRenamingColumnId(columnId);
-    setEditingColumnName(currentTitle);
-  };
-
-  // Finish or cancel renaming a column
+  // Handle column rename
   const handleColumnRename = (columnId: string) => {
     if (!editingColumnName.trim()) {
-      // If name is empty, maybe revert or show error? For now, cancel.
       setRenamingColumnId(null);
       return;
     }
@@ -696,15 +537,69 @@ const TicketManager: React.FC = () => {
     setRenamingColumnId(null); // Exit renaming mode
   };
 
+  // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const itemInfo = findTicketAndColumn(String(active.id));
     setActiveDragItem(itemInfo ? itemInfo.ticket : null);
   }
 
+  // Handle drag over
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    
+    if (!over || !active) return;
+    
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    
+    // Skip if not a valid drop target
+    if (activeId === overId) return;
+    
+    // Check if we're dragging over a column
+    const isColumnDrop = columns.some(col => col.id === overId);
+    if (isColumnDrop) {
+      setActiveDropId(overId);
+      return;
+    } else {
+      setActiveDropId(null);
+    }
+    
+    // Check if we're dragging over another ticket
+    const overItemInfo = findTicketAndColumn(overId);
+    if (!overItemInfo) return;
+    
+    const activeInfo = findTicketAndColumn(activeId);
+    if (!activeInfo) return;
+    
+    // Only react if dragging to a different column
+    if (activeInfo.columnId !== overItemInfo.columnId) {
+      setBoardData(prev => {
+        const newBoard = { ...prev };
+        
+        // Remove from original column
+        const sourceColumn = [...newBoard[activeInfo.columnId]];
+        sourceColumn.splice(activeInfo.index, 1);
+        
+        // Add to the new column
+        const targetColumn = [...newBoard[overItemInfo.columnId]];
+        const updatedTicket = { ...activeInfo.ticket, status: overItemInfo.columnId };
+        targetColumn.splice(overItemInfo.index, 0, updatedTicket);
+        
+        // Update the board
+        newBoard[activeInfo.columnId] = sourceColumn;
+        newBoard[overItemInfo.columnId] = targetColumn;
+        
+        return newBoard;
+      });
+    }
+  };
+
+  // Handle drag end
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragItem(null);
+    setActiveDropId(null); // Clear the highlight after dropping
 
     // Check if we have a valid drop target
     if (!over || !active) {
@@ -745,11 +640,6 @@ const TicketManager: React.FC = () => {
         targetColumnId = overItemInfo.columnId;
         console.log("Dropped onto ticket in column:", targetColumnId);
       } 
-      // Finally check if we're dropping within a sortable context
-      else if (over.data.current?.sortable?.containerId) {
-        targetColumnId = String(over.data.current.sortable.containerId);
-        console.log("Dropped into sortable context:", targetColumnId);
-      }
     }
 
     // If we still couldn't determine a target column, exit
@@ -804,9 +694,7 @@ const TicketManager: React.FC = () => {
     });
   };
 
-  const filteredBoardData = getFilteredTickets();
-
-  // --- Delete Handlers ---
+  // Delete handlers
   const handleRequestDelete = (item: ItemToDelete) => {
     setItemToDelete(item);
     setIsConfirmDeleteDialogOpen(true);
@@ -831,35 +719,25 @@ const TicketManager: React.FC = () => {
       });
     } else if (itemToDelete.type === 'group') {
       console.log("Deleting group:", itemToDelete.id);
-      // Keep a reference to the current itemToDelete ID
       const deleteId = itemToDelete.id;
       
-      // Use a single batch update function
-      const updateBothStates = () => {
-        // Update buckets first
-        setBuckets(prevBuckets => {
-          const newBuckets = prevBuckets.filter(bucket => bucket.id !== deleteId);
-          
-          // Then update board data - using the updated buckets info
-          setBoardData(prevBoard => {
-            const newBoard = { ...prevBoard };
-            delete newBoard[deleteId]; // Remove the column
-            return newBoard;
-          });
-          
-          return newBuckets;
+      setBuckets(prevBuckets => {
+        const newBuckets = prevBuckets.filter(bucket => bucket.id !== deleteId);
+        
+        setBoardData(prevBoard => {
+          const newBoard = { ...prevBoard };
+          delete newBoard[deleteId]; // Remove the column
+          return newBoard;
         });
-      };
-      
-      // Execute update
-      updateBothStates();
+        
+        return newBuckets;
+      });
     }
 
     cancelDelete(); // Close dialog and reset state
   };
-  // --- End Delete Handlers ---
 
-  // --- Add Group Handlers ---
+  // Add group handlers
   const handleSaveNewGroup = () => {
     const trimmedName = newGroupName.trim();
     if (!trimmedName) return; // Don't add empty names
@@ -892,108 +770,15 @@ const TicketManager: React.FC = () => {
     setIsAddingGroup(false);
     setNewGroupName('');
   };
-  // --- End Add Group Handlers ---
 
-  // Placeholder for notification click
-  const handleNotificationClick = () => {
-    toast({
-      title: "Notifications",
-      description: "No new notifications (placeholder).",
-    });
-  };
-
-  // Fix the filteredStatuses state to match the correct type (string[] instead of Record<string, any>)
-  const [filteredStatuses, setFilteredStatuses] = useState<string[]>([]);
-
-  // Add the missing handleDragOver function
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    
-    if (!over || !active) return;
-    
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    
-    // Skip if not a valid drop target
-    if (activeId === overId) return;
-    
-    const activeInfo = findTicketAndColumn(activeId);
-    if (!activeInfo) return;
-    
-    // Check if we're dragging over a column
-    const isColumnDrop = columns.some(col => col.id === overId);
-    if (isColumnDrop) {
-      setActiveDropId(overId);
-      return;
-    } else {
-      setActiveDropId(null);
-    }
-    
-    // Check if we're dragging over another ticket
-    const overInfo = findTicketAndColumn(overId);
-    if (!overInfo) return;
-    
-    // Only react if dragging to a different column
-    if (activeInfo.columnId !== overInfo.columnId) {
-      setBoardData(prev => {
-        const newBoard = { ...prev };
-        
-        // Remove from original column
-        const sourceColumn = [...newBoard[activeInfo.columnId]];
-        sourceColumn.splice(activeInfo.index, 1);
-        
-        // Add to the new column
-        const targetColumn = [...newBoard[overInfo.columnId]];
-        const updatedTicket = { ...activeInfo.ticket, status: overInfo.columnId };
-        targetColumn.splice(overInfo.index, 0, updatedTicket);
-        
-        // Update the board
-        newBoard[activeInfo.columnId] = sourceColumn;
-        newBoard[overInfo.columnId] = targetColumn;
-        
-        return newBoard;
-      });
-    }
-  };
-
-  // Add missing boardRefs object
-  const boardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
-
-  // Add helper functions to get board data
-  const getTicketIdsInColumn = (columnId: string): string[] => {
-    return boardData[columnId]?.map(ticket => ticket.id) || [];
-  };
-
-  const getBoardColumn = (columnId: string): TicketCardProps[] => {
-    return boardData[columnId] || [];
-  };
-
-  const getAllTicketIds = (): string[] => {
-    return Object.values(boardData).flat().map(ticket => ticket.id);
-  };
-
-  const getAllTickets = (): TicketCardProps[] => {
-    return Object.values(boardData).flat();
-  };
-
-  // Add function to get assignee by ID
-  const getAssigneeById = (assigneeId: string) => {
-    // This would typically come from a map of users
-    // For now, just return a placeholder
-    return { 
-      name: "User", 
-      avatarFallback: assigneeId.substring(0, 1).toUpperCase() 
-    };
-  };
-
-  // Add function to handle adding a ticket to a column
+  // Function to handle adding a ticket to a column
   const handleAddTicketToColumn = (columnId: string) => {
     setTargetColumnForNewTicket(columnId);
     setEditingTicket(null);
     setIsDialogOpen(true);
   };
 
-  // Add function to handle ticket deletion
+  // Function to handle ticket deletion
   const handleDeleteTicket = (ticketId: string) => {
     const itemInfo = findTicketAndColumn(ticketId);
     if (itemInfo) {
@@ -1005,34 +790,67 @@ const TicketManager: React.FC = () => {
     }
   };
 
+  // Function to handle deleting a group
+  const handleDeleteGroup = (groupId: string) => {
+    const bucket = buckets.find(b => b.id === groupId);
+    if (bucket) {
+      handleRequestDelete({
+        type: 'group',
+        id: groupId,
+        name: bucket.title
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
+      {/* Header with logo and controls in the same row */}
       <header className="border-b sticky top-0 z-10 bg-background">
         <div className="flex h-16 items-center px-4 gap-4">
-          <div className="flex-1 flex items-center">
-            <h1 className="text-xl font-semibold">Ticket Manager</h1>
-            <div className="ml-4 flex">
-              <Button
-                variant={viewMode === "board" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("board")}
-                className="rounded-r-none"
-              >
-                <Kanban className="h-4 w-4 mr-1" />
-                Board
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                className="rounded-l-none"
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Grid
-              </Button>
-            </div>
+          {/* Logo and title */}
+          <div className="flex items-center gap-4">
+            <img 
+              src="/SCPNG Original Logo.png" 
+              alt="SCPNG Logo" 
+              className="h-10 w-auto"
+            />
+            <h1 className="text-xl font-semibold">Support Ticketing System</h1>
           </div>
+          
+          {/* Board/Grid toggle */}
+          <div className="ml-4 flex">
+            <Button
+              variant={viewMode === "board" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("board")}
+              className="rounded-r-none"
+            >
+              <Kanban className="h-4 w-4 mr-1" />
+              Board
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className="rounded-l-none"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Grid
+            </Button>
+          </div>
+          
+          {/* Spacer to push the next items to the right */}
+          <div className="flex-1"></div>
+          
+          {/* Add Ticket button moved to top right */}
+          <Button 
+            onClick={handleCreateTicket}
+            className="bg-primary text-white hover:bg-primary/90"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Ticket
+          </Button>
+          
           <ThemeToggle />
           <Button variant="outline" size="icon">
             <Bell className="h-4 w-4" />
@@ -1080,12 +898,8 @@ const TicketManager: React.FC = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button onClick={() => handleCreateTicket()}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Ticket
-          </Button>
         </div>
-
+      
         {/* Board/Grid View */}
         <DndContext
           sensors={sensors}
@@ -1109,6 +923,7 @@ const TicketManager: React.FC = () => {
                     onAddTicket={() => handleAddTicketToColumn(columnId)}
                     onEditTicket={handleEditTicket}
                     onDeleteTicket={handleDeleteTicket}
+                    onDeleteGroup={handleDeleteGroup}
                     isOver={activeDropId === columnId}
                   />
                 );
@@ -1168,7 +983,7 @@ const TicketManager: React.FC = () => {
         </DndContext>
       </main>
 
-      {/* Ticket Dialog with corrected props */}
+      {/* Ticket Dialog */}
       <TicketDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
@@ -1177,6 +992,7 @@ const TicketManager: React.FC = () => {
         defaultStatus={targetColumnForNewTicket || undefined}
       />
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
