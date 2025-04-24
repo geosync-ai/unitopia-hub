@@ -9,14 +9,14 @@ import PageLayout from '@/components/layout/PageLayout';
 import { useToast } from '@/components/ui/use-toast';
 import { Report, ReportTemplate, ScheduledReport } from '@/types/reports';
 import { reportsService } from '@/integrations/supabase/reportsService';
-import { useAuth } from '@/hooks/useAuth';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import ReportPreview from '@/components/reports/ReportPreview';
 import ReportEditor from '@/components/reports/ReportEditor';
 import TemplateManager from '@/components/reports/TemplateManager';
 import AIReportChat from '@/components/reports/AIReportChat';
 
 const Reports = () => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("generate");
   const [reports, setReports] = useState<Report[]>([]);

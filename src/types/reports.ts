@@ -100,6 +100,7 @@ export interface AIChatMessage {
   content: string;
   role: 'system' | 'user' | 'assistant';
   timestamp: string;
+  conversation_id: string;
   report_context?: {
     report_id?: string;
     section_ids?: string[];
