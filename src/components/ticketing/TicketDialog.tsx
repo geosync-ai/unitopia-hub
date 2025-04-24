@@ -20,9 +20,20 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CalendarIcon, User, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Define the shape of a comment
+interface Comment {
+  id: string;
+  authorName: string;
+  authorAvatarFallback: string;
+  timestamp: Date;
+  text: string;
+}
 
 // Define the shape of a ticket (can be expanded)
 export interface TicketData {
@@ -33,7 +44,8 @@ export interface TicketData {
   status?: string; // e.g., 'todo', 'inprogress', 'done'
   dueDate?: Date | null;
   assigneeId?: string | null; // ID of the assigned user
-  // Add other relevant fields: reporterId, comments, etc.
+  comments?: Comment[]; // Added comments array
+  // Add other relevant fields: reporterId, etc.
 }
 
 interface StatusOption {
@@ -65,6 +77,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [status, setStatus] = useState<string>('todo');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [comments, setComments] = useState<Comment[]>([]); // State for comments
+  const [newCommentText, setNewCommentText] = useState(''); // State for new comment input
   
   useEffect(() => {
     if (initialData) {
@@ -73,6 +87,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setPriority(initialData.priority || 'Medium');
       setStatus(initialData.status || 'todo');
       setDueDate(initialData.dueDate || undefined);
+      setComments(initialData.comments || []); // Load existing comments
     } else {
       // Reset form for new ticket
       setTitle('');
@@ -80,7 +95,9 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setPriority('Medium');
       setStatus('todo');
       setDueDate(undefined);
+      setComments([]); // Reset comments for new ticket
     }
+    setNewCommentText(''); // Clear comment input on open/change
   }, [initialData, isOpen]); 
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -92,8 +109,28 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       priority,
       status,
       dueDate: dueDate || null,
+      comments: comments, // Note: comments are managed locally in this example
     };
     onSubmit(ticketData);
+  };
+
+  // Function to handle adding a new comment
+  const handleAddComment = () => {
+    if (!newCommentText.trim()) return; // Don't add empty comments
+
+    // Replace with actual logged-in user data later
+    const currentUser = { name: "Current User", avatarFallback: "CU" }; 
+
+    const newComment: Comment = {
+      id: `comment-${Date.now()}`,
+      authorName: currentUser.name,
+      authorAvatarFallback: currentUser.avatarFallback,
+      timestamp: new Date(),
+      text: newCommentText,
+    };
+
+    setComments(prevComments => [...prevComments, newComment]);
+    setNewCommentText(''); // Clear input field
   };
 
   return (
@@ -105,7 +142,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             {initialData ? 'Update the details of the ticket.' : 'Fill in the details for the new ticket.'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} id="ticket-form">
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="title" className="text-right">
@@ -202,11 +239,55 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">{initialData ? 'Save Changes' : 'Create Ticket'}</Button>
-          </DialogFooter>
         </form>
+
+        <hr className="my-4" /> 
+        <div>
+          <h3 className="text-lg font-medium mb-4">Comments</h3>
+          <ScrollArea className="h-[200px] w-full mb-4 border rounded-md p-2">
+            {comments.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No comments yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex items-start space-x-3">
+                    <Avatar className="h-8 w-8">
+                      {/* <AvatarImage src={comment.authorAvatarUrl} /> */}
+                      <AvatarFallback>{comment.authorAvatarFallback}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">{comment.authorName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(comment.timestamp, "PPp")} 
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{comment.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          <div className="flex gap-2">
+            <Textarea 
+              placeholder="Add a comment..." 
+              value={newCommentText}
+              onChange={(e) => setNewCommentText(e.target.value)}
+              rows={2}
+              className="flex-1"
+            />
+            <Button type="button" size="icon" onClick={handleAddComment} disabled={!newCommentText.trim()}>
+              <Send className="h-4 w-4" />
+              <span className="sr-only">Send comment</span>
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter className="mt-6"> 
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" form="ticket-form">{initialData ? 'Save Changes' : 'Create Ticket'}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
