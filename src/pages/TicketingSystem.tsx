@@ -425,14 +425,38 @@ const TicketingSystem: React.FC = () => {
   const renderTickets = () => {
     if (viewMode === 'list') {
       return (
-        <div className="flex-1 overflow-y-auto">
-          {filteredTickets.map(ticket => (
-            <ImprovedListItem 
-              key={ticket.id} 
-              ticket={ticket} 
-              onClick={() => handleTicketClick(ticket.id)} 
-            />
-          ))}
+        <div className="flex h-full">
+          {/* List of tickets on the left side */}
+          <div className="w-[45%] overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+            {filteredTickets.map(ticket => (
+              <ImprovedListItem 
+                key={ticket.id} 
+                ticket={ticket} 
+                onClick={() => handleTicketClick(ticket.id)} 
+              />
+            ))}
+          </div>
+          
+          {/* Ticket detail on the right side */}
+          <div className="flex-1 overflow-hidden">
+            {selectedTicketId ? (
+              <TicketDetail 
+                ticketId={selectedTicketId} 
+                onClose={closeTicketDetail}
+                ticket={selectedTicket}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center p-6 text-center">
+                <div>
+                  <MessageSquare className="h-12 w-12 mx-auto text-gray-400" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">Select a ticket</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Choose a ticket from the list to view its details
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       );
     } else {
@@ -658,14 +682,18 @@ const TicketingSystem: React.FC = () => {
               </div>
               
               {/* Ticket List */}
-              {viewMode === 'list' && selectedTicketId ? (
-                <TicketDetail 
-                  ticketId={selectedTicketId} 
-                  onClose={closeTicketDetail}
-                  ticket={selectedTicket}
-                />
-              ) : (
+              {viewMode === 'list' ? (
                 renderTickets()
+              ) : (
+                selectedTicketId ? (
+                  <TicketDetail 
+                    ticketId={selectedTicketId} 
+                    onClose={closeTicketDetail}
+                    ticket={selectedTicket}
+                  />
+                ) : (
+                  renderTickets()
+                )
               )}
             </div>
           )
