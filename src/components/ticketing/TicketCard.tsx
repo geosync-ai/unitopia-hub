@@ -64,8 +64,8 @@ const TicketCard: React.FC<TicketCardProps> = ({
       return;
     }
     
+    // If a general onClick is provided for the card, call it
     if (onClick) onClick();
-    else if (onEdit) onEdit();
   };
 
   return (
@@ -96,6 +96,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
                 e.stopPropagation();
                 onEdit();
               }}
+              draggable="false"
             >
               <Edit className="h-3.5 w-3.5" />
             </Button>
