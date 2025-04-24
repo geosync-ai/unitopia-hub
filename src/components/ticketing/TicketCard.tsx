@@ -19,6 +19,7 @@ export interface TicketCardProps {
   commentsCount?: number;
   status?: string;
   className?: string;
+  isDragOverlay?: boolean;
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -40,6 +41,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
   commentsCount = 0,
   status,
   className,
+  isDragOverlay = false,
   onClick,
   onEdit,
   onDelete
@@ -50,7 +52,8 @@ const TicketCard: React.FC<TicketCardProps> = ({
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
+    isOver
   } = useSortable({ id: id });
 
   const style = {
@@ -62,7 +65,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't trigger click when clicking edit button
-    if ((e.target as HTMLElement).closest('.edit-button')) {
+    if ((e.target as HTMLElement).closest('.edit-button') || (e.target as HTMLElement).closest('.delete-button')) {
       return;
     }
     
@@ -72,16 +75,22 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
   return (
     <div 
-      ref={setNodeRef} 
-      style={style} 
-      {...attributes} 
-      {...listeners} 
-      className={cn("relative", className)}
+      ref={!isDragOverlay ? setNodeRef : undefined} 
+      style={isDragOverlay ? undefined : style} 
+      {...(!isDragOverlay ? attributes : {})} 
+      {...(!isDragOverlay ? listeners : {})} 
+      className={cn(
+        "relative", 
+        isOver && "mt-4 before:content-[''] before:absolute before:left-0 before:right-0 before:top-[-8px] before:h-1 before:bg-primary before:rounded-full",
+        className
+      )}
     >
       <Card 
         className={cn(
           "mb-3 cursor-grab hover:shadow-md transition-shadow duration-200 border dark:border-gray-700",
           isDragging && "shadow-lg ring-2 ring-primary",
+          isOver && "ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-800",
+          isDragOverlay && "shadow-xl rotate-3 cursor-grabbing",
           className
         )}
         onClick={handleCardClick}

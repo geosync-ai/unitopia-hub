@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Plus, 
@@ -16,10 +16,19 @@ import {
   Moon,
   Sun,
   User as UserIcon,
-  LogOut
+  LogOut,
+  LayoutDashboard,
+  Grid3X3,
+  AlertTriangle,
+  Ticket,
+  Kanban,
+  LayoutIcon,
+  Grid2X2Icon,
+  MoreHorizontal,
+  ChevronDown
 } from 'lucide-react';
-import TicketCard, { TicketCardProps } from './TicketCard';
-import TicketDialog, { TicketData } from './TicketDialog';
+import TicketCard from './TicketCard';
+import TicketDialog from './TicketDialog';
 import {
   DndContext,
   closestCenter,
@@ -28,14 +37,19 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  DragOverlay,
-  useDroppable
+  DragStartEvent,
+  DragOverEvent,
+  useDroppable,
+  DragOverlay
 } from '@dnd-kit/core';
 import {
+  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
+  useSortable,
   verticalListSortingStrategy,
   rectSortingStrategy,
+  rectSwappingStrategy
 } from '@dnd-kit/sortable';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
@@ -66,6 +80,47 @@ import {
 import ThemeToggle from '../layout/ThemeToggle';
 import { useToast } from "@/hooks/use-toast";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+
+// Add UserNav component directly in this file
+const UserNav: React.FC = () => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src="" alt="User" />
+            <AvatarFallback>SC</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>
+          <UserIcon className="mr-2 h-4 w-4" />
+          <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <LayoutDashboard className="mr-2 h-4 w-4" />
+          <span>Dashboard</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 // Type for the board data structure
 interface BoardData {
@@ -76,6 +131,40 @@ interface BoardData {
 interface Bucket {
   id: string;
   title: string;
+}
+
+// Fix the TicketCardProps interface to include all required properties
+interface TicketCardProps {
+  id: string;
+  title: string;
+  description?: string;
+  priority: "High" | "Medium" | "Low";
+  assignee?: {
+    name: string;
+    avatarFallback: string;
+    avatarImage?: string;
+  };
+  dueDate?: string;
+  commentsCount?: number;
+  status?: string;
+  type?: string;
+  createdAt?: string;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  className?: string;
+}
+
+// Define interface for ticket data
+interface TicketData {
+  id: string;
+  title: string;
+  description?: string;
+  status?: string;
+  priority: "High" | "Medium" | "Low";
+  type?: string;
+  assigneeId?: string;
+  createdAt?: string;
+  dueDate?: Date | null;
 }
 
 // Ensure all IDs are strings in initial data
@@ -126,6 +215,250 @@ interface ItemToDelete {
   name?: string; // For display in confirmation
 }
 
+// Add these components to replace the Board/Grid views
+const BoardLane = ({ 
+  id, 
+  title,
+  tickets, 
+  onAddTicket, 
+  onEditTicket, 
+  onDeleteTicket,
+  isOver = false
+}: { 
+  id: string; 
+  title: string; 
+  tickets: TicketCardProps[];
+  onAddTicket: () => void;
+  onEditTicket: (ticketId: string) => void;
+  onDeleteTicket: (ticketId: string) => void;
+  isOver?: boolean;
+}) => {
+  const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
+  const isColumnOver = isOver || columnIsOver;
+
+  return (
+    <div className="w-80 flex-shrink-0 flex flex-col bg-muted/30 dark:bg-muted/20 rounded-lg overflow-hidden">
+      <div className="p-3 font-medium flex items-center justify-between bg-muted/50 dark:bg-muted/30">
+        <h3>{title}</h3>
+        <Badge variant="outline" className="ml-2">{tickets.length}</Badge>
+      </div>
+      <div 
+        className={cn(
+          "p-2 flex-grow overflow-y-auto min-h-[200px]",
+          isColumnOver && tickets.length === 0 && "border-2 border-dashed border-primary/50 rounded-md",
+          isColumnOver && "bg-primary/10 transition-colors duration-200"
+        )} 
+        ref={setNodeRef}
+      >
+        <SortableContext items={tickets.map(ticket => ticket.id)} strategy={verticalListSortingStrategy}>
+          {tickets.map((ticket) => (
+            <TicketCard
+              key={ticket.id}
+              id={ticket.id}
+              title={ticket.title}
+              description={ticket.description}
+              assignee={ticket.assignee}
+              priority={ticket.priority}
+              dueDate={ticket.dueDate}
+              commentsCount={ticket.commentsCount}
+              status={ticket.status}
+              onEdit={() => onEditTicket(ticket.id)}
+              onDelete={() => onDeleteTicket(ticket.id)}
+            />
+          ))}
+        </SortableContext>
+        {isColumnOver && tickets.length === 0 && (
+          <div className="flex items-center justify-center h-24 rounded-md">
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/20"></div>
+            </div>
+          </div>
+        )}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="w-full justify-start text-muted-foreground mt-2"
+          onClick={onAddTicket}
+        >
+          <Plus className="mr-1 h-4 w-4" /> Add ticket
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// Improve the GridView implementation
+const GridView: React.FC<{
+  tickets: BoardData;
+  onEditTicket: (id: string) => void;
+  onDeleteTicket: (id: string) => void;
+}> = ({ tickets, onEditTicket, onDeleteTicket }) => {
+  // Flatten all tickets from all columns
+  const allTickets = useMemo(() => {
+    const flattened: TicketCardProps[] = [];
+    Object.entries(tickets).forEach(([statusId, columnTickets]) => {
+      columnTickets.forEach(ticket => {
+        flattened.push({
+          ...ticket,
+          status: statusId
+        });
+      });
+    });
+    return flattened;
+  }, [tickets]);
+
+  if (allTickets.length === 0) {
+    return <div className="text-center py-8 text-muted-foreground">No tickets found</div>;
+  }
+
+  return (
+    <div className="p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {allTickets.map((ticket) => (
+          <TicketCard
+            key={ticket.id}
+            id={ticket.id}
+            title={ticket.title}
+            description={ticket.description || ""}
+            priority={ticket.priority as "High" | "Medium" | "Low"}
+            assignee={ticket.assignee}
+            dueDate={ticket.dueDate}
+            commentsCount={ticket.commentsCount}
+            status={ticket.status}
+            onEdit={() => onEditTicket(ticket.id)}
+            onDelete={() => onDeleteTicket(ticket.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Add SortableTicket component for the grid view
+const SortableTicket = ({ id, ...props }: TicketCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <TicketCard id={id} {...props} />
+    </div>
+  );
+};
+
+// Add NotificationBell component
+const NotificationBell = () => {
+  const { toast } = useToast();
+  
+  const handleClick = () => {
+    toast({
+      title: "Notifications",
+      description: "You have no new notifications",
+    });
+  };
+  
+  return (
+    <Button variant="ghost" size="icon" onClick={handleClick}>
+      <Bell className="h-5 w-5" />
+    </Button>
+  );
+};
+
+// Remove existing BoardControls component and replace with a simpler one without view toggle
+const BoardControls = () => {
+  return (
+    <div className="mb-6 flex flex-col space-y-4">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="relative flex-grow max-w-md">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search tickets..."
+            className="pl-8"
+          />
+        </div>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Filter className="mr-2 h-4 w-4" />
+              Filter
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem checked>
+              High Priority
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked>
+              Medium Priority
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked>
+              Low Priority
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Filter by Assignee</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem checked>
+              Alice
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked>
+              Bob
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked>
+              Charlie
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
+        <Button variant="outline" size="sm">
+          <SlidersHorizontal className="mr-2 h-4 w-4" />
+          Sort
+        </Button>
+        
+        <Button onClick={() => handleCreateTicket()}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Ticket
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// Create ViewToggle component to be used in the header
+const ViewToggle: React.FC<{
+  activeView: ViewMode;
+  setActiveView: (view: ViewMode) => void;
+}> = ({ activeView, setActiveView }) => {
+  return (
+    <div className="flex items-center border rounded-md overflow-hidden">
+      <Button
+        variant={activeView === "board" ? "default" : "ghost"}
+        size="sm"
+        className="rounded-none px-3"
+        onClick={() => setActiveView("board")}
+      >
+        <Kanban className="mr-2 h-4 w-4" />
+        Board
+      </Button>
+      <Button
+        variant={activeView === "grid" ? "default" : "ghost"}
+        size="sm"
+        className="rounded-none px-3"
+        onClick={() => setActiveView("grid")}
+      >
+        <LayoutGrid className="mr-2 h-4 w-4" />
+        Grid
+      </Button>
+    </div>
+  );
+};
+
 const TicketManager: React.FC = () => {
   // State for the board data (start with sample)
   const [boardData, setBoardData] = useState<BoardData>(initialBoardData);
@@ -139,20 +472,24 @@ const TicketManager: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketData | null>(null);
   const [activeDragItem, setActiveDragItem] = useState<TicketCardProps | null>(null);
-  const [targetColumnForNewTicket, setTargetColumnForNewTicket] = useState<string | null>(null); // State for target column
-  const [renamingColumnId, setRenamingColumnId] = useState<string | null>(null); // ID of column being renamed
-  const [editingColumnName, setEditingColumnName] = useState<string>(''); // Temp value for rename input
-  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false); // State for delete confirmation
-  const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null); // State for item being deleted
-  const [isAddingGroup, setIsAddingGroup] = useState<boolean>(false); // State for inline add group form
-  const [newGroupName, setNewGroupName] = useState<string>(''); // State for new group name input
+  const [targetColumnForNewTicket, setTargetColumnForNewTicket] = useState<string | null>(null);
+  const [renamingColumnId, setRenamingColumnId] = useState<string | null>(null);
+  const [editingColumnName, setEditingColumnName] = useState<string>('');
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
+  const [isAddingGroup, setIsAddingGroup] = useState<boolean>(false);
+  const [newGroupName, setNewGroupName] = useState<string>('');
+  const [activeDropId, setActiveDropId] = useState<string | null>(null);
 
   const { toast } = useToast();
-
   const columns = buckets;
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required before activation
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -173,9 +510,9 @@ const TicketManager: React.FC = () => {
     return null;
   }
 
-  // Handler to open dialog for creating a new ticket (general)
+  // Define handler to open dialog for creating a new ticket
   const handleCreateTicket = () => {
-    setEditingTicket(null); // Create new, default status (usually 'todo')
+    setEditingTicket(null);
     setIsDialogOpen(true);
   };
 
@@ -199,8 +536,6 @@ const TicketManager: React.FC = () => {
         priority: ticket.priority,
         status: columnId, // Use the column ID as status
         dueDate: ticket.dueDate ? new Date(ticket.dueDate) : null, // Adjust parsing if needed
-        // Map assignee if necessary
-        // assigneeId: ticket.assignee ? ticket.assignee.id : null, 
       };
       setEditingTicket(ticketToEdit);
       setIsDialogOpen(true);
@@ -326,8 +661,9 @@ const TicketManager: React.FC = () => {
 
   // Clear all filters
   const clearFilters = () => {
-    setFilters(initialFilters);
+    setSearchQuery('');
     setActiveFilters([]);
+    setFilters(initialFilters);
   };
   
   // Add a new bucket/column
@@ -360,10 +696,10 @@ const TicketManager: React.FC = () => {
     setRenamingColumnId(null); // Exit renaming mode
   };
 
-  const handleDragStart = (event: DragEndEvent) => {
-      const { active } = event;
-      const itemInfo = findTicketAndColumn(String(active.id)); // Ensure ID is string
-      setActiveDragItem(itemInfo ? itemInfo.ticket : null);
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const itemInfo = findTicketAndColumn(String(active.id));
+    setActiveDragItem(itemInfo ? itemInfo.ticket : null);
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -566,317 +902,281 @@ const TicketManager: React.FC = () => {
     });
   };
 
-  return (
-    <div className="p-4 space-y-4">
-      {/* App Header Area with Title and Controls */}
-      <div className="flex justify-between items-center mb-6 bg-gray-100 dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-        <h1 className="text-xl font-bold">Support Ticketing System</h1>
+  // Fix the filteredStatuses state to match the correct type (string[] instead of Record<string, any>)
+  const [filteredStatuses, setFilteredStatuses] = useState<string[]>([]);
+
+  // Add the missing handleDragOver function
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    
+    if (!over || !active) return;
+    
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    
+    // Skip if not a valid drop target
+    if (activeId === overId) return;
+    
+    const activeInfo = findTicketAndColumn(activeId);
+    if (!activeInfo) return;
+    
+    // Check if we're dragging over a column
+    const isColumnDrop = columns.some(col => col.id === overId);
+    if (isColumnDrop) {
+      setActiveDropId(overId);
+      return;
+    } else {
+      setActiveDropId(null);
+    }
+    
+    // Check if we're dragging over another ticket
+    const overInfo = findTicketAndColumn(overId);
+    if (!overInfo) return;
+    
+    // Only react if dragging to a different column
+    if (activeInfo.columnId !== overInfo.columnId) {
+      setBoardData(prev => {
+        const newBoard = { ...prev };
         
-        {/* Move the right controls up to this section */}
-        <div className="flex items-center gap-2">
-          {/* Theme Toggle */}
-          <ThemeToggle />
+        // Remove from original column
+        const sourceColumn = [...newBoard[activeInfo.columnId]];
+        sourceColumn.splice(activeInfo.index, 1);
+        
+        // Add to the new column
+        const targetColumn = [...newBoard[overInfo.columnId]];
+        const updatedTicket = { ...activeInfo.ticket, status: overInfo.columnId };
+        targetColumn.splice(overInfo.index, 0, updatedTicket);
+        
+        // Update the board
+        newBoard[activeInfo.columnId] = sourceColumn;
+        newBoard[overInfo.columnId] = targetColumn;
+        
+        return newBoard;
+      });
+    }
+  };
 
-          {/* Notification Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-9 w-9" 
-            onClick={handleNotificationClick}
-            title="Notifications"
-          >
-            <Bell className="h-5 w-5" />
-          </Button>
+  // Add missing boardRefs object
+  const boardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
-          {/* User Profile Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
-                <Avatar className="h-9 w-9 border">
-                  <AvatarFallback>U</AvatarFallback>
-                </Avatar>
+  // Add helper functions to get board data
+  const getTicketIdsInColumn = (columnId: string): string[] => {
+    return boardData[columnId]?.map(ticket => ticket.id) || [];
+  };
+
+  const getBoardColumn = (columnId: string): TicketCardProps[] => {
+    return boardData[columnId] || [];
+  };
+
+  const getAllTicketIds = (): string[] => {
+    return Object.values(boardData).flat().map(ticket => ticket.id);
+  };
+
+  const getAllTickets = (): TicketCardProps[] => {
+    return Object.values(boardData).flat();
+  };
+
+  // Add function to get assignee by ID
+  const getAssigneeById = (assigneeId: string) => {
+    // This would typically come from a map of users
+    // For now, just return a placeholder
+    return { 
+      name: "User", 
+      avatarFallback: assigneeId.substring(0, 1).toUpperCase() 
+    };
+  };
+
+  // Add function to handle adding a ticket to a column
+  const handleAddTicketToColumn = (columnId: string) => {
+    setTargetColumnForNewTicket(columnId);
+    setEditingTicket(null);
+    setIsDialogOpen(true);
+  };
+
+  // Add function to handle ticket deletion
+  const handleDeleteTicket = (ticketId: string) => {
+    const itemInfo = findTicketAndColumn(ticketId);
+    if (itemInfo) {
+      handleRequestDelete({ 
+        type: 'ticket', 
+        id: ticketId, 
+        name: itemInfo.ticket.title 
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Header */}
+      <header className="border-b sticky top-0 z-10 bg-background">
+        <div className="flex h-16 items-center px-4 gap-4">
+          <div className="flex-1 flex items-center">
+            <h1 className="text-xl font-semibold">Ticket Manager</h1>
+            <div className="ml-4 flex">
+              <Button
+                variant={viewMode === "board" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("board")}
+                className="rounded-r-none"
+              >
+                <Kanban className="h-4 w-4 mr-1" />
+                Board
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">User Name</p>
-                  <p className="text-xs leading-none text-muted-foreground">user@example.com</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
-                <UserIcon className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Board Controls */}
-      <div className="flex justify-between items-center mb-4">
-        {/* Left Side: View Mode Toggle */}
-        <div className="flex items-center gap-2">
-          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as ViewMode)} defaultValue="board">
-            <ToggleGroupItem value="board" aria-label="Board view">
-              <Columns className="h-4 w-4 mr-2" /> Board
-            </ToggleGroupItem>
-            <ToggleGroupItem value="grid" aria-label="Grid view">
-              <LayoutGrid className="h-4 w-4 mr-2" /> Grid
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-
-        {/* Right Side: Search, Filters, Actions */}
-        <div className="flex items-center gap-2">
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-2 py-1 h-9 w-[200px] lg:w-[250px]"
-            />
+              <Button
+                variant={viewMode === "grid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="rounded-l-none"
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Grid
+              </Button>
+            </div>
           </div>
+          <ThemeToggle />
+          <Button variant="outline" size="icon">
+            <Bell className="h-4 w-4" />
+          </Button>
+          <UserNav />
+        </div>
+      </header>
 
-          {/* Filters Dropdown */}
+      {/* Main content */}
+      <main className="flex-1">
+        {/* Board Controls */}
+        <div className="flex items-center p-4 gap-4">
+          <div className="flex-1">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search tickets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
-                <Filter className="h-4 w-4 mr-2" /> Filters
+              <Button variant="outline" size="sm">
+                <Filter className="mr-2 h-4 w-4" />
+                Filter
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {filters.priority.map((filter) => (
-                <DropdownMenuCheckboxItem
+              {filters.priority.map(filter => (
+                <DropdownMenuCheckboxItem 
                   key={filter.id}
                   checked={filter.checked}
-                  onCheckedChange={(checked) => handleFilterChange('priority', filter.id, checked)}
+                  onCheckedChange={(checked) => 
+                    handleFilterChange('priority', filter.id, checked)
+                  }
                 >
                   {filter.label}
                 </DropdownMenuCheckboxItem>
               ))}
-              <DropdownMenuSeparator />
-              <div className="p-2">
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full justify-center">
-                  Clear Filters
-                </Button>
-              </div>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Add Group Button */}
-          <Button variant="outline" size="sm" className="h-9" onClick={() => setIsAddingGroup(true)}>
-            <PlusSquare className="h-4 w-4 mr-2" /> Add group
+          <Button onClick={() => handleCreateTicket()}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Ticket
           </Button>
         </div>
-      </div>
 
-      {/* Board/Grid View */}
-      <DndContext 
-        sensors={sensors} 
-        collisionDetection={closestCenter} 
-        onDragEnd={handleDragEnd}
-        onDragStart={handleDragStart}
-      >
-        {viewMode === 'board' && (
-          <div className="flex space-x-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
-            {columns.map((column) => {
-              const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
-                id: column.id,
-              });
-
-              return (
-                <div 
-                  key={column.id} 
-                  ref={setDroppableNodeRef} 
-                  className={cn(
-                    "w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm flex flex-col flex-shrink-0 transition-colors duration-150",
-                    isOver && "bg-primary-foreground dark:bg-gray-700" 
-                  )}
+        {/* Board/Grid View */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+        >
+          {viewMode === "board" ? (
+            <div className="px-4 pb-4 flex space-x-4 overflow-x-auto">
+              {buckets.map(bucket => {
+                const columnId = bucket.id;
+                const columnTickets = boardData[columnId] || [];
+                
+                return (
+                  <BoardLane
+                    key={columnId}
+                    id={columnId}
+                    title={bucket.title}
+                    tickets={columnTickets}
+                    onAddTicket={() => handleAddTicketToColumn(columnId)}
+                    onEditTicket={handleEditTicket}
+                    onDeleteTicket={handleDeleteTicket}
+                    isOver={activeDropId === columnId}
+                  />
+                );
+              })}
+              {isAddingGroup ? (
+                <div className="w-80 flex-shrink-0">
+                  <div className="bg-muted/30 dark:bg-muted/20 rounded-lg p-3">
+                    <Input
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="Group name"
+                      autoFocus
+                      className="mb-2"
+                    />
+                    <div className="flex space-x-2">
+                      <Button size="sm" onClick={handleSaveNewGroup}>Save</Button>
+                      <Button size="sm" variant="outline" onClick={handleCancelAddGroup}>Cancel</Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="h-auto flex-shrink-0 w-80 border-dashed"
+                  onClick={() => setIsAddingGroup(true)}
                 >
-                  {/* Column Header */}
-                  <div className="p-3 border-b border-gray-200 dark:border-gray-700/80 flex justify-between items-center sticky top-0 bg-gray-100 dark:bg-gray-800/90 rounded-t-lg z-10">
-                    <div 
-                      className="flex items-center gap-2 flex-grow mr-2" 
-                      onDoubleClick={() => {
-                        if (renamingColumnId === column.id) return;
-                        handleColumnHeaderDoubleClick(column.id, column.title);
-                      }}
-                    >
-                      {renamingColumnId === column.id ? (
-                        <Input
-                          type="text"
-                          value={editingColumnName}
-                          onChange={(e) => setEditingColumnName(e.target.value)}
-                          onBlur={() => handleColumnRename(column.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleColumnRename(column.id);
-                            } else if (e.key === 'Escape') {
-                              setRenamingColumnId(null);
-                            }
-                          }}
-                          className="h-7 px-1 text-sm font-semibold uppercase tracking-wide"
-                          autoFocus
-                        />
-                      ) : (
-                        <h3 
-                          className="font-semibold text-sm uppercase tracking-wide cursor-pointer" 
-                          title="Double-click to rename"
-                        >
-                          {column.title}
-                        </h3>
-                      )}
-                      <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2 py-0.5">
-                        {filteredBoardData[column.id]?.length || 0}
-                      </span>
-                    </div>
-                    
-                    {/* Column Action Buttons */} 
-                    <div className="flex items-center flex-shrink-0">
-                      {/* Add Ticket Button */}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                        onClick={() => handleCreateTicketInColumn(column.id)}
-                        title={`Add ticket to ${column.title}`}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      
-                      {/* Delete Group Button */}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 text-muted-foreground hover:text-red-600"
-                        onClick={() => handleRequestDelete({ type: 'group', id: column.id, name: column.title })}
-                        title={`Delete group ${column.title}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Cards Container */}
-                  <div className="p-2 flex-1 overflow-y-auto">
-                    <SortableContext
-                      items={(filteredBoardData[column.id] || []).map(ticket => ticket.id)} 
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {(filteredBoardData[column.id] || []).map((ticket) => (
-                        <TicketCard 
-                          key={ticket.id}
-                          {...ticket}
-                          onEdit={() => handleEditTicket(ticket.id)}
-                          onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })}
-                        />
-                      ))}
-                      
-                      {/* Placeholder if column is empty */}
-                      {(filteredBoardData[column.id] || []).length === 0 && (
-                        <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
-                        </div>
-                      )}
-                    </SortableContext>
-                  </div>
-                </div>
-              );
-            })}
-            
-            {/* Inline Add Group Form */} 
-            {isAddingGroup && (
-              <div className="w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm p-3 flex-shrink-0 flex flex-col gap-2">
-                <h3 className="font-semibold text-sm">NEW GROUP</h3>
-                <Input
-                  type="text"
-                  placeholder="Enter group name..."
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveNewGroup();
-                    if (e.key === 'Escape') handleCancelAddGroup();
-                  }}
-                  className="h-8"
-                  autoFocus
-                />
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleCancelAddGroup}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveNewGroup} disabled={!newGroupName.trim()}>Save</Button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Fix for Grid View - Ensure all items are in the SortableContext properly */}
-        {viewMode === 'grid' && (
-          <div className="bg-gray-100 dark:bg-gray-800/60 rounded-lg p-4">
-            <SortableContext
-              items={Object.values(filteredBoardData).flatMap(tickets => tickets.map(ticket => ticket.id))}
-              strategy={rectSortingStrategy}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {Object.entries(filteredBoardData).flatMap(([columnId, tickets]) => 
-                  tickets.map(ticket => (
-                    <div key={ticket.id} className="h-full">
-                      <TicketCard 
-                        {...ticket}
-                        onEdit={() => handleEditTicket(ticket.id)}
-                        onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })}
-                        className="h-full"
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </SortableContext>
-            
-            {Object.values(filteredBoardData).flat().length === 0 && (
-              <div className="flex items-center justify-center h-40 border border-dashed border-gray-300 dark:border-gray-700 rounded-md">
-                <p className="text-gray-500 dark:text-gray-400">No tickets match your filters</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Drag Overlay */}
-        <DragOverlay>
-          {activeDragItem ? (
-            <TicketCard 
-              {...activeDragItem}
-              className="opacity-80 rotate-3 pointer-events-none"
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Group
+                </Button>
+              )}
+            </div>
+          ) : (
+            <GridView 
+              tickets={boardData} 
+              onEditTicket={handleEditTicket} 
+              onDeleteTicket={handleDeleteTicket} 
             />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          )}
+          
+          {/* Drag Overlay for visual feedback */}
+          <DragOverlay>
+            {activeDragItem && (
+              <TicketCard
+                id={activeDragItem.id}
+                title={activeDragItem.title}
+                description={activeDragItem.description}
+                priority={activeDragItem.priority}
+                assignee={activeDragItem.assignee}
+                dueDate={activeDragItem.dueDate}
+                commentsCount={activeDragItem.commentsCount}
+                status={activeDragItem.status}
+                className="opacity-80 w-[320px] shadow-lg"
+                isDragOverlay={true}
+              />
+            )}
+          </DragOverlay>
+        </DndContext>
+      </main>
 
-      {/* Ticket Create/Edit Dialog */}
-      {isDialogOpen && (
-        <TicketDialog
-          isOpen={isDialogOpen}
-          onClose={() => {
-            setIsDialogOpen(false);
-            setTargetColumnForNewTicket(null);
-          }}
-          onSubmit={handleTicketSubmit}
-          initialData={editingTicket}
-          statuses={columns.map(col => ({ id: col.id, name: col.title }))}
-          defaultStatus={targetColumnForNewTicket}
-        />
-      )}
+      {/* Ticket Dialog with corrected props */}
+      <TicketDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSubmit={handleTicketSubmit}
+        initialData={editingTicket}
+        defaultStatus={targetColumnForNewTicket || undefined}
+      />
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
