@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TicketInbox from '@/components/ticketing/TicketInbox';
-import TicketManager from '@/components/ticketing/TicketManager';
+import TicketManager from '../components/ticketing/TicketManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Ticket, 
@@ -19,14 +19,14 @@ import { Button } from "@/components/ui/button";
 
 type TicketCategory = 
   | 'ticket-inbox' 
+  | 'ticket-manager'
   | 'visitor-management' 
   | 'appointments' 
   | 'mail-packages' 
   | 'general-inquiries' 
   | 'employee-support' 
   | 'event-prep' 
-  | 'feedback-complaints'
-  | 'ticket-manager';
+  | 'feedback-complaints';
 
 const Tickets: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TicketCategory>('ticket-inbox');
@@ -46,10 +46,10 @@ const Tickets: React.FC = () => {
       content: <TicketInbox /> 
     },
     { 
-      id: 'ticket-manager' as TicketCategory,
+      id: 'ticket-manager' as TicketCategory, 
       label: 'Ticket Manager', 
-      icon: LayoutGrid,
-      content: <TicketManager /> 
+      icon: LayoutGrid, 
+      content: <TicketManager />
     },
     { 
       id: 'visitor-management' as TicketCategory, 
@@ -113,7 +113,12 @@ const Tickets: React.FC = () => {
         </div>
         
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-          <Tabs defaultValue="ticket-inbox" className="w-full" onValueChange={(value) => setActiveTab(value as TicketCategory)}>
+          <Tabs 
+            defaultValue="ticket-inbox" 
+            className="w-full" 
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as TicketCategory)}
+          >
             <div className="border-b border-gray-200 dark:border-gray-700 px-4 overflow-x-auto">
               <TabsList className="flex space-x-2 bg-transparent h-16">
                 {tabs.map((tab) => (

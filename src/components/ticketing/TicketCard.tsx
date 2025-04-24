@@ -1,11 +1,14 @@
 import React from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarDays, MessageSquare, User, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface TicketCardProps {
+// Extend props to include anything needed by useSortable or event handlers
+export interface TicketCardProps {
   id: string;
   title: string;
   description?: string;
@@ -13,6 +16,8 @@ interface TicketCardProps {
   priority?: 'Low' | 'Medium' | 'High';
   dueDate?: string;
   commentsCount?: number;
+  status?: string;
+  onClick?: () => void; // Added onClick prop
 }
 
 const priorityColors = {
@@ -28,52 +33,79 @@ const TicketCard: React.FC<TicketCardProps> = ({
   assignee,
   priority = 'Medium',
   dueDate,
-  commentsCount = 0
+  commentsCount = 0,
+  status,
+  onClick // Receive onClick prop
 }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging // You can use this to style the card while dragging
+  } = useSortable({ id: id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1, // Example style for dragging state
+    zIndex: isDragging ? 100 : 'auto',
+    // Avoid scaling transform for simpler layout
+    // transform: CSS.Transform.toString(transform ? { ...transform, scaleX: 1, scaleY: 1 } : null),
+  };
+
   return (
-    <Card className="mb-3 cursor-pointer hover:shadow-md transition-shadow duration-200 border dark:border-gray-700">
-      <CardHeader className="p-3 pb-2">
-        <CardTitle className="text-sm font-medium leading-tight">{title}</CardTitle>
-      </CardHeader>
-      {description && (
-        <CardContent className="p-3 pt-0">
-          <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
-        </CardContent>
-      )}
-      <CardFooter className="p-3 pt-1 flex justify-between items-center text-xs text-muted-foreground">
-        <div className="flex items-center space-x-2">
-          {priority && (
-            <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", priorityColors[priority])}>
-              <AlertCircle className="h-3 w-3 mr-1" />
-              {priority}
-            </Badge>
-          )}
-          {dueDate && (
-            <div className="flex items-center">
-              <CalendarDays className="h-3.5 w-3.5 mr-1" />
-              <span>{dueDate}</span>
-            </div>
-          )}
-          {commentsCount > 0 && (
-            <div className="flex items-center">
-              <MessageSquare className="h-3.5 w-3.5 mr-1" />
-              <span>{commentsCount}</span>
-            </div>
-          )}
-        </div>
-        {assignee && (
-          <Avatar className="h-6 w-6">
-            {assignee.avatarImage && <AvatarImage src={assignee.avatarImage} alt={assignee.name} />}
-            <AvatarFallback className="text-xs">{assignee.avatarFallback}</AvatarFallback>
-          </Avatar>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onClick}>
+      <Card 
+        className={cn(
+          "mb-3 cursor-grab hover:shadow-md transition-shadow duration-200 border dark:border-gray-700",
+          isDragging && "shadow-lg ring-2 ring-primary"
         )}
-        {!assignee && (
-           <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-              <User className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
-           </div>
+      >
+        <CardHeader className="p-3 pb-2">
+          <CardTitle className="text-sm font-medium leading-tight">{title}</CardTitle>
+        </CardHeader>
+        {description && (
+          <CardContent className="p-3 pt-0">
+            <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
+          </CardContent>
         )}
-      </CardFooter>
-    </Card>
+        <CardFooter className="p-3 pt-1 flex justify-between items-center text-xs text-muted-foreground">
+          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+            {priority && (
+              <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", priorityColors[priority])}>
+                <AlertCircle className="h-3 w-3 mr-1" />
+                {priority}
+              </Badge>
+            )}
+            {dueDate && (
+              <div className="flex items-center">
+                <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                <span>{dueDate}</span>
+              </div>
+            )}
+            {commentsCount > 0 && (
+              <div className="flex items-center">
+                <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                <span>{commentsCount}</span>
+              </div>
+            )}
+          </div>
+          {assignee && (
+            <Avatar className="h-6 w-6">
+              {assignee.avatarImage && <AvatarImage src={assignee.avatarImage} alt={assignee.name} />}
+              <AvatarFallback className="text-xs">{assignee.avatarFallback}</AvatarFallback>
+            </Avatar>
+          )}
+          {!assignee && (
+             <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                <User className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+             </div>
+          )}
+        </CardFooter>
+      </Card>
+    </div>
   );
 };
 
