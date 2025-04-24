@@ -97,14 +97,14 @@ const Tickets: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background dark:bg-intranet-dark">
-      <div className="w-full p-4 sm:p-6">
-        <div className="flex flex-col gap-2 md:gap-0 md:flex-row md:justify-between md:items-center mb-6">
+      <div className="w-full p-2 sm:p-3">
+        <div className="flex flex-col gap-1 md:gap-0 md:flex-row md:justify-between md:items-center mb-3">
           <div className="flex items-center gap-3">
             <Button 
               variant="outline" 
               size="icon" 
               onClick={() => navigate(-1)}
-              className="rounded-full h-10 w-10 flex items-center justify-center"
+              className="rounded-full h-9 w-9 flex items-center justify-center"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>

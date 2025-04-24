@@ -803,46 +803,32 @@ const TicketManager: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header with logo and controls in the same row */}
-      <header className="border-b sticky top-0 z-10 bg-background">
-        <div className="flex h-16 items-center px-4 gap-4">
-          {/* Logo and title */}
-          <div className="flex items-center gap-4">
-            <img 
-              src="/SCPNG Original Logo.png" 
-              alt="SCPNG Logo" 
-              className="h-10 w-auto"
-            />
-            <h1 className="text-xl font-semibold">Support Ticketing System</h1>
-          </div>
-          
-          {/* Board/Grid toggle */}
-          <div className="ml-4 flex">
-            <Button
-              variant={viewMode === "board" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("board")}
-              className="rounded-r-none"
-            >
-              <Kanban className="h-4 w-4 mr-1" />
-              Board
-            </Button>
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
-              className="rounded-l-none"
-            >
-              <LayoutGrid className="h-4 w-4 mr-1" />
-              Grid
-            </Button>
-          </div>
-          
-          {/* Spacer to push the next items to the right */}
-          <div className="flex-1"></div>
-          
-          {/* Add Ticket button moved to top right */}
+    <div className="h-full overflow-auto">
+      <div className="flex justify-between items-center pt-0 pb-1 border-b sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <div className="flex items-center gap-2">
+          <img src="/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-7 mt-0" />
+          <h2 className="text-xl font-bold mt-0">Support Ticketing System</h2>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === "board" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("board")}
+            className="rounded-r-none"
+          >
+            <Kanban className="h-4 w-4 mr-1" />
+            Board
+          </Button>
+          <Button
+            variant={viewMode === "grid" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("grid")}
+            className="rounded-l-none"
+          >
+            <LayoutGrid className="h-4 w-4 mr-1" />
+            Grid
+          </Button>
           <Button 
             onClick={handleCreateTicket}
             className="bg-primary text-white hover:bg-primary/90"
@@ -850,18 +836,15 @@ const TicketManager: React.FC = () => {
             <Plus className="mr-2 h-4 w-4" />
             New Ticket
           </Button>
-          
           <ThemeToggle />
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" className="h-8 w-8">
             <Bell className="h-4 w-4" />
           </Button>
           <UserNav />
         </div>
-      </header>
-
-      {/* Main content */}
+      </div>
+      
       <main className="flex-1">
-        {/* Board Controls */}
         <div className="flex items-center p-4 gap-4">
           <div className="flex-1">
             <div className="relative max-w-sm">
@@ -886,7 +869,7 @@ const TicketManager: React.FC = () => {
               <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {filters.priority.map(filter => (
-                <DropdownMenuCheckboxItem 
+                <DropdownMenuCheckboxItem
                   key={filter.id}
                   checked={filter.checked}
                   onCheckedChange={(checked) => 
@@ -898,9 +881,16 @@ const TicketManager: React.FC = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-dashed"
+            onClick={() => setIsAddingGroup(true)}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Group
+          </Button>
         </div>
-      
-        {/* Board/Grid View */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -963,7 +953,6 @@ const TicketManager: React.FC = () => {
             />
           )}
           
-          {/* Drag Overlay for visual feedback */}
           <DragOverlay>
             {activeDragItem && (
               <TicketCard
@@ -983,7 +972,6 @@ const TicketManager: React.FC = () => {
         </DndContext>
       </main>
 
-      {/* Ticket Dialog */}
       <TicketDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
@@ -992,7 +980,6 @@ const TicketManager: React.FC = () => {
         defaultStatus={targetColumnForNewTicket || undefined}
       />
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
