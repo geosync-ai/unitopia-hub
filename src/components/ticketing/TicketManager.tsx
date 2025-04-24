@@ -105,6 +105,8 @@ const TicketManager: React.FC = () => {
   const [editingTicket, setEditingTicket] = useState<TicketData | null>(null);
   const [activeDragItem, setActiveDragItem] = useState<TicketCardProps | null>(null);
   const [targetColumnForNewTicket, setTargetColumnForNewTicket] = useState<string | null>(null); // State for target column
+  const [renamingColumnId, setRenamingColumnId] = useState<string | null>(null); // ID of column being renamed
+  const [editingColumnName, setEditingColumnName] = useState<string>(''); // Temp value for rename input
 
   const columns = buckets;
 
@@ -289,10 +291,32 @@ const TicketManager: React.FC = () => {
   
   // Add a new bucket/column
   const addBucket = () => {
+    // TODO: Modify this later for inline renaming on add
     const newBucketId = `new-bucket-${Date.now()}`;
-    const newBucket = { id: newBucketId, title: 'New Bucket' };
+    const newBucket = { id: newBucketId, title: 'New Bucket' }; // Default name for now
     setBuckets(prev => [...prev, newBucket]);
     setBoardData(prev => ({ ...prev, [newBucketId]: [] }));
+  };
+
+  // Start renaming a column
+  const handleColumnHeaderDoubleClick = (columnId: string, currentTitle: string) => {
+    setRenamingColumnId(columnId);
+    setEditingColumnName(currentTitle);
+  };
+
+  // Finish or cancel renaming a column
+  const handleColumnRename = (columnId: string) => {
+    if (!editingColumnName.trim()) {
+      // If name is empty, maybe revert or show error? For now, cancel.
+      setRenamingColumnId(null);
+      return;
+    }
+    setBuckets(prevBuckets => 
+      prevBuckets.map(bucket => 
+        bucket.id === columnId ? { ...bucket, title: editingColumnName.trim() } : bucket
+      )
+    );
+    setRenamingColumnId(null); // Exit renaming mode
   };
 
   const handleDragStart = (event: DragEndEvent) => {
@@ -441,8 +465,39 @@ const TicketManager: React.FC = () => {
               >
                 {/* Column Header */}
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700/80 flex justify-between items-center sticky top-0 bg-gray-100 dark:bg-gray-800/90 rounded-t-lg z-10">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm uppercase tracking-wide">{column.title}</h3>
+                  <div 
+                    className="flex items-center gap-2 flex-grow mr-2" 
+                    onDoubleClick={() => {
+                       // Prevent double-click from triggering drag-and-drop
+                       if (renamingColumnId === column.id) return;
+                       handleColumnHeaderDoubleClick(column.id, column.title);
+                    }}
+                  >
+                    {renamingColumnId === column.id ? (
+                      <Input
+                        type="text"
+                        value={editingColumnName}
+                        onChange={(e) => setEditingColumnName(e.target.value)}
+                        onBlur={() => handleColumnRename(column.id)} // Save on blur
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleColumnRename(column.id); // Save on Enter
+                          } else if (e.key === 'Escape') {
+                            setRenamingColumnId(null); // Cancel on Escape
+                          }
+                        }}
+                        className="h-7 px-1 text-sm font-semibold uppercase tracking-wide" // Match styling
+                        autoFocus // Focus the input when it appears
+                      />
+                    ) : (
+                      // Original Title Display
+                      <h3 
+                        className="font-semibold text-sm uppercase tracking-wide cursor-pointer" 
+                        title="Double-click to rename"
+                      >
+                        {column.title}
+                      </h3>
+                    )}
                     <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2 py-0.5">
                       {filteredBoardData[column.id]?.length || 0}
                     </span>
