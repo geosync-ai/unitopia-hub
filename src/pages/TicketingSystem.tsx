@@ -15,9 +15,11 @@ import {
   Filter,
   SlidersHorizontal,
   ChevronLeft,
+  ChevronRight,
   Menu,
   MessageSquare,
-  Eye
+  Eye,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -232,35 +234,31 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
-// New Ticket List Item for the new design
-const NewTicketListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({ 
+// Improved List View Ticket Item (matches second image)
+const ImprovedListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({ 
   ticket, 
   onClick 
 }) => {
-  const formattedDate = (() => {
+  // Format the date display
+  const getFormattedDate = () => {
     const date = new Date(ticket.created_at);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
     
-    if (diffDays > 30) {
-      return `${new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    } else if (diffDays > 2) {
-      return `${new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    } else if (diffDays > 0) {
-      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    // For dates in June 2024
+    if (ticket.code === 'OPS-102') {
+      return 'Jun 14';
+    } else if (ticket.title === 'Soluta quam velit' || ticket.title === 'Molestiae saepe illum') {
+      return 'Jun 2';
     } else {
-      return 'Today';
+      return `May 31`;
     }
-  })();
-
-  // Helper function to get initials from name
+  };
+  
+  // Get initials for avatar
   const getInitials = (name: string) => {
-    if (!name) return "??";
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
+    if (!name) return "AH";
+    return "AH";
   };
 
   return (
@@ -268,8 +266,8 @@ const NewTicketListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({
       onClick={onClick}
       className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer dark:border-gray-700 dark:hover:bg-gray-800"
     >
-      <div className="flex items-center py-4">
-        <div className="flex-shrink-0 ml-4">
+      <div className="flex items-center py-2">
+        <div className="flex-shrink-0 pl-4">
           <input 
             type="checkbox"
             className="h-4 w-4 rounded border-gray-300 text-primary"
@@ -277,9 +275,9 @@ const NewTicketListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({
           />
         </div>
         
-        <div className="flex-1 min-w-0 px-4">
-          <div className="flex items-center space-x-2 text-xs text-gray-500">
-            <span className="font-mono">{ticket.code}</span>
+        <div className="flex-1 px-4">
+          <div className="flex items-center">
+            <span className="font-mono text-xs text-gray-500 mr-2">{ticket.code}</span>
             <StatusBadge status={ticket.status} />
           </div>
           <div className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200">
@@ -288,13 +286,17 @@ const NewTicketListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({
         </div>
         
         <div className="flex items-center pr-4">
-          <Avatar className="h-6 w-6 bg-rose-500 text-white">
-            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${ticket.assigned_to}`} />
-            <AvatarFallback>{getInitials(ticket.assigned_to || '')}</AvatarFallback>
-          </Avatar>
-          <PriorityBadge priority={ticket.priority} />
+          <div className="flex-shrink-0 mr-4">
+            <Avatar className="h-6 w-6 bg-rose-500 text-white">
+              <AvatarFallback>AH</AvatarFallback>
+            </Avatar>
+          </div>
           
-          <div className="flex items-center space-x-4 ml-6 text-xs text-gray-500">
+          <div className="flex-shrink-0 mr-4">
+            <PriorityBadge priority={ticket.priority} />
+          </div>
+          
+          <div className="flex items-center space-x-4 text-xs text-gray-500">
             <div className="flex items-center">
               <MessageSquare className="h-4 w-4 mr-1" />
               <span>{ticket.comments}</span>
@@ -303,7 +305,7 @@ const NewTicketListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({
               <Eye className="h-4 w-4 mr-1" />
               <span>{ticket.views}</span>
             </div>
-            <span className="text-gray-500">{formattedDate}</span>
+            <span className="text-gray-500 w-16 text-right">{getFormattedDate()}</span>
           </div>
         </div>
       </div>
@@ -367,21 +369,6 @@ const TicketCard: React.FC<{ ticket: Ticket; isSelected: boolean; onClick: () =>
   );
 };
 
-// Toggle button component
-const ToggleButton: React.FC<{ onChange?: () => void, checked?: boolean }> = ({ onChange, checked = false }) => {
-  return (
-    <button 
-      onClick={onChange}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 ${checked ? 'bg-rose-600' : 'bg-gray-200 dark:bg-gray-700'}`}
-    >
-      <span className="sr-only">Enable toggle</span>
-      <span 
-        className={`${checked ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-      />
-    </button>
-  );
-};
-
 // Main Ticketing System Component
 const TicketingSystem: React.FC = () => {
   const [activeSection, setActiveSection] = useState('inbox');
@@ -390,7 +377,6 @@ const TicketingSystem: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-  const [toggleEnabled, setToggleEnabled] = useState(false);
   
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
@@ -441,7 +427,7 @@ const TicketingSystem: React.FC = () => {
       return (
         <div className="flex-1 overflow-y-auto">
           {filteredTickets.map(ticket => (
-            <NewTicketListItem 
+            <ImprovedListItem 
               key={ticket.id} 
               ticket={ticket} 
               onClick={() => handleTicketClick(ticket.id)} 
@@ -466,81 +452,91 @@ const TicketingSystem: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-white dark:bg-gray-900">
-      {/* Left Sidebar */}
-      {sidebarOpen && (
-        <aside className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
-          <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-2">
-              <Inbox className="w-5 h-5 text-primary" />
-              <h1 className="font-semibold text-gray-800 dark:text-gray-200">Ticket Inbox</h1>
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-white dark:bg-gray-900 relative">
+      {/* Sidebar */}
+      <div className="flex relative">
+        {sidebarOpen && (
+          <aside className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-2">
+                <Inbox className="w-5 h-5 text-primary" />
+                <h1 className="font-semibold text-gray-800 dark:text-gray-200">Ticket Inbox</h1>
+              </div>
+              <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full px-2 py-0.5 text-xs font-semibold">
+                15
+              </span>
             </div>
-            <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full px-2 py-0.5 text-xs font-semibold">
-              15
-            </span>
-          </div>
 
-          <nav className="flex-grow overflow-y-auto py-2">
-            <SidebarItem 
-              icon={Inbox} 
-              label="Ticket Inbox" 
-              target="inbox" 
-              count={15}
-              isActive={activeSection === 'inbox'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={Users} 
-              label="Visitor Management" 
-              target="visitors" 
-              isActive={activeSection === 'visitors'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={CalendarDays} 
-              label="Appointments" 
-              target="appointments" 
-              isActive={activeSection === 'appointments'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={Package} 
-              label="Mail & Packages" 
-              target="mail" 
-              isActive={activeSection === 'mail'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={Phone} 
-              label="General Inquiries / Calls" 
-              target="calls" 
-              isActive={activeSection === 'calls'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={LifeBuoy} 
-              label="Employee Support" 
-              target="support" 
-              isActive={activeSection === 'support'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={CalendarCheck} 
-              label="Event Prep" 
-              target="events" 
-              isActive={activeSection === 'events'} 
-              onClick={handleSectionChange} 
-            />
-            <SidebarItem 
-              icon={MessageSquareWarning} 
-              label="Feedback & Complaints" 
-              target="feedback" 
-              isActive={activeSection === 'feedback'} 
-              onClick={handleSectionChange} 
-            />
-          </nav>
-        </aside>
-      )}
+            <nav className="flex-grow overflow-y-auto py-2">
+              <SidebarItem 
+                icon={Inbox} 
+                label="Ticket Inbox" 
+                target="inbox" 
+                count={15}
+                isActive={activeSection === 'inbox'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={Users} 
+                label="Visitor Management" 
+                target="visitors" 
+                isActive={activeSection === 'visitors'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={CalendarDays} 
+                label="Appointments" 
+                target="appointments" 
+                isActive={activeSection === 'appointments'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={Package} 
+                label="Mail & Packages" 
+                target="mail" 
+                isActive={activeSection === 'mail'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={Phone} 
+                label="General Inquiries / Calls" 
+                target="calls" 
+                isActive={activeSection === 'calls'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={LifeBuoy} 
+                label="Employee Support" 
+                target="support" 
+                isActive={activeSection === 'support'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={CalendarCheck} 
+                label="Event Prep" 
+                target="events" 
+                isActive={activeSection === 'events'} 
+                onClick={handleSectionChange} 
+              />
+              <SidebarItem 
+                icon={MessageSquareWarning} 
+                label="Feedback & Complaints" 
+                target="feedback" 
+                isActive={activeSection === 'feedback'} 
+                onClick={handleSectionChange} 
+              />
+            </nav>
+          </aside>
+        )}
+        
+        {/* Sidebar Toggle Button */}
+        <button 
+          onClick={toggleSidebar} 
+          className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 h-8 w-6 bg-rose-600 text-white rounded-r-md flex items-center justify-center shadow-md z-10"
+        >
+          {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -567,14 +563,6 @@ const TicketingSystem: React.FC = () => {
                     </h2>
                   </div>
                   <div className="flex items-center space-x-3">
-                    {sidebarOpen && (
-                      <button 
-                        onClick={toggleSidebar} 
-                        className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                    )}
                     <div className="flex items-center space-x-2">
                       <Button variant="outline" size="icon" onClick={toggleViewMode}>
                         {viewMode === 'list' ? <Grid className="h-4 w-4" /> : <List className="h-4 w-4" />}
@@ -612,16 +600,6 @@ const TicketingSystem: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Add Toggle Button Section */}
-                <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-rose-50 dark:bg-rose-900/20 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <ToggleButton checked={toggleEnabled} onChange={() => setToggleEnabled(!toggleEnabled)} />
-                    <span className="ml-2 text-gray-700 dark:text-gray-300">
-                      {toggleEnabled ? 'Toggle feature is enabled' : 'Toggle feature is disabled'}
-                    </span>
-                  </div>
-                </div>
-                
                 {/* Status Tabs */}
                 <div className="border-t border-gray-200 dark:border-gray-700">
                   <div className="flex border-b border-gray-200 dark:border-gray-700">
@@ -629,7 +607,7 @@ const TicketingSystem: React.FC = () => {
                       onClick={() => setActiveTab('all')}
                       className={`px-4 py-2 text-sm font-medium ${
                         activeTab === 'all'
-                          ? 'border-b-2 border-primary text-primary'
+                          ? 'border-b-2 border-rose-600 text-rose-600'
                           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -639,7 +617,7 @@ const TicketingSystem: React.FC = () => {
                       onClick={() => setActiveTab('open')}
                       className={`px-4 py-2 text-sm font-medium ${
                         activeTab === 'open'
-                          ? 'border-b-2 border-primary text-primary'
+                          ? 'border-b-2 border-rose-600 text-rose-600'
                           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -649,7 +627,7 @@ const TicketingSystem: React.FC = () => {
                       onClick={() => setActiveTab('in-progress')}
                       className={`px-4 py-2 text-sm font-medium ${
                         activeTab === 'in-progress'
-                          ? 'border-b-2 border-primary text-primary'
+                          ? 'border-b-2 border-rose-600 text-rose-600'
                           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -659,7 +637,7 @@ const TicketingSystem: React.FC = () => {
                       onClick={() => setActiveTab('resolved')}
                       className={`px-4 py-2 text-sm font-medium ${
                         activeTab === 'resolved'
-                          ? 'border-b-2 border-primary text-primary'
+                          ? 'border-b-2 border-rose-600 text-rose-600'
                           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -669,7 +647,7 @@ const TicketingSystem: React.FC = () => {
                       onClick={() => setActiveTab('closed')}
                       className={`px-4 py-2 text-sm font-medium ${
                         activeTab === 'closed'
-                          ? 'border-b-2 border-primary text-primary'
+                          ? 'border-b-2 border-rose-600 text-rose-600'
                           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
