@@ -215,6 +215,15 @@ const BoardLane = ({
           <Button 
             variant="ghost" 
             size="icon"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+            onClick={onAddTicket}
+            title="Add Ticket"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
             className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600"
             onClick={() => onDeleteGroup(id)}
             title="Delete Group"
@@ -868,13 +877,36 @@ const TicketManager: React.FC = () => {
           </DropdownMenu>
           <Button 
             variant="outline" 
-            size="sm" 
+            size="sm"
             className="border-dashed"
             onClick={() => setIsAddingGroup(true)}
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Group
           </Button>
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1 border rounded-md flex items-center gap-2 bg-white dark:bg-gray-800">
+              <Button
+                variant={viewMode === "board" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("board")}
+                className="h-8 px-2"
+              >
+                <Kanban className="h-4 w-4 mr-1" />
+                Board
+              </Button>
+              <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="h-8 px-2"
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Grid
+              </Button>
+            </div>
+          </div>
         </div>
         <DndContext
           sensors={sensors}
@@ -887,7 +919,7 @@ const TicketManager: React.FC = () => {
             <div className="px-4 pb-4 flex space-x-4 overflow-x-auto">
               {buckets.map(bucket => {
                 const columnId = bucket.id;
-                const columnTickets = boardData[columnId] || [];
+                const columnTickets = getFilteredTickets()[columnId] || [];
                 
                 return (
                   <BoardLane
@@ -922,17 +954,17 @@ const TicketManager: React.FC = () => {
               ) : (
                 <Button
                   variant="outline"
-                  className="h-auto flex-shrink-0 w-80 border-dashed"
+                  className="h-auto flex-shrink-0 w-80 border-dashed py-3 bg-muted/20 dark:bg-muted/10 hover:bg-muted/30 dark:hover:bg-muted/20"
                   onClick={() => setIsAddingGroup(true)}
                 >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Group
+                  <Plus className="mr-2 h-5 w-5" />
+                  Add New Group
                 </Button>
               )}
             </div>
           ) : (
             <GridView 
-              tickets={boardData} 
+              tickets={getFilteredTickets()} 
               onEditTicket={handleEditTicket} 
               onDeleteTicket={handleDeleteTicket} 
             />
