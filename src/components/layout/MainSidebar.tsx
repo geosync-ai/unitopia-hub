@@ -14,7 +14,8 @@ import {
   LogOut,
   Target,
   Package,
-  BarChart
+  BarChart,
+  Ticket
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +52,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: Bell, path: '/news', label: 'News' },
     { icon: FileText, path: '/documents', label: 'Documents' },
     { icon: MessageSquare, path: '/ai-hub', label: 'AI Hub' },
+    { icon: Ticket, path: '/tickets', label: 'Tickets' },
     // --- Temporarily comment out routes needing role/division checks --- 
     // TODO: Re-enable these based on fetched user role/division
     { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
