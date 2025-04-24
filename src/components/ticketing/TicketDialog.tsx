@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -36,41 +36,52 @@ export interface TicketData {
   // Add other relevant fields: reporterId, comments, etc.
 }
 
+interface StatusOption {
+  id: string;
+  name: string;
+}
+
 interface TicketDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   onSubmit: (ticketData: TicketData) => void;
   initialData?: TicketData | null; // For editing
+  statuses?: StatusOption[]; // Available status options
 }
 
 const TicketDialog: React.FC<TicketDialogProps> = ({
   isOpen,
-  onOpenChange,
+  onClose,
   onSubmit,
   initialData,
+  statuses = [
+    { id: 'todo', name: 'TO DO' },
+    { id: 'inprogress', name: 'IN PROGRESS' },
+    { id: 'done', name: 'DONE' }
+  ]
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  const [status, setStatus] = useState<string>('todo');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
-  // Add state for other fields like assignee, status etc.
-
+  
   useEffect(() => {
     if (initialData) {
       setTitle(initialData.title || '');
       setDescription(initialData.description || '');
       setPriority(initialData.priority || 'Medium');
+      setStatus(initialData.status || 'todo');
       setDueDate(initialData.dueDate || undefined);
-      // Set other fields from initialData
     } else {
       // Reset form for new ticket
       setTitle('');
       setDescription('');
       setPriority('Medium');
+      setStatus('todo');
       setDueDate(undefined);
-      // Reset other fields
     }
-  }, [initialData, isOpen]); // Reset form when dialog opens or initialData changes
+  }, [initialData, isOpen]); 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,15 +90,14 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       title,
       description,
       priority,
+      status,
       dueDate: dueDate || null,
-      // Add other form values
     };
     onSubmit(ticketData);
-    onOpenChange(false); // Close dialog after submit
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Edit Ticket' : 'Create New Ticket'}</DialogTitle>
@@ -120,6 +130,23 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 className="col-span-3" 
                 rows={4}
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger id="status" className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((statusOption) => (
+                    <SelectItem key={statusOption.id} value={statusOption.id}>
+                      {statusOption.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="priority" className="text-right">
@@ -163,10 +190,20 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </PopoverContent>
               </Popover>
             </div>
-            {/* Add fields for Assignee, Status, etc. here */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="assignee" className="text-right">
+                Assignee
+              </Label>
+              <div className="col-span-3 flex items-center">
+                <Button variant="outline" className="w-full justify-start">
+                  <User className="mr-2 h-4 w-4" />
+                  <span className="text-muted-foreground">Assign to a team member</span>
+                </Button>
+              </div>
+            </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit">{initialData ? 'Save Changes' : 'Create Ticket'}</Button>
           </DialogFooter>
         </form>
@@ -175,4 +212,4 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   );
 };
 
-export default TicketDialog; 
+export default TicketDialog;

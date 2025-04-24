@@ -4,8 +4,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, MessageSquare, User, AlertCircle } from 'lucide-react';
+import { CalendarDays, MessageSquare, User, AlertCircle, MoreVertical, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 // Extend props to include anything needed by useSortable or event handlers
 export interface TicketCardProps {
@@ -17,7 +18,9 @@ export interface TicketCardProps {
   dueDate?: string;
   commentsCount?: number;
   status?: string;
-  onClick?: () => void; // Added onClick prop
+  className?: string;
+  onClick?: () => void;
+  onEdit?: () => void;
 }
 
 const priorityColors = {
@@ -35,7 +38,9 @@ const TicketCard: React.FC<TicketCardProps> = ({
   dueDate,
   commentsCount = 0,
   status,
-  onClick // Receive onClick prop
+  className,
+  onClick,
+  onEdit
 }) => {
   const {
     attributes,
@@ -43,34 +48,66 @@ const TicketCard: React.FC<TicketCardProps> = ({
     setNodeRef,
     transform,
     transition,
-    isDragging // You can use this to style the card while dragging
+    isDragging
   } = useSortable({ id: id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1, // Example style for dragging state
+    opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 100 : 'auto',
-    // Avoid scaling transform for simpler layout
-    // transform: CSS.Transform.toString(transform ? { ...transform, scaleX: 1, scaleY: 1 } : null),
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger click when clicking edit button
+    if ((e.target as HTMLElement).closest('.edit-button')) {
+      return;
+    }
+    
+    if (onClick) onClick();
+    else if (onEdit) onEdit();
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onClick}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners} 
+      className={cn("relative", className)}
+    >
       <Card 
         className={cn(
           "mb-3 cursor-grab hover:shadow-md transition-shadow duration-200 border dark:border-gray-700",
-          isDragging && "shadow-lg ring-2 ring-primary"
+          isDragging && "shadow-lg ring-2 ring-primary",
+          className
         )}
+        onClick={handleCardClick}
       >
-        <CardHeader className="p-3 pb-2">
+        <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between">
           <CardTitle className="text-sm font-medium leading-tight">{title}</CardTitle>
+          
+          {onEdit && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0 edit-button" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </CardHeader>
+        
         {description && (
           <CardContent className="p-3 pt-0">
             <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
           </CardContent>
         )}
+        
         <CardFooter className="p-3 pt-1 flex justify-between items-center text-xs text-muted-foreground">
           <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             {priority && (
@@ -92,6 +129,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
               </div>
             )}
           </div>
+          
           {assignee && (
             <Avatar className="h-6 w-6">
               {assignee.avatarImage && <AvatarImage src={assignee.avatarImage} alt={assignee.name} />}
