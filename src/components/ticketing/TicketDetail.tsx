@@ -211,7 +211,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
     <div className="flex flex-col h-full border-l border-gray-200 dark:border-gray-700">
       {/* Ticket Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 flex items-center justify-between">
-        <div>
+          <div>
           <div className="flex items-center mb-0.5">
             <span className="text-sm text-gray-500 font-mono mr-2">{ticket?.code}</span>
             <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
@@ -242,8 +242,8 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
                   </TabsList>
                 </div>
               </Tabs>
-            </div>
-          </div>
+                </div>
+                </div>
           
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -262,7 +262,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
                         <path d="M6 6l12 12"></path>
                       </svg>
                     </button>
-                  </div>
+                </div>
                 </div>
               )}
               
@@ -273,10 +273,10 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${message.creator?.name}`} />
                         <AvatarFallback>{message.creator ? getInitials(message.creator.name) : 'UN'}</AvatarFallback>
-                      </Avatar>
+                    </Avatar>
                       <div className="flex-1">
                         <div className="flex justify-between">
-                          <div>
+                    <div>
                             <div className="font-medium">{message.creator?.name}</div>
                             <div className="text-xs text-gray-500">
                               To: {ticket?.requester?.name} &lt;{ticket?.requester?.email}&gt;
@@ -341,10 +341,10 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
                     {isSubmitting ? 'Sending...' : 'Send'}
                   </Button>
                 </div>
-              </div>
-            </div>
+                    </div>
+                  </div>
           </div>
-        </div>
+          </div>
 
         {/* Right sidebar for ticket details */}
         <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col overflow-y-auto">
@@ -445,7 +445,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
                   <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
               </h3>
-            </div>
+              </div>
 
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
               <h3 className="flex items-center justify-between font-medium text-gray-700 dark:text-gray-300 mb-4">
@@ -454,7 +454,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
                   <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
               </h3>
-            </div>
+                  </div>
 
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
               <h3 className="flex items-center justify-between font-medium text-gray-700 dark:text-gray-300 mb-4">
@@ -477,7 +477,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, onClose, ticket }
               </h3>
             </div>
           </div>
-        </div>
+          </div>
       </div>
     </div>
   );

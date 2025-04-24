@@ -14,6 +14,10 @@ import {
   Search,
   Filter,
   SlidersHorizontal,
+  ChevronLeft,
+  Menu,
+  MessageSquare,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -228,64 +232,78 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
-// Ticket list item component
-const TicketListItem: React.FC<{ ticket: Ticket; isSelected: boolean; onClick: () => void }> = ({ 
+// New Ticket List Item for the new design
+const NewTicketListItem: React.FC<{ ticket: Ticket; onClick: () => void }> = ({ 
   ticket, 
-  isSelected,
   onClick 
 }) => {
-  const dateFormatted = new Date(ticket.created_at).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  });
-  
+  const formattedDate = (() => {
+    const date = new Date(ticket.created_at);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 30) {
+      return `${new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    } else if (diffDays > 2) {
+      return `${new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    } else if (diffDays > 0) {
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else {
+      return 'Today';
+    }
+  })();
+
+  // Helper function to get initials from name
+  const getInitials = (name: string) => {
+    if (!name) return "??";
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+
   return (
     <div 
       onClick={onClick}
-      className={`border-b border-gray-200 dark:border-gray-700 cursor-pointer ${
-        isSelected ? 'bg-blue-50 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-      }`}
+      className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer dark:border-gray-700 dark:hover:bg-gray-800"
     >
-      <div className="flex items-center px-4 py-3">
-        <input 
-          type="checkbox"
-          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <div className="ml-4 flex-1">
-          <div className="flex justify-between mb-1">
-            <div className="flex items-center">
-              <div className="text-xs text-gray-500 font-mono mr-2">{ticket.code}</div>
-              <StatusBadge status={ticket.status} />
-            </div>
-            <div className="text-xs text-gray-500">{dateFormatted}</div>
+      <div className="flex items-center py-4">
+        <div className="flex-shrink-0 ml-4">
+          <input 
+            type="checkbox"
+            className="h-4 w-4 rounded border-gray-300 text-primary"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+        
+        <div className="flex-1 min-w-0 px-4">
+          <div className="flex items-center space-x-2 text-xs text-gray-500">
+            <span className="font-mono">{ticket.code}</span>
+            <StatusBadge status={ticket.status} />
           </div>
-          <div className="font-medium text-sm text-gray-900 dark:text-gray-200 mb-1">
+          <div className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200">
             {ticket.title}
           </div>
-          <div className="flex items-center justify-between">
+        </div>
+        
+        <div className="flex items-center pr-4">
+          <Avatar className="h-6 w-6 bg-rose-500 text-white">
+            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${ticket.assigned_to}`} />
+            <AvatarFallback>{getInitials(ticket.assigned_to || '')}</AvatarFallback>
+          </Avatar>
+          <PriorityBadge priority={ticket.priority} />
+          
+          <div className="flex items-center space-x-4 ml-6 text-xs text-gray-500">
             <div className="flex items-center">
-              <Avatar className="h-6 w-6 mr-2">
-                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${ticket.assigned_to}`} />
-                <AvatarFallback>{(ticket.assigned_to || '').split(' ').map(n => n[0]).join('')}</AvatarFallback>
-              </Avatar>
-              <div>
-                <PriorityBadge priority={ticket.priority} />
-              </div>
+              <MessageSquare className="h-4 w-4 mr-1" />
+              <span>{ticket.comments}</span>
             </div>
-            <div className="flex items-center text-xs text-gray-500 space-x-2">
-              <div className="flex items-center">
-                <MessageSquareWarning className="h-3.5 w-3.5 mr-1" />
-                <span>{ticket.comments}</span>
-              </div>
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-                <span>{ticket.views}</span>
-              </div>
+            <div className="flex items-center">
+              <Eye className="h-4 w-4 mr-1" />
+              <span>{ticket.views}</span>
             </div>
+            <span className="text-gray-500">{formattedDate}</span>
           </div>
         </div>
       </div>
@@ -336,19 +354,31 @@ const TicketCard: React.FC<{ ticket: Ticket; isSelected: boolean; onClick: () =>
         
         <div className="flex items-center text-xs text-gray-500 space-x-2">
           <div className="flex items-center">
-            <MessageSquareWarning className="h-3.5 w-3.5 mr-1" />
+            <MessageSquare className="h-3.5 w-3.5 mr-1" />
             <span>{ticket.comments}</span>
           </div>
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-            </svg>
+            <Eye className="h-3.5 w-3.5 mr-1" />
             <span>{ticket.views}</span>
           </div>
         </div>
       </div>
     </div>
+  );
+};
+
+// Toggle button component
+const ToggleButton: React.FC<{ onChange?: () => void, checked?: boolean }> = ({ onChange, checked = false }) => {
+  return (
+    <button 
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 ${checked ? 'bg-rose-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+    >
+      <span className="sr-only">Enable toggle</span>
+      <span 
+        className={`${checked ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+      />
+    </button>
   );
 };
 
@@ -358,6 +388,9 @@ const TicketingSystem: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  const [toggleEnabled, setToggleEnabled] = useState(false);
   
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
@@ -369,17 +402,36 @@ const TicketingSystem: React.FC = () => {
   };
 
   const handleTicketClick = (ticketId: string) => {
-    setSelectedTicketId(ticketId);
+    if (viewMode === 'list') {
+      setSelectedTicketId(ticketId);
+    } else {
+      // For card view, we'll navigate to a new page
+      setSelectedTicketId(ticketId);
+    }
   };
 
   const closeTicketDetail = () => {
     setSelectedTicketId(null);
   };
 
-  const filteredTickets = mockTickets.filter(ticket => 
-    ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ticket.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const filteredTickets = mockTickets.filter(ticket => {
+    // Filter by search query
+    const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.code.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter by status tab
+    const matchesTab = activeTab === 'all' || 
+      (activeTab === 'open' && ticket.status === 'open') ||
+      (activeTab === 'in-progress' && ticket.status === 'in-progress') ||
+      (activeTab === 'resolved' && ticket.status === 'resolved') ||
+      (activeTab === 'closed' && ticket.status === 'closed');
+    
+    return matchesSearch && matchesTab;
+  });
 
   const selectedTicket = mockTickets.find(ticket => ticket.id === selectedTicketId);
 
@@ -387,12 +439,11 @@ const TicketingSystem: React.FC = () => {
   const renderTickets = () => {
     if (viewMode === 'list') {
       return (
-        <div className="flex-1 overflow-y-auto border-t border-gray-200 dark:border-gray-700">
+        <div className="flex-1 overflow-y-auto">
           {filteredTickets.map(ticket => (
-            <TicketListItem 
+            <NewTicketListItem 
               key={ticket.id} 
               ticket={ticket} 
-              isSelected={selectedTicketId === ticket.id}
               onClick={() => handleTicketClick(ticket.id)} 
             />
           ))}
@@ -417,86 +468,84 @@ const TicketingSystem: React.FC = () => {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-white dark:bg-gray-900">
       {/* Left Sidebar */}
-      <aside className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
-        <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2">
-            <Inbox className="w-5 h-5 text-primary" />
-            <h1 className="font-semibold text-gray-800 dark:text-gray-200">Ticket Inbox</h1>
+      {sidebarOpen && (
+        <aside className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+          <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-2">
+              <Inbox className="w-5 h-5 text-primary" />
+              <h1 className="font-semibold text-gray-800 dark:text-gray-200">Ticket Inbox</h1>
+            </div>
+            <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full px-2 py-0.5 text-xs font-semibold">
+              15
+            </span>
           </div>
-        </div>
 
-        <nav className="flex-grow overflow-y-auto py-2">
-          <SidebarItem 
-            icon={Inbox} 
-            label="Ticket Inbox" 
-            target="inbox" 
-            count={15}
-            isActive={activeSection === 'inbox'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={Users} 
-            label="Visitor Management" 
-            target="visitors" 
-            isActive={activeSection === 'visitors'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={CalendarDays} 
-            label="Appointments" 
-            target="appointments" 
-            isActive={activeSection === 'appointments'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={Package} 
-            label="Mail & Packages" 
-            target="mail" 
-            isActive={activeSection === 'mail'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={Phone} 
-            label="General Inquiries / Calls" 
-            target="calls" 
-            isActive={activeSection === 'calls'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={LifeBuoy} 
-            label="Employee Support" 
-            target="support" 
-            isActive={activeSection === 'support'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={CalendarCheck} 
-            label="Event Prep" 
-            target="events" 
-            isActive={activeSection === 'events'} 
-            onClick={handleSectionChange} 
-          />
-          <SidebarItem 
-            icon={MessageSquareWarning} 
-            label="Feedback & Complaints" 
-            target="feedback" 
-            isActive={activeSection === 'feedback'} 
-            onClick={handleSectionChange} 
-          />
-        </nav>
-
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <Button className="w-full flex items-center" variant="default">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            <span>Create New</span>
-          </Button>
-        </div>
-      </aside>
+          <nav className="flex-grow overflow-y-auto py-2">
+            <SidebarItem 
+              icon={Inbox} 
+              label="Ticket Inbox" 
+              target="inbox" 
+              count={15}
+              isActive={activeSection === 'inbox'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={Users} 
+              label="Visitor Management" 
+              target="visitors" 
+              isActive={activeSection === 'visitors'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={CalendarDays} 
+              label="Appointments" 
+              target="appointments" 
+              isActive={activeSection === 'appointments'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={Package} 
+              label="Mail & Packages" 
+              target="mail" 
+              isActive={activeSection === 'mail'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={Phone} 
+              label="General Inquiries / Calls" 
+              target="calls" 
+              isActive={activeSection === 'calls'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={LifeBuoy} 
+              label="Employee Support" 
+              target="support" 
+              isActive={activeSection === 'support'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={CalendarCheck} 
+              label="Event Prep" 
+              target="events" 
+              isActive={activeSection === 'events'} 
+              onClick={handleSectionChange} 
+            />
+            <SidebarItem 
+              icon={MessageSquareWarning} 
+              label="Feedback & Complaints" 
+              target="feedback" 
+              isActive={activeSection === 'feedback'} 
+              onClick={handleSectionChange} 
+            />
+          </nav>
+        </aside>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeSection === 'inbox' ? (
-          selectedTicketId ? (
+          selectedTicketId && viewMode === 'card' ? (
             <TicketDetail 
               ticketId={selectedTicketId} 
               onClose={closeTicketDetail}
@@ -507,12 +556,34 @@ const TicketingSystem: React.FC = () => {
               {/* Ticket List Header */}
               <div className="border-b border-gray-200 dark:border-gray-700">
                 <div className="px-4 py-3 flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                    My Tickets
-                  </h2>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="icon" onClick={toggleViewMode}>
-                      {viewMode === 'list' ? <Grid className="h-4 w-4" /> : <List className="h-4 w-4" />}
+                  <div className="flex items-center">
+                    {!sidebarOpen && (
+                      <button onClick={toggleSidebar} className="mr-3">
+                        <Menu className="h-5 w-5 text-gray-500" />
+                      </button>
+                    )}
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                      My Tickets
+                    </h2>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {sidebarOpen && (
+                      <button 
+                        onClick={toggleSidebar} 
+                        className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="icon" onClick={toggleViewMode}>
+                        {viewMode === 'list' ? <Grid className="h-4 w-4" /> : <List className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    
+                    <Button className="flex items-center bg-rose-600 hover:bg-rose-700" variant="default">
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      <span>Create New</span>
                     </Button>
                   </div>
                 </div>
@@ -541,47 +612,83 @@ const TicketingSystem: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Tabs */}
+                {/* Add Toggle Button Section */}
+                <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-rose-50 dark:bg-rose-900/20 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <ToggleButton checked={toggleEnabled} onChange={() => setToggleEnabled(!toggleEnabled)} />
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">
+                      {toggleEnabled ? 'Toggle feature is enabled' : 'Toggle feature is disabled'}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Status Tabs */}
                 <div className="border-t border-gray-200 dark:border-gray-700">
-                  <Tabs defaultValue="all">
-                    <TabsList className="flex border-b border-gray-200 dark:border-gray-700 px-4">
-                      <TabsTrigger 
-                        value="all" 
-                        className="inline-flex items-center h-10 px-4 -mb-px text-sm font-medium transition-colors border-b-2 focus:outline-none focus:ring-0"
-                      >
-                        All
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="open" 
-                        className="inline-flex items-center h-10 px-4 -mb-px text-sm font-medium transition-colors border-b-2 focus:outline-none focus:ring-0"
-                      >
-                        Open
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="in-progress" 
-                        className="inline-flex items-center h-10 px-4 -mb-px text-sm font-medium transition-colors border-b-2 focus:outline-none focus:ring-0"
-                      >
-                        In Progress
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="resolved" 
-                        className="inline-flex items-center h-10 px-4 -mb-px text-sm font-medium transition-colors border-b-2 focus:outline-none focus:ring-0"
-                      >
-                        Resolved
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="closed" 
-                        className="inline-flex items-center h-10 px-4 -mb-px text-sm font-medium transition-colors border-b-2 focus:outline-none focus:ring-0"
-                      >
-                        Closed
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                  <div className="flex border-b border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => setActiveTab('all')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        activeTab === 'all'
+                          ? 'border-b-2 border-primary text-primary'
+                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('open')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        activeTab === 'open'
+                          ? 'border-b-2 border-primary text-primary'
+                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('in-progress')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        activeTab === 'in-progress'
+                          ? 'border-b-2 border-primary text-primary'
+                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      In Progress
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('resolved')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        activeTab === 'resolved'
+                          ? 'border-b-2 border-primary text-primary'
+                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Resolved
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('closed')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        activeTab === 'closed'
+                          ? 'border-b-2 border-primary text-primary'
+                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Closed
+                    </button>
+                  </div>
                 </div>
               </div>
               
               {/* Ticket List */}
-              {renderTickets()}
+              {viewMode === 'list' && selectedTicketId ? (
+                <TicketDetail 
+                  ticketId={selectedTicketId} 
+                  onClose={closeTicketDetail}
+                  ticket={selectedTicket}
+                />
+              ) : (
+                renderTickets()
+              )}
             </div>
           )
         ) : (
@@ -601,4 +708,4 @@ const TicketingSystem: React.FC = () => {
   );
 };
 
-export default TicketingSystem;
+export default TicketingSystem; 
