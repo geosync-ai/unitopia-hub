@@ -251,7 +251,7 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
             <SelectContent>
               {objectives.length > 0 ? (
                 objectives.map((obj) => (
-                  <SelectItem key={obj.id} value={obj.id.toString()}>{obj.name}</SelectItem>
+                  <SelectItem key={obj.id} value={obj.id.toString()}>{obj.title}</SelectItem>
                 ))
               ) : (
                 <div className="px-2 py-1.5 text-sm text-muted-foreground">No objectives defined.</div>
@@ -267,6 +267,7 @@ const KraFormSection: React.FC<KraFormSectionProps> = ({
             // Use unit field (department name string) for value
             value={formData.unit || ''} 
             onValueChange={(value) => onChange('unit', value)}
+            disabled={isAddingNew && !!currentUserDepartment} // Disable if adding new and we have current department
             required
           >
             <SelectTrigger id="kra-unit">

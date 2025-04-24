@@ -13,10 +13,13 @@ import {
   Pie,
   Cell,
   ResponsiveContainer,
-  LabelList
+  LabelList,
+  LineChart,
+  Line
 } from 'recharts';
 import { useTheme } from "next-themes";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { Badge } from '@/components/ui/badge';
 
 interface KRAInsightsTabProps {
   kras: Kra[];
@@ -98,6 +101,16 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
     return assignedKpis;
   }, [validKras, user?.id, user?.email]);
 
+  // Get user's department's KRAs
+  const departmentKras = React.useMemo(() => {
+    if (!user?.user_metadata?.unitName) {
+      return [];
+    }
+    
+    const departmentName = user.user_metadata.unitName;
+    return validKras.filter(kra => kra.unit === departmentName);
+  }, [validKras, user?.user_metadata?.unitName]);
+
   const userKraStatusData = React.useMemo(() => {
     const statusCounts: Record<string, number> = {};
     userOwnedKras.forEach(kra => {
@@ -122,6 +135,95 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
             .map(([name, value]) => ({ name, value }))
             .filter(d => d.value > 0);
   }, [userAssignedKpis]);
+
+  // Create trend data - completion by month
+  const completionTrendData = React.useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+    
+    // Get last 6 months including current
+    const relevantMonths = Array.from({ length: 6 }, (_, i) => {
+      const monthIndex = (currentMonth - i + 12) % 12;
+      return months[monthIndex];
+    }).reverse();
+    
+    // Create baseline data with 0 completions for each month
+    const baseData = relevantMonths.map(month => ({ month, completed: 0, total: 0 }));
+    
+    // Count KPIs and completed KPIs by month
+    const allKpis = validKras.flatMap(kra => kra.unitKpis || []);
+    
+    allKpis.forEach(kpi => {
+      if (kpi.target_date || kpi.targetDate) {
+        const date = new Date(kpi.target_date || kpi.targetDate || '');
+        if (!isNaN(date.getTime())) {
+          const monthName = months[date.getMonth()];
+          const monthIndex = relevantMonths.indexOf(monthName);
+          
+          if (monthIndex !== -1) {
+            baseData[monthIndex].total++;
+            if (kpi.status === 'completed') {
+              baseData[monthIndex].completed++;
+            }
+          }
+        }
+      }
+    });
+    
+    // Calculate completion percentage
+    return baseData.map(item => ({
+      ...item,
+      percentage: item.total === 0 ? 0 : Math.round((item.completed / item.total) * 100)
+    }));
+  }, [validKras]);
+
+  // KPI distribution by objective
+  const kpisByObjective = React.useMemo(() => {
+    const objectiveMap: Record<string, { total: number, completed: number, name: string }> = {};
+    
+    validKras.forEach(kra => {
+      const objectiveId = kra.objective_id?.toString() || 'unknown';
+      const objectiveName = kra.unitObjectives?.title || 'Unknown Objective';
+      
+      if (!objectiveMap[objectiveId]) {
+        objectiveMap[objectiveId] = { total: 0, completed: 0, name: objectiveName };
+      }
+      
+      const kpis = kra.unitKpis || [];
+      objectiveMap[objectiveId].total += kpis.length;
+      objectiveMap[objectiveId].completed += kpis.filter(kpi => kpi.status === 'completed').length;
+    });
+    
+    return Object.values(objectiveMap)
+      .filter(obj => obj.total > 0)
+      .map(obj => ({
+        name: obj.name,
+        total: obj.total,
+        completed: obj.completed,
+        percentage: Math.round((obj.completed / obj.total) * 100)
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5); // Top 5 objectives by KPI count
+  }, [validKras]);
+
+  // Get priority KPIs that need attention
+  const priorityKpis = React.useMemo(() => {
+    return userAssignedKpis
+      .filter(kpi => kpi.status === 'at-risk' || kpi.status === 'behind')
+      .map(kpi => {
+        // Find parent KRA for context
+        const parentKra = validKras.find(kra => 
+          kra.unitKpis?.some(k => k.id === kpi.id)
+        );
+        
+        return {
+          ...kpi,
+          kraTitle: parentKra?.title || 'Unknown KRA',
+          objective: parentKra?.unitObjectives?.title || 'Unknown Objective'
+        };
+      })
+      .slice(0, 3); // Top 3 priority KPIs
+  }, [userAssignedKpis, validKras]);
 
   const CustomTooltip = ({ active, payload, label, unit }: any) => {
     if (active && payload && payload.length) {
@@ -215,6 +317,134 @@ export const KRAInsightsTab: React.FC<KRAInsightsTabProps> = ({ kras }) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* New insights section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Completion Trend Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Completion Trend</CardTitle>
+            <CardDescription>KPI completion rate over last 6 months</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              {completionTrendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={completionTrendData}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip content={<CustomTooltip unit="%" />} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="percentage"
+                      name="Completion %"
+                      stroke={themeColors.primary}
+                      strokeWidth={2}
+                      dot={{ r: 5 }}
+                      activeDot={{ r: 8 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">No trend data available.</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KPI Distribution by Objective */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>KPI Distribution by Objective</CardTitle>
+            <CardDescription>Top objectives by number of KPIs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              {kpisByObjective.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={kpisByObjective}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45} 
+                      textAnchor="end"
+                      height={60}
+                      interval={0}
+                      fontSize={11}
+                    />
+                    <YAxis />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar dataKey="total" name="Total KPIs" fill={themeColors.neutral} />
+                    <Bar dataKey="completed" name="Completed" fill={themeColors.primary} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">No objective data available.</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Priority KPIs Section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Priority KPIs Needing Attention</CardTitle>
+          <CardDescription>KPIs assigned to you that are at risk or behind</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {priorityKpis.length > 0 ? (
+            <div className="space-y-4">
+              {priorityKpis.map((kpi) => (
+                <div key={kpi.id} className="border rounded-md p-4 bg-muted/20">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium mb-1">{kpi.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {kpi.kraTitle} • {kpi.objective}
+                      </p>
+                    </div>
+                    <Badge variant={kpi.status === 'at-risk' ? 'destructive' : 'default'}>
+                      {kpi.status === 'at-risk' ? 'At Risk' : 'Behind'}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Target</p>
+                      <p className="font-medium">{kpi.target}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Actual</p>
+                      <p className="font-medium">{kpi.actual || 0}</p>
+                    </div>
+                    {(kpi.target_date || kpi.targetDate) && (
+                      <div>
+                        <p className="text-muted-foreground">Target Date</p>
+                        <p className="font-medium">
+                          {new Date(kpi.target_date || kpi.targetDate || '').toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No priority KPIs to show. Great job!
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
