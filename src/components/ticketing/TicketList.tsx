@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Clock, AlertCircle, MoreHorizontal } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 export interface Ticket {
   id: string;
@@ -53,15 +53,6 @@ const TicketList: React.FC<TicketListProps> = ({ tickets, activeTicketId, onTick
 
   return (
     <div className="h-full flex flex-col">
-      <div className="border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">My Tickets</h2>
-        <div className="flex items-center space-x-2">
-          <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-      
       <div className="overflow-y-auto flex-1">
         {tickets.map((ticket) => (
           <div 

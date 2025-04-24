@@ -9,8 +9,12 @@ import {
   CalendarCheck, 
   MessageSquareWarning,
   PlusCircle,
+  Grid,
+  List,
 } from 'lucide-react';
 import TicketInbox from '../components/ticketing/TicketInbox';
+import TicketCardView from '../components/ticketing/TicketCardView';
+import { mockTickets } from '../components/ticketing/mockData';
 import {
   VisitorManagement,
   Appointments,
@@ -64,15 +68,47 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 
 const TicketingSystem: React.FC = () => {
   const [activeSection, setActiveSection] = useState('tickets');
+  const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
   
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
   };
 
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'list' ? 'card' : 'list');
+  };
+
   const renderContent = () => {
     switch (activeSection) {
       case 'tickets':
-        return <TicketInbox />;
+        return (
+          <div className="flex flex-col h-full">
+            <div className="border-b border-gray-200 dark:border-gray-700 flex justify-between items-center px-4 py-2 bg-white dark:bg-gray-800">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                Ticket Management
+              </h2>
+              <div className="flex gap-2">
+                <button 
+                  onClick={toggleViewMode}
+                  className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+                  title="List View"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={toggleViewMode}
+                  className={`p-2 rounded-md ${viewMode === 'card' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+                  title="Card View"
+                >
+                  <Grid className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-grow overflow-hidden">
+              {viewMode === 'list' ? <TicketInbox /> : <TicketCardView tickets={mockTickets} />}
+            </div>
+          </div>
+        );
       case 'visitors':
         return <VisitorManagement />;
       case 'appointments':

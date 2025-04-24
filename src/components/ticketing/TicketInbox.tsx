@@ -24,10 +24,22 @@ const TicketInbox: React.FC = () => {
         />
       </div>
       <div className="flex-grow">
-        <TicketDetail ticket={selectedTicket} />
+        {selectedTicket ? (
+          <TicketDetail ticket={selectedTicket} />
+        ) : (
+          <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900">
+            <p className="text-gray-500 dark:text-gray-400">Select a ticket to view details</p>
+          </div>
+        )}
       </div>
       <div className="w-72 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
-        <TicketDetailsPanel ticket={selectedTicket} />
+        {selectedTicket ? (
+          <TicketDetailsPanel ticket={selectedTicket} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500 dark:text-gray-400">Select an item to view details</p>
+          </div>
+        )}
       </div>
     </div>
   );
