@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import PageLayout from '@/components/layout/PageLayout';
+import { useNavigate } from 'react-router-dom';
 import TicketInbox from '@/components/ticketing/TicketInbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -10,8 +10,10 @@ import {
   Phone, 
   LifeBuoy, 
   CalendarDays, 
-  MessageSquare 
+  MessageSquare,
+  ArrowLeft
 } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 type TicketCategory = 
   | 'ticket-inbox' 
@@ -25,6 +27,7 @@ type TicketCategory =
 
 const Tickets: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TicketCategory>('ticket-inbox');
+  const navigate = useNavigate();
 
   const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
     <div className="flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 min-h-[500px] rounded-lg">
@@ -84,10 +87,20 @@ const Tickets: React.FC = () => {
   ];
 
   return (
-    <PageLayout>
-      <div className="space-y-4">
+    <div className="min-h-screen bg-background dark:bg-intranet-dark">
+      <div className="w-full p-4 sm:p-6">
         <div className="flex flex-col gap-2 md:gap-0 md:flex-row md:justify-between md:items-center mb-6">
-          <h1 className="text-3xl font-bold">Support Ticketing System</h1>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => navigate(-1)}
+              className="rounded-full h-10 w-10 flex items-center justify-center"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-3xl font-bold">Support Ticketing System</h1>
+          </div>
         </div>
         
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -115,7 +128,7 @@ const Tickets: React.FC = () => {
           </Tabs>
         </div>
       </div>
-    </PageLayout>
+    </div>
   );
 };
 

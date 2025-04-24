@@ -162,9 +162,9 @@ const TicketInbox: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState(sampleTickets[0]);
   
   return (
-    <div className="flex w-full h-[calc(100vh-250px)] min-h-[500px]">
+    <div className="flex w-full h-[calc(100vh-220px)] min-h-[700px]">
       {/* Ticket List Sidebar */}
-      <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0">
+      <aside className="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
           <h2 className="text-lg font-semibold">My Tickets</h2>
           <div className="flex space-x-2">
@@ -331,7 +331,7 @@ const TicketInbox: React.FC = () => {
       </div>
 
       {/* Ticket Details Sidebar */}
-      <aside className="w-72 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-4 flex-shrink-0 space-y-4">
+      <aside className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-5 flex-shrink-0 space-y-4">
         <div>
           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Priority</label>
           <Select defaultValue="medium">
