@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TicketInbox from '@/components/ticketing/TicketInbox';
+import TicketManager from '@/components/ticketing/TicketManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Ticket, 
@@ -11,7 +12,8 @@ import {
   LifeBuoy, 
   CalendarDays, 
   MessageSquare,
-  ArrowLeft
+  ArrowLeft,
+  LayoutGrid
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
@@ -23,7 +25,8 @@ type TicketCategory =
   | 'general-inquiries' 
   | 'employee-support' 
   | 'event-prep' 
-  | 'feedback-complaints';
+  | 'feedback-complaints'
+  | 'ticket-manager';
 
 const Tickets: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TicketCategory>('ticket-inbox');
@@ -41,6 +44,12 @@ const Tickets: React.FC = () => {
       label: 'Ticket Inbox', 
       icon: Ticket,
       content: <TicketInbox /> 
+    },
+    { 
+      id: 'ticket-manager' as TicketCategory,
+      label: 'Ticket Manager', 
+      icon: LayoutGrid,
+      content: <TicketManager /> 
     },
     { 
       id: 'visitor-management' as TicketCategory, 
