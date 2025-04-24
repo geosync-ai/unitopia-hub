@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, MessageSquare, User, AlertCircle, MoreVertical, Edit } from 'lucide-react';
+import { CalendarDays, MessageSquare, User, AlertCircle, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -21,6 +21,7 @@ export interface TicketCardProps {
   className?: string;
   onClick?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const priorityColors = {
@@ -40,7 +41,8 @@ const TicketCard: React.FC<TicketCardProps> = ({
   status,
   className,
   onClick,
-  onEdit
+  onEdit,
+  onDelete
 }) => {
   const {
     attributes,
@@ -85,25 +87,47 @@ const TicketCard: React.FC<TicketCardProps> = ({
         onClick={handleCardClick}
       >
         <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between">
-          <CardTitle className="text-sm font-medium leading-tight">{title}</CardTitle>
+          <CardTitle className="text-sm font-medium leading-tight flex-grow mr-1">{title}</CardTitle>
           
-          {onEdit && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 w-6 p-0 edit-button" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-              }}
-              draggable="false"
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <div className="flex items-center flex-shrink-0">
+            {onEdit && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 p-0 edit-button text-muted-foreground hover:text-foreground" 
+                onClick={(e) => {
+                  e.stopPropagation(); 
+                  onEdit();
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+                draggable="false"
+                title="Edit Ticket"
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+            )}
+             {onDelete && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 p-0 delete-button text-muted-foreground hover:text-red-600" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                 onPointerDown={(e) => {
+                  // Prevent drag start on button click
+                  e.stopPropagation();
+                }}
+                draggable="false"
+                title="Delete Ticket"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         
         {description && (

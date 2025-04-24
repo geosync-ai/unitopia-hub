@@ -10,7 +10,13 @@ import {
   Calendar as CalendarIcon,
   Search,
   X,
-  PlusSquare
+  PlusSquare,
+  Trash2,
+  Bell,
+  Moon,
+  Sun,
+  User as UserIcon,
+  LogOut
 } from 'lucide-react';
 import TicketCard, { TicketCardProps } from './TicketCard';
 import TicketDialog, { TicketData } from './TicketDialog';
@@ -39,12 +45,27 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
   DropdownMenuLabel,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  DropdownMenuItem
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { CSS } from '@dnd-kit/utilities';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
+import ThemeToggle from '../layout/ThemeToggle';
+import { useToast } from "@/hooks/use-toast";
+import { buttonVariants } from "@/components/ui/button";
 
 // Type for the board data structure
 interface BoardData {
@@ -92,6 +113,13 @@ const initialFilters = {
 // View modes
 type ViewMode = 'board' | 'grid';
 
+// Type for item to delete
+interface ItemToDelete {
+  type: 'ticket' | 'group';
+  id: string;
+  name?: string; // For display in confirmation
+}
+
 const TicketManager: React.FC = () => {
   // State for the board data (start with sample)
   const [boardData, setBoardData] = useState<BoardData>(initialBoardData);
@@ -108,6 +136,10 @@ const TicketManager: React.FC = () => {
   const [targetColumnForNewTicket, setTargetColumnForNewTicket] = useState<string | null>(null); // State for target column
   const [renamingColumnId, setRenamingColumnId] = useState<string | null>(null); // ID of column being renamed
   const [editingColumnName, setEditingColumnName] = useState<string>(''); // Temp value for rename input
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false); // State for delete confirmation
+  const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null); // State for item being deleted
+
+  const { toast } = useToast();
 
   const columns = buckets;
 
@@ -383,6 +415,53 @@ const TicketManager: React.FC = () => {
 
   const filteredBoardData = getFilteredTickets();
 
+  // --- Delete Handlers ---
+  const handleRequestDelete = (item: ItemToDelete) => {
+    setItemToDelete(item);
+    setIsConfirmDeleteDialogOpen(true);
+  };
+
+  const cancelDelete = () => {
+    setIsConfirmDeleteDialogOpen(false);
+    setItemToDelete(null);
+  };
+
+  const confirmDeleteItem = () => {
+    if (!itemToDelete) return;
+
+    if (itemToDelete.type === 'ticket') {
+      console.log("Deleting ticket:", itemToDelete.id);
+      setBoardData(prevBoard => {
+        const newBoard = { ...prevBoard };
+        for (const columnId in newBoard) {
+          newBoard[columnId] = newBoard[columnId].filter(ticket => ticket.id !== itemToDelete.id);
+        }
+        return newBoard;
+      });
+    } else if (itemToDelete.type === 'group') {
+      console.log("Deleting group:", itemToDelete.id);
+      // Delete bucket/column
+      setBuckets(prevBuckets => prevBuckets.filter(bucket => bucket.id !== itemToDelete.id));
+      // Delete tickets within that bucket from board data
+      setBoardData(prevBoard => {
+        const newBoard = { ...prevBoard };
+        delete newBoard[itemToDelete.id]; // Remove the key corresponding to the deleted column
+        return newBoard;
+      });
+    }
+
+    cancelDelete(); // Close dialog and reset state
+  };
+  // --- End Delete Handlers ---
+
+  // Placeholder for notification click
+  const handleNotificationClick = () => {
+    toast({
+      title: "Notifications",
+      description: "No new notifications (placeholder).",
+    });
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* Header Controls */}
@@ -439,10 +518,57 @@ const TicketManager: React.FC = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Add Group Button (Renamed from Add Bucket) */}
-          <Button variant="outline" size="sm" className="h-9" onClick={addBucket}> {/* Adjusted size */}
+          {/* Add Group Button */}
+          <Button variant="outline" size="sm" className="h-9" onClick={() => { /* TODO: Implement inline add group */ setRenamingColumnId('__adding__'); setEditingColumnName(''); }}> 
              <PlusSquare className="h-4 w-4 mr-2" /> Add group
           </Button>
+
+          {/* Divider */}
+          <div className="h-6 w-px bg-border mx-2"></div>
+
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
+          {/* Notification Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-9 w-9" 
+            onClick={handleNotificationClick}
+            title="Notifications"
+          >
+            <Bell className="h-5 w-5" />
+          </Button>
+
+          {/* User Profile Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                <Avatar className="h-9 w-9 border">
+                  {/* <AvatarImage src="/path-to-user-image.jpg" alt="User Name" /> */}
+                  <AvatarFallback>U</AvatarFallback> {/* Placeholder */} 
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">User Name</p>
+                  <p className="text-xs leading-none text-muted-foreground">user@example.com</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled> {/* Placeholder items */}
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </div>
       </div>
 
@@ -512,15 +638,29 @@ const TicketManager: React.FC = () => {
                         {filteredBoardData[column.id]?.length || 0}
                       </span>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6" // Smaller icon button
-                      onClick={() => handleCreateTicketInColumn(column.id)}
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span className="sr-only">Add ticket to {column.title}</span>
-                    </Button>
+                    {/* Column Action Buttons */} 
+                    <div className="flex items-center flex-shrink-0">
+                       {/* Add Ticket Button */}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCreateTicketInColumn(column.id)}
+                        title={`Add ticket to ${column.title}`}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                       {/* Delete Group Button */}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                        onClick={() => handleRequestDelete({ type: 'group', id: column.id, name: column.title })} // Pass delete request
+                        title={`Delete group ${column.title}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Cards Container - Apply SortableContext for cards within this column */}
@@ -533,7 +673,8 @@ const TicketManager: React.FC = () => {
                         <TicketCard 
                           key={ticket.id}
                           {...ticket}
-                          onEdit={() => handleEditTicket(ticket.id)} // Correct onEdit prop
+                          onEdit={() => handleEditTicket(ticket.id)}
+                          onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })} // Pass delete request
                         />
                       ))}
                       
@@ -562,7 +703,8 @@ const TicketManager: React.FC = () => {
                      <TicketCard 
                         key={ticket.id}
                         {...ticket}
-                        onEdit={() => handleEditTicket(ticket.id)} // Correct onEdit prop
+                        onEdit={() => handleEditTicket(ticket.id)}
+                        onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })} // Pass delete request
                         className="h-full"
                       />
                   ))
@@ -601,6 +743,30 @@ const TicketManager: React.FC = () => {
           defaultStatus={targetColumnForNewTicket} // Pass target column status
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the 
+              {itemToDelete?.type === 'group' && ` group "${itemToDelete?.name}" and all its tickets`} 
+              {itemToDelete?.type === 'ticket' && ` ticket "${itemToDelete?.name}"`}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteItem} 
+              className={cn(buttonVariants({ variant: "destructive" }))} // Use destructive variant style
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };
