@@ -25,7 +25,6 @@ import Unauthorized from "./pages/Unauthorized";
 import Notes from "./pages/Notes";
 import AssetManagement from './pages/AssetManagement';
 import Reports from './pages/Reports';
-import TicketingSystem from './pages/TicketingSystem';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
 // MSAL Imports
@@ -78,7 +77,6 @@ const AppRoutes = () => {
       <Route path="/unit" element={<ProtectedRoute><Unit /></ProtectedRoute>} />
       <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/ticketing" element={<ProtectedRoute><TicketingSystem /></ProtectedRoute>} />
       
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />

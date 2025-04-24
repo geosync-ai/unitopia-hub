@@ -14,8 +14,7 @@ import {
   LogOut,
   Target,
   Package,
-  BarChart,
-  Ticket
+  BarChart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +59,6 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: BarChart, path: '/reports', label: 'Reports' },
     // { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },
-    { icon: Ticket, path: '/ticketing', label: 'Ticketing' },
     { icon: Users, path: '/organization', label: 'Organization' },
   ];
   
