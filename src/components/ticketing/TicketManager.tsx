@@ -370,10 +370,9 @@ const TicketManager: React.FC = () => {
     const { active, over } = event;
     setActiveDragItem(null);
 
-    console.log('Drag End Event:', event); // Log the event for debugging
-
-    if (!over) {
-      console.log("No drop target (over is null)");
+    // Check if we have a valid drop target
+    if (!over || !active) {
+      console.log("No valid drop target or active item");
       return;
     }
 
@@ -385,67 +384,86 @@ const TicketManager: React.FC = () => {
       return;
     }
 
+    // Find the active item's current position
     const activeItemInfo = findTicketAndColumn(activeId);
     if (!activeItemInfo) {
       console.error("Could not find active item info for:", activeId);
       return;
     }
 
-    const { columnId: activeColumnId, index: activeIndex } = activeItemInfo;
+    const { columnId: activeColumnId, index: activeIndex, ticket: activeTicket } = activeItemInfo;
     
+    // Determine the target column
     let targetColumnId: BoardColumnId | null = null;
-    let targetIndex: number = 0;
-
-    // Determine Target Column ID - More robust check
-    if (over.data.current?.sortable?.containerId) {
-        // Dropped within a SortableContext (likely onto another item or near items)
+    
+    // First check if we're dropping directly onto a column
+    const isColumnDrop = columns.some(col => col.id === overId);
+    if (isColumnDrop) {
+      targetColumnId = overId;
+      console.log("Dropped directly onto column:", targetColumnId);
+    } 
+    // Next check if we're dropping onto a ticket
+    else {
+      const overItemInfo = findTicketAndColumn(overId);
+      if (overItemInfo) {
+        targetColumnId = overItemInfo.columnId;
+        console.log("Dropped onto ticket in column:", targetColumnId);
+      } 
+      // Finally check if we're dropping within a sortable context
+      else if (over.data.current?.sortable?.containerId) {
         targetColumnId = String(over.data.current.sortable.containerId);
-        console.log("Dropped into SortableContext, targetColumnId:", targetColumnId);
-    } else if (columns.some(c => c.id === overId)) {
-        // Dropped directly onto a registered Droppable column container ID
-        targetColumnId = overId;
-        console.log("Dropped onto Column Container, targetColumnId:", targetColumnId);
-    } else {
-        console.warn("Cannot determine target column from over object:", over);
-        return; // Invalid drop target
-    }
-
-    // Determine Target Index
-    const overItemInfo = findTicketAndColumn(overId);
-    if (activeColumnId === targetColumnId) {
-        // Moving within the same column
-        // Use the length of the items in the target column *before* the splice
-        // Get the current items for the target column from the *previous* state
-        const currentTargetItems = boardData[targetColumnId] || []; 
-        targetIndex = overItemInfo ? overItemInfo.index : currentTargetItems.length;
-    } else {
-        // Moving to a different column
-        const currentTargetItems = boardData[targetColumnId] || [];
-        targetIndex = overItemInfo ? overItemInfo.index : currentTargetItems.length; // Append to end of target
-    }
-    console.log("Target Index:", targetIndex);
-
-    setBoardData((prev) => {
-      const newBoard = { ...prev }; // Shallow copy
-      const activeItems = [...(newBoard[activeColumnId] || [])]; // Copy source array
-      const targetItems = activeColumnId === targetColumnId ? activeItems : [...(newBoard[targetColumnId] || [])]; // Copy target array if different
-
-      const [movedItem] = activeItems.splice(activeIndex, 1);
-      if (!movedItem) {
-          console.error("Failed to find moved item after splice");
-          return prev; 
+        console.log("Dropped into sortable context:", targetColumnId);
       }
+    }
 
-      movedItem.status = targetColumnId; // Update status
+    // If we still couldn't determine a target column, exit
+    if (!targetColumnId) {
+      console.error("Could not determine target column");
+      return;
+    }
 
-      // Insert into target array
-      targetItems.splice(targetIndex, 0, movedItem);
+    // Find the target insertion index
+    let targetIndex = 0;
+    const overItemInfo = findTicketAndColumn(overId);
+    
+    // If dropping onto another ticket, place it at that position
+    if (overItemInfo) {
+      targetIndex = overItemInfo.index;
+    } else {
+      // Otherwise place at the end of the target column
+      targetIndex = boardData[targetColumnId]?.length || 0;
+    }
 
-      // Update board state
-      newBoard[activeColumnId] = activeItems;
-      newBoard[targetColumnId] = targetItems;
-
-      console.log(`Moved ${movedItem.id} to ${targetColumnId} at index ${targetIndex}`);
+    // Make a copy of the entire board data to avoid direct mutations
+    setBoardData(prevBoard => {
+      // Create a new board object
+      const newBoard = { ...prevBoard };
+      
+      // Ensure columns exist
+      if (!newBoard[activeColumnId]) newBoard[activeColumnId] = [];
+      if (!newBoard[targetColumnId]) newBoard[targetColumnId] = [];
+      
+      // Create copies of the affected arrays
+      const sourceItems = [...newBoard[activeColumnId]];
+      const targetItems = activeColumnId === targetColumnId 
+        ? sourceItems 
+        : [...newBoard[targetColumnId]];
+      
+      // Remove item from source
+      sourceItems.splice(activeIndex, 1);
+      
+      // Clone the active ticket to avoid reference issues
+      const ticketToMove = { ...activeTicket, status: targetColumnId };
+      
+      // Insert into target
+      targetItems.splice(targetIndex, 0, ticketToMove);
+      
+      // Update the board data
+      newBoard[activeColumnId] = sourceItems;
+      if (activeColumnId !== targetColumnId) {
+        newBoard[targetColumnId] = targetItems;
+      }
+      
       return newBoard;
     });
   };
@@ -510,15 +528,28 @@ const TicketManager: React.FC = () => {
     const trimmedName = newGroupName.trim();
     if (!trimmedName) return; // Don't add empty names
 
+    // Generate a safer ID with just alphanumeric characters
     const newBucketId = `bucket-${Date.now()}`;
     const newBucket: Bucket = { id: newBucketId, title: trimmedName };
 
-    setBuckets(prev => [...prev, newBucket]);
-    setBoardData(prev => ({ ...prev, [newBucketId]: [] })); // Add column to board data
-
-    // Reset state
-    setIsAddingGroup(false);
-    setNewGroupName('');
+    try {
+      // Update buckets state
+      setBuckets(prev => [...prev, newBucket]);
+      // Update board data with an empty array for the new bucket
+      setBoardData(prev => ({ ...prev, [newBucketId]: [] }));
+      
+      // Reset state
+      setIsAddingGroup(false);
+      setNewGroupName('');
+    } catch (error) {
+      console.error("Error adding new group:", error);
+      // Provide user feedback
+      toast({
+        title: "Error",
+        description: "Failed to add new group. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCancelAddGroup = () => {
@@ -537,68 +568,12 @@ const TicketManager: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Header Controls */}
-      <div className="flex justify-between items-center mb-4">
-        {/* Left Side: View Mode Toggle */}
-        <ToggleGroup type="single" value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} defaultValue="board">
-          <ToggleGroupItem value="board" aria-label="Board view">
-            <Columns className="h-4 w-4 mr-2" /> Board
-          </ToggleGroupItem>
-          <ToggleGroupItem value="grid" aria-label="Grid view">
-            <LayoutGrid className="h-4 w-4 mr-2" /> Grid
-          </ToggleGroupItem>
-        </ToggleGroup>
-
-        {/* Right Side: Search, Filters, Actions */}
+      {/* App Header Area with Title and Controls */}
+      <div className="flex justify-between items-center mb-6 bg-gray-100 dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+        <h1 className="text-xl font-bold">Support Ticketing System</h1>
+        
+        {/* Move the right controls up to this section */}
         <div className="flex items-center gap-2">
-           {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-2 py-1 h-9 w-[200px] lg:w-[250px]" // Adjusted padding and height
-            />
-          </div>
-
-          {/* Filters Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9"> {/* Adjusted size */}
-                <Filter className="h-4 w-4 mr-2" /> Filters
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {filters.priority.map((filter) => (
-                <DropdownMenuCheckboxItem
-                  key={filter.id}
-                  checked={filter.checked}
-                  onCheckedChange={(checked) => handleFilterChange('priority', filter.id, checked)}
-                >
-                  {filter.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              {/* Add more filter sections (e.g., Assignee) if needed */}
-              <DropdownMenuSeparator />
-              <div className="p-2">
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full justify-center">
-                  Clear Filters
-                </Button>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Add Group Button */}
-          <Button variant="outline" size="sm" className="h-9" onClick={() => setIsAddingGroup(true)}> 
-             <PlusSquare className="h-4 w-4 mr-2" /> Add group
-          </Button>
-
-          {/* Divider */}
-          <div className="h-6 w-px bg-border mx-2"></div>
-
           {/* Theme Toggle */}
           <ThemeToggle />
 
@@ -618,8 +593,7 @@ const TicketManager: React.FC = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                 <Avatar className="h-9 w-9 border">
-                  {/* <AvatarImage src="/path-to-user-image.jpg" alt="User Name" /> */}
-                  <AvatarFallback>U</AvatarFallback> {/* Placeholder */} 
+                  <AvatarFallback>U</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -631,7 +605,7 @@ const TicketManager: React.FC = () => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled> {/* Placeholder items */}
+              <DropdownMenuItem disabled>
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
@@ -641,12 +615,70 @@ const TicketManager: React.FC = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
         </div>
       </div>
 
-      {/* Removed old header/toolbar section */}
-      {/* <div className="flex justify-between items-center mb-4"> ... old structure ... </div> */}
+      {/* Board Controls */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Left Side: View Mode Toggle */}
+        <div className="flex items-center gap-2">
+          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as ViewMode)} defaultValue="board">
+            <ToggleGroupItem value="board" aria-label="Board view">
+              <Columns className="h-4 w-4 mr-2" /> Board
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Grid view">
+              <LayoutGrid className="h-4 w-4 mr-2" /> Grid
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
+        {/* Right Side: Search, Filters, Actions */}
+        <div className="flex items-center gap-2">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search tickets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-2 py-1 h-9 w-[200px] lg:w-[250px]"
+            />
+          </div>
+
+          {/* Filters Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                <Filter className="h-4 w-4 mr-2" /> Filters
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {filters.priority.map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={filter.id}
+                  checked={filter.checked}
+                  onCheckedChange={(checked) => handleFilterChange('priority', filter.id, checked)}
+                >
+                  {filter.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <div className="p-2">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full justify-center">
+                  Clear Filters
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Add Group Button */}
+          <Button variant="outline" size="sm" className="h-9" onClick={() => setIsAddingGroup(true)}>
+            <PlusSquare className="h-4 w-4 mr-2" /> Add group
+          </Button>
+        </div>
+      </div>
 
       {/* Board/Grid View */}
       <DndContext 
@@ -676,9 +708,8 @@ const TicketManager: React.FC = () => {
                     <div 
                       className="flex items-center gap-2 flex-grow mr-2" 
                       onDoubleClick={() => {
-                         // Prevent double-click from triggering drag-and-drop
-                         if (renamingColumnId === column.id) return;
-                         handleColumnHeaderDoubleClick(column.id, column.title);
+                        if (renamingColumnId === column.id) return;
+                        handleColumnHeaderDoubleClick(column.id, column.title);
                       }}
                     >
                       {renamingColumnId === column.id ? (
@@ -686,19 +717,18 @@ const TicketManager: React.FC = () => {
                           type="text"
                           value={editingColumnName}
                           onChange={(e) => setEditingColumnName(e.target.value)}
-                          onBlur={() => handleColumnRename(column.id)} // Save on blur
+                          onBlur={() => handleColumnRename(column.id)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              handleColumnRename(column.id); // Save on Enter
+                              handleColumnRename(column.id);
                             } else if (e.key === 'Escape') {
-                              setRenamingColumnId(null); // Cancel on Escape
+                              setRenamingColumnId(null);
                             }
                           }}
-                          className="h-7 px-1 text-sm font-semibold uppercase tracking-wide" // Match styling
-                          autoFocus // Focus the input when it appears
+                          className="h-7 px-1 text-sm font-semibold uppercase tracking-wide"
+                          autoFocus
                         />
                       ) : (
-                        // Original Title Display
                         <h3 
                           className="font-semibold text-sm uppercase tracking-wide cursor-pointer" 
                           title="Double-click to rename"
@@ -710,9 +740,10 @@ const TicketManager: React.FC = () => {
                         {filteredBoardData[column.id]?.length || 0}
                       </span>
                     </div>
+                    
                     {/* Column Action Buttons */} 
                     <div className="flex items-center flex-shrink-0">
-                       {/* Add Ticket Button */}
+                      {/* Add Ticket Button */}
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -722,12 +753,13 @@ const TicketManager: React.FC = () => {
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
-                       {/* Delete Group Button */}
+                      
+                      {/* Delete Group Button */}
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         className="h-6 w-6 text-muted-foreground hover:text-red-600"
-                        onClick={() => handleRequestDelete({ type: 'group', id: column.id, name: column.title })} // Pass delete request
+                        onClick={() => handleRequestDelete({ type: 'group', id: column.id, name: column.title })}
                         title={`Delete group ${column.title}`}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -752,64 +784,69 @@ const TicketManager: React.FC = () => {
                       
                       {/* Placeholder if column is empty */}
                       {(filteredBoardData[column.id] || []).length === 0 && (
-                         <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
-                           <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
-                         </div>
-                       )}
+                        <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
+                        </div>
+                      )}
                     </SortableContext>
                   </div>
                 </div>
               );
             })}
-
+            
             {/* Inline Add Group Form */} 
             {isAddingGroup && (
-               <div className="w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm p-3 flex-shrink-0 flex flex-col gap-2">
-                 <h3 className="font-semibold text-sm">NEW GROUP</h3>
-                 <Input
-                   type="text"
-                   placeholder="Enter group name..."
-                   value={newGroupName}
-                   onChange={(e) => setNewGroupName(e.target.value)}
-                   onKeyDown={(e) => {
-                     if (e.key === 'Enter') handleSaveNewGroup();
-                     if (e.key === 'Escape') handleCancelAddGroup();
-                   }}
-                   className="h-8"
-                   autoFocus
-                 />
-                 <div className="flex justify-end gap-2">
-                   <Button variant="ghost" size="sm" onClick={handleCancelAddGroup}>Cancel</Button>
-                   <Button size="sm" onClick={handleSaveNewGroup} disabled={!newGroupName.trim()}>Save</Button>
-                 </div>
-               </div>
+              <div className="w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm p-3 flex-shrink-0 flex flex-col gap-2">
+                <h3 className="font-semibold text-sm">NEW GROUP</h3>
+                <Input
+                  type="text"
+                  placeholder="Enter group name..."
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveNewGroup();
+                    if (e.key === 'Escape') handleCancelAddGroup();
+                  }}
+                  className="h-8"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleCancelAddGroup}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveNewGroup} disabled={!newGroupName.trim()}>Save</Button>
+                </div>
+              </div>
             )}
           </div>
         )}
 
+        {/* Fix for Grid View - Ensure all items are in the SortableContext properly */}
         {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-             <SortableContext
-                items={Object.values(filteredBoardData).flatMap(tickets => tickets.map(ticket => ticket.id))}
-                strategy={rectSortingStrategy}
-              >
-                {Object.values(filteredBoardData).flatMap(tickets => 
+          <div className="bg-gray-100 dark:bg-gray-800/60 rounded-lg p-4">
+            <SortableContext
+              items={Object.values(filteredBoardData).flatMap(tickets => tickets.map(ticket => ticket.id))}
+              strategy={rectSortingStrategy}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Object.entries(filteredBoardData).flatMap(([columnId, tickets]) => 
                   tickets.map(ticket => (
-                     <TicketCard 
-                        key={ticket.id}
+                    <div key={ticket.id} className="h-full">
+                      <TicketCard 
                         {...ticket}
                         onEdit={() => handleEditTicket(ticket.id)}
                         onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })}
                         className="h-full"
                       />
+                    </div>
                   ))
                 )}
-             </SortableContext>
+              </div>
+            </SortableContext>
+            
             {Object.values(filteredBoardData).flat().length === 0 && (
-                 <div className="col-span-full flex items-center justify-center h-40 border border-dashed border-gray-300 dark:border-gray-700 rounded-md">
-                   <p className="text-gray-500 dark:text-gray-400">No tickets match your filters</p>
-                 </div>
-               )}
+              <div className="flex items-center justify-center h-40 border border-dashed border-gray-300 dark:border-gray-700 rounded-md">
+                <p className="text-gray-500 dark:text-gray-400">No tickets match your filters</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -830,12 +867,12 @@ const TicketManager: React.FC = () => {
           isOpen={isDialogOpen}
           onClose={() => {
             setIsDialogOpen(false);
-            setTargetColumnForNewTicket(null); // Reset target column on close
+            setTargetColumnForNewTicket(null);
           }}
           onSubmit={handleTicketSubmit}
           initialData={editingTicket}
-          statuses={columns.map(col => ({ id: col.id, name: col.title }))} // Ensure col.id is string
-          defaultStatus={targetColumnForNewTicket} // Pass target column status
+          statuses={columns.map(col => ({ id: col.id, name: col.title }))}
+          defaultStatus={targetColumnForNewTicket}
         />
       )}
 
@@ -854,14 +891,13 @@ const TicketManager: React.FC = () => {
             <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteItem} 
-              className={cn(buttonVariants({ variant: "destructive" }))} // Use destructive variant style
+              className={cn(buttonVariants({ variant: "destructive" }))}
             >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 };
