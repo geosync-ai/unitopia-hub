@@ -59,6 +59,7 @@ interface TicketDialogProps {
   onSubmit: (ticketData: TicketData) => void;
   initialData?: TicketData | null; // For editing
   statuses?: StatusOption[]; // Available status options
+  defaultStatus?: string | null; // Added prop for default status on create
 }
 
 const TicketDialog: React.FC<TicketDialogProps> = ({
@@ -70,7 +71,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     { id: 'todo', name: 'TO DO' },
     { id: 'inprogress', name: 'IN PROGRESS' },
     { id: 'done', name: 'DONE' }
-  ]
+  ],
+  defaultStatus
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -88,6 +90,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setStatus(initialData.status || 'todo');
       setDueDate(initialData.dueDate || undefined);
       setComments(initialData.comments || []); // Load existing comments
+      // Set status based on defaultStatus prop or fallback to first status/todo
+      setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
     } else {
       // Reset form for new ticket
       setTitle('');
@@ -96,9 +100,11 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setStatus('todo');
       setDueDate(undefined);
       setComments([]); // Reset comments for new ticket
+      // Set status based on defaultStatus prop or fallback to first status/todo
+      setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
     }
     setNewCommentText(''); // Clear comment input on open/change
-  }, [initialData, isOpen]); 
+  }, [initialData, isOpen, defaultStatus, statuses]); // Add dependencies
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

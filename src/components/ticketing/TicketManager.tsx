@@ -9,7 +9,8 @@ import {
   Check,
   Calendar as CalendarIcon,
   Search,
-  X
+  X,
+  PlusSquare
 } from 'lucide-react';
 import TicketCard, { TicketCardProps } from './TicketCard';
 import TicketDialog, { TicketData } from './TicketDialog';
@@ -41,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
+import SortableTicketColumn from './SortableTicketColumn';
 
 // Type for the board data structure
 interface BoardData {
@@ -101,6 +103,7 @@ const TicketManager: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketData | null>(null);
   const [activeDragItem, setActiveDragItem] = useState<TicketCardProps | null>(null);
+  const [targetColumnForNewTicket, setTargetColumnForNewTicket] = useState<string | null>(null); // State for target column
 
   const columns = buckets;
 
@@ -126,9 +129,17 @@ const TicketManager: React.FC = () => {
     return null;
   }
 
-  // Handler to open dialog for creating a new ticket
+  // Handler to open dialog for creating a new ticket (general)
   const handleCreateTicket = () => {
-    setEditingTicket(null); // Ensure we are creating, not editing
+    setEditingTicket(null); // Create new, default status (usually 'todo')
+    setIsDialogOpen(true);
+  };
+
+  // Handler to open dialog for creating a new ticket IN A SPECIFIC COLUMN
+  const handleCreateTicketInColumn = (columnId: string) => {
+    console.log("Creating ticket in column:", columnId);
+    setTargetColumnForNewTicket(columnId); // Set target column before opening
+    setEditingTicket(null); // Set to null for creation mode
     setIsDialogOpen(true);
   };
 
@@ -245,6 +256,7 @@ const TicketManager: React.FC = () => {
     });
     // TODO: Add API call to persist the change
     setIsDialogOpen(false);
+    setTargetColumnForNewTicket(null); // Reset target column on close
   };
 
   // Handle filter changes
@@ -272,15 +284,14 @@ const TicketManager: React.FC = () => {
   const clearFilters = () => {
     setFilters(initialFilters);
     setActiveFilters([]);
-    setSearchQuery('');
   };
   
-  // Add new bucket/column
+  // Add a new bucket/column
   const addBucket = () => {
-    const id = `bucket-${Date.now()}`;
-    const newBucket = { id, title: 'New Bucket' };
-    setBuckets([...buckets, newBucket]);
-    setBoardData(prev => ({ ...prev, [id]: [] }));
+    const newBucketId = `new-bucket-${Date.now()}`;
+    const newBucket = { id: newBucketId, title: 'New Bucket' };
+    setBuckets(prev => [...prev, newBucket]);
+    setBoardData(prev => ({ ...prev, [newBucketId]: [] }));
   };
 
   // Placeholder drag handlers - needs implementation
@@ -352,117 +363,78 @@ const TicketManager: React.FC = () => {
   const filteredBoardData = getFilteredTickets();
 
   return (
-    <DndContext 
-      sensors={sensors} 
-      collisionDetection={closestCenter} 
-      onDragEnd={handleDragEnd}
-      onDragStart={handleDragStart}
-    >
-      <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-220px)]">
-        {/* Header with actions */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold">Ticket Board</h2>
-            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as ViewMode)}>
-              <ToggleGroupItem value="board" aria-label="Board View">
-                <Columns className="h-4 w-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem value="grid" aria-label="Grid View">
-                <LayoutGrid className="h-4 w-4" />
-              </ToggleGroupItem>
-            </ToggleGroup>
+    <div className="p-4 space-y-4">
+      {/* Header Controls */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Left Side: View Mode Toggle */}
+        <ToggleGroup type="single" value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} defaultValue="board">
+          <ToggleGroupItem value="board" aria-label="Board view">
+            <Columns className="h-4 w-4 mr-2" /> Board
+          </ToggleGroupItem>
+          <ToggleGroupItem value="grid" aria-label="Grid view">
+            <LayoutGrid className="h-4 w-4 mr-2" /> Grid
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        {/* Right Side: Search, Filters, Actions */}
+        <div className="flex items-center gap-2">
+           {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search tickets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-2 py-1 h-9 w-[200px] lg:w-[250px]" // Adjusted padding and height
+            />
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tickets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 w-full"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-2.5"
+          {/* Filters Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9"> {/* Adjusted size */}
+                <Filter className="h-4 w-4 mr-2" /> Filters
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {filters.priority.map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={filter.id}
+                  checked={filter.checked}
+                  onCheckedChange={(checked) => handleFilterChange('priority', filter.id, checked)}
                 >
-                  <X className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filters
-                  {activeFilters.length > 0 && (
-                    <span className="ml-1 rounded-full bg-primary w-5 h-5 text-[10px] flex items-center justify-center text-primary-foreground">
-                      {activeFilters.length}
-                    </span>
-                  )}
+                  {filter.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {/* Add more filter sections (e.g., Assignee) if needed */}
+              <DropdownMenuSeparator />
+              <div className="p-2">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full justify-center">
+                  Clear Filters
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuLabel className="font-semibold text-xs">Priority</DropdownMenuLabel>
-                {filters.priority.map((item) => (
-                  <DropdownMenuCheckboxItem
-                    key={item.id}
-                    checked={item.checked}
-                    onCheckedChange={(checked) => 
-                      handleFilterChange('priority', item.id, checked)
-                    }
-                  >
-                    {item.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuLabel className="font-semibold text-xs">Assignee</DropdownMenuLabel>
-                {filters.assignee.map((item) => (
-                  <DropdownMenuCheckboxItem
-                    key={item.id}
-                    checked={item.checked}
-                    onCheckedChange={(checked) => 
-                      handleFilterChange('assignee', item.id, checked)
-                    }
-                  >
-                    {item.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                
-                {activeFilters.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearFilters}
-                      className="w-full justify-start text-muted-foreground text-xs"
-                    >
-                      Clear all filters
-                    </Button>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-            <Button onClick={handleCreateTicket}>
-              <Plus className="mr-2 h-4 w-4" /> Create Ticket
-            </Button>
-            
-            <Button variant="outline" size="icon" onClick={addBucket}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Add Group Button (Renamed from Add Bucket) */}
+          <Button variant="outline" size="sm" className="h-9" onClick={addBucket}> {/* Adjusted size */}
+             <PlusSquare className="h-4 w-4 mr-2" /> Add group
+          </Button>
         </div>
+      </div>
 
-        {/* Board View */}
+      {/* Removed old header/toolbar section */}
+      {/* <div className="flex justify-between items-center mb-4"> ... old structure ... </div> */}
+
+      {/* Board/Grid View */}
+      <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCenter} 
+        onDragEnd={handleDragEnd}
+        onDragStart={handleDragStart}
+      >
         {viewMode === 'board' && (
           <div className="flex space-x-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
             {columns.map((column) => (
@@ -473,31 +445,43 @@ const TicketManager: React.FC = () => {
               >
                 {/* Column Header */}
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700/80 flex justify-between items-center sticky top-0 bg-gray-100 dark:bg-gray-800/90 rounded-t-lg z-10">
-                  <h3 className="font-semibold text-sm uppercase tracking-wide">{column.title}</h3>
-                  <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2 py-0.5">
-                    {filteredBoardData[column.id]?.length || 0}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm uppercase tracking-wide">{column.title}</h3>
+                    <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2 py-0.5">
+                      {filteredBoardData[column.id]?.length || 0}
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6" // Smaller icon button
+                    onClick={() => handleCreateTicketInColumn(column.id)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="sr-only">Add ticket to {column.title}</span>
+                  </Button>
                 </div>
                 
-                {/* Cards Container */}
+                {/* Cards Container - Apply SortableContext for cards within this column */}
                 <div className="p-2 flex-1 overflow-y-auto">
                   <SortableContext
-                    items={filteredBoardData[column.id]?.map(ticket => ticket.id) || []}
+                    items={filteredBoardData[column.id]?.map(ticket => ticket.id) || []} // Use actual ticket IDs
                     strategy={verticalListSortingStrategy}
                   >
-                    {filteredBoardData[column.id]?.map((ticket) => (
+                    {(filteredBoardData[column.id] || []).map((ticket) => (
                       <TicketCard 
                         key={ticket.id}
                         {...ticket}
-                        onEdit={() => handleEditTicket(ticket.id)}
+                        onEdit={() => handleEditTicket(ticket.id)} // Pass ID to edit handler
                       />
                     ))}
                     
-                    {!filteredBoardData[column.id]?.length && (
-                      <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
-                      </div>
-                    )}
+                    {/* Placeholder if column is empty */}
+                    {(filteredBoardData[column.id] || []).length === 0 && (
+                       <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
+                         <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
+                       </div>
+                     )}
                   </SortableContext>
                 </div>
               </div>
@@ -505,38 +489,17 @@ const TicketManager: React.FC = () => {
           </div>
         )}
 
-        {/* Grid View */}
         {viewMode === 'grid' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-              <SortableContext
-                items={Object.values(filteredBoardData).flatMap(tickets => 
-                  tickets.map(ticket => ticket.id)
-                )}
-                strategy={rectSortingStrategy}
-              >
-                {Object.entries(filteredBoardData).flatMap(([columnId, tickets]) => 
-                  tickets.map((ticket) => (
-                    <div key={ticket.id} className="h-full">
-                      <TicketCard 
-                        {...ticket}
-                        onEdit={() => handleEditTicket(ticket.id)}
-                        className="h-full"
-                      />
-                    </div>
-                  ))
-                )}
-              </SortableContext>
-              
-              {Object.values(filteredBoardData).flat().length === 0 && (
-                <div className="col-span-full flex items-center justify-center h-40 border border-dashed border-gray-300 dark:border-gray-700 rounded-md">
-                  <p className="text-gray-500 dark:text-gray-400">No tickets match your filters</p>
-                </div>
-              )}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Object.entries(filteredBoardData).flatMap(([columnId, tickets]) => 
+              tickets.map(ticket => (
+                <TicketCard key={ticket.id} {...ticket} onEdit={handleEditTicket} />
+              ))
+            )}
+            {Object.keys(filteredBoardData).length === 0 && <p>No tickets match your search or filters.</p>}
           </div>
         )}
-        
+
         {/* Drag Overlay */}
         <DragOverlay>
           {activeDragItem ? (
@@ -546,19 +509,23 @@ const TicketManager: React.FC = () => {
             />
           ) : null}
         </DragOverlay>
-      </div>
+      </DndContext>
 
-      {/* Ticket Dialog */}
+      {/* Ticket Create/Edit Dialog */}
       {isDialogOpen && (
         <TicketDialog
           isOpen={isDialogOpen}
-          onClose={() => setIsDialogOpen(false)}
+          onClose={() => {
+            setIsDialogOpen(false);
+            setTargetColumnForNewTicket(null); // Reset target column on close
+          }}
           onSubmit={handleTicketSubmit}
           initialData={editingTicket}
           statuses={columns.map(col => ({ id: col.id, name: col.title }))}
+          defaultStatus={targetColumnForNewTicket} // Pass target column status
         />
       )}
-    </DndContext>
+    </div>
   );
 };
 
