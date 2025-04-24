@@ -18,7 +18,14 @@ const supabaseConfig = {
     unit_risks: "unit_risks",
     unit_assets: "unit_assets",
     unit_kras: "unit_kras",
-    unit_kpis: "unit_kpis"
+    unit_kpis: "unit_kpis",
+    // Report tables
+    report_templates: "report_templates",
+    reports: "reports",
+    scheduled_reports: "scheduled_reports",
+    // AI Chat tables
+    ai_chat_messages: "ai_chat_messages",
+    ai_chat_contexts: "ai_chat_contexts"
   }
 };
 

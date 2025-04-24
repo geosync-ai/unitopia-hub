@@ -13,7 +13,8 @@ import {
   GalleryHorizontal,
   LogOut,
   Target,
-  Package
+  Package,
+  BarChart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +56,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
     { icon: Users, path: '/contacts', label: 'Contacts' },
     { icon: Target, path: '/unit', label: 'Unit' },
+    { icon: BarChart, path: '/reports', label: 'Reports' },
     // { icon: Calendar, path: '/calendar', label: 'Calendar' },
     { icon: Package, path: '/asset-management', label: 'Assets' },
     { icon: Users, path: '/organization', label: 'Organization' },
