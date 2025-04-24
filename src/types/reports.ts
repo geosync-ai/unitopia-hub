@@ -18,6 +18,7 @@ export interface ReportContentSchema {
   include_projects?: boolean;
   include_tasks?: boolean;
   include_risks?: boolean;
+  include_logo?: boolean;
 }
 
 // Report section definition

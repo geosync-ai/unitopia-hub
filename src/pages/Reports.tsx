@@ -158,6 +158,13 @@ const Reports = () => {
     setIsGenerating(true);
   };
 
+  const handleCreateTemplate = (template: ReportTemplate) => {
+    toast({
+      title: "Success",
+      description: "Template created successfully. You can now use it to generate reports."
+    });
+  };
+
   const renderGenerateContent = () => (
     <div className="space-y-6">
       {isGenerating && selectedReport ? (
@@ -234,6 +241,7 @@ const Reports = () => {
                 </p>
                 
                 <TemplateManager 
+                  onCreate={handleCreateTemplate}
                   onView={handleSelectTemplate}
                 />
               </div>
@@ -263,38 +271,44 @@ const Reports = () => {
   );
 
   const renderTemplatesContent = () => (
-    <TemplateManager />
+    <TemplateManager 
+      onCreate={handleCreateTemplate}
+      onView={handleSelectTemplate}
+    />
   );
 
   return (
-    <PageLayout pageTitle="Reports">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="generate">Generate Reports</TabsTrigger>
-          <TabsTrigger value="scheduled">Scheduled Reports</TabsTrigger>
-          <TabsTrigger value="templates">Report Templates</TabsTrigger>
-        </TabsList>
+    <PageLayout>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Reports</h1>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="generate">Generate Reports</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled Reports</TabsTrigger>
+            <TabsTrigger value="templates">Report Templates</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="generate" className="mt-6">
+            {renderGenerateContent()}
+          </TabsContent>
+          
+          <TabsContent value="scheduled" className="mt-6">
+            {renderScheduledContent()}
+          </TabsContent>
+          
+          <TabsContent value="templates" className="mt-6">
+            {renderTemplatesContent()}
+          </TabsContent>
+        </Tabs>
         
-        <TabsContent value="generate" className="mt-6">
-          {renderGenerateContent()}
-        </TabsContent>
-        
-        <TabsContent value="scheduled" className="mt-6">
-          {renderScheduledContent()}
-        </TabsContent>
-        
-        <TabsContent value="templates" className="mt-6">
-          {renderTemplatesContent()}
-        </TabsContent>
-      </Tabs>
-      
-      {/* AI Chat */}
-      {user && (
-        <AIReportChat 
-          userId={user.id}
-          reportId={selectedReport?.id}
-        />
-      )}
+        {/* AI Chat */}
+        {user && (
+          <AIReportChat 
+            userId={user.id}
+            reportId={selectedReport?.id}
+          />
+        )}
+      </div>
     </PageLayout>
   );
 };

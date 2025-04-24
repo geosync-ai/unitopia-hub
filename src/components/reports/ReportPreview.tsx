@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, PenSquare, Share, Copy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Printer, PenSquare, Share, Copy, ChevronLeft, ChevronRight, X, Maximize, Minimize } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Report, ReportSectionContent } from '@/types/reports';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface ReportPreviewProps {
   report: Report | null;
@@ -29,6 +32,8 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 }) => {
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
   const [sections, setSections] = useState<ReportSectionContent[]>([]);
+  const [fullPreviewOpen, setFullPreviewOpen] = useState<boolean>(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (report?.content?.sections) {
@@ -46,6 +51,58 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
     if (activeTabIndex > 0) {
       setActiveTabIndex(activeTabIndex - 1);
     }
+  };
+
+  const handleDownloadReport = async () => {
+    if (!reportRef.current) return;
+    
+    const reportElement = reportRef.current;
+    
+    // Set temporary A4 styles for PDF generation
+    const originalStyles = {
+      width: reportElement.style.width,
+      minHeight: reportElement.style.minHeight,
+      padding: reportElement.style.padding,
+      background: reportElement.style.background
+    };
+    
+    reportElement.style.width = '210mm';
+    reportElement.style.minHeight = '297mm';
+    reportElement.style.padding = '10mm';
+    reportElement.style.background = 'white';
+    
+    const canvas = await html2canvas(reportElement, {
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    
+    // Restore original styles
+    reportElement.style.width = originalStyles.width;
+    reportElement.style.minHeight = originalStyles.minHeight;
+    reportElement.style.padding = originalStyles.padding;
+    reportElement.style.background = originalStyles.background;
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`${report?.name || 'report'}.pdf`);
+    
+    if (onDownload) onDownload();
+  };
+
+  const handlePrintReport = () => {
+    window.print();
+    if (onPrint) onPrint();
   };
 
   // Function to render the appropriate visualization for a section
@@ -226,6 +283,67 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
     );
   };
 
+  // Full A4 preview of the report
+  const renderFullA4Preview = () => {
+    return (
+      <div className="fixed inset-0 bg-background z-50 overflow-auto print:hidden">
+        <div className="flex justify-end p-4 sticky top-0 z-10 bg-background shadow-sm">
+          <Button variant="ghost" size="icon" onClick={() => setFullPreviewOpen(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex justify-center p-4">
+          <div 
+            ref={reportRef}
+            className="bg-white shadow-lg rounded-md w-[210mm] min-h-[297mm] p-[10mm] mx-auto"
+          >
+            <div className="flex justify-between items-start mb-10">
+              <div>
+                <h1 className="text-2xl font-bold mb-1">{report?.name}</h1>
+                <p className="text-muted-foreground text-sm">
+                  Generated on {new Date(report?.created_at || Date.now()).toLocaleDateString()}
+                  {report?.date_range && (
+                    <> · Data range: {new Date(report.date_range.start_date).toLocaleDateString()} - {new Date(report.date_range.end_date).toLocaleDateString()}</>
+                  )}
+                </p>
+              </div>
+              <img 
+                src="/images/SCPNG Original Logo.png" 
+                alt="SCPNG Logo" 
+                className="w-20 h-20 object-contain" 
+              />
+            </div>
+            
+            <div className="space-y-6">
+              {sections.map((section, index) => (
+                <div key={section.id} className="page-break-inside-avoid">
+                  <h2 className="text-xl font-bold mb-2">{section.title}</h2>
+                  {section.summary && (
+                    <p className="text-muted-foreground mb-4">{section.summary}</p>
+                  )}
+                  {renderVisualization(section)}
+                  {index < sections.length - 1 && <Separator className="my-6" />}
+                </div>
+              ))}
+              
+              {report?.ai_analysis && report?.ai_insights && (
+                <div className="page-break-before">
+                  <h2 className="text-xl font-bold mb-2">AI Analysis & Insights</h2>
+                  {renderAIInsights()}
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center text-sm text-muted-foreground mt-8 pt-4 border-t">
+              <p>Securities Commission of Papua New Guinea</p>
+              <p>© {new Date().getFullYear()} SCPNG. All rights reserved.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -268,6 +386,9 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button variant="outline" size="icon" onClick={() => setFullPreviewOpen(true)}>
+            <Maximize className="h-4 w-4" />
+          </Button>
           {onEdit && (
             <Button variant="outline" size="icon" onClick={() => onEdit(sections[activeTabIndex]?.id || '')}>
               <PenSquare className="h-4 w-4" />
@@ -283,16 +404,12 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
               <Copy className="h-4 w-4" />
             </Button>
           )}
-          {onDownload && (
-            <Button variant="outline" size="icon" onClick={onDownload}>
-              <Download className="h-4 w-4" />
-            </Button>
-          )}
-          {onPrint && (
-            <Button variant="outline" size="icon" onClick={onPrint}>
-              <Printer className="h-4 w-4" />
-            </Button>
-          )}
+          <Button variant="outline" size="icon" onClick={handleDownloadReport}>
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handlePrintReport}>
+            <Printer className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -371,6 +488,35 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
           </TabsContent>
         )}
       </Tabs>
+      
+      {/* Full A4 Preview Dialog */}
+      {fullPreviewOpen && renderFullA4Preview()}
+      
+      {/* Print Styles - Hidden except during printing */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-container, .print-container * {
+            visibility: visible;
+          }
+          .print-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 210mm;
+            min-height: 297mm;
+          }
+          .page-break-inside-avoid {
+            page-break-inside: avoid;
+          }
+          .page-break-before {
+            page-break-before: always;
+          }
+        }
+      `}} />
     </div>
   );
 };

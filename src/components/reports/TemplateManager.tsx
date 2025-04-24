@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PenSquare, Plus, Trash, Copy, FileText } from "lucide-react";
+import { PenSquare, Plus, Trash, Copy, FileText, Image } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +32,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   const [customTemplates, setCustomTemplates] = useState<ReportTemplate[]>([]);
   const [systemTemplates, setSystemTemplates] = useState<ReportTemplate[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState<boolean>(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState<boolean>(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -43,6 +44,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   const [includeProjects, setIncludeProjects] = useState<boolean>(true);
   const [includeTasks, setIncludeTasks] = useState<boolean>(true);
   const [includeRisks, setIncludeRisks] = useState<boolean>(true);
+  const [includeLogo, setIncludeLogo] = useState<boolean>(true);
   const [templateLayout, setTemplateLayout] = useState<'standard' | 'compact' | 'detailed'>('standard');
   
   useEffect(() => {
@@ -133,41 +135,67 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         include_projects: includeProjects,
         include_tasks: includeTasks,
         include_risks: includeRisks,
+        include_logo: includeLogo,
       };
       
-      // Create the new template
-      const newTemplate: Omit<ReportTemplate, 'id'> = {
-        name: templateName,
-        description: templateDescription,
-        type: 'custom',
-        content_schema: contentSchema,
-        created_at: new Date().toISOString(),
-        created_by: 'current_user', // This should be replaced with actual user ID
-      };
+      let createdTemplate;
       
-      const createdTemplate = await reportsService.createReportTemplate(newTemplate);
-      
-      // Update local state
-      setTemplates([...templates, createdTemplate]);
+      if (selectedTemplate) {
+        // Update existing template
+        const updatedTemplate = {
+          ...selectedTemplate,
+          name: templateName,
+          description: templateDescription,
+          content_schema: contentSchema,
+          updated_at: new Date().toISOString(),
+        };
+        
+        createdTemplate = await reportsService.updateReportTemplate(selectedTemplate.id, updatedTemplate);
+        
+        // Update local state
+        setTemplates(templates.map(t => t.id === createdTemplate.id ? createdTemplate : t));
+        
+        toast({
+          title: 'Success',
+          description: 'Template updated successfully',
+        });
+      } else {
+        // Create new template
+        const newTemplate: Omit<ReportTemplate, 'id'> = {
+          name: templateName,
+          description: templateDescription,
+          type: 'custom',
+          content_schema: contentSchema,
+          created_at: new Date().toISOString(),
+          created_by: 'current_user', // This should be replaced with actual user ID
+        };
+        
+        createdTemplate = await reportsService.createReportTemplate(newTemplate);
+        
+        // Update local state
+        setTemplates([...templates, createdTemplate]);
+        
+        toast({
+          title: 'Success',
+          description: 'Template created successfully',
+        });
+      }
       
       // Reset form
       resetForm();
       setShowCreateDialog(false);
       
       // Call callback if provided
-      if (onCreate) {
+      if (onCreate && !selectedTemplate) {
         onCreate(createdTemplate);
+      } else if (onEdit && selectedTemplate) {
+        onEdit(createdTemplate);
       }
-      
-      toast({
-        title: 'Success',
-        description: 'Template created successfully',
-      });
     } catch (error) {
-      console.error('Error creating template:', error);
+      console.error('Error creating/updating template:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create template',
+        description: 'Failed to save template',
         variant: 'destructive',
       });
     }
@@ -181,6 +209,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     setIncludeProjects(template.content_schema.include_projects ?? true);
     setIncludeTasks(template.content_schema.include_tasks ?? true);
     setIncludeRisks(template.content_schema.include_risks ?? true);
+    setIncludeLogo(template.content_schema.include_logo ?? true);
     setTemplateLayout(template.content_schema.layout);
     setShowCreateDialog(true);
   };
@@ -217,6 +246,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     setIncludeProjects(true);
     setIncludeTasks(true);
     setIncludeRisks(true);
+    setIncludeLogo(true);
     setTemplateLayout('standard');
     setSelectedTemplate(null);
   };
@@ -227,66 +257,117 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   };
   
   const handleViewTemplate = (template: ReportTemplate) => {
+    setSelectedTemplate(template);
+    setShowPreviewDialog(true);
+    
     if (onView) {
       onView(template);
     }
   };
   
+  const handleCreateNewClick = () => {
+    resetForm();
+    setShowCreateDialog(true);
+  };
+  
+  // Preview of the template
+  const renderTemplatePreview = () => {
+    if (!selectedTemplate) return null;
+    
+    return (
+      <div className="bg-white p-6 rounded-md border max-h-[80vh] overflow-auto">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-xl font-bold">{selectedTemplate.name}</h2>
+            <p className="text-muted-foreground">{selectedTemplate.description}</p>
+          </div>
+          {selectedTemplate.content_schema.include_logo && (
+            <img 
+              src="/images/SCPNG Original Logo.png" 
+              alt="SCPNG Logo" 
+              className="w-16 h-16 object-contain" 
+            />
+          )}
+        </div>
+        
+        <div className="space-y-6">
+          {selectedTemplate.content_schema.sections.map(section => (
+            <div key={section.id} className="border rounded-md p-4 bg-background">
+              <h3 className="font-medium mb-2">{section.title}</h3>
+              <div className="text-sm text-muted-foreground mb-2">
+                Data Type: {section.type.charAt(0).toUpperCase() + section.type.slice(1)}
+              </div>
+              {section.visualization && (
+                <div className="flex items-center">
+                  <Badge variant="outline">
+                    {section.visualization} {section.chart_type ? `- ${section.chart_type}` : ''}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Report Templates</h2>
-          <p className="text-muted-foreground">Create and manage custom report templates</p>
-        </div>
-        <Button onClick={() => { resetForm(); setShowCreateDialog(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> Create Template
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">Report Templates</h3>
+        <Button onClick={handleCreateNewClick}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Template
         </Button>
       </div>
       
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Custom Templates</CardTitle>
-            <CardDescription>Templates created by your team</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">
+      <div className="grid grid-cols-1 gap-6">
+        {customTemplates.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Custom Templates</CardTitle>
+              <CardDescription>Templates you have created</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
                 <div className="animate-pulse space-y-3">
                   <div className="h-12 bg-muted rounded-md w-full"></div>
                   <div className="h-12 bg-muted rounded-md w-full"></div>
                 </div>
-              </div>
-            ) : customTemplates.length > 0 ? (
-              <div className="space-y-3">
-                {customTemplates.map(template => (
-                  <div key={template.id} className="flex items-center justify-between p-3 border rounded-md">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{template.name}</h4>
-                      <p className="text-sm text-muted-foreground">{template.description}</p>
+              ) : customTemplates.length > 0 ? (
+                <div className="space-y-3">
+                  {customTemplates.map(template => (
+                    <div key={template.id} className="flex items-center justify-between p-3 border rounded-md">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{template.name}</h4>
+                        <p className="text-sm text-muted-foreground">{template.description}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleViewTemplate(template)}>
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEditTemplate(template)}>
+                          <PenSquare className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => confirmDeleteTemplate(template)}>
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleViewTemplate(template)}>
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditTemplate(template)}>
-                        <PenSquare className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => confirmDeleteTemplate(template)}>
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                No custom templates yet. Create a template to see it here.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <div className="mb-4">No custom templates yet</div>
+                  <Button variant="outline" size="sm" onClick={handleCreateNewClick}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create your first template
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         
         <Card>
           <CardHeader>
@@ -371,7 +452,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             
             <Separator />
             
-            <div className="grid grid-cols-1 gap-2">
+            <div>
               <Label>Data Sections</Label>
               <p className="text-sm text-muted-foreground">
                 Select which data sections to include in the template
@@ -413,14 +494,16 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
               </div>
             </div>
             
-            <div className="grid grid-cols-1 gap-2">
+            <Separator />
+            
+            <div className="grid gap-2">
               <Label htmlFor="template-layout">Layout Style</Label>
-              <Select 
-                value={templateLayout} 
+              <Select
+                value={templateLayout}
                 onValueChange={(value) => setTemplateLayout(value as 'standard' | 'compact' | 'detailed')}
               >
                 <SelectTrigger id="template-layout">
-                  <SelectValue placeholder="Select layout" />
+                  <SelectValue placeholder="Select layout style" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="standard">Standard Layout</SelectItem>
@@ -428,30 +511,50 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                   <SelectItem value="detailed">Detailed Layout</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground mt-1">
-                Choose how the report will be displayed when generated
-              </p>
             </div>
             
-            {!includeKpis && !includeProjects && !includeTasks && !includeRisks && (
-              <Alert>
-                <AlertDescription>
-                  Please select at least one data section to include in the template.
-                </AlertDescription>
-              </Alert>
-            )}
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="include-logo" 
+                checked={includeLogo} 
+                onCheckedChange={(checked) => setIncludeLogo(!!checked)} 
+              />
+              <div>
+                <Label htmlFor="include-logo">Include SCPNG Logo</Label>
+                <p className="text-sm text-muted-foreground">Add the official SCPNG logo to the report</p>
+              </div>
+            </div>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateTemplate}
-              disabled={!includeKpis && !includeProjects && !includeTasks && !includeRisks}
-            >
-              {selectedTemplate ? 'Update Template' : 'Create Template'}
-            </Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+            <Button onClick={handleCreateTemplate}>{selectedTemplate ? 'Save Changes' : 'Create Template'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Template Preview Dialog */}
+      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Template Preview</DialogTitle>
+            <DialogDescription>
+              Preview how reports using this template will appear
+            </DialogDescription>
+          </DialogHeader>
+          
+          {renderTemplatePreview()}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>Close</Button>
+            {selectedTemplate?.type !== 'system' && (
+              <Button onClick={() => {
+                setShowPreviewDialog(false);
+                handleEditTemplate(selectedTemplate!);
+              }}>
+                Edit Template
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
