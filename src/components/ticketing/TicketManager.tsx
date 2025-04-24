@@ -23,6 +23,7 @@ import {
   useSensors,
   DragEndEvent,
   DragOverlay,
+  useDroppable
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -457,86 +458,96 @@ const TicketManager: React.FC = () => {
       >
         {viewMode === 'board' && (
           <div className="flex space-x-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
-            {columns.map((column) => (
-              <div 
-                key={column.id} 
-                id={column.id} 
-                className="w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm flex flex-col flex-shrink-0"
-              >
-                {/* Column Header */}
-                <div className="p-3 border-b border-gray-200 dark:border-gray-700/80 flex justify-between items-center sticky top-0 bg-gray-100 dark:bg-gray-800/90 rounded-t-lg z-10">
-                  <div 
-                    className="flex items-center gap-2 flex-grow mr-2" 
-                    onDoubleClick={() => {
-                       // Prevent double-click from triggering drag-and-drop
-                       if (renamingColumnId === column.id) return;
-                       handleColumnHeaderDoubleClick(column.id, column.title);
-                    }}
-                  >
-                    {renamingColumnId === column.id ? (
-                      <Input
-                        type="text"
-                        value={editingColumnName}
-                        onChange={(e) => setEditingColumnName(e.target.value)}
-                        onBlur={() => handleColumnRename(column.id)} // Save on blur
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleColumnRename(column.id); // Save on Enter
-                          } else if (e.key === 'Escape') {
-                            setRenamingColumnId(null); // Cancel on Escape
-                          }
-                        }}
-                        className="h-7 px-1 text-sm font-semibold uppercase tracking-wide" // Match styling
-                        autoFocus // Focus the input when it appears
-                      />
-                    ) : (
-                      // Original Title Display
-                      <h3 
-                        className="font-semibold text-sm uppercase tracking-wide cursor-pointer" 
-                        title="Double-click to rename"
-                      >
-                        {column.title}
-                      </h3>
-                    )}
-                    <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2 py-0.5">
-                      {filteredBoardData[column.id]?.length || 0}
-                    </span>
+            {columns.map((column) => {
+              // Add useDroppable hook for the column container
+              const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
+                id: column.id,
+              });
+
+              return (
+                <div 
+                  key={column.id} 
+                  ref={setDroppableNodeRef} // Assign droppable ref
+                  className={cn(
+                    "w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm flex flex-col flex-shrink-0 transition-colors duration-150",
+                    isOver && "bg-primary-foreground dark:bg-gray-700" // Highlight when dragging over
+                  )}
+                >
+                  {/* Column Header */}
+                  <div className="p-3 border-b border-gray-200 dark:border-gray-700/80 flex justify-between items-center sticky top-0 bg-gray-100 dark:bg-gray-800/90 rounded-t-lg z-10">
+                    <div 
+                      className="flex items-center gap-2 flex-grow mr-2" 
+                      onDoubleClick={() => {
+                         // Prevent double-click from triggering drag-and-drop
+                         if (renamingColumnId === column.id) return;
+                         handleColumnHeaderDoubleClick(column.id, column.title);
+                      }}
+                    >
+                      {renamingColumnId === column.id ? (
+                        <Input
+                          type="text"
+                          value={editingColumnName}
+                          onChange={(e) => setEditingColumnName(e.target.value)}
+                          onBlur={() => handleColumnRename(column.id)} // Save on blur
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleColumnRename(column.id); // Save on Enter
+                            } else if (e.key === 'Escape') {
+                              setRenamingColumnId(null); // Cancel on Escape
+                            }
+                          }}
+                          className="h-7 px-1 text-sm font-semibold uppercase tracking-wide" // Match styling
+                          autoFocus // Focus the input when it appears
+                        />
+                      ) : (
+                        // Original Title Display
+                        <h3 
+                          className="font-semibold text-sm uppercase tracking-wide cursor-pointer" 
+                          title="Double-click to rename"
+                        >
+                          {column.title}
+                        </h3>
+                      )}
+                      <span className="text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2 py-0.5">
+                        {filteredBoardData[column.id]?.length || 0}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6" // Smaller icon button
+                      onClick={() => handleCreateTicketInColumn(column.id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="sr-only">Add ticket to {column.title}</span>
+                    </Button>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6" // Smaller icon button
-                    onClick={() => handleCreateTicketInColumn(column.id)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="sr-only">Add ticket to {column.title}</span>
-                  </Button>
+                  
+                  {/* Cards Container - Apply SortableContext for cards within this column */}
+                  <div className="p-2 flex-1 overflow-y-auto">
+                    <SortableContext
+                      items={(filteredBoardData[column.id] || []).map(ticket => ticket.id)} // Map IDs for SortableContext
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {(filteredBoardData[column.id] || []).map((ticket) => (
+                        <TicketCard 
+                          key={ticket.id}
+                          {...ticket}
+                          onEdit={() => handleEditTicket(ticket.id)} // Correct onEdit prop
+                        />
+                      ))}
+                      
+                      {/* Placeholder if column is empty */}
+                      {(filteredBoardData[column.id] || []).length === 0 && (
+                         <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
+                           <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
+                         </div>
+                       )}
+                    </SortableContext>
+                  </div>
                 </div>
-                
-                {/* Cards Container - Apply SortableContext for cards within this column */}
-                <div className="p-2 flex-1 overflow-y-auto">
-                  <SortableContext
-                    items={(filteredBoardData[column.id] || []).map(ticket => ticket.id)} // Map IDs for SortableContext
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {(filteredBoardData[column.id] || []).map((ticket) => (
-                      <TicketCard 
-                        key={ticket.id}
-                        {...ticket}
-                        onEdit={() => handleEditTicket(ticket.id)} // Correct onEdit prop
-                      />
-                    ))}
-                    
-                    {/* Placeholder if column is empty */}
-                    {(filteredBoardData[column.id] || []).length === 0 && (
-                       <div className="flex items-center justify-center h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-md mt-2">
-                         <p className="text-sm text-gray-500 dark:text-gray-400">No tickets</p>
-                       </div>
-                     )}
-                  </SortableContext>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
