@@ -477,14 +477,28 @@ const TicketManager: React.FC = () => {
       });
     } else if (itemToDelete.type === 'group') {
       console.log("Deleting group:", itemToDelete.id);
-      // Delete bucket/column
-      setBuckets(prevBuckets => prevBuckets.filter(bucket => bucket.id !== itemToDelete.id));
-      // Delete tickets within that bucket from board data
-      setBoardData(prevBoard => {
-        const newBoard = { ...prevBoard };
-        delete newBoard[itemToDelete.id]; // Remove the key corresponding to the deleted column
-        return newBoard;
-      });
+      // Keep a reference to the current itemToDelete ID
+      const deleteId = itemToDelete.id;
+      
+      // Use a single batch update function
+      const updateBothStates = () => {
+        // Update buckets first
+        setBuckets(prevBuckets => {
+          const newBuckets = prevBuckets.filter(bucket => bucket.id !== deleteId);
+          
+          // Then update board data - using the updated buckets info
+          setBoardData(prevBoard => {
+            const newBoard = { ...prevBoard };
+            delete newBoard[deleteId]; // Remove the column
+            return newBoard;
+          });
+          
+          return newBuckets;
+        });
+      };
+      
+      // Execute update
+      updateBothStates();
     }
 
     cancelDelete(); // Close dialog and reset state
@@ -578,7 +592,7 @@ const TicketManager: React.FC = () => {
           </DropdownMenu>
 
           {/* Add Group Button */}
-          <Button variant="outline" size="sm" className="h-9" onClick={() => { /* TODO: Implement inline add group */ setRenamingColumnId('__adding__'); setEditingColumnName(''); }}> 
+          <Button variant="outline" size="sm" className="h-9" onClick={() => setIsAddingGroup(true)}> 
              <PlusSquare className="h-4 w-4 mr-2" /> Add group
           </Button>
 
@@ -747,6 +761,29 @@ const TicketManager: React.FC = () => {
                 </div>
               );
             })}
+
+            {/* Inline Add Group Form */} 
+            {isAddingGroup && (
+               <div className="w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm p-3 flex-shrink-0 flex flex-col gap-2">
+                 <h3 className="font-semibold text-sm">NEW GROUP</h3>
+                 <Input
+                   type="text"
+                   placeholder="Enter group name..."
+                   value={newGroupName}
+                   onChange={(e) => setNewGroupName(e.target.value)}
+                   onKeyDown={(e) => {
+                     if (e.key === 'Enter') handleSaveNewGroup();
+                     if (e.key === 'Escape') handleCancelAddGroup();
+                   }}
+                   className="h-8"
+                   autoFocus
+                 />
+                 <div className="flex justify-end gap-2">
+                   <Button variant="ghost" size="sm" onClick={handleCancelAddGroup}>Cancel</Button>
+                   <Button size="sm" onClick={handleSaveNewGroup} disabled={!newGroupName.trim()}>Save</Button>
+                 </div>
+               </div>
+            )}
           </div>
         )}
 
