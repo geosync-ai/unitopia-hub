@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/use-toast';
-import { User, Paperclip, Clock, MessageSquare, FileText, AlertCircle } from 'lucide-react';
+import { User, Paperclip, Clock, MessageSquare, FileText, AlertCircle, Bold, Italic, Underline, Link, Image, Code, ArrowDown } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { format } from 'date-fns';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 interface Message {
   id: string;
@@ -32,10 +34,44 @@ const TicketMessages: React.FC<TicketMessagesProps> = ({ ticketId, currentUserId
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [staff, setStaff] = useState<{[key: number]: {name: string, email: string}}>({}); 
 
-  // Fetch messages
+  // Mock data for now
+  const mockMessages = [
+    {
+      id: "1",
+      content: "Ex beatae aliquid militia. Enim doloremque molestiae voluptatem recusandae. Maxime beatae nostrum ut. Deserunt totam aut nihil quo beatae. Quas non delectus praesentium est illum vitae nemo iure.",
+      created_at: "2022-02-09T10:31:00Z",
+      type: "public-reply",
+      created_by: 1,
+      creator: {
+        name: "Allie Harmon",
+        email: "aharmon@example.com"
+      },
+      attachments: [
+        { name: "Screen_shot.png", date: "2022-06-16T13:30:00Z" },
+        { name: "Screen_shot.png", date: "2022-06-16T13:30:00Z" }
+      ]
+    },
+    {
+      id: "2",
+      content: "Dolorem similique et aliquid illum dolor. Vel quo magnam.",
+      created_at: "2022-02-09T10:31:00Z",
+      type: "public-reply",
+      created_by: 1,
+      creator: {
+        name: "Allie Harmon",
+        email: "aharmon@example.com"
+      }
+    }
+  ];
+
   useEffect(() => {
     if (!ticketId) return;
     
+    // Use mock data for now
+    setMessages(mockMessages);
+    
+    // Real implementation would fetch messages
+    /*
     fetchMessages();
 
     // Set up realtime subscription
@@ -54,6 +90,7 @@ const TicketMessages: React.FC<TicketMessagesProps> = ({ ticketId, currentUserId
     return () => {
       supabase.removeChannel(channel);
     };
+    */
   }, [ticketId]);
 
   // Fetch staff info once for message creators
@@ -78,7 +115,8 @@ const TicketMessages: React.FC<TicketMessagesProps> = ({ ticketId, currentUserId
       }
     };
 
-    fetchStaff();
+    // Uncomment when ready to use real data
+    // fetchStaff();
   }, []);
 
   const fetchMessages = async () => {
@@ -116,6 +154,24 @@ const TicketMessages: React.FC<TicketMessagesProps> = ({ ticketId, currentUserId
     setIsSubmitting(true);
     
     try {
+      // Simulate sending message with mock data
+      const newMsg = {
+        id: `temp-${Date.now()}`,
+        content: newMessage,
+        created_at: new Date().toISOString(),
+        type: activeTab as 'public-reply' | 'private-comment' | 'note' | 'system-message',
+        created_by: currentUserId,
+        creator: {
+          name: "Allie Harmon",
+          email: "aharmon@example.com"
+        }
+      };
+      
+      setMessages([...messages, newMsg]);
+      setNewMessage('');
+      
+      // Real implementation would use supabase
+      /*
       const { error } = await supabase
         .from('ticket_messages')
         .insert({
@@ -142,6 +198,7 @@ const TicketMessages: React.FC<TicketMessagesProps> = ({ ticketId, currentUserId
 
       setNewMessage('');
       fetchMessages();
+      */
 
       toast({
         title: "Message sent",
@@ -161,131 +218,149 @@ const TicketMessages: React.FC<TicketMessagesProps> = ({ ticketId, currentUserId
     }
   };
 
-  const getMessageIcon = (type: string) => {
-    switch (type) {
-      case 'public-reply':
-        return <MessageSquare className="w-4 h-4 text-blue-500" />;
-      case 'private-comment':
-        return <FileText className="w-4 h-4 text-purple-500" />;
-      case 'note':
-        return <FileText className="w-4 h-4 text-green-500" />;
-      case 'system-message':
-        return <AlertCircle className="w-4 h-4 text-gray-500" />;
-      default:
-        return <MessageSquare className="w-4 h-4" />;
-    }
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
   };
 
-  const renderMessage = (message: Message) => {
-    const creatorName = message.creator?.name || 'Unknown';
-    const isSystem = message.type === 'system-message';
+  const renderAttachments = (attachments: any[]) => {
+    if (!attachments || attachments.length === 0) return null;
     
     return (
-      <div 
-        key={message.id} 
-        className={`mb-6 ${isSystem ? 'bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm italic' : ''}`}
-      >
-        {!isSystem ? (
-          <>
-            <div className="flex items-start space-x-3 mb-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
-                {creatorName.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{creatorName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      {getMessageIcon(message.type)}
-                      <span>{message.type.replace('-', ' ').replace(/^\w/, c => c.toUpperCase())}</span>
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {format(new Date(message.created_at), 'MMM d, yyyy h:mm a')}
-                  </span>
-                </div>
-              </div>
+      <div className="ml-11 mt-2 flex flex-wrap gap-2">
+        {attachments.map((attachment, index) => (
+          <div 
+            key={index}
+            className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded px-3 py-1.5 text-xs"
+          >
+            <div className="text-gray-600 dark:text-gray-400">
+              {attachment.name}
             </div>
-            <div className="ml-11 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-              {message.content}
+            <div className="text-gray-500 dark:text-gray-500">
+              {format(new Date(attachment.date), 'dd MMM yyyy, h:mm a')}
             </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-            <Clock className="w-4 h-4" />
-            <span>{message.content}</span>
-            <span className="text-xs ml-auto">
-              {format(new Date(message.created_at), 'MMM d, yyyy h:mm a')}
-            </span>
           </div>
-        )}
+        ))}
       </div>
     );
   };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-6">
-        {messages.length > 0 ? (
-          <div>
-            {messages.map(renderMessage)}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500 dark:text-gray-400">No messages yet. Start the conversation!</p>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <form onSubmit={handleSubmit}>
-          <Tabs 
-            defaultValue="public-reply" 
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="mb-4">
-              <TabsTrigger value="public-reply">Public Reply</TabsTrigger>
-              <TabsTrigger value="private-comment">Private Comment</TabsTrigger>
-              <TabsTrigger value="note">Note</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="public-reply" className="mt-0">
-              <div className="mb-2 flex items-center space-x-2">
-                <div className="text-sm text-gray-600 dark:text-gray-400">To:</div>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded px-2 py-1 flex items-center space-x-1 text-sm">
-                  <User className="w-3 h-3" />
-                  <span>Requester</span>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <div className="border border-gray-200 dark:border-gray-700 rounded">
-              <Textarea 
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={
-                  activeTab === 'public-reply' 
-                    ? "Type your reply to the requester..." 
-                    : activeTab === 'private-comment'
-                    ? "Add an internal comment (only visible to staff)..."
-                    : "Add a note to this ticket..."
-                }
-                className="min-h-[120px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-              
-              <div className="flex justify-between items-center p-3 border-t border-gray-200 dark:border-gray-700">
-                <button type="button" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
-                  <Paperclip className="h-5 w-5" />
-                </button>
-                <Button type="submit" disabled={isSubmitting || !newMessage.trim()}>
-                  {isSubmitting ? 'Sending...' : 'Send'}
-                </Button>
-              </div>
+      <div className="bg-white dark:bg-gray-900">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <Tabs defaultValue="public-reply" value={activeTab} onValueChange={setActiveTab}>
+            <div className="px-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="public-reply">Public Reply</TabsTrigger>
+                <TabsTrigger value="private-comment">Private Comment</TabsTrigger>
+              </TabsList>
             </div>
           </Tabs>
-        </form>
+        </div>
+      </div>
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {activeTab === 'public-reply' && (
+            <div className="flex items-center mb-2 gap-2">
+              <div className="text-sm text-gray-600 dark:text-gray-400">To:</div>
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full px-2 py-1">
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=Allison%20Westervelt`} />
+                  <AvatarFallback>AW</AvatarFallback>
+                </Avatar>
+                <span className="text-sm">Allison Westervelt &lt;awestervelt@email.com&gt;</span>
+                <button className="ml-1 text-gray-400 hover:text-gray-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6L6 18"></path>
+                    <path d="M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-6">
+            {messages.map(message => (
+              <div key={message.id} className="space-y-1">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${message.creator?.name}`} />
+                    <AvatarFallback>{message.creator ? getInitials(message.creator.name) : 'UN'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <div>
+                        <div className="font-medium">{message.creator?.name}</div>
+                        <div className="text-xs text-gray-500">
+                          To: Danny Amacher &lt;danny@capacity.com&gt;
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {format(new Date(message.created_at), 'MMM d, yyyy h:mm a')}
+                        <button className="ml-2 text-gray-400 hover:text-gray-600">
+                          <ArrowDown size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-gray-700 dark:text-gray-300">
+                      {message.content}
+                    </div>
+                    {message.attachments && renderAttachments(message.attachments)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <Textarea 
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Add a reply..."
+            className="min-h-[120px] border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          
+          <div className="px-3 py-2 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="flex items-center space-x-2">
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Bold">
+                <Bold className="h-4 w-4 text-gray-500" />
+              </button>
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Italic">
+                <Italic className="h-4 w-4 text-gray-500" />
+              </button>
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Underline">
+                <Underline className="h-4 w-4 text-gray-500" />
+              </button>
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Link">
+                <Link className="h-4 w-4 text-gray-500" />
+              </button>
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Image">
+                <Image className="h-4 w-4 text-gray-500" />
+              </button>
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Code">
+                <Code className="h-4 w-4 text-gray-500" />
+              </button>
+              <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800" title="Attachment">
+                <Paperclip className="h-4 w-4 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="flex items-center">
+              <div className="mr-2">
+                <Badge variant="outline" className="cursor-pointer">Add to KB</Badge>
+              </div>
+              <Button onClick={handleSubmit} disabled={!newMessage.trim() || isSubmitting}>
+                {isSubmitting ? 'Sending...' : 'Send'}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

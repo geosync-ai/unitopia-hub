@@ -10,6 +10,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { Ticket } from './TicketList';
 import { supabase } from '@/lib/supabaseClient';
 import { Textarea } from '@/components/ui/textarea';
+import TicketMessages from './TicketMessages';
 
 interface TicketDetailProps {
   ticketId: string | null;
@@ -19,7 +20,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId }) => {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
-  const [reply, setReply] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<number>(1); // Mock user ID for now
 
   useEffect(() => {
     if (!ticketId) {
@@ -314,57 +315,8 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId }) => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="comments" className="p-6 space-y-6 mt-0">
-          <div className="space-y-4">
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-              <div className="flex items-start space-x-3 mb-2">
-                <Avatar className="h-8 w-8">
-                  {ticket.requester && (
-                    <>
-                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${ticket.requester.name}`} />
-                      <AvatarFallback>{getInitials(ticket.requester.name)}</AvatarFallback>
-                    </>
-                  )}
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {ticket.requester?.name || "Unknown"}
-                    </p>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {format(new Date(ticket.created_at), 'MMM d, yyyy h:mm a')}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600 dark:text-blue-400">Original request</p>
-                </div>
-              </div>
-              <div className="ml-11 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                {ticket.description || "No description provided."}
-              </div>
-            </div>
-
-            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-              <p>No other comments yet</p>
-            </div>
-
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Reply</span>
-              </div>
-              <Textarea 
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Type your reply..."
-                className="min-h-[120px] border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-              <div className="flex justify-between items-center p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <button className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                  <Paperclip className="h-5 w-5" />
-                </button>
-                <Button size="sm">Send</Button>
-              </div>
-            </div>
-          </div>
+        <TabsContent value="comments" className="h-full mt-0">
+          {ticketId && <TicketMessages ticketId={ticketId} currentUserId={currentUserId} />}
         </TabsContent>
 
         <TabsContent value="activity" className="p-6 mt-0">
