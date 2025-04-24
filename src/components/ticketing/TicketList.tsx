@@ -1,107 +1,143 @@
 import React from 'react';
-import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export interface Ticket {
+interface Ticket {
   id: string;
   title: string;
-  code: string;
-  date: string;
-  status: 'open' | 'to-do' | 'in-progress' | 'resolved' | 'closed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  assignees: string[];
+  status: string;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+  description: string;
+  requester: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  assignee: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
 }
 
 interface TicketListProps {
   tickets: Ticket[];
-  activeTicketId: string | null;
-  onTicketSelect: (ticket: Ticket) => void;
+  selectedTicketId: string | null;
+  onTicketSelect: (ticketId: string) => void;
+  loading: boolean;
 }
 
-const TicketList: React.FC<TicketListProps> = ({ tickets, activeTicketId, onTicketSelect }) => {
-  const getStatusIcon = (status: Ticket['status']) => {
-    switch (status) {
+const TicketList: React.FC<TicketListProps> = ({ 
+  tickets, 
+  selectedTicketId, 
+  onTicketSelect,
+  loading
+}) => {
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
       case 'open':
-        return <AlertCircle className="w-4 h-4 text-orange-500" />;
-      case 'to-do':
-        return <Clock className="w-4 h-4 text-blue-500" />;
-      case 'in-progress':
-        return <Clock className="w-4 h-4 text-purple-500" />;
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'in progress':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
       case 'resolved':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'closed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       default:
-        return <AlertCircle className="w-4 h-4 text-gray-500" />;
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
-  const getStatusText = (status: Ticket['status']) => {
-    switch (status) {
-      case 'open':
-        return 'Open';
-      case 'to-do':
-        return 'To Do';
-      case 'in-progress':
-        return 'In Progress';
-      case 'resolved':
-        return 'Resolved';
-      case 'closed':
-        return 'Closed';
+  const getPriorityColor = (priority: string) => {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'low':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       default:
-        return status;
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
-  return (
-    <div className="h-full flex flex-col">
-      <div className="overflow-y-auto flex-1">
-        {tickets.map((ticket) => (
-          <div 
-            key={ticket.id}
-            onClick={() => onTicketSelect(ticket)}
-            className={`border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer p-4 ${
-              activeTicketId === ticket.id ? 'bg-gray-100 dark:bg-gray-800' : ''
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{ticket.title}</h3>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{ticket.date}</span>
-            </div>
-            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-              <span className="truncate">{ticket.code}</span>
-              <div className="flex items-center space-x-1">
-                <span className="inline-flex items-center">
-                  {getStatusIcon(ticket.status)}
-                  <span className="ml-1">{getStatusText(ticket.status)}</span>
-                </span>
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+
+  if (loading) {
+    return (
+      <div className="overflow-y-auto h-full">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <Skeleton className="h-5 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2 mb-3" />
+                <div className="flex gap-2 mb-2">
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
               </div>
-            </div>
-            <div className="mt-2 flex justify-between items-center">
-              <div className="flex -space-x-2">
-                {ticket.assignees.map((assignee, index) => (
-                  <div 
-                    key={index}
-                    className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-gray-700"
-                    title={assignee}
-                  >
-                    {assignee.charAt(0)}
-                  </div>
-                ))}
-              </div>
-              {ticket.priority === 'high' || ticket.priority === 'urgent' ? (
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  ticket.priority === 'urgent' 
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' 
-                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                }`}>
-                  {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
-                </span>
-              ) : null}
+              <Skeleton className="h-10 w-10 rounded-full" />
             </div>
           </div>
         ))}
       </div>
+    );
+  }
+
+  return (
+    <div className="overflow-y-auto h-full">
+      {tickets.length === 0 ? (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500 dark:text-gray-400">No tickets found</p>
+        </div>
+      ) : (
+        tickets.map((ticket) => (
+          <div
+            key={ticket.id}
+            className={`p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
+              selectedTicketId === ticket.id ? 'bg-gray-100 dark:bg-gray-800' : 'bg-white dark:bg-gray-900'
+            }`}
+            onClick={() => onTicketSelect(ticket.id)}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1">{ticket.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Updated {formatDistanceToNow(new Date(ticket.updated_at), { addSuffix: true })}
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  <Badge className={`${getStatusColor(ticket.status)}`}>
+                    {ticket.status}
+                  </Badge>
+                  <Badge className={`${getPriorityColor(ticket.priority)}`}>
+                    {ticket.priority}
+                  </Badge>
+                </div>
+              </div>
+              {ticket.assignee && (
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${ticket.assignee.name}`} />
+                  <AvatarFallback>{getInitials(ticket.assignee.name)}</AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 };
 
-export default TicketList; 
+export default TicketList;
+export type { Ticket }; 
