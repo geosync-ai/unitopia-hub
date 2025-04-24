@@ -40,16 +40,16 @@ const Tickets: React.FC = () => {
 
   const tabs = [
     { 
-      id: 'ticket-inbox' as TicketCategory, 
-      label: 'Ticket Inbox', 
-      icon: Ticket,
-      content: <TicketInbox /> 
-    },
-    { 
       id: 'ticket-manager' as TicketCategory, 
       label: 'Ticket Manager', 
       icon: LayoutGrid, 
       content: <TicketManager />
+    },
+    { 
+      id: 'ticket-inbox' as TicketCategory, 
+      label: 'Ticket Inbox', 
+      icon: Ticket,
+      content: <TicketInbox /> 
     },
     { 
       id: 'visitor-management' as TicketCategory, 
