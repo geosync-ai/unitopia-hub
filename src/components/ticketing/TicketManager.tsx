@@ -72,6 +72,12 @@ interface BoardData {
   [key: string]: TicketCardProps[]; 
 }
 
+// Define the Bucket interface
+interface Bucket {
+  id: string;
+  title: string;
+}
+
 // Ensure all IDs are strings in initial data
 const initialBoardData: BoardData = {
   todo: [
@@ -138,6 +144,8 @@ const TicketManager: React.FC = () => {
   const [editingColumnName, setEditingColumnName] = useState<string>(''); // Temp value for rename input
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false); // State for delete confirmation
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null); // State for item being deleted
+  const [isAddingGroup, setIsAddingGroup] = useState<boolean>(false); // State for inline add group form
+  const [newGroupName, setNewGroupName] = useState<string>(''); // State for new group name input
 
   const { toast } = useToast();
 
@@ -403,13 +411,17 @@ const TicketManager: React.FC = () => {
     }
 
     // Determine Target Index
-    const overItemInfo = findTicketAndColumn(overId); // Is it over another ticket?
+    const overItemInfo = findTicketAndColumn(overId);
     if (activeColumnId === targetColumnId) {
         // Moving within the same column
-        targetIndex = overItemInfo ? overItemInfo.index : activeItems.length; // Use overItem index or append
+        // Use the length of the items in the target column *before* the splice
+        // Get the current items for the target column from the *previous* state
+        const currentTargetItems = boardData[targetColumnId] || []; 
+        targetIndex = overItemInfo ? overItemInfo.index : currentTargetItems.length;
     } else {
         // Moving to a different column
-        targetIndex = overItemInfo ? overItemInfo.index : boardData[targetColumnId]?.length || 0; // Use overItem index or append
+        const currentTargetItems = boardData[targetColumnId] || [];
+        targetIndex = overItemInfo ? overItemInfo.index : currentTargetItems.length; // Append to end of target
     }
     console.log("Target Index:", targetIndex);
 
@@ -417,9 +429,12 @@ const TicketManager: React.FC = () => {
       const newBoard = { ...prev }; // Shallow copy
       const activeItems = [...(newBoard[activeColumnId] || [])]; // Copy source array
       const targetItems = activeColumnId === targetColumnId ? activeItems : [...(newBoard[targetColumnId] || [])]; // Copy target array if different
-      
+
       const [movedItem] = activeItems.splice(activeIndex, 1);
-      if (!movedItem) return prev; // Should not happen if logic is correct
+      if (!movedItem) {
+          console.error("Failed to find moved item after splice");
+          return prev; 
+      }
 
       movedItem.status = targetColumnId; // Update status
 
@@ -475,6 +490,28 @@ const TicketManager: React.FC = () => {
     cancelDelete(); // Close dialog and reset state
   };
   // --- End Delete Handlers ---
+
+  // --- Add Group Handlers ---
+  const handleSaveNewGroup = () => {
+    const trimmedName = newGroupName.trim();
+    if (!trimmedName) return; // Don't add empty names
+
+    const newBucketId = `bucket-${Date.now()}`;
+    const newBucket: Bucket = { id: newBucketId, title: trimmedName };
+
+    setBuckets(prev => [...prev, newBucket]);
+    setBoardData(prev => ({ ...prev, [newBucketId]: [] })); // Add column to board data
+
+    // Reset state
+    setIsAddingGroup(false);
+    setNewGroupName('');
+  };
+
+  const handleCancelAddGroup = () => {
+    setIsAddingGroup(false);
+    setNewGroupName('');
+  };
+  // --- End Add Group Handlers ---
 
   // Placeholder for notification click
   const handleNotificationClick = () => {
@@ -607,7 +644,6 @@ const TicketManager: React.FC = () => {
         {viewMode === 'board' && (
           <div className="flex space-x-4 overflow-x-auto pb-4 h-[calc(100vh-320px)]">
             {columns.map((column) => {
-              // Add useDroppable hook for the column container
               const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
                 id: column.id,
               });
@@ -615,10 +651,10 @@ const TicketManager: React.FC = () => {
               return (
                 <div 
                   key={column.id} 
-                  ref={setDroppableNodeRef} // Assign droppable ref
+                  ref={setDroppableNodeRef} 
                   className={cn(
                     "w-72 md:w-80 lg:w-96 bg-gray-100 dark:bg-gray-800/60 rounded-lg shadow-sm flex flex-col flex-shrink-0 transition-colors duration-150",
-                    isOver && "bg-primary-foreground dark:bg-gray-700" // Highlight when dragging over
+                    isOver && "bg-primary-foreground dark:bg-gray-700" 
                   )}
                 >
                   {/* Column Header */}
@@ -685,10 +721,10 @@ const TicketManager: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Cards Container - Apply SortableContext for cards within this column */}
+                  {/* Cards Container */}
                   <div className="p-2 flex-1 overflow-y-auto">
                     <SortableContext
-                      items={(filteredBoardData[column.id] || []).map(ticket => ticket.id)} // Map IDs for SortableContext
+                      items={(filteredBoardData[column.id] || []).map(ticket => ticket.id)} 
                       strategy={verticalListSortingStrategy}
                     >
                       {(filteredBoardData[column.id] || []).map((ticket) => (
@@ -696,7 +732,7 @@ const TicketManager: React.FC = () => {
                           key={ticket.id}
                           {...ticket}
                           onEdit={() => handleEditTicket(ticket.id)}
-                          onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })} // Pass delete request
+                          onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })}
                         />
                       ))}
                       
@@ -726,7 +762,7 @@ const TicketManager: React.FC = () => {
                         key={ticket.id}
                         {...ticket}
                         onEdit={() => handleEditTicket(ticket.id)}
-                        onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })} // Pass delete request
+                        onDelete={() => handleRequestDelete({ type: 'ticket', id: ticket.id, name: ticket.title })}
                         className="h-full"
                       />
                   ))
