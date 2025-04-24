@@ -73,6 +73,7 @@ import { TasksTab } from '@/components/unit-tabs/TasksTab';
 import { ProjectsTab } from '@/components/unit-tabs/ProjectsTab';
 import { RisksTab } from '@/components/unit-tabs/RisksTab';
 import { OverviewTab } from '@/components/unit-tabs/OverviewTab';
+import { ReportsTab } from '@/components/unit-tabs/ReportsTab';
 
 // Define status options for dropdowns
 const statusOptions = [
@@ -296,6 +297,7 @@ const Unit = () => {
             <TabsTrigger value="kras">KRAs</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="risks">Risks</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -365,6 +367,17 @@ const Unit = () => {
               onRetry={riskState.refresh}
               staffMembers={staffMembers}
               projects={projectState.data}
+              objectives={objectivesData}
+            />
+          </TabsContent>
+          
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="space-y-6">
+            <ReportsTab
+              tasks={taskState.data}
+              kras={combinedKras}
+              projects={projectState.data}
+              risks={riskState.data}
               objectives={objectivesData}
             />
           </TabsContent>
