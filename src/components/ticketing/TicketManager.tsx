@@ -362,34 +362,56 @@ const TicketManager: React.FC = () => {
     const { active, over } = event;
     setActiveDragItem(null);
 
-    if (!over) return;
+    console.log('Drag End Event:', event); // Log the event for debugging
 
-    const activeId = String(active.id); // Ensure ID is string
-    const overId = String(over.id);    // Ensure ID is string
+    if (!over) {
+      console.log("No drop target (over is null)");
+      return;
+    }
 
-    if (activeId === overId) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    if (activeId === overId) {
+      console.log("Dropped on self");
+      return;
+    }
 
     const activeItemInfo = findTicketAndColumn(activeId);
-    if (!activeItemInfo) return;
+    if (!activeItemInfo) {
+      console.error("Could not find active item info for:", activeId);
+      return;
+    }
 
     const { columnId: activeColumnId, index: activeIndex } = activeItemInfo;
     
-    let targetColumnId: BoardColumnId;
-    let targetIndex: number;
+    let targetColumnId: BoardColumnId | null = null;
+    let targetIndex: number = 0;
 
-    const overItemInfo = findTicketAndColumn(overId);
-    if (overItemInfo) {
-      targetColumnId = overItemInfo.columnId;
-      targetIndex = overItemInfo.index;
-    } else {
-      const isColumnId = columns.some(c => c.id === overId);
-      if (isColumnId) {
+    // Determine Target Column ID - More robust check
+    if (over.data.current?.sortable?.containerId) {
+        // Dropped within a SortableContext (likely onto another item or near items)
+        targetColumnId = String(over.data.current.sortable.containerId);
+        console.log("Dropped into SortableContext, targetColumnId:", targetColumnId);
+    } else if (columns.some(c => c.id === overId)) {
+        // Dropped directly onto a registered Droppable column container ID
         targetColumnId = overId;
-        targetIndex = boardData[targetColumnId]?.length || 0;
-      } else {
-        return;
-      }
+        console.log("Dropped onto Column Container, targetColumnId:", targetColumnId);
+    } else {
+        console.warn("Cannot determine target column from over object:", over);
+        return; // Invalid drop target
     }
+
+    // Determine Target Index
+    const overItemInfo = findTicketAndColumn(overId); // Is it over another ticket?
+    if (activeColumnId === targetColumnId) {
+        // Moving within the same column
+        targetIndex = overItemInfo ? overItemInfo.index : activeItems.length; // Use overItem index or append
+    } else {
+        // Moving to a different column
+        targetIndex = overItemInfo ? overItemInfo.index : boardData[targetColumnId]?.length || 0; // Use overItem index or append
+    }
+    console.log("Target Index:", targetIndex);
 
     setBoardData((prev) => {
       const newBoard = { ...prev }; // Shallow copy
