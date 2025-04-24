@@ -96,6 +96,9 @@ const TicketCard: React.FC<TicketCardProps> = ({
                 e.stopPropagation();
                 onEdit();
               }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
               draggable="false"
             >
               <Edit className="h-3.5 w-3.5" />
