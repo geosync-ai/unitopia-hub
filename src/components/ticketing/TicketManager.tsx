@@ -42,14 +42,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import SortableTicketColumn from './SortableTicketColumn';
+import { CSS } from '@dnd-kit/utilities';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // Type for the board data structure
 interface BoardData {
   [key: string]: TicketCardProps[]; 
 }
 
-// Initial Sample Data with unique IDs and status matching the column key
+// Ensure all IDs are strings in initial data
 const initialBoardData: BoardData = {
   todo: [
     { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo' },
@@ -64,16 +65,16 @@ const initialBoardData: BoardData = {
 };
 
 // Define column type based on sample data keys
-type BoardColumnId = keyof BoardData;
+type BoardColumnId = string; // Ensure column IDs are treated as strings
 
-// Additional columns for organization
+// Ensure bucket IDs are strings
 const initialBuckets = [
   { id: 'todo', title: 'TO DO' },
   { id: 'inprogress', title: 'IN PROGRESS' },
   { id: 'done', title: 'DONE' }
 ];
 
-// Filter options
+// Ensure filter IDs are strings
 const initialFilters = {
   priority: [
     { id: 'high', label: 'High Priority', checked: false },
@@ -114,7 +115,7 @@ const TicketManager: React.FC = () => {
     })
   );
 
-  // Find ticket helper function
+  // Find ticket helper function (ticketId is always string)
   const findTicketAndColumn = (ticketId: string): { columnId: BoardColumnId, index: number, ticket: TicketCardProps } | null => {
     for (const columnId in boardData) {
       const index = boardData[columnId as BoardColumnId].findIndex(t => t.id === ticketId);
@@ -135,7 +136,7 @@ const TicketManager: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  // Handler to open dialog for creating a new ticket IN A SPECIFIC COLUMN
+  // Handler to open dialog for creating a new ticket IN A SPECIFIC COLUMN (columnId is string)
   const handleCreateTicketInColumn = (columnId: string) => {
     console.log("Creating ticket in column:", columnId);
     setTargetColumnForNewTicket(columnId); // Set target column before opening
@@ -143,7 +144,7 @@ const TicketManager: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  // Updated handleEditTicket
+  // Updated handleEditTicket (ticketId is string)
   const handleEditTicket = (ticketId: string) => {
     const itemInfo = findTicketAndColumn(ticketId);
     if (itemInfo) {
@@ -294,24 +295,22 @@ const TicketManager: React.FC = () => {
     setBoardData(prev => ({ ...prev, [newBucketId]: [] }));
   };
 
-  // Placeholder drag handlers - needs implementation
   const handleDragStart = (event: DragEndEvent) => {
       const { active } = event;
-      const itemInfo = findTicketAndColumn(active.id as string);
+      const itemInfo = findTicketAndColumn(String(active.id)); // Ensure ID is string
       setActiveDragItem(itemInfo ? itemInfo.ticket : null);
   }
 
-  // Implemented Drag End Logic
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragItem(null);
 
     if (!over) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+    const activeId = String(active.id); // Ensure ID is string
+    const overId = String(over.id);    // Ensure ID is string
 
-    if (activeId === overId) return; // Dropped on itself
+    if (activeId === overId) return;
 
     const activeItemInfo = findTicketAndColumn(activeId);
     if (!activeItemInfo) return;
@@ -322,39 +321,36 @@ const TicketManager: React.FC = () => {
     let targetIndex: number;
 
     const overItemInfo = findTicketAndColumn(overId);
-    if (overItemInfo) { // Dropped onto another ticket
+    if (overItemInfo) {
       targetColumnId = overItemInfo.columnId;
       targetIndex = overItemInfo.index;
-    } else { // Check if dropped onto a column area
+    } else {
       const isColumnId = columns.some(c => c.id === overId);
       if (isColumnId) {
-        targetColumnId = overId as BoardColumnId;
-        targetIndex = boardData[targetColumnId].length; // Append to end
+        targetColumnId = overId;
+        targetIndex = boardData[targetColumnId]?.length || 0;
       } else {
-        return; // Invalid drop target
+        return;
       }
     }
 
     setBoardData((prev) => {
-      const activeItems = prev[activeColumnId];
+      const newBoard = { ...prev }; // Shallow copy
+      const activeItems = [...(newBoard[activeColumnId] || [])]; // Copy source array
+      const targetItems = activeColumnId === targetColumnId ? activeItems : [...(newBoard[targetColumnId] || [])]; // Copy target array if different
+      
       const [movedItem] = activeItems.splice(activeIndex, 1);
+      if (!movedItem) return prev; // Should not happen if logic is correct
+
       movedItem.status = targetColumnId; // Update status
 
-      let newBoard = { ...prev };
+      // Insert into target array
+      targetItems.splice(targetIndex, 0, movedItem);
 
-      if (activeColumnId === targetColumnId) { // Moved within the same column
-        activeItems.splice(targetIndex, 0, movedItem);
-        newBoard[activeColumnId] = [...activeItems]; // Ensure new array instance
-      } else { // Moved to a different column
-        const targetItems = [...prev[targetColumnId]];
-        targetItems.splice(targetIndex, 0, movedItem);
-        newBoard = {
-          ...prev,
-          [activeColumnId]: [...activeItems], // New array for source
-          [targetColumnId]: targetItems,    // New array for target
-        };
-      }
-      // TODO: API call to update ticket status and potentially order
+      // Update board state
+      newBoard[activeColumnId] = activeItems;
+      newBoard[targetColumnId] = targetItems;
+
       console.log(`Moved ${movedItem.id} to ${targetColumnId} at index ${targetIndex}`);
       return newBoard;
     });
@@ -465,14 +461,14 @@ const TicketManager: React.FC = () => {
                 {/* Cards Container - Apply SortableContext for cards within this column */}
                 <div className="p-2 flex-1 overflow-y-auto">
                   <SortableContext
-                    items={filteredBoardData[column.id]?.map(ticket => ticket.id) || []} // Use actual ticket IDs
+                    items={(filteredBoardData[column.id] || []).map(ticket => ticket.id)} // Map IDs for SortableContext
                     strategy={verticalListSortingStrategy}
                   >
                     {(filteredBoardData[column.id] || []).map((ticket) => (
                       <TicketCard 
                         key={ticket.id}
                         {...ticket}
-                        onEdit={() => handleEditTicket(ticket.id)} // Pass ID to edit handler
+                        onEdit={() => handleEditTicket(ticket.id)} // Correct onEdit prop
                       />
                     ))}
                     
@@ -491,12 +487,26 @@ const TicketManager: React.FC = () => {
 
         {viewMode === 'grid' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Object.entries(filteredBoardData).flatMap(([columnId, tickets]) => 
-              tickets.map(ticket => (
-                <TicketCard key={ticket.id} {...ticket} onEdit={handleEditTicket} />
-              ))
-            )}
-            {Object.keys(filteredBoardData).length === 0 && <p>No tickets match your search or filters.</p>}
+             <SortableContext
+                items={Object.values(filteredBoardData).flatMap(tickets => tickets.map(ticket => ticket.id))}
+                strategy={rectSortingStrategy}
+              >
+                {Object.values(filteredBoardData).flatMap(tickets => 
+                  tickets.map(ticket => (
+                     <TicketCard 
+                        key={ticket.id}
+                        {...ticket}
+                        onEdit={() => handleEditTicket(ticket.id)} // Correct onEdit prop
+                        className="h-full"
+                      />
+                  ))
+                )}
+             </SortableContext>
+            {Object.values(filteredBoardData).flat().length === 0 && (
+                 <div className="col-span-full flex items-center justify-center h-40 border border-dashed border-gray-300 dark:border-gray-700 rounded-md">
+                   <p className="text-gray-500 dark:text-gray-400">No tickets match your filters</p>
+                 </div>
+               )}
           </div>
         )}
 
@@ -521,7 +531,7 @@ const TicketManager: React.FC = () => {
           }}
           onSubmit={handleTicketSubmit}
           initialData={editingTicket}
-          statuses={columns.map(col => ({ id: col.id, name: col.title }))}
+          statuses={columns.map(col => ({ id: col.id, name: col.title }))} // Ensure col.id is string
           defaultStatus={targetColumnForNewTicket} // Pass target column status
         />
       )}
