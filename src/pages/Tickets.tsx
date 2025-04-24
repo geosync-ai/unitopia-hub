@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TicketInbox from '@/components/ticketing/TicketInbox';
 import TicketManager from '../components/ticketing/TicketManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ThemeToggle from '@/components/layout/ThemeToggle';
 import { 
   Ticket, 
   Users, 
@@ -13,7 +14,10 @@ import {
   CalendarDays, 
   MessageSquare,
   ArrowLeft,
-  LayoutGrid
+  LayoutGrid,
+  Plus,
+  Bell,
+  Kanban
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
@@ -97,18 +101,61 @@ const Tickets: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background dark:bg-intranet-dark">
-      <div className="w-full p-2 sm:p-3">
-        <div className="flex flex-col gap-1 md:gap-0 md:flex-row md:justify-between md:items-center mb-3">
-          <div className="flex items-center gap-3">
+      <div className="w-full p-1 sm:p-2">
+        <div className="flex flex-col gap-1 md:gap-0 md:flex-row md:justify-between md:items-center mb-2 py-1">
+          <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
               size="icon" 
               onClick={() => navigate(-1)}
-              className="rounded-full h-9 w-9 flex items-center justify-center"
+              className="rounded-full h-8 w-8 flex items-center justify-center"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-3xl font-bold">Support Ticketing System</h1>
+            <img src="/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-7" />
+            <h1 className="text-2xl font-bold ml-1">Support Ticketing System</h1>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {activeTab === 'ticket-manager' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.dispatchEvent(new CustomEvent('set-view-mode', { detail: 'board' }))}
+                  className="rounded-r-none h-8"
+                >
+                  <Kanban className="h-4 w-4 mr-1" />
+                  Board
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.dispatchEvent(new CustomEvent('set-view-mode', { detail: 'grid' }))}
+                  className="rounded-l-none h-8"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Grid
+                </Button>
+                <Button 
+                  onClick={() => document.dispatchEvent(new CustomEvent('create-ticket'))}
+                  className="bg-primary text-white hover:bg-primary/90 h-8"
+                  size="sm"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  New Ticket
+                </Button>
+              </>
+            )}
+            <div className="flex items-center gap-2 ml-2">
+              <ThemeToggle />
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Bell className="h-4 w-4" />
+              </Button>
+              <div className="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium">
+                SC
+              </div>
+            </div>
           </div>
         </div>
         

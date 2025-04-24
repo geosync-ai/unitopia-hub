@@ -340,6 +340,31 @@ const TicketManager: React.FC = () => {
 
   const { toast } = useToast();
   const columns = buckets;
+  
+  // Event listeners for global control actions
+  useEffect(() => {
+    const handleViewModeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail === 'board' || customEvent.detail === 'grid') {
+        setViewMode(customEvent.detail as ViewMode);
+      }
+    };
+    
+    const handleCreateTicketEvent = () => {
+      // Call the function to create a new ticket
+      setEditingTicket(null);
+      setTargetColumnForNewTicket(null);
+      setIsDialogOpen(true);
+    };
+    
+    document.addEventListener('set-view-mode', handleViewModeChange);
+    document.addEventListener('create-ticket', handleCreateTicketEvent);
+    
+    return () => {
+      document.removeEventListener('set-view-mode', handleViewModeChange);
+      document.removeEventListener('create-ticket', handleCreateTicketEvent);
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -804,46 +829,6 @@ const TicketManager: React.FC = () => {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="flex justify-between items-center pt-0 pb-1 border-b sticky top-0 bg-white dark:bg-gray-800 z-10">
-        <div className="flex items-center gap-2">
-          <img src="/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-7 mt-0" />
-          <h2 className="text-xl font-bold mt-0">Support Ticketing System</h2>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewMode === "board" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("board")}
-            className="rounded-r-none"
-          >
-            <Kanban className="h-4 w-4 mr-1" />
-            Board
-          </Button>
-          <Button
-            variant={viewMode === "grid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className="rounded-l-none"
-          >
-            <LayoutGrid className="h-4 w-4 mr-1" />
-            Grid
-          </Button>
-          <Button 
-            onClick={handleCreateTicket}
-            className="bg-primary text-white hover:bg-primary/90"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Ticket
-          </Button>
-          <ThemeToggle />
-          <Button variant="outline" size="icon" className="h-8 w-8">
-            <Bell className="h-4 w-4" />
-          </Button>
-          <UserNav />
-        </div>
-      </div>
-      
       <main className="flex-1">
         <div className="flex items-center p-4 gap-4">
           <div className="flex-1">
