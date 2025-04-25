@@ -106,7 +106,9 @@ The Ticketing System utilizes the following core tables:
 | purpose | TEXT | | Purpose of visit |
 | status_id | UUID | FOREIGN KEY | Reference to visitor_statuses |
 | host_id | UUID | FOREIGN KEY | Staff member hosting the visitor |
-| scheduled_time | TIMESTAMP | | Scheduled arrival time |
+| visit_start_date | TIMESTAMP | | Scheduled/actual visit start date |
+| visit_end_date | TIMESTAMP | | Scheduled/actual visit end date |
+| visit_time | TIME | | Specific time of visit (if needed alongside dates) |
 | checked_in_at | TIMESTAMP | | Actual check-in time |
 | checked_out_at | TIMESTAMP | | Check-out time |
 | notes | TEXT | | Additional notes |
@@ -236,15 +238,18 @@ GROUP BY t.id, s.name, p.name;
 
 ### Get visitors for today
 ```sql
-SELECT 
+SELECT
   v.*,
   vs.name as status_name,
   u.display_name as host_name
 FROM visitors v
 JOIN visitor_statuses vs ON v.status_id = vs.id
-JOIN users u ON v.host_id = u.id
-WHERE 
-  DATE(v.scheduled_time) = CURRENT_DATE OR 
+LEFT JOIN users u ON v.host_id = u.id
+WHERE
+  -- Check if today falls within the visit date range
+  (CURRENT_DATE >= DATE(v.visit_start_date) AND CURRENT_DATE <= DATE(v.visit_end_date))
+  OR
+  -- Include visitors actually checked in today, regardless of scheduled range
   DATE(v.checked_in_at) = CURRENT_DATE
-ORDER BY COALESCE(v.checked_in_at, v.scheduled_time) ASC;
+ORDER BY COALESCE(v.checked_in_at, v.visit_start_date, v.created_at) ASC;
 ``` 

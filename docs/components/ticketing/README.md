@@ -85,16 +85,17 @@ Manages visitor registration, tracking, and status changes throughout the visito
 
 ### Features
 - Multiple view modes (board, grid, list)
-- Visitor registration with detailed information
+- Visitor registration with detailed information (uses a wider modal with grid layout)
 - Photo upload capabilities
 - Status tracking (scheduled, checked-in, checked-out, no-show)
 - Host assignment
 - Drag-and-drop status management (columns highlight when dragged over)
 - Search and filtering options
+- Visit date range selection (start and end date)
 
 ### State Management
 - Tracks visitor data and status
-- Manages form state for visitor creation/editing
+- Manages form state for visitor creation/editing (including date range)
 - Handles view mode preferences
 - Tracks active dialog states
 - Manages drag-and-drop interactions

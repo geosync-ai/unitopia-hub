@@ -36,7 +36,7 @@ import {
   Upload as UploadIcon,
   Trash2Icon
 } from 'lucide-react';
-import { format, formatDistance, parseISO } from 'date-fns';
+import { format, formatDistance, parseISO, addDays } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +76,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DateRange } from 'react-day-picker'; // Correct import
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Visitor status type
 type VisitorStatus = 'scheduled' | 'checked-in' | 'checked-out' | 'no-show';
@@ -87,17 +90,18 @@ interface Visitor {
   lastName: string;
   company: string;
   status: VisitorStatus;
-  time: string;
+  time: string; // Keep for single time entry, maybe rename to visitTime?
   host: string;
-  duration: string;
+  duration: string; // This might become less relevant with date range
   initials: string;
   email?: string;
   phone?: string;
   purpose?: string;
   notes?: string;
-  visitDate?: string;
-  photoUrl?: string; // New field for visitor photo or company logo
-  assignees?: string[]; // New field for assignees
+  visitStartDate?: Date; // Changed from visitDate
+  visitEndDate?: Date;   // Added end date
+  photoUrl?: string;
+  assignees?: string[];
 }
 
 // Sample visitor data for demonstration
@@ -623,7 +627,8 @@ const VisitorManagement: React.FC = () => {
     phone: '',
     company: '',
     purpose: '',
-    visitDate: '',
+    visitStartDate: undefined, // Changed from visitDate
+    visitEndDate: undefined,   // Added end date
     time: '',
     host: '',
     notes: '',
@@ -634,6 +639,7 @@ const VisitorManagement: React.FC = () => {
   
   // Form state for adding a new visitor
   const [newVisitor, setNewVisitor] = useState<Partial<Visitor>>(initialVisitorState);
+  const [visitDateRange, setVisitDateRange] = useState<DateRange | undefined>(undefined);
   
   // Setup sensors for drag and drop
   const sensors = useSensors(
@@ -737,7 +743,9 @@ const VisitorManagement: React.FC = () => {
     if (!newVisitor.email?.trim()) errors.email = 'Email is required';
     if (!newVisitor.phone?.trim()) errors.phone = 'Phone number is required';
     if (!newVisitor.purpose?.trim()) errors.purpose = 'Purpose is required';
-    if (!newVisitor.visitDate) errors.visitDate = 'Visit date is required';
+    // Validate date range instead of individual dates
+    if (!visitDateRange?.from) errors.visitDateRange = 'Visit start date is required';
+    if (!visitDateRange?.to) errors.visitDateRange = 'Visit end date is required';
     if (!newVisitor.time) errors.time = 'Visit time is required';
     if (!newVisitor.host) errors.host = 'Host is required';
     
@@ -781,20 +789,21 @@ const VisitorManagement: React.FC = () => {
       const initials = `${newVisitor.firstName?.[0] || ''}${newVisitor.lastName?.[0] || ''}`.toUpperCase();
       
       const visitor: Visitor = {
-        id: newVisitor.id || visitors.length + 1,
+        id: newVisitor.id || Date.now(), // Use timestamp for temp ID if needed
         firstName: newVisitor.firstName || '',
         lastName: newVisitor.lastName || '',
         company: newVisitor.company || 'N/A',
         status: newVisitor.status as VisitorStatus || 'scheduled',
         time: newVisitor.time || '',
         host: newVisitor.host || '',
-        duration: 'Scheduled',
+        duration: 'Scheduled', // Maybe calculate from dates?
         initials: initials,
         email: newVisitor.email,
         phone: newVisitor.phone,
         purpose: newVisitor.purpose,
         notes: newVisitor.notes,
-        visitDate: newVisitor.visitDate,
+        visitStartDate: visitDateRange?.from, // Use state for date range
+        visitEndDate: visitDateRange?.to,     // Use state for date range
         photoUrl: newVisitor.photoUrl,
         assignees: newVisitor.assignees || []
       };
@@ -808,24 +817,11 @@ const VisitorManagement: React.FC = () => {
       }
       
       // Reset form and close modal
-      setNewVisitor({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        company: '',
-        purpose: '',
-        visitDate: '',
-        time: '',
-        host: '',
-        notes: '',
-        status: 'scheduled',
-        photoUrl: '',
-        assignees: []
-      });
-      
+      setNewVisitor(initialVisitorState);
+      setVisitDateRange(undefined);
       setSelectedFile(null);
       setShowAddVisitorModal(false);
+      setFormErrors({});
     }
   };
 
@@ -883,8 +879,15 @@ const VisitorManagement: React.FC = () => {
     if (visitorToEdit) {
       setNewVisitor({
         ...visitorToEdit,
-        visitDate: visitorToEdit.visitDate || '',
+        visitStartDate: visitorToEdit.visitStartDate ? new Date(visitorToEdit.visitStartDate) : undefined,
+        visitEndDate: visitorToEdit.visitEndDate ? new Date(visitorToEdit.visitEndDate) : undefined,
       });
+      setVisitDateRange({
+        from: visitorToEdit.visitStartDate ? new Date(visitorToEdit.visitStartDate) : undefined,
+        to: visitorToEdit.visitEndDate ? new Date(visitorToEdit.visitEndDate) : undefined,
+      });
+      setSelectedFile(null); // Reset selected file for editing
+      setFormErrors({});
       setShowAddVisitorModal(true);
     }
   };
@@ -909,7 +912,7 @@ const VisitorManagement: React.FC = () => {
       if (activeTab === 'today') {
         // Filter to show only today's visitors
         const today = new Date().toDateString();
-        const visitorDate = visitor.visitDate ? new Date(visitor.visitDate).toDateString() : '';
+        const visitorDate = visitor.visitStartDate ? new Date(visitor.visitStartDate).toDateString() : '';
         if (visitorDate !== today) return false;
       } else if (activeTab !== visitor.status) {
         return false;
@@ -917,13 +920,13 @@ const VisitorManagement: React.FC = () => {
     }
     
     // Apply date range filter if set
-    if (dateFilter.from && visitor.visitDate) {
-      const visitDate = new Date(visitor.visitDate);
+    if (dateFilter.from && visitor.visitStartDate) {
+      const visitDate = new Date(visitor.visitStartDate);
       if (visitDate < dateFilter.from) return false;
     }
     
-    if (dateFilter.to && visitor.visitDate) {
-      const visitDate = new Date(visitor.visitDate);
+    if (dateFilter.to && visitor.visitEndDate) {
+      const visitDate = new Date(visitor.visitEndDate);
       if (visitDate > dateFilter.to) return false;
     }
     
@@ -1168,7 +1171,8 @@ const VisitorManagement: React.FC = () => {
                     phone: '',
                     company: '',
                     purpose: '',
-                    visitDate: '',
+                    visitStartDate: undefined,
+                    visitEndDate: undefined,
                     time: '',
                     host: '',
                     notes: '',
@@ -1210,7 +1214,8 @@ const VisitorManagement: React.FC = () => {
                     phone: '',
                     company: '',
                     purpose: '',
-                    visitDate: '',
+                    visitStartDate: undefined,
+                    visitEndDate: undefined,
                     time: '',
                     host: '',
                     notes: '',
@@ -1252,7 +1257,8 @@ const VisitorManagement: React.FC = () => {
                     phone: '',
                     company: '',
                     purpose: '',
-                    visitDate: '',
+                    visitStartDate: undefined,
+                    visitEndDate: undefined,
                     time: '',
                     host: '',
                     notes: '',
@@ -1294,7 +1300,8 @@ const VisitorManagement: React.FC = () => {
                     phone: '',
                     company: '',
                     purpose: '',
-                    visitDate: '',
+                    visitStartDate: undefined,
+                    visitEndDate: undefined,
                     time: '',
                     host: '',
                     notes: '',
@@ -1802,255 +1809,174 @@ const VisitorManagement: React.FC = () => {
       {viewMode !== 'board' && filteredVisitors.length > 0 && <Pagination />}
 
       {/* Add Visitor Modal */}
-      <Dialog open={showAddVisitorModal} onOpenChange={setShowAddVisitorModal}>
-        <DialogContent className="max-w-md fixed left-1/2 transform -translate-x-1/2 top-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto">
+      <Dialog open={showAddVisitorModal} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setNewVisitor(initialVisitorState);
+          setVisitDateRange(undefined);
+          setSelectedFile(null);
+          setFormErrors({});
+        }
+        setShowAddVisitorModal(isOpen);
+      }}>
+        <DialogContent className="sm:max-w-3xl"> {/* Increased width */}
           <DialogHeader>
             <DialogTitle>{newVisitor.id ? 'Edit Visitor' : 'Add New Visitor'}</DialogTitle>
             <DialogDescription>
-              {newVisitor.id ? 'Update visitor details below.' : 'Enter the visitor\'s details below.'}
+              Enter the visitor's details below.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {/* Photo/Logo Upload section - update to show initials if no photo */}
-            <div className="flex justify-center mb-4">
-              <div 
-                className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer overflow-hidden relative"
-                onClick={handlePhotoUploadClick}
-              >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
+            {/* Photo Upload Section */}
+            <div className="md:col-span-1 flex flex-col items-center space-y-4">
+              <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center overflow-hidden border">
                 {newVisitor.photoUrl ? (
-                  <img 
-                    src={newVisitor.photoUrl} 
-                    alt="Visitor photo" 
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={newVisitor.photoUrl} alt="Visitor" className="w-full h-full object-cover" />
                 ) : (
-                  <>
-                    {newVisitor.firstName && newVisitor.lastName ? (
-                      <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary text-2xl font-bold">
-                        {newVisitor.firstName[0]?.toUpperCase() || ''}{newVisitor.lastName[0]?.toUpperCase() || ''}
-                      </div>
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center flex-col">
-                        <ImageIcon className="h-8 w-8 text-gray-400" />
-                        <span className="text-xs text-gray-500 mt-1">Add Photo</span>
-                      </div>
-                    )}
-                  </>
+                  <ImageIcon className="w-16 h-16 text-muted-foreground" />
                 )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  className="hidden" 
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
               </div>
-            </div>
-            
-            <div className="text-center mb-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handlePhotoUploadClick}
-                className="text-xs"
-              >
-                <UploadIcon className="h-3 w-3 mr-1" />
-                {newVisitor.photoUrl ? 'Change Photo' : 'Upload Photo/Logo'}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+              <Button variant="outline" onClick={handlePhotoUploadClick}>
+                <UploadIcon className="mr-2 h-4 w-4" />
+                Upload Photo/Logo
               </Button>
+              {selectedFile && (
+                <p className="text-xs text-muted-foreground">{selectedFile.name}</p>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            {/* Form Fields Section */}
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
                 <Label htmlFor="firstName">First Name*</Label>
-                <Input 
-                  id="firstName" 
-                  placeholder="First name" 
-                  required 
-                  value={newVisitor.firstName} 
-                  onChange={handleInputChange}
-                  className={formErrors.firstName ? "border-red-500" : ""}
-                />
-                {formErrors.firstName && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>
-                )}
+                <Input id="firstName" required value={newVisitor.firstName} onChange={handleInputChange} className={formErrors.firstName ? "border-red-500" : ""}/>
+                {formErrors.firstName && <p className="text-red-500 text-xs">{formErrors.firstName}</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="lastName">Last Name*</Label>
-                <Input 
-                  id="lastName" 
-                  placeholder="Last name" 
-                  required 
-                  value={newVisitor.lastName} 
-                  onChange={handleInputChange}
-                  className={formErrors.lastName ? "border-red-500" : ""}
-                />
-                {formErrors.lastName && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
-                )}
+                <Input id="lastName" required value={newVisitor.lastName} onChange={handleInputChange} className={formErrors.lastName ? "border-red-500" : ""}/>
+                {formErrors.lastName && <p className="text-red-500 text-xs">{formErrors.lastName}</p>}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address*</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="Email address" 
-                required 
-                value={newVisitor.email} 
-                onChange={handleInputChange}
-                className={formErrors.email ? "border-red-500" : ""}
-              />
-              {formErrors.email && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number*</Label>
-              <Input 
-                id="phone" 
-                type="tel" 
-                placeholder="Phone number" 
-                required 
-                value={newVisitor.phone} 
-                onChange={handleInputChange}
-                className={formErrors.phone ? "border-red-500" : ""}
-              />
-              {formErrors.phone && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input 
-                id="company" 
-                placeholder="Company name" 
-                value={newVisitor.company} 
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="purpose">Purpose of Visit*</Label>
-              <Input 
-                id="purpose" 
-                placeholder="Purpose of visit" 
-                required 
-                value={newVisitor.purpose} 
-                onChange={handleInputChange}
-                className={formErrors.purpose ? "border-red-500" : ""}
-              />
-              {formErrors.purpose && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.purpose}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="assignees">Assignee(s)</Label>
-              <div className="border rounded-md p-2 bg-white dark:bg-gray-800 max-h-32 overflow-y-auto">
-                {allStaffMembers.map(staff => (
-                  <div key={staff} className="flex items-center mb-1">
-                    <input 
-                      type="checkbox" 
-                      id={`assignee-${staff}`}
-                      checked={newVisitor.assignees?.includes(staff) || false}
-                      onChange={e => {
-                        const isChecked = e.target.checked;
-                        setNewVisitor(prev => {
-                          const currentAssignees = prev.assignees || [];
-                          if (isChecked) {
-                            return { ...prev, assignees: [...currentAssignees, staff] };
-                          } else {
-                            return { ...prev, assignees: currentAssignees.filter(a => a !== staff) };
+              <div className="space-y-1">
+                <Label htmlFor="email">Email Address*</Label>
+                <Input id="email" type="email" required value={newVisitor.email} onChange={handleInputChange} className={formErrors.email ? "border-red-500" : ""}/>
+                {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="phone">Phone Number*</Label>
+                <Input id="phone" type="tel" required value={newVisitor.phone} onChange={handleInputChange} className={formErrors.phone ? "border-red-500" : ""}/>
+                {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
+              </div>
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="company">Company</Label>
+                <Input id="company" value={newVisitor.company} onChange={handleInputChange} />
+              </div>
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="purpose">Purpose of Visit*</Label>
+                <Input id="purpose" required value={newVisitor.purpose} onChange={handleInputChange} className={formErrors.purpose ? "border-red-500" : ""}/>
+                {formErrors.purpose && <p className="text-red-500 text-xs">{formErrors.purpose}</p>}
+              </div>
+
+              {/* Date Range Picker */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="visitDateRange">Visit Dates*</Label>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="visitDateRange"
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !visitDateRange && "text-muted-foreground",
+                          formErrors.visitDateRange && "border-red-500"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {visitDateRange?.from ? (
+                          visitDateRange.to ? (
+                            <>
+                              {format(visitDateRange.from, "LLL dd, y")} - {" "}
+                              {format(visitDateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(visitDateRange.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>Pick a date range</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={visitDateRange?.from}
+                        selected={visitDateRange}
+                        onSelect={(range) => {
+                          setVisitDateRange(range);
+                          if (formErrors.visitDateRange) {
+                             setFormErrors(prev => {
+                               const updated = { ...prev };
+                               delete updated.visitDateRange;
+                               return updated;
+                             });
                           }
-                        });
-                      }}
-                      className="mr-2"
-                    />
-                    <label htmlFor={`assignee-${staff}`} className="text-sm">
-                      {staff}
-                    </label>
-                  </div>
-                ))}
+                        }}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {formErrors.visitDateRange && <p className="text-red-500 text-xs">{formErrors.visitDateRange}</p>}
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Select staff member(s) who should be notified about this visitor.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="visitDate">Visit Date*</Label>
-              <Input 
-                id="visitDate" 
-                type="date" 
-                required 
-                value={newVisitor.visitDate} 
-                onChange={handleInputChange}
-                className={formErrors.visitDate ? "border-red-500" : ""}
-              />
-              {formErrors.visitDate && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.visitDate}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="time">Visit Time*</Label>
-              <Input 
-                id="time" 
-                type="time" 
-                required 
-                value={newVisitor.time} 
-                onChange={handleInputChange}
-                className={formErrors.time ? "border-red-500" : ""}
-              />
-              {formErrors.time && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.time}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="host">Host*</Label>
-              <Select 
-                value={newVisitor.host} 
-                onValueChange={(value) => handleSelectChange(value, 'host')}
-              >
-                <SelectTrigger className={formErrors.host ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a host" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueHosts.map(host => (
-                    <SelectItem key={host} value={host}>{host}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formErrors.host && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.host}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes</Label>
-              <Textarea 
-                id="notes" 
-                placeholder="Additional notes" 
-                value={newVisitor.notes} 
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select 
-                value={newVisitor.status as string} 
-                onValueChange={(value) => handleSelectChange(value, 'status')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="checked-in">Checked In</SelectItem>
-                  <SelectItem value="checked-out">Checked Out</SelectItem>
-                  <SelectItem value="no-show">No Show</SelectItem>
-                </SelectContent>
-              </Select>
+
+              <div className="space-y-1">
+                <Label htmlFor="time">Visit Time*</Label>
+                <Input id="time" type="time" required value={newVisitor.time} onChange={handleInputChange} className={formErrors.time ? "border-red-500" : ""}/>
+                {formErrors.time && <p className="text-red-500 text-xs">{formErrors.time}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="host">Host*</Label>
+                <Select value={newVisitor.host} onValueChange={(value) => handleSelectChange(value, 'host')}>
+                  <SelectTrigger className={formErrors.host ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select a host" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueHosts.map(host => (
+                      <SelectItem key={host} value={host}>{host}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                 {formErrors.host && <p className="text-red-500 text-xs">{formErrors.host}</p>}
+              </div>
+               <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="notes">Additional Notes</Label>
+                <Textarea id="notes" placeholder="Additional notes" value={newVisitor.notes} onChange={handleInputChange} />
+              </div>
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="status">Status</Label>
+                <Select value={newVisitor.status as string} onValueChange={(value) => handleSelectChange(value, 'status')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="checked-in">Checked In</SelectItem>
+                    <SelectItem value="checked-out">Checked Out</SelectItem>
+                    <SelectItem value="no-show">No Show</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddVisitorModal(false)}>Cancel</Button>
-            <Button type="submit" onClick={handleAddVisitor}>{newVisitor.id ? 'Update Visitor' : 'Add Visitor'}</Button>
+            <Button type="button" onClick={handleAddVisitor}>{newVisitor.id ? 'Update Visitor' : 'Add Visitor'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
