@@ -481,7 +481,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </div>
           
           {showHostDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-40 overflow-y-auto">
+            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-40 overflow-y-auto">
               {hostOptions.map((host) => (
                 <button 
                   key={host}
@@ -546,6 +546,12 @@ const VisitorManagement: React.FC = () => {
   const [statusFilterOpen, setStatusFilterOpen] = useState(false);
   const [companyFilterOpen, setCompanyFilterOpen] = useState(false);
   const [hostFilterOpen, setHostFilterOpen] = useState(false);
+  
+  // Create refs for dropdown containers
+  const dateRangeRef = useRef<HTMLDivElement>(null);
+  const statusFilterRef = useRef<HTMLDivElement>(null);
+  const companyFilterRef = useRef<HTMLDivElement>(null);
+  const hostFilterRef = useRef<HTMLDivElement>(null);
   
   // Filter values
   const [dateFilter, setDateFilter] = useState<{from?: Date; to?: Date}>({});
@@ -890,7 +896,7 @@ const VisitorManagement: React.FC = () => {
                           </span>
                           
                           {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50">
                               <button 
                                 className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                                 onClick={() => {
@@ -941,6 +947,25 @@ const VisitorManagement: React.FC = () => {
                   const TimeCell = () => {
                     const [isEditing, setIsEditing] = useState(false);
                     const [timeValue, setTimeValue] = useState(visitor.time);
+                    const timeRef = useRef<HTMLDivElement>(null);
+                    
+                    useEffect(() => {
+                      const handleClickOutside = (e: MouseEvent) => {
+                        if (timeRef.current && !timeRef.current.contains(e.target as Node)) {
+                          if (isEditing) {
+                            handleSave();
+                          }
+                        }
+                      };
+                      
+                      if (isEditing) {
+                        document.addEventListener('mousedown', handleClickOutside);
+                      }
+                      
+                      return () => {
+                        document.removeEventListener('mousedown', handleClickOutside);
+                      };
+                    }, [isEditing]);
                     
                     const handleSave = () => {
                       handleInlineTimeChange(visitor.id, timeValue);
@@ -949,23 +974,25 @@ const VisitorManagement: React.FC = () => {
                     
                     return (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {isEditing ? (
-                          <input 
-                            type="time" 
-                            value={timeValue}
-                            onChange={(e) => setTimeValue(e.target.value)}
-                            onBlur={handleSave}
-                            autoFocus
-                            className="w-24 text-xs p-1 border rounded"
-                          />
-                        ) : (
-                          <span 
-                            className="cursor-pointer hover:text-primary"
-                            onClick={() => setIsEditing(true)}
-                          >
-                            {formatTime(visitor.time)}
-                          </span>
-                        )}
+                        <div className="relative" ref={timeRef}>
+                          {isEditing ? (
+                            <input 
+                              type="time" 
+                              value={timeValue}
+                              onChange={(e) => setTimeValue(e.target.value)}
+                              onBlur={handleSave}
+                              autoFocus
+                              className="w-24 text-xs p-1 border rounded"
+                            />
+                          ) : (
+                            <span 
+                              className="cursor-pointer hover:text-primary"
+                              onClick={() => setIsEditing(true)}
+                            >
+                              {formatTime(visitor.time)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     );
                   };
@@ -1010,7 +1037,7 @@ const VisitorManagement: React.FC = () => {
                           </span>
                           
                           {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-40 overflow-y-auto">
+                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-40 overflow-y-auto">
                               {hostOptions.map((host) => (
                                 <button 
                                   key={host}
@@ -1109,17 +1136,46 @@ const VisitorManagement: React.FC = () => {
     }
   };
 
+  // Close all dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dateRangeRef.current && !dateRangeRef.current.contains(e.target as Node)) {
+        setDateRangeOpen(false);
+      }
+      if (statusFilterRef.current && !statusFilterRef.current.contains(e.target as Node)) {
+        setStatusFilterOpen(false);
+      }
+      if (companyFilterRef.current && !companyFilterRef.current.contains(e.target as Node)) {
+        setCompanyFilterOpen(false);
+      }
+      if (hostFilterRef.current && !hostFilterRef.current.contains(e.target as Node)) {
+        setHostFilterOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="p-4">
       <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-4">
         <div className="flex items-center space-x-3">
           {/* Date Range Filter */}
-          <div className="relative">
+          <div className="relative" ref={dateRangeRef}>
             <Button 
               variant="outline" 
               size="sm" 
               className="flex items-center gap-2"
-              onClick={() => setDateRangeOpen(!dateRangeOpen)}
+              onClick={() => {
+                setDateRangeOpen(!dateRangeOpen);
+                // Close other dropdowns
+                setStatusFilterOpen(false);
+                setCompanyFilterOpen(false);
+                setHostFilterOpen(false);
+              }}
             >
               <CalendarIcon className="h-4 w-4" />
               Date Range
@@ -1131,7 +1187,7 @@ const VisitorManagement: React.FC = () => {
             </Button>
             
             {dateRangeOpen && (
-              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 p-4">
+              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 p-4">
                 <div className="flex flex-col gap-2">
                   <Label>From Date</Label>
                   <Input 
@@ -1177,12 +1233,18 @@ const VisitorManagement: React.FC = () => {
           </div>
           
           {/* Status Filter */}
-          <div className="relative">
+          <div className="relative" ref={statusFilterRef}>
             <Button 
               variant="outline" 
               size="sm" 
               className="flex items-center gap-2"
-              onClick={() => setStatusFilterOpen(!statusFilterOpen)}
+              onClick={() => {
+                setStatusFilterOpen(!statusFilterOpen);
+                // Close other dropdowns
+                setDateRangeOpen(false);
+                setCompanyFilterOpen(false);
+                setHostFilterOpen(false);
+              }}
             >
               <UserCheckIcon className="h-4 w-4" />
               Status
@@ -1194,7 +1256,7 @@ const VisitorManagement: React.FC = () => {
             </Button>
             
             {statusFilterOpen && (
-              <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+              <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50">
                 <div className="py-1">
                   <button 
                     className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'all' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
@@ -1251,12 +1313,18 @@ const VisitorManagement: React.FC = () => {
           </div>
           
           {/* Company Filter */}
-          <div className="relative">
+          <div className="relative" ref={companyFilterRef}>
             <Button 
               variant="outline" 
               size="sm" 
               className="flex items-center gap-2"
-              onClick={() => setCompanyFilterOpen(!companyFilterOpen)}
+              onClick={() => {
+                setCompanyFilterOpen(!companyFilterOpen);
+                // Close other dropdowns
+                setDateRangeOpen(false);
+                setStatusFilterOpen(false);
+                setHostFilterOpen(false);
+              }}
             >
               <BuildingIcon className="h-4 w-4" />
               Company
@@ -1268,7 +1336,7 @@ const VisitorManagement: React.FC = () => {
             </Button>
             
             {companyFilterOpen && (
-              <div className="absolute left-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-60 overflow-y-auto">
+              <div className="absolute left-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-60 overflow-y-auto">
                 <div className="py-1">
                   <button 
                     className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${companyFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
@@ -1297,12 +1365,18 @@ const VisitorManagement: React.FC = () => {
           </div>
           
           {/* Host Filter */}
-          <div className="relative">
+          <div className="relative" ref={hostFilterRef}>
             <Button 
               variant="outline" 
               size="sm" 
               className="flex items-center gap-2"
-              onClick={() => setHostFilterOpen(!hostFilterOpen)}
+              onClick={() => {
+                setHostFilterOpen(!hostFilterOpen);
+                // Close other dropdowns
+                setDateRangeOpen(false);
+                setStatusFilterOpen(false);
+                setCompanyFilterOpen(false);
+              }}
             >
               <UserIcon className="h-4 w-4" />
               Host
@@ -1314,7 +1388,7 @@ const VisitorManagement: React.FC = () => {
             </Button>
             
             {hostFilterOpen && (
-              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-60 overflow-y-auto">
+              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-60 overflow-y-auto">
                 <div className="py-1">
                   <button 
                     className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${hostFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
@@ -1344,10 +1418,6 @@ const VisitorManagement: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <DownloadIcon className="h-4 w-4" />
-            Export
-          </Button>
           <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setShowQRCodeModal(true)}>
             <QrCodeIcon className="h-4 w-4" />
             Check-In QR
