@@ -10,7 +10,13 @@ import {
   User as UserIcon,
   LogOut,
   LayoutDashboard,
-  Kanban
+  Kanban,
+  List,
+  CheckCircle,
+  Circle,
+  CalendarDays,
+  Edit,
+  MessageSquare
 } from 'lucide-react';
 import TicketCard from './TicketCard';
 import TicketDialog from './TicketDialog';
@@ -32,7 +38,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
-import { format } from 'date-fns';
+import { format, parseISO, isValid, isBefore } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { 
   DropdownMenu,
@@ -101,6 +107,8 @@ export interface TicketData {
   status?: string;
   dueDate?: Date | null;
   assigneeId?: string;
+  completed: boolean;
+  onComplete: () => void;
 }
 
 // Type for ticket props
@@ -122,6 +130,8 @@ export interface TicketCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   className?: string;
+  completed: boolean;
+  onComplete: (id: string, completed: boolean) => void;
 }
 
 // Type for the board data structure
@@ -146,19 +156,19 @@ interface ItemToDelete {
 type BoardColumnId = string;
 
 // View modes
-type ViewMode = 'board' | 'grid';
+type ViewMode = 'board' | 'grid' | 'list';
 
 // Sample initial data
 const initialBoardData: BoardData = {
   todo: [
-    { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo' },
-    { id: 'TKT-002', title: 'Design database schema', description: 'Define tables...', priority: 'Medium', commentsCount: 2, status: 'todo' },
+    { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo', completed: false, onComplete: () => {} },
+    { id: 'TKT-002', title: 'Design database schema', description: 'Define tables...', priority: 'Medium', commentsCount: 2, status: 'todo', completed: false, onComplete: () => {} },
   ],
   inprogress: [
-    { id: 'TKT-003', title: 'Develop Ticket Board UI', description: 'Create Kanban...', priority: 'Medium', assignee: { name: 'Bob', avatarFallback: 'B' }, commentsCount: 5, dueDate: 'Jul 28', status: 'inprogress' },
+    { id: 'TKT-003', title: 'Develop Ticket Board UI', description: 'Create Kanban...', priority: 'Medium', assignee: { name: 'Bob', avatarFallback: 'B' }, commentsCount: 5, dueDate: 'Jul 28', status: 'inprogress', completed: false, onComplete: () => {} },
   ],
   done: [
-    { id: 'TKT-004', title: 'Setup project repository', priority: 'Low', assignee: { name: 'Charlie', avatarFallback: 'C' }, dueDate: 'Jul 20', status: 'done' },
+    { id: 'TKT-004', title: 'Setup project repository', priority: 'Low', assignee: { name: 'Charlie', avatarFallback: 'C' }, dueDate: 'Jul 20', status: 'done', completed: false, onComplete: () => {} },
   ]
 };
 
@@ -193,7 +203,8 @@ const BoardLane = ({
   onDeleteTicket,
   onDeleteGroup,
   isOver = false,
-  onRenameGroup
+  onRenameGroup,
+  onToggleComplete
 }: { 
   id: string; 
   title: string; 
@@ -204,6 +215,7 @@ const BoardLane = ({
   onDeleteGroup: (groupId: string) => void;
   isOver?: boolean;
   onRenameGroup: (groupId: string, newTitle: string) => void;
+  onToggleComplete: (id: string, completed: boolean) => void;
 }) => {
   const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
   const isColumnOver = isOver || columnIsOver;
@@ -288,22 +300,59 @@ const BoardLane = ({
         ref={setNodeRef}
       >
         <SortableContext items={tickets.map(ticket => ticket.id)} strategy={verticalListSortingStrategy}>
-          {tickets.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              id={ticket.id}
-              title={ticket.title}
-              description={ticket.description}
-              assignee={ticket.assignee}
-              priority={ticket.priority}
-              dueDate={ticket.dueDate}
-              commentsCount={ticket.commentsCount}
-              status={ticket.status}
-              onEdit={() => onEditTicket(ticket.id)}
-              onDelete={() => onDeleteTicket(ticket.id)}
-            />
-          ))}
+          {/* Regular tickets (not completed) */}
+          {tickets
+            .filter(ticket => !ticket.completed)
+            .map((ticket) => (
+              <TicketCard
+                key={ticket.id}
+                id={ticket.id}
+                title={ticket.title}
+                description={ticket.description}
+                assignee={ticket.assignee}
+                priority={ticket.priority}
+                dueDate={ticket.dueDate}
+                commentsCount={ticket.commentsCount}
+                status={ticket.status}
+                completed={ticket.completed}
+                onEdit={() => onEditTicket(ticket.id)}
+                onDelete={() => onDeleteTicket(ticket.id)}
+                onComplete={(id, completed) => onToggleComplete(id, completed)}
+              />
+            ))}
         </SortableContext>
+        
+        {/* Completed tickets section */}
+        {tickets.some(ticket => ticket.completed) && (
+          <div className="mt-4 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-medium text-muted-foreground">Completed tasks</h4>
+              <span className="text-xs text-muted-foreground">{tickets.filter(t => t.completed).length}</span>
+            </div>
+            <SortableContext items={tickets.filter(t => t.completed).map(t => t.id)} strategy={verticalListSortingStrategy}>
+              {tickets
+                .filter(ticket => ticket.completed)
+                .map((ticket) => (
+                  <TicketCard
+                    key={ticket.id}
+                    id={ticket.id}
+                    title={ticket.title}
+                    description={ticket.description}
+                    assignee={ticket.assignee}
+                    priority={ticket.priority}
+                    dueDate={ticket.dueDate}
+                    commentsCount={ticket.commentsCount}
+                    status={ticket.status}
+                    completed={ticket.completed}
+                    onEdit={() => onEditTicket(ticket.id)}
+                    onDelete={() => onDeleteTicket(ticket.id)}
+                    onComplete={(id, completed) => onToggleComplete(id, completed)}
+                  />
+                ))}
+            </SortableContext>
+          </div>
+        )}
+        
         {isColumnOver && tickets.length === 0 && (
           <div className="flex items-center justify-center h-24 rounded-md">
             <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
@@ -321,8 +370,9 @@ const GridView: React.FC<{
   tickets: BoardData;
   onEditTicket: (id: string) => void;
   onDeleteTicket: (id: string) => void;
+  onToggleComplete: (id: string, completed: boolean) => void;
   onRenameGroup: (groupId: string, newTitle: string) => void;
-}> = ({ tickets, onEditTicket, onDeleteTicket, onRenameGroup }) => {
+}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onRenameGroup }) => {
   // Flatten all tickets from all columns
   const allTickets = useMemo(() => {
     const flattened: TicketCardProps[] = [];
@@ -355,10 +405,221 @@ const GridView: React.FC<{
             dueDate={ticket.dueDate}
             commentsCount={ticket.commentsCount}
             status={ticket.status}
+            completed={ticket.completed}
             onEdit={() => onEditTicket(ticket.id)}
             onDelete={() => onDeleteTicket(ticket.id)}
+            onComplete={(id, completed) => onToggleComplete(id, completed)}
           />
         ))}
+      </div>
+    </div>
+  );
+};
+
+// Add a ListView component for the new list view option
+const ListView: React.FC<{
+  tickets: BoardData;
+  buckets: Bucket[];
+  onEditTicket: (id: string) => void;
+  onDeleteTicket: (id: string) => void;
+  onToggleComplete: (id: string, completed: boolean) => void;
+}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete }) => {
+  // Flatten all tickets from all columns and sort by status and completion
+  const allTickets = useMemo(() => {
+    const flattened: (TicketCardProps & { columnId: string, columnTitle: string })[] = [];
+    
+    Object.entries(tickets).forEach(([columnId, columnTickets]) => {
+      const bucketTitle = buckets.find(b => b.id === columnId)?.title || columnId;
+      
+      columnTickets.forEach(ticket => {
+        flattened.push({
+          ...ticket,
+          columnId,
+          columnTitle: bucketTitle,
+          status: ticket.status || columnId
+        });
+      });
+    });
+    
+    // Sort by completion status (incomplete first), then by column order
+    return flattened.sort((a, b) => {
+      // First sort by completion status
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      
+      // Then sort by column (using the order of buckets)
+      const aColumnIndex = buckets.findIndex(bucket => bucket.id === a.columnId);
+      const bColumnIndex = buckets.findIndex(bucket => bucket.id === b.columnId);
+      
+      return aColumnIndex - bColumnIndex;
+    });
+  }, [tickets, buckets]);
+
+  if (allTickets.length === 0) {
+    return <div className="text-center py-8 text-muted-foreground">No tickets found</div>;
+  }
+
+  return (
+    <div className="p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-gray-700">
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground w-10"></th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground">Title</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground">Status</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground">Priority</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground whitespace-nowrap">Due Date</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground">Assignee</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground w-20">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allTickets.map((ticket) => {
+              // Determine status display
+              const statusLabels = {
+                todo: 'New',
+                inprogress: 'In Progress',
+                done: 'Done'
+              };
+              const statusColors = {
+                todo: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400',
+                inprogress: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400',
+                done: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400'
+              };
+              
+              const statusKey = ticket.status as keyof typeof statusLabels;
+              const statusLabel = statusLabels[statusKey] || ticket.columnTitle;
+              const statusColor = statusColors[statusKey as keyof typeof statusColors] || '';
+              
+              // Check if due date is passed
+              const isDueDatePassed = useMemo(() => {
+                if (!ticket.dueDate) return false;
+                
+                try {
+                  // Parse the date
+                  let date: Date | null = null;
+                  
+                  if (ticket.dueDate.includes('-') || ticket.dueDate.includes('T')) {
+                    date = parseISO(ticket.dueDate);
+                  } else {
+                    const currentYear = new Date().getFullYear();
+                    const fullDateStr = `${ticket.dueDate} ${currentYear}`;
+                    date = new Date(fullDateStr);
+                  }
+                  
+                  if (!isValid(date)) return false;
+                  
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  
+                  return isBefore(date, today) && !ticket.completed;
+                } catch (error) {
+                  console.error("Error parsing date:", error);
+                  return false;
+                }
+              }, [ticket.dueDate, ticket.completed]);
+              
+              return (
+                <tr 
+                  key={ticket.id} 
+                  className={cn(
+                    "border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50",
+                    ticket.completed && "bg-gray-50 dark:bg-gray-800/50"
+                  )}
+                >
+                  <td className="p-3 text-center">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-5 w-5 p-0 text-muted-foreground hover:text-primary" 
+                      onClick={() => onToggleComplete(ticket.id, !ticket.completed)}
+                    >
+                      {ticket.completed ? 
+                        <CheckCircle className="h-4 w-4 text-green-600" /> : 
+                        <Circle className="h-4 w-4" />
+                      }
+                    </Button>
+                  </td>
+                  <td className="p-3">
+                    <div className={cn("font-medium text-sm", ticket.completed && "line-through text-muted-foreground")}>
+                      {ticket.title}
+                    </div>
+                    {ticket.description && (
+                      <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        {ticket.description}
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", statusColor)}>
+                      {statusLabel}
+                    </Badge>
+                  </td>
+                  <td className="p-3">
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "px-1.5 py-0.5 text-xs font-normal border",
+                        ticket.priority === 'High' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+                        ticket.priority === 'Medium' && "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
+                        ticket.priority === 'Low' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400"
+                      )}
+                    >
+                      {ticket.priority}
+                    </Badge>
+                  </td>
+                  <td className="p-3">
+                    {ticket.dueDate ? (
+                      <div className={cn("text-xs flex items-center", isDueDatePassed && "text-red-600 dark:text-red-500 font-semibold")}>
+                        <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+                        {ticket.dueDate}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">None</span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {ticket.assignee ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          {ticket.assignee.avatarImage && (
+                            <AvatarImage src={ticket.assignee.avatarImage} alt={ticket.assignee.name} />
+                          )}
+                          <AvatarFallback>{ticket.assignee.avatarFallback}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs">{ticket.assignee.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Unassigned</span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
+                        onClick={() => onEditTicket(ticket.id)}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" 
+                        onClick={() => onDeleteTicket(ticket.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -394,7 +655,7 @@ const TicketManager: React.FC = () => {
   useEffect(() => {
     const handleViewModeChange = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail === 'board' || customEvent.detail === 'grid') {
+      if (customEvent.detail === 'board' || customEvent.detail === 'grid' || customEvent.detail === 'list') {
         setViewMode(customEvent.detail as ViewMode);
       }
     };
@@ -468,6 +729,8 @@ const TicketManager: React.FC = () => {
         priority: ticket.priority,
         status: columnId,
         dueDate: ticket.dueDate ? new Date(ticket.dueDate) : null,
+        completed: ticket.completed,
+        onComplete: () => {}
       };
       setEditingTicket(ticketToEdit);
       setIsDialogOpen(true);
@@ -538,6 +801,8 @@ const TicketManager: React.FC = () => {
             priority: ticketData.priority,
             dueDate: ticketData.dueDate ? format(ticketData.dueDate, "MMM d") : undefined,
             status: targetColumn,
+            completed: ticketData.completed,
+            onComplete: () => {}
         };
 
         if (ticketData.id) { // Update
@@ -887,6 +1152,26 @@ const TicketManager: React.FC = () => {
     );
   };
 
+  // Toggle ticket completion status
+  const handleToggleComplete = (ticketId: string, completed: boolean) => {
+    setBoardData(prevBoard => {
+      const newBoard = { ...prevBoard };
+      const itemInfo = findTicketAndColumn(ticketId);
+      
+      if (itemInfo) {
+        const { columnId, index } = itemInfo;
+        const ticket = { ...newBoard[columnId][index], completed };
+        
+        // Update the ticket with new completed status
+        const columnTickets = [...newBoard[columnId]];
+        columnTickets[index] = ticket;
+        newBoard[columnId] = columnTickets;
+      }
+      
+      return newBoard;
+    });
+  };
+
   return (
     <div className="h-full overflow-auto">
       <main className="flex-1">
@@ -977,6 +1262,16 @@ const TicketManager: React.FC = () => {
                 <LayoutGrid className="h-4 w-4 mr-1" />
                 Grid
               </Button>
+              <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="h-8 px-2"
+              >
+                <List className="h-4 w-4 mr-1" />
+                List
+              </Button>
             </div>
           </div>
         </div>
@@ -1005,6 +1300,7 @@ const TicketManager: React.FC = () => {
                     onDeleteGroup={handleDeleteGroup}
                     isOver={activeDropId === columnId}
                     onRenameGroup={handleRenameGroup}
+                    onToggleComplete={handleToggleComplete}
                   />
                 );
               })}
@@ -1035,12 +1331,21 @@ const TicketManager: React.FC = () => {
                 </Button>
               )}
             </div>
-          ) : (
+          ) : viewMode === "grid" ? (
             <GridView 
               tickets={getFilteredTickets()} 
               onEditTicket={handleEditTicket} 
               onDeleteTicket={handleDeleteTicket} 
               onRenameGroup={handleRenameGroup}
+              onToggleComplete={handleToggleComplete}
+            />
+          ) : (
+            <ListView
+              tickets={getFilteredTickets()}
+              buckets={buckets}
+              onEditTicket={handleEditTicket}
+              onDeleteTicket={handleDeleteTicket}
+              onToggleComplete={handleToggleComplete}
             />
           )}
           
@@ -1055,8 +1360,10 @@ const TicketManager: React.FC = () => {
                 dueDate={activeDragItem.dueDate}
                 commentsCount={activeDragItem.commentsCount}
                 status={activeDragItem.status}
+                completed={activeDragItem.completed}
                 className="opacity-80 w-[320px] shadow-lg"
                 isDragOverlay={true}
+                onComplete={handleToggleComplete}
               />
             )}
           </DragOverlay>
