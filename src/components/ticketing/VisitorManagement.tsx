@@ -73,6 +73,9 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Visitor status type
 type VisitorStatus = 'scheduled' | 'checked-in' | 'checked-out' | 'no-show';
@@ -451,219 +454,140 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       style={style} 
       {...attributes} 
       {...listeners}
-      className={`${getStatusBackgroundClass(visitor.status)} bg-white dark:bg-gray-800/90 rounded-lg p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-lg mb-3 cursor-grab ${isDragging ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-900 rotate-3' : ''}`}
+      className="relative mb-3"
     >
-      <div className="flex justify-between mb-3">
-        <div className="flex gap-3">
-          {visitor.photoUrl ? (
-            <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-              <img 
-                src={visitor.photoUrl} 
-                alt={`${visitor.firstName} ${visitor.lastName}`} 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // If image fails to load, show initials instead
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
-                }}
-              />
+      <div 
+        className={cn(
+          "bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md cursor-grab",
+          isDragging && "shadow-lg ring-2 ring-primary rotate-3"
+        )}
+      >
+        <div className="p-3 pb-2 flex flex-row items-start justify-between">
+          <div className="flex items-start gap-2">
+            <div className="flex-shrink-0">
+              {visitor.photoUrl ? (
+                <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  <img 
+                    src={visitor.photoUrl} 
+                    alt={`${visitor.firstName} ${visitor.lastName}`} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // If image fails to load, show initials instead
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                      (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                  {visitor.initials}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
-              {visitor.initials}
+            <div>
+              <h3 className="text-sm font-medium leading-tight flex-grow mr-1">{visitor.firstName} {visitor.lastName}</h3>
+              <p className="text-xs text-muted-foreground">{visitor.company}</p>
             </div>
-          )}
-          <div>
-            <h3 className="font-medium text-base text-gray-900 dark:text-gray-100">{visitor.firstName} {visitor.lastName}</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">{visitor.company}</p>
           </div>
-        </div>
-        <div className="flex gap-1 items-start">
-          <button 
-            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
-            title="Edit"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(visitor.id);
-            }}
-          >
-            <PencilIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
-          </button>
-          <button 
-            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
-            title="Delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(visitor.id);
-            }}
-          >
-            <Trash2Icon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
-          </button>
-          <div className="relative" ref={dropdownRef}>
-            <button 
-              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
-              title="More"
-              onClick={handleActionClick}
-            >
-              <MoreVerticalIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
-            </button>
-            
-            {showDropdown && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
-                {visitor.status === 'scheduled' && (
-                  <button 
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => onStatusChange(visitor.id, 'checked-in')}
-                  >
-                    Check In
-                  </button>
-                )}
-                {visitor.status === 'checked-in' && (
-                  <button 
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => onStatusChange(visitor.id, 'checked-out')}
-                  >
-                    Check Out
-                  </button>
-                )}
-                {visitor.status === 'scheduled' && (
-                  <button 
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500"
-                    onClick={() => onStatusChange(visitor.id, 'no-show')}
-                  >
-                    Mark as No-Show
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 my-2">
-        <div className="relative">
-          <span 
-            className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(visitor.status)} cursor-pointer`}
-            onClick={handleStatusClick}
-          >
-            {getStatusLabel(visitor.status)}
-          </span>
           
-          {showStatusDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
-              <button 
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
-                onClick={() => {
-                  onStatusChange(visitor.id, 'scheduled');
-                  setShowStatusDropdown(false);
-                }}
+          <div className="flex items-center flex-shrink-0">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(visitor.id);
+              }}
+              title="Edit Visitor"
+            >
+              <PencilIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(visitor.id);
+              }}
+              title="Delete Visitor"
+            >
+              <Trash2Icon className="h-3.5 w-3.5" />
+            </Button>
+            <div className="relative" ref={dropdownRef}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
+                onClick={handleActionClick}
+                title="More Options"
               >
-                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
-                Scheduled
-              </button>
-              <button 
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-in' ? 'bg-green-50 dark:bg-green-900/30' : ''}`}
-                onClick={() => {
-                  onStatusChange(visitor.id, 'checked-in');
-                  setShowStatusDropdown(false);
-                }}
-              >
-                <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
-                Checked In
-              </button>
-              <button 
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-out' ? 'bg-gray-50 dark:bg-gray-700/50' : ''}`}
-                onClick={() => {
-                  onStatusChange(visitor.id, 'checked-out');
-                  setShowStatusDropdown(false);
-                }}
-              >
-                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
-                Checked Out
-              </button>
-              <button 
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'no-show' ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
-                onClick={() => {
-                  onStatusChange(visitor.id, 'no-show');
-                  setShowStatusDropdown(false);
-                }}
-              >
-                <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
-                No Show
-              </button>
+                <MoreVerticalIcon className="h-3.5 w-3.5" />
+              </Button>
+              
+              {showDropdown && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
+                  {visitor.status === 'scheduled' && (
+                    <button 
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => onStatusChange(visitor.id, 'checked-in')}
+                    >
+                      Check In
+                    </button>
+                  )}
+                  {visitor.status === 'checked-in' && (
+                    <button 
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => onStatusChange(visitor.id, 'checked-out')}
+                    >
+                      Check Out
+                    </button>
+                  )}
+                  {visitor.status === 'scheduled' && (
+                    <button 
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500"
+                      onClick={() => onStatusChange(visitor.id, 'no-show')}
+                    >
+                      Mark as No-Show
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
         
-        <div className="relative ml-2">
-          {showTimeEdit ? (
-            <div className="inline-block">
-              <input 
-                type="time" 
-                value={editableTime}
-                onChange={handleTimeChange}
-                className="w-24 text-xs p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                onBlur={handleTimeSubmit}
-                autoFocus
-              />
+        <div className="p-3 pt-0 pb-1">
+          <div className="flex flex-wrap items-center space-x-2 gap-y-1 mt-2">
+            <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal",
+              visitor.status === 'scheduled' && "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+              visitor.status === 'checked-in' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+              visitor.status === 'checked-out' && "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/30 dark:text-gray-400",
+              visitor.status === 'no-show' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+            )}>
+              {getStatusLabel(visitor.status)}
+            </Badge>
+            
+            <div className="flex items-center text-xs text-muted-foreground">
+              <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+              <span>{formatTime(visitor.time)}</span>
             </div>
-          ) : (
-            <span 
-              className="text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:text-primary dark:hover:text-primary"
-              onClick={handleTimeClick}
-            >
-              {formatTime(visitor.time)}
-            </span>
-          )}
+          </div>
         </div>
-      </div>
-      <div className="flex justify-between mt-3 text-gray-500 dark:text-gray-400 text-xs">
-        <div className="relative">
-          <div 
-            className="flex items-center gap-1 cursor-pointer hover:text-primary dark:hover:text-primary"
-            onClick={handleHostClick}
-          >
-            <UserIcon className="h-3.5 w-3.5" />
+        
+        <div className="p-3 pt-1 flex justify-between items-center text-xs text-muted-foreground">
+          <div className="flex items-center">
+            <UserIcon className="h-3.5 w-3.5 mr-1" />
             <span>{visitor.host}</span>
           </div>
           
-          {showHostDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200] max-h-40 overflow-y-auto">
-              {hostOptions.map((host) => (
-                <button 
-                  key={host}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.host === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onHostChange(visitor.id, host);
-                    setShowHostDropdown(false);
-                  }}
-                >
-                  {host}
-                </button>
-              ))}
-            </div>
+          {visitor.assignees && visitor.assignees.length > 0 && (
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs">{visitor.assignees[0][0]}</AvatarFallback>
+            </Avatar>
           )}
-        </div>
-        <div className="relative">
-          <div 
-            className="flex items-center gap-1 cursor-pointer hover:text-primary dark:hover:text-primary"
-            onClick={handleDurationClick}
-          >
-            <CalendarIcon className="h-3.5 w-3.5" />
-            {showDurationEdit ? (
-              <input 
-                type="text" 
-                value={editableDuration}
-                onChange={handleDurationChange}
-                className="w-24 text-xs p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                onBlur={handleDurationSubmit}
-                autoFocus
-              />
-            ) : (
-              <span>{formatDuration(visitor)}</span>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -691,8 +615,8 @@ const VisitorManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
   
-  // Form state for adding a new visitor
-  const [newVisitor, setNewVisitor] = useState<Partial<Visitor>>({
+  // Initial state for a new visitor
+  const initialVisitorState: Partial<Visitor> = {
     firstName: '',
     lastName: '',
     email: '',
@@ -706,7 +630,10 @@ const VisitorManagement: React.FC = () => {
     status: 'scheduled',
     photoUrl: '',
     assignees: []
-  });
+  };
+  
+  // Form state for adding a new visitor
+  const [newVisitor, setNewVisitor] = useState<Partial<Visitor>>(initialVisitorState);
   
   // Setup sensors for drag and drop
   const sensors = useSensors(
@@ -1233,6 +1160,24 @@ const VisitorManagement: React.FC = () => {
                 count={scheduledVisitors.length}
                 color="blue"
                 isOver={activeDropId === 'scheduled'}
+                onAddVisitor={() => {
+                  setNewVisitor({
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phone: '',
+                    company: '',
+                    purpose: '',
+                    visitDate: '',
+                    time: '',
+                    host: '',
+                    notes: '',
+                    photoUrl: '',
+                    assignees: [],
+                    status: 'scheduled'
+                  });
+                  setShowAddVisitorModal(true);
+                }}
               >
                 <SortableContext items={scheduledVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {scheduledVisitors.map(visitor => (
@@ -1257,6 +1202,24 @@ const VisitorManagement: React.FC = () => {
                 count={checkedInVisitors.length}
                 color="green"
                 isOver={activeDropId === 'checked-in'}
+                onAddVisitor={() => {
+                  setNewVisitor({
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phone: '',
+                    company: '',
+                    purpose: '',
+                    visitDate: '',
+                    time: '',
+                    host: '',
+                    notes: '',
+                    photoUrl: '',
+                    assignees: [],
+                    status: 'checked-in'
+                  });
+                  setShowAddVisitorModal(true);
+                }}
               >
                 <SortableContext items={checkedInVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {checkedInVisitors.map(visitor => (
@@ -1281,6 +1244,24 @@ const VisitorManagement: React.FC = () => {
                 count={checkedOutVisitors.length}
                 color="gray"
                 isOver={activeDropId === 'checked-out'}
+                onAddVisitor={() => {
+                  setNewVisitor({
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phone: '',
+                    company: '',
+                    purpose: '',
+                    visitDate: '',
+                    time: '',
+                    host: '',
+                    notes: '',
+                    photoUrl: '',
+                    assignees: [],
+                    status: 'checked-out'
+                  });
+                  setShowAddVisitorModal(true);
+                }}
               >
                 <SortableContext items={checkedOutVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {checkedOutVisitors.map(visitor => (
@@ -1305,6 +1286,24 @@ const VisitorManagement: React.FC = () => {
                 count={noShowVisitors.length}
                 color="red"
                 isOver={activeDropId === 'no-show'}
+                onAddVisitor={() => {
+                  setNewVisitor({
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phone: '',
+                    company: '',
+                    purpose: '',
+                    visitDate: '',
+                    time: '',
+                    host: '',
+                    notes: '',
+                    photoUrl: '',
+                    assignees: [],
+                    status: 'no-show'
+                  });
+                  setShowAddVisitorModal(true);
+                }}
               >
                 <SortableContext items={noShowVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {noShowVisitors.map(visitor => (
@@ -1325,7 +1324,7 @@ const VisitorManagement: React.FC = () => {
             
             {activeDragItem && (
               <DragOverlay>
-                <div className="opacity-90 rotate-3 w-80 shadow-xl ring-4 ring-red-500/30">
+                <div className="w-80 opacity-90 shadow-xl">
                   <VisitorCard
                     visitor={activeDragItem}
                     onStatusChange={handleInlineStatusChange}
@@ -2099,7 +2098,7 @@ const VisitorManagement: React.FC = () => {
   );
 };
 
-// New component for board view columns
+// New component for board view columns - updated to match Ticket Manager style
 interface BoardColumnProps {
   id: string;
   title: string;
@@ -2107,60 +2106,81 @@ interface BoardColumnProps {
   color: 'blue' | 'green' | 'gray' | 'red';
   children: React.ReactNode;
   isOver?: boolean;
+  onAddVisitor?: () => void;
 }
 
-const BoardColumn: React.FC<BoardColumnProps> = ({ id, title, count, color, children, isOver = false }) => {
-  const { setNodeRef } = useDroppable({ id });
-  
-  const getColorClass = () => {
-    switch (color) {
-      case 'blue': return 'text-blue-600 dark:text-blue-400';
-      case 'green': return 'text-green-600 dark:text-green-400';
-      case 'gray': return 'text-gray-600 dark:text-gray-400';
-      case 'red': return 'text-red-600 dark:text-red-400';
-      default: return 'text-blue-600 dark:text-blue-400';
+const BoardColumn: React.FC<BoardColumnProps> = ({ 
+  id, 
+  title, 
+  count, 
+  color, 
+  children, 
+  isOver = false,
+  onAddVisitor
+}) => {
+  const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
+  const isColumnOver = isOver || columnIsOver;
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempTitle, setTempTitle] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [showCompletedVisitors, setShowCompletedVisitors] = useState(false);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
     }
-  };
-  
+  }, [isEditing]);
+
+  // Helper to get status colors based on the status type
   const getIndicatorClass = () => {
     switch (color) {
       case 'blue': return 'bg-blue-500';
-      case 'green': return 'bg-green-500';
+      case 'green': return 'bg-green-600';
       case 'gray': return 'bg-gray-500';
       case 'red': return 'bg-red-600';
       default: return 'bg-blue-500';
     }
   };
+
+  // Check if there are any completed visitors (checked-out) in this column
+  const hasCompletedVisitors = React.Children.toArray(children).length > 0 && 
+    id === 'checked-out';
   
   return (
-    <div className="flex-shrink-0 w-80">
-      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
-        <div className="flex justify-between items-center">
-          <h3 className={`font-medium ${getColorClass()} flex items-center`}>
-            <span className={`w-2 h-2 rounded-full ${getIndicatorClass()} mr-2`}></span>
-            {title}
-            <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
-              {count}
-            </span>
-          </h3>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <PlusIcon className="h-4 w-4" />
+    <div className="w-80 flex-shrink-0 flex flex-col bg-muted/30 dark:bg-muted/20 rounded-lg overflow-hidden">
+      <div className="p-3 font-medium flex items-center justify-between bg-muted/50 dark:bg-muted/30">
+        <div className="flex items-center">
+          <span className={`w-2 h-2 rounded-full ${getIndicatorClass()} mr-2`}></span>
+          <h3>{title}</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="ml-2">{count}</Badge>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+            onClick={onAddVisitor}
+            title="Add Visitor"
+          >
+            <PlusIcon className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
       <div 
+        className={cn(
+          "p-2 flex-grow overflow-y-auto min-h-[200px]",
+          isColumnOver && count === 0 && "border-2 border-dashed border-primary/50 rounded-md",
+          isColumnOver && "bg-primary/10 transition-colors duration-200"
+        )} 
         ref={setNodeRef}
-        className={`bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)] ${
-          isOver ? 'bg-red-500/10 ring-2 ring-inset ring-red-500/30 transition-colors duration-200' : ''
-        }`}
       >
         {children}
         
         {/* Empty state feedback when dropping */}
-        {isOver && !count && (
+        {isColumnOver && count === 0 && (
           <div className="flex items-center justify-center h-24 rounded-md">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-red-500 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-red-500/20"></div>
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/20"></div>
             </div>
           </div>
         )}
