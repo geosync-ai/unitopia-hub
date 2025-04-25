@@ -192,7 +192,8 @@ const BoardLane = ({
   onEditTicket, 
   onDeleteTicket,
   onDeleteGroup,
-  isOver = false
+  isOver = false,
+  onRenameGroup
 }: { 
   id: string; 
   title: string; 
@@ -202,14 +203,60 @@ const BoardLane = ({
   onDeleteTicket: (ticketId: string) => void;
   onDeleteGroup: (groupId: string) => void;
   isOver?: boolean;
+  onRenameGroup: (groupId: string, newTitle: string) => void;
 }) => {
   const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
   const isColumnOver = isOver || columnIsOver;
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempTitle, setTempTitle] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
+
+  const handleDoubleClick = () => {
+    setIsEditing(true);
+    setTempTitle(title);
+  };
+
+  const handleBlur = () => {
+    if (tempTitle.trim()) {
+      onRenameGroup(id, tempTitle);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      if (tempTitle.trim()) {
+        onRenameGroup(id, tempTitle);
+      }
+      setIsEditing(false);
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setTempTitle(title);
+    }
+  };
 
   return (
     <div className="w-80 flex-shrink-0 flex flex-col bg-muted/30 dark:bg-muted/20 rounded-lg overflow-hidden">
       <div className="p-3 font-medium flex items-center justify-between bg-muted/50 dark:bg-muted/30">
-        <h3>{title}</h3>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={tempTitle}
+            onChange={(e) => setTempTitle(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            className="bg-background text-foreground p-1 rounded w-full mr-2"
+          />
+        ) : (
+          <h3 onDoubleClick={handleDoubleClick} className="cursor-pointer">{title}</h3>
+        )}
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="ml-2">{tickets.length}</Badge>
           <Button 
@@ -264,14 +311,6 @@ const BoardLane = ({
             </div>
           </div>
         )}
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="w-full justify-start text-muted-foreground mt-2"
-          onClick={onAddTicket}
-        >
-          <Plus className="mr-1 h-4 w-4" /> Add ticket
-        </Button>
       </div>
     </div>
   );
@@ -282,7 +321,8 @@ const GridView: React.FC<{
   tickets: BoardData;
   onEditTicket: (id: string) => void;
   onDeleteTicket: (id: string) => void;
-}> = ({ tickets, onEditTicket, onDeleteTicket }) => {
+  onRenameGroup: (groupId: string, newTitle: string) => void;
+}> = ({ tickets, onEditTicket, onDeleteTicket, onRenameGroup }) => {
   // Flatten all tickets from all columns
   const allTickets = useMemo(() => {
     const flattened: TicketCardProps[] = [];
@@ -836,6 +876,17 @@ const TicketManager: React.FC = () => {
     }
   };
 
+  // Function to handle renaming a group
+  const handleRenameGroup = (groupId: string, newTitle: string) => {
+    if (newTitle.trim() === '') return;
+    
+    setBuckets(prevBuckets => 
+      prevBuckets.map(bucket => 
+        bucket.id === groupId ? { ...bucket, title: newTitle.trim() } : bucket
+      )
+    );
+  };
+
   return (
     <div className="h-full overflow-auto">
       <main className="flex-1">
@@ -875,6 +926,27 @@ const TicketManager: React.FC = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          {activeFilters.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                // Reset all filters
+                setFilters((prev) => {
+                  const newFilters = { ...prev };
+                  Object.keys(newFilters).forEach(filterType => {
+                    newFilters[filterType as keyof typeof filters].forEach(filter => {
+                      filter.checked = false;
+                    });
+                  });
+                  return newFilters;
+                });
+                setActiveFilters([]);
+              }}
+            >
+              Reset Filter
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm"
@@ -932,6 +1004,7 @@ const TicketManager: React.FC = () => {
                     onDeleteTicket={handleDeleteTicket}
                     onDeleteGroup={handleDeleteGroup}
                     isOver={activeDropId === columnId}
+                    onRenameGroup={handleRenameGroup}
                   />
                 );
               })}
@@ -967,6 +1040,7 @@ const TicketManager: React.FC = () => {
               tickets={getFilteredTickets()} 
               onEditTicket={handleEditTicket} 
               onDeleteTicket={handleDeleteTicket} 
+              onRenameGroup={handleRenameGroup}
             />
           )}
           

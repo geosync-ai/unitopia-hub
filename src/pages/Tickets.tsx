@@ -112,7 +112,7 @@ const Tickets: React.FC = () => {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <img src="/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-8" />
+            <img src="/images/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-8" />
             <h1 className="text-2xl font-bold ml-1">Support Ticketing System</h1>
           </div>
           
