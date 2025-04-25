@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,9 +30,11 @@ import {
   PencilIcon,
   MoreVerticalIcon,
   XIcon,
-  Kanban,
   LayoutGrid,
-  List
+  List,
+  Image as ImageIcon,
+  Upload as UploadIcon,
+  Trash2Icon
 } from 'lucide-react';
 import { format, formatDistance, parseISO } from 'date-fns';
 import {
@@ -45,6 +47,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Visitor status type
 type VisitorStatus = 'scheduled' | 'checked-in' | 'checked-out' | 'no-show';
@@ -65,6 +73,7 @@ interface Visitor {
   purpose?: string;
   notes?: string;
   visitDate?: string;
+  photoUrl?: string; // New field for visitor photo or company logo
 }
 
 // Sample visitor data for demonstration
@@ -78,7 +87,8 @@ const sampleVisitors: Visitor[] = [
     time: '10:15 AM',
     host: 'Alice Smith',
     duration: '1h 45m',
-    initials: 'JD'
+    initials: 'JD',
+    photoUrl: '/images/visitors/john-doe.jpg' // Sample photo URL
   },
   {
     id: 2,
@@ -89,7 +99,8 @@ const sampleVisitors: Visitor[] = [
     time: '2:30 PM',
     host: 'Robert Chen',
     duration: 'Today',
-    initials: 'SJ'
+    initials: 'SJ',
+    photoUrl: '/images/companies/tech-innovations.png' // Sample company logo
   },
   {
     id: 3,
@@ -111,7 +122,8 @@ const sampleVisitors: Visitor[] = [
     time: '4:00 PM',
     host: 'David Miller',
     duration: 'Today',
-    initials: 'EW'
+    initials: 'EW',
+    photoUrl: '/images/visitors/emma-wilson.jpg'
   },
   {
     id: 5,
@@ -133,7 +145,8 @@ const sampleVisitors: Visitor[] = [
     time: '1:20 PM',
     host: 'Kevin Wong',
     duration: '35m',
-    initials: 'LM'
+    initials: 'LM',
+    photoUrl: '/images/companies/healthcare-solutions.png'
   }
 ];
 
@@ -228,7 +241,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
         return 'bg-gray-300 text-gray-800';
     }
   };
-
+  
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(!showDropdown);
@@ -248,12 +261,28 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
   }, [showDropdown]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-transform hover:translate-y-[-5px] hover:shadow-lg">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-700 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
       <div className="flex justify-between mb-4">
         <div className="flex gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-            {visitor.initials}
-          </div>
+          {visitor.photoUrl ? (
+            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden flex-shrink-0">
+              <img 
+                src={visitor.photoUrl} 
+                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // If image fails to load, show initials instead
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
+              {visitor.initials}
+            </div>
+          )}
           <div>
             <h3 className="font-medium text-base">{visitor.firstName} {visitor.lastName}</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">{visitor.company}</p>
@@ -303,10 +332,10 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
                   </button>
                 )}
                 <button 
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500"
-                  onClick={() => onDelete(visitor.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={(e) => {e.stopPropagation(); onEdit(visitor.id);}}
                 >
-                  Delete
+                  {visitor.photoUrl ? "Change Photo" : "Add Photo"}
                 </button>
               </div>
             )}
@@ -336,7 +365,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
 // Main VisitorManagement component
 const VisitorManagement: React.FC = () => {
   type TabId = 'all' | 'today' | VisitorStatus;
-  type ViewMode = 'board' | 'grid' | 'list';
+  type ViewMode = 'grid' | 'list';
   
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -345,6 +374,8 @@ const VisitorManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [visitors, setVisitors] = useState<Visitor[]>(sampleVisitors);
   const [visitorToDelete, setVisitorToDelete] = useState<number | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state for adding a new visitor
   const [newVisitor, setNewVisitor] = useState<Partial<Visitor>>({
@@ -358,7 +389,8 @@ const VisitorManagement: React.FC = () => {
     time: '',
     host: '',
     notes: '',
-    status: 'scheduled'
+    status: 'scheduled',
+    photoUrl: ''
   });
   
   // Form validation
@@ -417,13 +449,37 @@ const VisitorManagement: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
+  // Handle file selection for visitor photo
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+      
+      // Preview the image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewVisitor(prev => ({
+          ...prev,
+          photoUrl: reader.result as string
+        }));
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+  
+  // Trigger file input click
+  const handlePhotoUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
   // Handle form submission
   const handleAddVisitor = () => {
     if (validateForm()) {
       const initials = `${newVisitor.firstName?.[0] || ''}${newVisitor.lastName?.[0] || ''}`.toUpperCase();
       
       const visitor: Visitor = {
-        id: visitors.length + 1,
+        id: newVisitor.id || visitors.length + 1,
         firstName: newVisitor.firstName || '',
         lastName: newVisitor.lastName || '',
         company: newVisitor.company || 'N/A',
@@ -436,10 +492,17 @@ const VisitorManagement: React.FC = () => {
         phone: newVisitor.phone,
         purpose: newVisitor.purpose,
         notes: newVisitor.notes,
-        visitDate: newVisitor.visitDate
+        visitDate: newVisitor.visitDate,
+        photoUrl: newVisitor.photoUrl
       };
       
-      setVisitors(prev => [...prev, visitor]);
+      if (newVisitor.id) {
+        // Update existing visitor
+        setVisitors(prev => prev.map(v => v.id === newVisitor.id ? visitor : v));
+      } else {
+        // Add new visitor
+        setVisitors(prev => [...prev, visitor]);
+      }
       
       // Reset form and close modal
       setNewVisitor({
@@ -453,9 +516,11 @@ const VisitorManagement: React.FC = () => {
         time: '',
         host: '',
         notes: '',
-        status: 'scheduled'
+        status: 'scheduled',
+        photoUrl: ''
       });
       
+      setSelectedFile(null);
       setShowAddVisitorModal(false);
     }
   };
@@ -550,77 +615,10 @@ const VisitorManagement: React.FC = () => {
     }
 
     switch (viewMode) {
-      case 'board':
-        // Board view - group visitors by status
-        const visitorsByStatus: Record<VisitorStatus, Visitor[]> = {
-          'scheduled': [],
-          'checked-in': [],
-          'checked-out': [],
-          'no-show': []
-        };
-        
-        filteredVisitors.forEach(visitor => {
-          visitorsByStatus[visitor.status].push(visitor);
-        });
-        
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {Object.entries(visitorsByStatus).map(([status, statusVisitors]) => (
-              <div key={status} className="flex flex-col bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <h3 className="font-medium mb-4 flex items-center">
-                  <span className={`w-2 h-2 rounded-full mr-2 ${
-                    status === 'scheduled' ? 'bg-blue-500' :
-                    status === 'checked-in' ? 'bg-green-600' :
-                    status === 'checked-out' ? 'bg-gray-500' :
-                    'bg-red-600'
-                  }`}></span>
-                  {status === 'scheduled' ? 'Scheduled' :
-                   status === 'checked-in' ? 'Checked In' :
-                   status === 'checked-out' ? 'Checked Out' :
-                   'No Show'} ({statusVisitors.length})
-                </h3>
-                <div className="space-y-3">
-                  {statusVisitors.map(visitor => (
-                    <div 
-                      key={visitor.id}
-                      className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
-                          {visitor.initials}
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</h4>
-                          <p className="text-gray-500 dark:text-gray-400 text-xs">{visitor.company}</p>
-                        </div>
-                        <div className="ml-auto flex items-center">
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
-                            onClick={() => handleEditVisitor(visitor.id)}
-                          >
-                            <PencilIcon className="h-3 w-3 text-gray-500" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center text-xs text-gray-500 mt-2">
-                        <UserIcon className="h-3 w-3 mr-1" />
-                        <span>{visitor.host}</span>
-                        <span className="mx-2">•</span>
-                        <CalendarIcon className="h-3 w-3 mr-1" />
-                        <span>{formatTime(visitor.time)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-        
       case 'list':
         // List view - more compact rows
         return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
@@ -637,9 +635,24 @@ const VisitorManagement: React.FC = () => {
                   <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold mr-3">
-                          {visitor.initials}
-                        </div>
+                        {visitor.photoUrl ? (
+                          <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden mr-3 flex-shrink-0">
+                            <img 
+                              src={visitor.photoUrl} 
+                              alt={`${visitor.firstName} ${visitor.lastName}`} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold mr-3 flex-shrink-0">
+                            {visitor.initials}
+                          </div>
+                        )}
                         <div>
                           <div className="text-sm font-medium">{visitor.firstName} {visitor.lastName}</div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">{visitor.company}</div>
@@ -667,16 +680,18 @@ const VisitorManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
                         onClick={() => handleEditVisitor(visitor.id)}
+                        title="Edit"
                       >
-                        Edit
+                        <PencilIcon className="h-4 w-4" />
                       </button>
                       <button 
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 ml-2"
                         onClick={() => handleDeleteVisitor(visitor.id)}
+                        title="Delete"
                       >
-                        Delete
+                        <Trash2Icon className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>
@@ -743,68 +758,56 @@ const VisitorManagement: React.FC = () => {
         </div>
       </div>
 
-      <div className="mb-6">
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input 
-            type="text" 
-            placeholder="Search visitors by name, company, or purpose..." 
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex flex-col md:flex-row items-center justify-between mb-6">
+        <div className="flex space-x-6 overflow-x-auto border-b w-full md:w-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="border-b w-full">
-          <div className="flex space-x-6 overflow-x-auto">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id 
-                  ? 'border-primary text-primary' 
-                  : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <div className="flex items-center mt-4 md:mt-0 w-full md:w-auto">
+          <div className="relative flex-grow md:flex-grow-0 md:w-64 mr-4">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input 
+              type="text" 
+              placeholder="Search visitors..." 
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </div>
 
-        <div className="ml-4 flex items-center border rounded-md bg-white dark:bg-gray-800">
-          <Button
-            variant={viewMode === "board" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("board")}
-            className="h-8 px-2"
-          >
-            <Kanban className="h-4 w-4 mr-1" />
-            Board
-          </Button>
-          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className="h-8 px-2"
-          >
-            <LayoutGrid className="h-4 w-4 mr-1" />
-            Grid
-          </Button>
-          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="h-8 px-2"
-          >
-            <List className="h-4 w-4 mr-1" />
-            List
-          </Button>
+          <div className="flex items-center border rounded-md bg-white dark:bg-gray-800">
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className="h-8 px-2"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Grid
+            </Button>
+            <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="h-8 px-2"
+            >
+              <List className="h-4 w-4 mr-1" />
+              List
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -834,6 +837,48 @@ const VisitorManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Photo/Logo Upload section */}
+            <div className="flex justify-center mb-4">
+              <div 
+                className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center cursor-pointer overflow-hidden relative"
+                onClick={handlePhotoUploadClick}
+              >
+                {newVisitor.photoUrl ? (
+                  <img 
+                    src={newVisitor.photoUrl} 
+                    alt="Visitor photo" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 flex items-center justify-center flex-col">
+                      <ImageIcon className="h-8 w-8 text-gray-400" />
+                      <span className="text-xs text-gray-500 mt-1">Add Photo</span>
+                    </div>
+                  </>
+                )}
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+              </div>
+            </div>
+            
+            <div className="text-center mb-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handlePhotoUploadClick}
+                className="text-xs"
+              >
+                <UploadIcon className="h-3 w-3 mr-1" />
+                {newVisitor.photoUrl ? 'Change Photo' : 'Upload Photo/Logo'}
+              </Button>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name*</Label>
