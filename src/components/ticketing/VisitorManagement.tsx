@@ -219,13 +219,19 @@ const getStatusLabel = (status: VisitorStatus) => {
 };
 
 // Component for each visitor card
-const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: { 
+const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange }: { 
   visitor: Visitor, 
   onStatusChange: (id: number, status: VisitorStatus) => void,
   onEdit: (id: number) => void,
-  onDelete: (id: number) => void
+  onDelete: (id: number) => void,
+  onHostChange: (id: number, host: string) => void,
+  onTimeChange: (id: number, time: string) => void
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showHostDropdown, setShowHostDropdown] = useState(false);
+  const [showTimeEdit, setShowTimeEdit] = useState(false);
+  const [editableTime, setEditableTime] = useState(visitor.time);
   
   const getStatusClass = (status: VisitorStatus) => {
     switch (status) {
@@ -249,16 +255,54 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
   
   const handleOutsideClick = () => {
     setShowDropdown(false);
+    setShowStatusDropdown(false);
+    setShowHostDropdown(false);
+    setShowTimeEdit(false);
   };
   
+  const handleStatusClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowStatusDropdown(!showStatusDropdown);
+  };
+  
+  const handleHostClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowHostDropdown(!showHostDropdown);
+  };
+  
+  const handleTimeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowTimeEdit(!showTimeEdit);
+  };
+  
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditableTime(e.target.value);
+  };
+  
+  const handleTimeSubmit = () => {
+    // Update the time
+    onTimeChange(visitor.id, editableTime);
+    setShowTimeEdit(false);
+  };
+  
+  // Host options for dropdown
+  const hostOptions = [
+    "Alice Smith",
+    "Robert Chen",
+    "Jennifer Lee",
+    "David Miller",
+    "Sophia Garcia",
+    "Kevin Wong"
+  ];
+  
   useEffect(() => {
-    if (showDropdown) {
+    if (showDropdown || showStatusDropdown || showHostDropdown || showTimeEdit) {
       document.addEventListener('click', handleOutsideClick);
     }
     return () => {
       document.removeEventListener('click', handleOutsideClick);
     };
-  }, [showDropdown]);
+  }, [showDropdown, showStatusDropdown, showHostDropdown, showTimeEdit]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-700 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
@@ -295,6 +339,13 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
             onClick={() => onEdit(visitor.id)}
           >
             <PencilIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+          </button>
+          <button 
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+            title="Delete"
+            onClick={() => onDelete(visitor.id)}
+          >
+            <Trash2Icon className="h-4 w-4 text-red-500 dark:text-red-400" />
           </button>
           <div className="relative">
             <button 
@@ -343,15 +394,109 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete }: {
         </div>
       </div>
       <div className="flex items-center gap-2 my-3">
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)}`}>
-          {getStatusLabel(visitor.status)}
-        </span>
-        <span className="text-gray-600 dark:text-gray-300 text-sm">{formatTime(visitor.time)}</span>
+        <div className="relative">
+          <span 
+            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)} cursor-pointer`}
+            onClick={handleStatusClick}
+          >
+            {getStatusLabel(visitor.status)}
+          </span>
+          
+          {showStatusDropdown && (
+            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+              <button 
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                onClick={() => {
+                  onStatusChange(visitor.id, 'scheduled');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                Scheduled
+              </button>
+              <button 
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-in' ? 'bg-green-50 dark:bg-green-900/30' : ''}`}
+                onClick={() => {
+                  onStatusChange(visitor.id, 'checked-in');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                Checked In
+              </button>
+              <button 
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-out' ? 'bg-gray-50 dark:bg-gray-700/50' : ''}`}
+                onClick={() => {
+                  onStatusChange(visitor.id, 'checked-out');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                Checked Out
+              </button>
+              <button 
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'no-show' ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
+                onClick={() => {
+                  onStatusChange(visitor.id, 'no-show');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                No Show
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <div className="relative">
+          {showTimeEdit ? (
+            <div className="inline-block">
+              <input 
+                type="time" 
+                value={editableTime}
+                onChange={handleTimeChange}
+                className="w-24 text-xs p-1 border rounded"
+                onBlur={handleTimeSubmit}
+                autoFocus
+              />
+            </div>
+          ) : (
+            <span 
+              className="text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:text-primary"
+              onClick={handleTimeClick}
+            >
+              {formatTime(visitor.time)}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex gap-4 mt-4 text-gray-500 dark:text-gray-400 text-sm">
-        <div className="flex items-center gap-2">
-          <UserIcon className="h-4 w-4" />
-          <span>{visitor.host}</span>
+        <div className="relative">
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:text-primary"
+            onClick={handleHostClick}
+          >
+            <UserIcon className="h-4 w-4" />
+            <span>{visitor.host}</span>
+          </div>
+          
+          {showHostDropdown && (
+            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-40 overflow-y-auto">
+              {hostOptions.map((host) => (
+                <button 
+                  key={host}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.host === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHostChange(visitor.id, host);
+                    setShowHostDropdown(false);
+                  }}
+                >
+                  {host}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-4 w-4" />
@@ -525,15 +670,15 @@ const VisitorManagement: React.FC = () => {
     }
   };
 
-  // Handle visitor status change (check-in, check-out, etc.)
-  const handleStatusChange = (id: number, status: VisitorStatus) => {
+  // Add methods for inline editing
+  const handleInlineStatusChange = (id: number, status: VisitorStatus) => {
     setVisitors(prevVisitors => 
       prevVisitors.map(visitor => 
         visitor.id === id 
           ? { 
               ...visitor, 
               status,
-              time: status === 'checked-in' || status === 'checked-out' 
+              time: status === 'checked-in' 
                 ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                 : visitor.time
             } 
@@ -541,7 +686,27 @@ const VisitorManagement: React.FC = () => {
       )
     );
   };
-  
+
+  const handleInlineHostChange = (id: number, host: string) => {
+    setVisitors(prevVisitors =>
+      prevVisitors.map(visitor =>
+        visitor.id === id
+          ? { ...visitor, host }
+          : visitor
+      )
+    );
+  };
+
+  const handleInlineTimeChange = (id: number, time: string) => {
+    setVisitors(prevVisitors =>
+      prevVisitors.map(visitor =>
+        visitor.id === id
+          ? { ...visitor, time }
+          : visitor
+      )
+    );
+  };
+
   // Handle visitor edit (open modal with visitor data)
   const handleEditVisitor = (id: number) => {
     const visitorToEdit = visitors.find(v => v.id === id);
@@ -631,71 +796,236 @@ const VisitorManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredVisitors.map(visitor => (
-                  <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {visitor.photoUrl ? (
-                          <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden mr-3 flex-shrink-0">
-                            <img 
-                              src={visitor.photoUrl} 
-                              alt={`${visitor.firstName} ${visitor.lastName}`} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                                (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold mr-3 flex-shrink-0">
-                            {visitor.initials}
-                          </div>
-                        )}
-                        <div>
-                          <div className="text-sm font-medium">{visitor.firstName} {visitor.lastName}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{visitor.company}</div>
+                {filteredVisitors.map(visitor => {
+                  const StatusCell = () => {
+                    const [showDropdown, setShowDropdown] = useState(false);
+                    const statusRef = useRef<HTMLDivElement>(null);
+                    
+                    useEffect(() => {
+                      const handleClickOutside = (e: MouseEvent) => {
+                        if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+                          setShowDropdown(false);
+                        }
+                      };
+                      
+                      if (showDropdown) {
+                        document.addEventListener('mousedown', handleClickOutside);
+                      }
+                      
+                      return () => {
+                        document.removeEventListener('mousedown', handleClickOutside);
+                      };
+                    }, [showDropdown]);
+                    
+                    return (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="relative" ref={statusRef}>
+                          <span 
+                            className={`px-2 py-1 text-xs rounded-full inline-flex items-center cursor-pointer ${
+                              visitor.status === 'scheduled' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                              visitor.status === 'checked-in' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                              visitor.status === 'checked-out' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
+                              'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                            }`}
+                            onClick={() => setShowDropdown(!showDropdown)}
+                          >
+                            {getStatusLabel(visitor.status)}
+                          </span>
+                          
+                          {showDropdown && (
+                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+                              <button 
+                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'scheduled');
+                                  setShowDropdown(false);
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                                Scheduled
+                              </button>
+                              <button 
+                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-in' ? 'bg-green-50 dark:bg-green-900/30' : ''}`}
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'checked-in');
+                                  setShowDropdown(false);
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                                Checked In
+                              </button>
+                              <button 
+                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-out' ? 'bg-gray-50 dark:bg-gray-700/50' : ''}`}
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'checked-out');
+                                  setShowDropdown(false);
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                                Checked Out
+                              </button>
+                              <button 
+                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'no-show' ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'no-show');
+                                  setShowDropdown(false);
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                                No Show
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        visitor.status === 'scheduled' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                        visitor.status === 'checked-in' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                        visitor.status === 'checked-out' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
-                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                      }`}>
-                        {getStatusLabel(visitor.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatTime(visitor.time)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {visitor.host}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatDuration(visitor)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
-                        onClick={() => handleEditVisitor(visitor.id)}
-                        title="Edit"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                      <button 
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 ml-2"
-                        onClick={() => handleDeleteVisitor(visitor.id)}
-                        title="Delete"
-                      >
-                        <Trash2Icon className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    );
+                  };
+                  
+                  const TimeCell = () => {
+                    const [isEditing, setIsEditing] = useState(false);
+                    const [timeValue, setTimeValue] = useState(visitor.time);
+                    
+                    const handleSave = () => {
+                      handleInlineTimeChange(visitor.id, timeValue);
+                      setIsEditing(false);
+                    };
+                    
+                    return (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {isEditing ? (
+                          <input 
+                            type="time" 
+                            value={timeValue}
+                            onChange={(e) => setTimeValue(e.target.value)}
+                            onBlur={handleSave}
+                            autoFocus
+                            className="w-24 text-xs p-1 border rounded"
+                          />
+                        ) : (
+                          <span 
+                            className="cursor-pointer hover:text-primary"
+                            onClick={() => setIsEditing(true)}
+                          >
+                            {formatTime(visitor.time)}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  };
+                  
+                  const HostCell = () => {
+                    const [showDropdown, setShowDropdown] = useState(false);
+                    const hostRef = useRef<HTMLDivElement>(null);
+                    
+                    const hostOptions = [
+                      "Alice Smith",
+                      "Robert Chen",
+                      "Jennifer Lee",
+                      "David Miller",
+                      "Sophia Garcia",
+                      "Kevin Wong"
+                    ];
+                    
+                    useEffect(() => {
+                      const handleClickOutside = (e: MouseEvent) => {
+                        if (hostRef.current && !hostRef.current.contains(e.target as Node)) {
+                          setShowDropdown(false);
+                        }
+                      };
+                      
+                      if (showDropdown) {
+                        document.addEventListener('mousedown', handleClickOutside);
+                      }
+                      
+                      return () => {
+                        document.removeEventListener('mousedown', handleClickOutside);
+                      };
+                    }, [showDropdown]);
+                    
+                    return (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <div className="relative" ref={hostRef}>
+                          <span 
+                            className="cursor-pointer hover:text-primary"
+                            onClick={() => setShowDropdown(!showDropdown)}
+                          >
+                            {visitor.host}
+                          </span>
+                          
+                          {showDropdown && (
+                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-40 overflow-y-auto">
+                              {hostOptions.map((host) => (
+                                <button 
+                                  key={host}
+                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.host === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                                  onClick={() => {
+                                    handleInlineHostChange(visitor.id, host);
+                                    setShowDropdown(false);
+                                  }}
+                                >
+                                  {host}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  };
+                  
+                  return (
+                    <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {visitor.photoUrl ? (
+                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden mr-3 flex-shrink-0">
+                              <img 
+                                src={visitor.photoUrl} 
+                                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold mr-3 flex-shrink-0">
+                              {visitor.initials}
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-sm font-medium">{visitor.firstName} {visitor.lastName}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{visitor.company}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <StatusCell />
+                      <TimeCell />
+                      <HostCell />
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatDuration(visitor)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
+                          onClick={() => handleEditVisitor(visitor.id)}
+                          title="Edit"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button 
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 ml-2"
+                          onClick={() => handleDeleteVisitor(visitor.id)}
+                          title="Delete"
+                        >
+                          <Trash2Icon className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -710,9 +1040,11 @@ const VisitorManagement: React.FC = () => {
               <VisitorCard 
                 key={visitor.id} 
                 visitor={visitor} 
-                onStatusChange={handleStatusChange}
+                onStatusChange={handleInlineStatusChange}
                 onEdit={handleEditVisitor}
                 onDelete={handleDeleteVisitor}
+                onHostChange={handleInlineHostChange}
+                onTimeChange={handleInlineTimeChange}
               />
             ))}
           </div>
@@ -1022,6 +1354,23 @@ const VisitorManagement: React.FC = () => {
                 value={newVisitor.notes} 
                 onChange={handleInputChange}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select 
+                value={newVisitor.status as string} 
+                onValueChange={(value) => handleSelectChange(value, 'status')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="checked-in">Checked In</SelectItem>
+                  <SelectItem value="checked-out">Checked Out</SelectItem>
+                  <SelectItem value="no-show">No Show</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
