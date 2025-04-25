@@ -33,7 +33,7 @@ type TicketCategory =
   | 'feedback-complaints';
 
 const Tickets: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TicketCategory>('ticket-inbox');
+  const [activeTab, setActiveTab] = useState<TicketCategory>('ticket-manager');
   const navigate = useNavigate();
 
   const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
@@ -113,10 +113,7 @@ const Tickets: React.FC = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <img src="/images/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-8" />
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-bold ml-1">Support Ticketing System</h1>
-              <p className="text-sm text-red-600 font-medium ml-1">FRONT DESK TICKETING SYSTEM</p>
-            </div>
+            <h1 className="text-2xl font-bold ml-1">Front Desk Ticketing System</h1>
           </div>
           
           <div className="flex items-center gap-3">
@@ -145,7 +142,7 @@ const Tickets: React.FC = () => {
         
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
           <Tabs 
-            defaultValue="ticket-inbox" 
+            defaultValue="ticket-manager" 
             className="w-full" 
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as TicketCategory)}

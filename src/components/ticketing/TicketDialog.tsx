@@ -44,6 +44,7 @@ export interface TicketData {
   status?: string; // e.g., 'todo', 'inprogress', 'done'
   dueDate?: Date | null;
   assigneeId?: string | null; // ID of the assigned user
+  groupId?: string; // The column/group ID
   comments?: Comment[]; // Added comments array
   // Add other relevant fields: reporterId, etc.
 }
@@ -60,6 +61,8 @@ interface TicketDialogProps {
   initialData?: TicketData | null; // For editing
   statuses?: StatusOption[]; // Available status options
   defaultStatus?: string | null; // Added prop for default status on create
+  buckets?: { id: string; title: string }[]; // Available buckets/groups
+  defaultGroup?: string | null; // Default group for new tickets
 }
 
 const TicketDialog: React.FC<TicketDialogProps> = ({
@@ -72,12 +75,15 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     { id: 'inprogress', name: 'IN PROGRESS' },
     { id: 'done', name: 'DONE' }
   ],
-  defaultStatus
+  defaultStatus,
+  buckets = [],
+  defaultGroup
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [status, setStatus] = useState<string>('todo');
+  const [groupId, setGroupId] = useState<string | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [comments, setComments] = useState<Comment[]>([]); // State for comments
   const [newCommentText, setNewCommentText] = useState(''); // State for new comment input
@@ -88,23 +94,23 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setDescription(initialData.description || '');
       setPriority(initialData.priority || 'Medium');
       setStatus(initialData.status || 'todo');
+      setGroupId(initialData.groupId);
       setDueDate(initialData.dueDate || undefined);
       setComments(initialData.comments || []); // Load existing comments
-      // Set status based on defaultStatus prop or fallback to first status/todo
-      setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
     } else {
       // Reset form for new ticket
       setTitle('');
       setDescription('');
       setPriority('Medium');
-      setStatus('todo');
-      setDueDate(undefined);
-      setComments([]); // Reset comments for new ticket
       // Set status based on defaultStatus prop or fallback to first status/todo
       setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
+      // Set group based on defaultGroup prop
+      setGroupId(defaultGroup);
+      setDueDate(undefined);
+      setComments([]); // Reset comments for new ticket
     }
     setNewCommentText(''); // Clear comment input on open/change
-  }, [initialData, isOpen, defaultStatus, statuses]); // Add dependencies
+  }, [initialData, isOpen, defaultStatus, defaultGroup, statuses]); // Add dependencies
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +120,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       description,
       priority,
       status,
+      groupId,
       dueDate: dueDate || null,
       comments: comments, // Note: comments are managed locally in this example
     };
@@ -173,6 +180,23 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 className="col-span-3" 
                 rows={4}
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="group" className="text-right">
+                Group
+              </Label>
+              <Select value={groupId} onValueChange={setGroupId}>
+                <SelectTrigger id="group" className="col-span-3">
+                  <SelectValue placeholder="Select group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buckets.map((bucket) => (
+                    <SelectItem key={bucket.id} value={bucket.id}>
+                      {bucket.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="status" className="text-right">

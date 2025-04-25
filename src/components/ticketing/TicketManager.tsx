@@ -17,7 +17,11 @@ import {
   CalendarDays,
   Edit,
   MessageSquare,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  CalendarIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import TicketCard from './TicketCard';
 import TicketDialog from './TicketDialog';
@@ -39,7 +43,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
-import { format, parseISO, isValid, isBefore } from 'date-fns';
+import { format, parseISO, isValid, isBefore, addDays, subDays, subMonths, subWeeks, isAfter, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { 
   DropdownMenu,
@@ -66,6 +70,12 @@ import ThemeToggle from '../layout/ThemeToggle';
 import { useToast } from "@/hooks/use-toast";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 // UserNav component
 const UserNav = () => {
@@ -110,6 +120,7 @@ export interface TicketData {
   assigneeId?: string;
   completed: boolean;
   onComplete: () => void;
+  groupId?: string;
 }
 
 // Type for ticket props
@@ -182,6 +193,11 @@ const initialBuckets = [
 
 // Initial filters
 const initialFilters = {
+  status: [
+    { id: 'todo', label: 'New', checked: false },
+    { id: 'inprogress', label: 'In Progress', checked: false },
+    { id: 'done', label: 'Done', checked: false },
+  ],
   priority: [
     { id: 'high', label: 'High Priority', checked: false },
     { id: 'medium', label: 'Medium Priority', checked: false },
@@ -191,7 +207,16 @@ const initialFilters = {
     { id: 'alice', label: 'Alice', checked: false },
     { id: 'bob', label: 'Bob', checked: false },
     { id: 'charlie', label: 'Charlie', checked: false },
-  ]
+    { id: 'unassigned', label: 'Unassigned', checked: false },
+  ],
+  date: {
+    type: null as null | 'preset' | 'custom',
+    preset: null as null | 'today' | 'last-24-hours' | 'last-week' | 'last-month',
+    custom: {
+      from: null as Date | null,
+      to: null as Date | null
+    }
+  }
 };
 
 // Board lane component with improved drop handling for empty groups
@@ -656,6 +681,7 @@ const TicketManager: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState(initialFilters);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date | null, to: Date | null }>({ from: null, to: null });
 
   // State for managing the dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -749,7 +775,8 @@ const TicketManager: React.FC = () => {
         title: ticket.title,
         description: ticket.description,
         priority: ticket.priority,
-        status: columnId,
+        status: ticket.status || columnId,
+        groupId: columnId,
         dueDate: ticket.dueDate ? new Date(ticket.dueDate) : null,
         completed: ticket.completed,
         onComplete: () => {}
@@ -766,13 +793,18 @@ const TicketManager: React.FC = () => {
     // First filter by search query if present
     let filteredData = { ...boardData };
     
-    if (searchQuery) {
-      const lowerQuery = searchQuery.toLowerCase();
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase().trim();
       Object.keys(filteredData).forEach((columnId) => {
-        filteredData[columnId] = filteredData[columnId].filter((ticket) => 
-          ticket.title.toLowerCase().includes(lowerQuery) || 
-          (ticket.description && ticket.description.toLowerCase().includes(lowerQuery))
-        );
+        filteredData[columnId] = filteredData[columnId].filter((ticket) => {
+          const titleMatch = ticket.title.toLowerCase().includes(lowerQuery);
+          const descriptionMatch = ticket.description && ticket.description.toLowerCase().includes(lowerQuery);
+          const priorityMatch = ticket.priority.toLowerCase().includes(lowerQuery);
+          const statusMatch = ticket.status && ticket.status.toLowerCase().includes(lowerQuery);
+          const assigneeMatch = ticket.assignee && ticket.assignee.name.toLowerCase().includes(lowerQuery);
+          
+          return titleMatch || descriptionMatch || priorityMatch || statusMatch || assigneeMatch;
+        });
       });
     }
     
@@ -780,11 +812,15 @@ const TicketManager: React.FC = () => {
     if (activeFilters.length > 0) {
       Object.keys(filteredData).forEach((columnId) => {
         filteredData[columnId] = filteredData[columnId].filter((ticket) => {
+          // Check status filters
+          const statusFilters = filters.status.filter(f => f.checked).map(f => f.id);
+          if (statusFilters.length > 0) {
+            const matchesStatus = statusFilters.includes(ticket.status || columnId);
+            if (!matchesStatus) return false;
+          }
+          
           // Check priority filters
           const priorityFilters = filters.priority.filter(f => f.checked).map(f => f.id);
-          const assigneeFilters = filters.assignee.filter(f => f.checked).map(f => f.id);
-          
-          // If we have priority filters and this ticket's priority doesn't match any, filter it out
           if (priorityFilters.length > 0) {
             const matchesPriority = priorityFilters.some(p => 
               ticket.priority && ticket.priority.toLowerCase() === p
@@ -792,12 +828,53 @@ const TicketManager: React.FC = () => {
             if (!matchesPriority) return false;
           }
           
-          // Similar for assignee filters
-          if (assigneeFilters.length > 0 && ticket.assignee) {
+          // Check assignee filters
+          const assigneeFilters = filters.assignee.filter(f => f.checked).map(f => f.id);
+          if (assigneeFilters.length > 0) {
+            if (assigneeFilters.includes('unassigned') && !ticket.assignee) {
+              return true;
+            }
             const matchesAssignee = assigneeFilters.some(a => 
               ticket.assignee?.name.toLowerCase() === a
             );
-            if (!matchesAssignee) return false;
+            if (!matchesAssignee && !(assigneeFilters.includes('unassigned') && !ticket.assignee)) {
+              return false;
+            }
+          }
+          
+          // Check date filters
+          if (filters.date.type) {
+            const ticketDate = ticket.dueDate ? new Date(ticket.dueDate) : null;
+            if (!ticketDate) return true; // If no date, include by default
+            
+            const today = startOfDay(new Date());
+            
+            if (filters.date.type === 'preset') {
+              if (filters.date.preset === 'today') {
+                return isSameDay(ticketDate, today);
+              } else if (filters.date.preset === 'last-24-hours') {
+                const yesterday = subDays(today, 1);
+                return isAfter(ticketDate, yesterday);
+              } else if (filters.date.preset === 'last-week') {
+                const lastWeek = subWeeks(today, 1);
+                return isAfter(ticketDate, lastWeek);
+              } else if (filters.date.preset === 'last-month') {
+                const lastMonth = subMonths(today, 1);
+                return isAfter(ticketDate, lastMonth);
+              }
+            } else if (filters.date.type === 'custom') {
+              const { from, to } = filters.date.custom;
+              if (from && to) {
+                return (
+                  isAfter(ticketDate, startOfDay(from)) && 
+                  !isAfter(ticketDate, endOfDay(to))
+                );
+              } else if (from) {
+                return isAfter(ticketDate, startOfDay(from));
+              } else if (to) {
+                return !isAfter(ticketDate, endOfDay(to));
+              }
+            }
           }
           
           return true;
@@ -812,44 +889,44 @@ const TicketManager: React.FC = () => {
   const handleTicketSubmit = (ticketData: TicketData) => {
     console.log('Submitting ticket:', ticketData);
     setBoardData((prevBoard) => {
-        const newBoard = { ...prevBoard };
-        const targetColumn = (ticketData.status || 'todo') as BoardColumnId;
-        if (!newBoard[targetColumn]) newBoard[targetColumn] = []; // Ensure column exists
+      const newBoard = { ...prevBoard };
+      const targetColumn = (ticketData.groupId || ticketData.status || 'todo') as BoardColumnId;
+      if (!newBoard[targetColumn]) newBoard[targetColumn] = []; // Ensure column exists
 
-        const cardData: TicketCardProps = {
-            id: ticketData.id || `TKT-${Date.now()}`, // Use timestamp for unique ID
-            title: ticketData.title,
-            description: ticketData.description,
-            priority: ticketData.priority,
-            dueDate: ticketData.dueDate ? format(ticketData.dueDate, "MMM d") : undefined,
-            status: targetColumn,
-            completed: ticketData.completed,
-            onComplete: () => {}
-        };
+      const cardData: TicketCardProps = {
+        id: ticketData.id || `TKT-${Date.now()}`, // Use timestamp for unique ID
+        title: ticketData.title,
+        description: ticketData.description,
+        priority: ticketData.priority,
+        dueDate: ticketData.dueDate ? format(ticketData.dueDate, "MMM d") : undefined,
+        status: ticketData.status || targetColumn,
+        completed: ticketData.completed,
+        onComplete: () => {}
+      };
 
-        if (ticketData.id) { // Update
-            let updated = false;
-            for (const colId in newBoard) {
-                const currentColumnId = colId as BoardColumnId;
-                const items = newBoard[currentColumnId];
-                const itemIndex = items.findIndex(t => t.id === ticketData.id);
+      if (ticketData.id) { // Update
+        let updated = false;
+        for (const colId in newBoard) {
+          const currentColumnId = colId as BoardColumnId;
+          const items = newBoard[currentColumnId];
+          const itemIndex = items.findIndex(t => t.id === ticketData.id);
 
-                if (itemIndex !== -1) {
-                    if (currentColumnId === targetColumn) { // Update in same column
-                        items[itemIndex] = cardData;
-                    } else { // Moved to a different column
-                        items.splice(itemIndex, 1); // Remove from old column
-                        newBoard[targetColumn].push(cardData); // Add to new column
-                    }
-                    updated = true;
-                    break; 
-                }
+          if (itemIndex !== -1) {
+            if (currentColumnId === targetColumn) { // Update in same column
+              items[itemIndex] = cardData;
+            } else { // Moved to a different column
+              items.splice(itemIndex, 1); // Remove from old column
+              newBoard[targetColumn].push(cardData); // Add to new column
             }
-            if (!updated) console.error("Ticket to update not found:", ticketData.id);
-        } else { // Create
-            newBoard[targetColumn].push(cardData);
+            updated = true;
+            break; 
+          }
         }
-        return newBoard;
+        if (!updated) console.error("Ticket to update not found:", ticketData.id);
+      } else { // Create
+        newBoard[targetColumn].push(cardData);
+      }
+      return newBoard;
     });
     setIsDialogOpen(false);
     setTargetColumnForNewTicket(null); // Reset target column on close
@@ -859,10 +936,17 @@ const TicketManager: React.FC = () => {
   const handleFilterChange = (type: keyof typeof filters, id: string, checked: boolean) => {
     setFilters(prev => {
       const newFilters = { ...prev };
-      const filterIndex = newFilters[type].findIndex(f => f.id === id);
-      if (filterIndex !== -1) {
-        newFilters[type][filterIndex].checked = checked;
+      
+      // Handle array-type filters (status, priority, assignee)
+      if (Array.isArray(newFilters[type])) {
+        const filterArray = newFilters[type] as Array<{ id: string, label: string, checked: boolean }>;
+        const filterIndex = filterArray.findIndex(f => f.id === id);
+        if (filterIndex !== -1) {
+          filterArray[filterIndex].checked = checked;
+        }
       }
+      // Date filter is handled separately in date-specific functions
+      
       return newFilters;
     });
     
@@ -1210,16 +1294,39 @@ const TicketManager: React.FC = () => {
               />
             </div>
           </div>
+          
+          {/* Status Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Filter className="mr-2 h-4 w-4" />
-                Filter
+                Status
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-36">
+              {filters.status.map(filter => (
+                <DropdownMenuCheckboxItem
+                  key={filter.id}
+                  checked={filter.checked}
+                  onCheckedChange={(checked) => 
+                    handleFilterChange('status', filter.id, checked)
+                  }
+                >
+                  {filter.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Priority Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Filter className="mr-2 h-4 w-4" />
+                Priority
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
               {filters.priority.map(filter => (
                 <DropdownMenuCheckboxItem
                   key={filter.id}
@@ -1231,31 +1338,187 @@ const TicketManager: React.FC = () => {
                   {filter.label}
                 </DropdownMenuCheckboxItem>
               ))}
-              {activeFilters.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400 font-medium"
-                    onClick={() => {
-                      // Reset all filters
-                      setFilters((prev) => {
-                        const newFilters = { ...prev };
-                        Object.keys(newFilters).forEach(filterType => {
-                          newFilters[filterType as keyof typeof filters].forEach(filter => {
-                            filter.checked = false;
-                          });
-                        });
-                        return newFilters;
-                      });
-                      setActiveFilters([]);
-                    }}
-                  >
-                    Reset Filters
-                  </DropdownMenuItem>
-                </>
-              )}
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* User Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Filter className="mr-2 h-4 w-4" />
+                User
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              {filters.assignee.map(filter => (
+                <DropdownMenuCheckboxItem
+                  key={filter.id}
+                  checked={filter.checked}
+                  onCheckedChange={(checked) => 
+                    handleFilterChange('assignee', filter.id, checked)
+                  }
+                >
+                  {filter.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Date Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Date
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Pre-defined</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    date: {
+                      ...prev.date,
+                      type: 'preset',
+                      preset: 'today'
+                    }
+                  }));
+                  setActiveFilters(prev => [...prev.filter(f => !f.startsWith('date-')), 'date-today']);
+                }}
+                className={filters.date.type === 'preset' && filters.date.preset === 'today' ? 'bg-primary/10' : ''}
+              >
+                Today
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    date: {
+                      ...prev.date,
+                      type: 'preset',
+                      preset: 'last-24-hours'
+                    }
+                  }));
+                  setActiveFilters(prev => [...prev.filter(f => !f.startsWith('date-')), 'date-last-24-hours']);
+                }}
+                className={filters.date.type === 'preset' && filters.date.preset === 'last-24-hours' ? 'bg-primary/10' : ''}
+              >
+                Last 24 Hours
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    date: {
+                      ...prev.date,
+                      type: 'preset',
+                      preset: 'last-week'
+                    }
+                  }));
+                  setActiveFilters(prev => [...prev.filter(f => !f.startsWith('date-')), 'date-last-week']);
+                }}
+                className={filters.date.type === 'preset' && filters.date.preset === 'last-week' ? 'bg-primary/10' : ''}
+              >
+                Last Week
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    date: {
+                      ...prev.date,
+                      type: 'preset',
+                      preset: 'last-month'
+                    }
+                  }));
+                  setActiveFilters(prev => [...prev.filter(f => !f.startsWith('date-')), 'date-last-month']);
+                }}
+                className={filters.date.type === 'preset' && filters.date.preset === 'last-month' ? 'bg-primary/10' : ''}
+              >
+                Last Month
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Manual</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
+              <div className="px-2 py-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.date.type === 'custom' && filters.date.custom.from ? (
+                        filters.date.custom.to ? (
+                          <>
+                            {format(filters.date.custom.from, "LLL dd, y")} - {format(filters.date.custom.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(filters.date.custom.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="range"
+                      defaultMonth={dateRange.from ?? new Date()}
+                      selected={{ 
+                        from: filters.date.custom.from, 
+                        to: filters.date.custom.to 
+                      }}
+                      onSelect={(range) => {
+                        if (range?.from || range?.to) {
+                          setFilters(prev => ({
+                            ...prev,
+                            date: {
+                              ...prev.date,
+                              type: 'custom',
+                              custom: {
+                                from: range?.from || null,
+                                to: range?.to || null
+                              }
+                            }
+                          }));
+                          setActiveFilters(prev => {
+                            const newFilters = prev.filter(f => !f.startsWith('date-'));
+                            return [...newFilters, 'date-custom'];
+                          });
+                        }
+                      }}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Reset Filter Button */}
+          {activeFilters.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                // Reset all filters
+                setFilters(() => {
+                  const newFilters = JSON.parse(JSON.stringify(initialFilters));
+                  return newFilters;
+                });
+                setActiveFilters([]);
+              }}
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+            >
+              Reset Filters
+            </Button>
+          )}
+          
           <Button 
             variant="outline" 
             size="sm"
@@ -1270,6 +1533,7 @@ const TicketManager: React.FC = () => {
             <Plus className="h-4 w-4 mr-1" />
             Add Group
           </Button>
+          
           <div className="flex items-center gap-2">
             <div className="px-3 py-1 border rounded-md flex items-center gap-2 bg-white dark:bg-gray-800">
               <Button
@@ -1410,6 +1674,8 @@ const TicketManager: React.FC = () => {
         onSubmit={handleTicketSubmit}
         initialData={editingTicket}
         defaultStatus={targetColumnForNewTicket || undefined}
+        buckets={buckets}
+        defaultGroup={targetColumnForNewTicket || undefined}
       />
 
       <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
