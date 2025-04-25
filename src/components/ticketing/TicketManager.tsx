@@ -1465,7 +1465,7 @@ const TicketManager: React.FC = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="end">
                     <CalendarComponent
                       mode="range"
                       defaultMonth={dateRange.from ?? new Date()}
@@ -1506,11 +1506,12 @@ const TicketManager: React.FC = () => {
               variant="outline" 
               size="sm"
               onClick={() => {
-                // Reset all filters
+                // Reset all filters, including date
                 setFilters(() => {
                   const newFilters = JSON.parse(JSON.stringify(initialFilters));
                   return newFilters;
                 });
+                setDateRange({ from: null, to: null }); // Reset date range state used by calendar
                 setActiveFilters([]);
               }}
               className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
