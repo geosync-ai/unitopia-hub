@@ -53,6 +53,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+  useDroppable,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Visitor status type
 type VisitorStatus = 'scheduled' | 'checked-in' | 'checked-out' | 'no-show';
@@ -244,6 +264,23 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   const [editableDuration, setEditableDuration] = useState(visitor.duration);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
+  // Add sortable functionality
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: visitor.id.toString() });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+  } as React.CSSProperties;
+  
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -378,7 +415,13 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   }, [showTimeEdit, visitor.time]);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-800 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners}
+      className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-700 transition-all duration-200 hover:shadow-lg mb-3 cursor-grab"
+    >
       <div className="flex justify-between mb-4">
         <div className="flex gap-3">
           {visitor.photoUrl ? (
@@ -391,12 +434,12 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
                   // If image fails to load, show initials instead
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
                 }}
               />
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
               {visitor.initials}
             </div>
           )}
@@ -407,22 +450,28 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         </div>
         <div className="flex gap-1 items-start">
           <button 
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
             title="Edit"
-            onClick={() => onEdit(visitor.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(visitor.id);
+            }}
           >
             <PencilIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           </button>
           <button 
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
             title="Delete"
-            onClick={() => onDelete(visitor.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(visitor.id);
+            }}
           >
             <Trash2Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           </button>
           <div className="relative" ref={dropdownRef}>
             <button 
-              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
               title="More"
               onClick={handleActionClick}
             >
@@ -522,14 +571,14 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
                 type="time" 
                 value={editableTime}
                 onChange={handleTimeChange}
-                className="w-24 text-xs p-1 border rounded"
+                className="w-24 text-xs p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 onBlur={handleTimeSubmit}
                 autoFocus
               />
             </div>
           ) : (
             <span 
-              className="text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:text-primary"
+              className="text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:text-primary dark:hover:text-primary"
               onClick={handleTimeClick}
             >
               {formatTime(visitor.time)}
@@ -540,7 +589,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       <div className="flex gap-4 mt-4 text-gray-500 dark:text-gray-400 text-sm">
         <div className="relative">
           <div 
-            className="flex items-center gap-2 cursor-pointer hover:text-primary"
+            className="flex items-center gap-2 cursor-pointer hover:text-primary dark:hover:text-primary"
             onClick={handleHostClick}
           >
             <UserIcon className="h-4 w-4" />
@@ -567,7 +616,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         </div>
         <div className="relative">
           <div 
-            className="flex items-center gap-2 cursor-pointer hover:text-primary"
+            className="flex items-center gap-2 cursor-pointer hover:text-primary dark:hover:text-primary"
             onClick={handleDurationClick}
           >
             <CalendarIcon className="h-4 w-4" />
@@ -576,7 +625,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
                 type="text" 
                 value={editableDuration}
                 onChange={handleDurationChange}
-                className="w-24 text-xs p-1 border rounded"
+                className="w-24 text-xs p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 onBlur={handleDurationSubmit}
                 autoFocus
               />
@@ -604,6 +653,8 @@ const VisitorManagement: React.FC = () => {
   const [visitorToDelete, setVisitorToDelete] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeDragItem, setActiveDragItem] = useState<Visitor | null>(null);
+  const [activeDropId, setActiveDropId] = useState<string | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -625,6 +676,18 @@ const VisitorManagement: React.FC = () => {
     photoUrl: '',
     assignees: []
   });
+  
+  // Setup sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required before activation
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   // Form validation
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -881,7 +944,7 @@ const VisitorManagement: React.FC = () => {
     }
   };
 
-  // Apply filters to visitors
+  // Apply filters to visitors (enhanced search)
   const filteredVisitors = visitors.filter(visitor => {
     // First filter by tab
     if (activeTab !== 'all') {
@@ -921,12 +984,38 @@ const VisitorManagement: React.FC = () => {
       return false;
     }
     
-    // Then filter by search query
+    // Then filter by search query - enhanced to search across more fields
     if (searchQuery) {
-      const fullName = `${visitor.firstName} ${visitor.lastName}`.toLowerCase();
-      const company = visitor.company.toLowerCase();
       const query = searchQuery.toLowerCase();
-      return fullName.includes(query) || company.includes(query);
+      
+      // Search in full name
+      const fullName = `${visitor.firstName} ${visitor.lastName}`.toLowerCase();
+      if (fullName.includes(query)) return true;
+      
+      // Search in company
+      if (visitor.company.toLowerCase().includes(query)) return true;
+      
+      // Search in assignees
+      if (visitor.assignees && visitor.assignees.some(assignee => 
+        assignee.toLowerCase().includes(query)
+      )) return true;
+      
+      // Search in host
+      if (visitor.host.toLowerCase().includes(query)) return true;
+      
+      // Search in time
+      if (visitor.time.toLowerCase().includes(query)) return true;
+      
+      // Search in duration/timing
+      if (visitor.duration.toLowerCase().includes(query)) return true;
+      
+      // Search in email
+      if (visitor.email && visitor.email.toLowerCase().includes(query)) return true;
+      
+      // Search in purpose
+      if (visitor.purpose && visitor.purpose.toLowerCase().includes(query)) return true;
+      
+      return false;
     }
     
     return true;
@@ -952,6 +1041,61 @@ const VisitorManagement: React.FC = () => {
     return filteredVisitors.slice(startIndex, endIndex);
   };
 
+  // Pagination controls component
+  const Pagination = () => {
+    const totalPages = calculateTotalPages();
+    if (totalPages <= 1) return null;
+    
+    const renderPageNumbers = () => {
+      const pageNumbers = [];
+      const maxPagesToShow = 5;
+      
+      let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(
+          <button
+            key={i}
+            onClick={() => setCurrentPage(i)}
+            className={`px-3 py-1 text-sm rounded-md ${
+              currentPage === i 
+                ? 'bg-primary text-white' 
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+            }`}
+          >
+            {i}
+          </button>
+        );
+      }
+      return pageNumbers;
+    };
+    
+    return (
+      <div className="flex justify-center mt-6 gap-2">
+        <button
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 disabled:opacity-50"
+        >
+          Previous
+        </button>
+        {renderPageNumbers()}
+        <button
+          onClick={() => setCurrentPage(prev => Math.min(calculateTotalPages(), prev + 1))}
+          disabled={currentPage === calculateTotalPages()}
+          className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
   // Close all dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -974,6 +1118,48 @@ const VisitorManagement: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Add handlers for drag and drop
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const activeId = Number(active.id);
+    const activeVisitor = visitors.find(v => v.id === activeId);
+    if (activeVisitor) {
+      setActiveDragItem(activeVisitor);
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    if (over) {
+      setActiveDropId(String(over.id));
+    } else {
+      setActiveDropId(null);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragItem(null);
+    setActiveDropId(null);
+    
+    const { active, over } = event;
+    
+    if (!over) return;
+    
+    const activeId = Number(active.id);
+    const overId = String(over.id);
+    
+    // If we drop onto a status column, change the visitor's status
+    if (['scheduled', 'checked-in', 'checked-out', 'no-show'].includes(overId)) {
+      setVisitors(prev => 
+        prev.map(visitor => 
+          visitor.id === activeId 
+            ? { ...visitor, status: overId as VisitorStatus } 
+            : visitor
+        )
+      );
+    }
+  };
 
   const renderVisitorList = () => {
     if (filteredVisitors.length === 0) {
@@ -1001,666 +1187,136 @@ const VisitorManagement: React.FC = () => {
         const noShowVisitors = filteredVisitors.filter(v => v.status === 'no-show');
         
         return (
-          <div className="flex gap-4 overflow-x-auto pb-6">
-            {/* Scheduled Column */}
-            <div className="flex-shrink-0 w-80">
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium text-blue-600 dark:text-blue-400 flex items-center">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
-                    Scheduled
-                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
-                      {scheduledVisitors.length}
-                    </span>
-                  </h3>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <PlusIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
-                <div className="flex flex-col gap-2">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex gap-4 overflow-x-auto pb-6">
+              {/* Scheduled Column */}
+              <BoardColumn 
+                id="scheduled"
+                title="Scheduled"
+                count={scheduledVisitors.length}
+                color="blue"
+                isOver={activeDropId === 'scheduled'}
+              >
+                <SortableContext items={scheduledVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {scheduledVisitors.map(visitor => (
-                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
-                      <div className="flex justify-between mb-2">
-                        <div className="flex gap-2 items-center">
-                          {visitor.photoUrl ? (
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                              <img 
-                                src={visitor.photoUrl} 
-                                alt={`${visitor.firstName} ${visitor.lastName}`} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                              {visitor.initials}
-                            </div>
-                          )}
-                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleEditVisitor(visitor.id)}
-                          >
-                            <PencilIcon className="h-3 w-3 text-gray-500" />
-                          </button>
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleDeleteVisitor(visitor.id)}
-                          >
-                            <Trash2Icon className="h-3 w-3 text-gray-500" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        <div className="flex justify-between mb-1">
-                          <span>{visitor.company}</span>
-                          <span>{visitor.time}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <UserIcon className="h-3 w-3 mr-1" />
-                          <span>{visitor.host}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <VisitorCard
+                      key={visitor.id}
+                      visitor={visitor}
+                      onStatusChange={handleInlineStatusChange}
+                      onEdit={handleEditVisitor}
+                      onDelete={handleDeleteVisitor}
+                      onHostChange={handleInlineHostChange}
+                      onTimeChange={handleInlineTimeChange}
+                      onDurationChange={handleInlineDurationChange}
+                    />
                   ))}
-                </div>
-              </div>
-            </div>
-            
-            {/* Checked In Column */}
-            <div className="flex-shrink-0 w-80">
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium text-green-600 dark:text-green-400 flex items-center">
-                    <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                    Checked In
-                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
-                      {checkedInVisitors.length}
-                    </span>
-                  </h3>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <PlusIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
-                <div className="flex flex-col gap-2">
+                </SortableContext>
+              </BoardColumn>
+              
+              {/* Checked In Column */}
+              <BoardColumn 
+                id="checked-in"
+                title="Checked In"
+                count={checkedInVisitors.length}
+                color="green"
+                isOver={activeDropId === 'checked-in'}
+              >
+                <SortableContext items={checkedInVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {checkedInVisitors.map(visitor => (
-                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
-                      <div className="flex justify-between mb-2">
-                        <div className="flex gap-2 items-center">
-                          {visitor.photoUrl ? (
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                              <img 
-                                src={visitor.photoUrl} 
-                                alt={`${visitor.firstName} ${visitor.lastName}`} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                              {visitor.initials}
-                            </div>
-                          )}
-                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleEditVisitor(visitor.id)}
-                          >
-                            <PencilIcon className="h-3 w-3 text-gray-500" />
-                          </button>
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleDeleteVisitor(visitor.id)}
-                          >
-                            <Trash2Icon className="h-3 w-3 text-gray-500" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        <div className="flex justify-between mb-1">
-                          <span>{visitor.company}</span>
-                          <span>{visitor.time}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <UserIcon className="h-3 w-3 mr-1" />
-                          <span>{visitor.host}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <VisitorCard
+                      key={visitor.id}
+                      visitor={visitor}
+                      onStatusChange={handleInlineStatusChange}
+                      onEdit={handleEditVisitor}
+                      onDelete={handleDeleteVisitor}
+                      onHostChange={handleInlineHostChange}
+                      onTimeChange={handleInlineTimeChange}
+                      onDurationChange={handleInlineDurationChange}
+                    />
                   ))}
-                </div>
-              </div>
-            </div>
-            
-            {/* Checked Out Column */}
-            <div className="flex-shrink-0 w-80">
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium text-gray-600 dark:text-gray-400 flex items-center">
-                    <span className="w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
-                    Checked Out
-                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
-                      {checkedOutVisitors.length}
-                    </span>
-                  </h3>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <PlusIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
-                <div className="flex flex-col gap-2">
+                </SortableContext>
+              </BoardColumn>
+              
+              {/* Checked Out Column */}
+              <BoardColumn 
+                id="checked-out"
+                title="Checked Out"
+                count={checkedOutVisitors.length}
+                color="gray"
+                isOver={activeDropId === 'checked-out'}
+              >
+                <SortableContext items={checkedOutVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
                   {checkedOutVisitors.map(visitor => (
-                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
-                      <div className="flex justify-between mb-2">
-                        <div className="flex gap-2 items-center">
-                          {visitor.photoUrl ? (
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                              <img 
-                                src={visitor.photoUrl} 
-                                alt={`${visitor.firstName} ${visitor.lastName}`} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                              {visitor.initials}
-                            </div>
-                          )}
-                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleEditVisitor(visitor.id)}
-                          >
-                            <PencilIcon className="h-3 w-3 text-gray-500" />
-                          </button>
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleDeleteVisitor(visitor.id)}
-                          >
-                            <Trash2Icon className="h-3 w-3 text-gray-500" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        <div className="flex justify-between mb-1">
-                          <span>{visitor.company}</span>
-                          <span>{visitor.time}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <UserIcon className="h-3 w-3 mr-1" />
-                          <span>{visitor.host}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <VisitorCard
+                      key={visitor.id}
+                      visitor={visitor}
+                      onStatusChange={handleInlineStatusChange}
+                      onEdit={handleEditVisitor}
+                      onDelete={handleDeleteVisitor}
+                      onHostChange={handleInlineHostChange}
+                      onTimeChange={handleInlineTimeChange}
+                      onDurationChange={handleInlineDurationChange}
+                    />
                   ))}
-                </div>
-              </div>
+                </SortableContext>
+              </BoardColumn>
+              
+              {/* No Show Column */}
+              <BoardColumn 
+                id="no-show"
+                title="No Show"
+                count={noShowVisitors.length}
+                color="red"
+                isOver={activeDropId === 'no-show'}
+              >
+                <SortableContext items={noShowVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
+                  {noShowVisitors.map(visitor => (
+                    <VisitorCard
+                      key={visitor.id}
+                      visitor={visitor}
+                      onStatusChange={handleInlineStatusChange}
+                      onEdit={handleEditVisitor}
+                      onDelete={handleDeleteVisitor}
+                      onHostChange={handleInlineHostChange}
+                      onTimeChange={handleInlineTimeChange}
+                      onDurationChange={handleInlineDurationChange}
+                    />
+                  ))}
+                </SortableContext>
+              </BoardColumn>
             </div>
             
-            {/* No Show Column */}
-            <div className="flex-shrink-0 w-80">
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium text-red-600 dark:text-red-400 flex items-center">
-                    <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
-                    No Show
-                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
-                      {noShowVisitors.length}
-                    </span>
-                  </h3>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <PlusIcon className="h-4 w-4" />
-                  </Button>
+            {activeDragItem && (
+              <DragOverlay>
+                <div className="opacity-80 rotate-3 w-80">
+                  <VisitorCard
+                    visitor={activeDragItem}
+                    onStatusChange={handleInlineStatusChange}
+                    onEdit={handleEditVisitor}
+                    onDelete={handleDeleteVisitor}
+                    onHostChange={handleInlineHostChange}
+                    onTimeChange={handleInlineTimeChange}
+                    onDurationChange={handleInlineDurationChange}
+                  />
                 </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
-                <div className="flex flex-col gap-2">
-                  {noShowVisitors.map(visitor => (
-                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
-                      <div className="flex justify-between mb-2">
-                        <div className="flex gap-2 items-center">
-                          {visitor.photoUrl ? (
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                              <img 
-                                src={visitor.photoUrl} 
-                                alt={`${visitor.firstName} ${visitor.lastName}`} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                              {visitor.initials}
-                            </div>
-                          )}
-                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleEditVisitor(visitor.id)}
-                          >
-                            <PencilIcon className="h-3 w-3 text-gray-500" />
-                          </button>
-                          <button 
-                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => handleDeleteVisitor(visitor.id)}
-                          >
-                            <Trash2Icon className="h-3 w-3 text-gray-500" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        <div className="flex justify-between mb-1">
-                          <span>{visitor.company}</span>
-                          <span>{visitor.time}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <UserIcon className="h-3 w-3 mr-1" />
-                          <span>{visitor.host}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-        
-      case 'list':
-        // List view - rows with pagination
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Visitor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Host</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {paginatedVisitors.map(visitor => {
-                  const StatusCell = () => {
-                    const [showDropdown, setShowDropdown] = useState(false);
-                    const statusRef = useRef<HTMLDivElement>(null);
-                    
-                    useEffect(() => {
-                      const handleClickOutside = (e: MouseEvent) => {
-                        if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
-                          setShowDropdown(false);
-                        }
-                      };
-                      
-                      if (showDropdown) {
-                        document.addEventListener('mousedown', handleClickOutside);
-                      }
-                      
-                      return () => {
-                        document.removeEventListener('mousedown', handleClickOutside);
-                      };
-                    }, [showDropdown]);
-                    
-                    return (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="relative" ref={statusRef}>
-                          <span 
-                            className={`px-2 py-1 text-xs rounded-full inline-flex items-center cursor-pointer ${
-                              visitor.status === 'scheduled' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                              visitor.status === 'checked-in' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                              visitor.status === 'checked-out' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
-                              'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                            }`}
-                            onClick={() => setShowDropdown(!showDropdown)}
-                          >
-                            {getStatusLabel(visitor.status)}
-                          </span>
-                          
-                          {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
-                              <button 
-                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
-                                onClick={() => {
-                                  handleInlineStatusChange(visitor.id, 'scheduled');
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
-                                Scheduled
-                              </button>
-                              <button 
-                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-in' ? 'bg-green-50 dark:bg-green-900/30' : ''}`}
-                                onClick={() => {
-                                  handleInlineStatusChange(visitor.id, 'checked-in');
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
-                                Checked In
-                              </button>
-                              <button 
-                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'checked-out' ? 'bg-gray-50 dark:bg-gray-700/50' : ''}`}
-                                onClick={() => {
-                                  handleInlineStatusChange(visitor.id, 'checked-out');
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
-                                Checked Out
-                              </button>
-                              <button 
-                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'no-show' ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
-                                onClick={() => {
-                                  handleInlineStatusChange(visitor.id, 'no-show');
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
-                                No Show
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  };
-                  
-                  const TimeCell = () => {
-                    const [isEditing, setIsEditing] = useState(false);
-                    const [timeValue, setTimeValue] = useState('');
-                    const timeRef = useRef<HTMLDivElement>(null);
-                    
-                    // Pre-fill time when editing starts
-                    useEffect(() => {
-                      if (isEditing) {
-                        // Convert time string to input format (HH:MM)
-                        let timeForInput = visitor.time;
-                        
-                        // If it's in format like "10:15 AM", convert to 24-hour format
-                        if (visitor.time.includes('AM') || visitor.time.includes('PM')) {
-                          const timeParts = visitor.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                          if (timeParts) {
-                            let hours = parseInt(timeParts[1]);
-                            const minutes = timeParts[2];
-                            const period = timeParts[3].toUpperCase();
-                            
-                            // Convert to 24-hour format
-                            if (period === 'PM' && hours < 12) {
-                              hours += 12;
-                            } else if (period === 'AM' && hours === 12) {
-                              hours = 0;
-                            }
-                            
-                            // Format with leading zeros
-                            timeForInput = `${hours.toString().padStart(2, '0')}:${minutes}`;
-                          }
-                        }
-                        
-                        setTimeValue(timeForInput);
-                      }
-                    }, [isEditing, visitor.time]);
-                    
-                    useEffect(() => {
-                      const handleClickOutside = (e: MouseEvent) => {
-                        if (timeRef.current && !timeRef.current.contains(e.target as Node)) {
-                          if (isEditing) {
-                            handleSave();
-                          }
-                        }
-                      };
-                      
-                      if (isEditing) {
-                        document.addEventListener('mousedown', handleClickOutside);
-                      }
-                      
-                      return () => {
-                        document.removeEventListener('mousedown', handleClickOutside);
-                      };
-                    }, [isEditing]);
-                    
-                    const handleSave = () => {
-                      handleInlineTimeChange(visitor.id, timeValue);
-                      setIsEditing(false);
-                    };
-                    
-                    return (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <div className="relative" ref={timeRef}>
-                          {isEditing ? (
-                            <input 
-                              type="time" 
-                              value={timeValue}
-                              onChange={(e) => setTimeValue(e.target.value)}
-                              onBlur={handleSave}
-                              autoFocus
-                              className="w-24 text-xs p-1 border rounded"
-                            />
-                          ) : (
-                            <span 
-                              className="cursor-pointer hover:text-primary"
-                              onClick={() => setIsEditing(true)}
-                            >
-                              {formatTime(visitor.time)}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  };
-                  
-                  const HostCell = () => {
-                    const [showDropdown, setShowDropdown] = useState(false);
-                    const hostRef = useRef<HTMLDivElement>(null);
-                    
-                    const hostOptions = [
-                      "Alice Smith",
-                      "Robert Chen",
-                      "Jennifer Lee",
-                      "David Miller",
-                      "Sophia Garcia",
-                      "Kevin Wong"
-                    ];
-                    
-                    useEffect(() => {
-                      const handleClickOutside = (e: MouseEvent) => {
-                        if (hostRef.current && !hostRef.current.contains(e.target as Node)) {
-                          setShowDropdown(false);
-                        }
-                      };
-                      
-                      if (showDropdown) {
-                        document.addEventListener('mousedown', handleClickOutside);
-                      }
-                      
-                      return () => {
-                        document.removeEventListener('mousedown', handleClickOutside);
-                      };
-                    }, [showDropdown]);
-                    
-                    return (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <div className="relative" ref={hostRef}>
-                          <span 
-                            className="cursor-pointer hover:text-primary"
-                            onClick={() => setShowDropdown(!showDropdown)}
-                          >
-                            {visitor.host}
-                          </span>
-                          
-                          {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200] max-h-40 overflow-y-auto">
-                              {hostOptions.map((host) => (
-                                <button 
-                                  key={host}
-                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.host === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleInlineHostChange(visitor.id, host);
-                                    setShowDropdown(false);
-                                  }}
-                                >
-                                  {host}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  };
-                  
-                  const DurationCell = () => {
-                    const [isEditing, setIsEditing] = useState(false);
-                    const [durationValue, setDurationValue] = useState(visitor.duration);
-                    const durationRef = useRef<HTMLDivElement>(null);
-                    
-                    useEffect(() => {
-                      const handleClickOutside = (e: MouseEvent) => {
-                        if (durationRef.current && !durationRef.current.contains(e.target as Node)) {
-                          if (isEditing) {
-                            handleSave();
-                          }
-                        }
-                      };
-                      
-                      if (isEditing) {
-                        document.addEventListener('mousedown', handleClickOutside);
-                      }
-                      
-                      return () => {
-                        document.removeEventListener('mousedown', handleClickOutside);
-                      };
-                    }, [isEditing]);
-                    
-                    const handleSave = () => {
-                      handleInlineDurationChange(visitor.id, durationValue);
-                      setIsEditing(false);
-                    };
-                    
-                    return (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <div className="relative" ref={durationRef}>
-                          {isEditing ? (
-                            <input 
-                              type="text" 
-                              value={durationValue}
-                              onChange={(e) => setDurationValue(e.target.value)}
-                              onBlur={handleSave}
-                              autoFocus
-                              className="w-24 text-xs p-1 border rounded"
-                            />
-                          ) : (
-                            <span 
-                              className="cursor-pointer hover:text-primary"
-                              onClick={() => setIsEditing(true)}
-                            >
-                              {formatDuration(visitor)}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  };
-                  
-                  return (
-                    <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {visitor.photoUrl ? (
-                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mr-3 flex-shrink-0">
-                              <img 
-                                src={visitor.photoUrl} 
-                                alt={`${visitor.firstName} ${visitor.lastName}`} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold mr-3 flex-shrink-0">
-                              {visitor.initials}
-                            </div>
-                          )}
-                          <div>
-                            <div className="text-sm font-medium">{visitor.firstName} {visitor.lastName}</div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">{visitor.company}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <StatusCell />
-                      <TimeCell />
-                      <HostCell />
-                      <DurationCell />
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-1">
-                          <button 
-                            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-1"
-                            onClick={() => handleEditVisitor(visitor.id)}
-                            title="Edit"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          <button 
-                            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-1"
-                            onClick={() => handleDeleteVisitor(visitor.id)}
-                            title="Delete"
-                          >
-                            <Trash2Icon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+              </DragOverlay>
+            )}
+          </DndContext>
         );
         
       case 'grid':
-      default:
-        // Grid view - cards layout with pagination
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {paginatedVisitors.map((visitor) => (
-              <VisitorCard 
-                key={visitor.id} 
-                visitor={visitor} 
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
+            {paginatedVisitors.map(visitor => (
+              <VisitorCard
+                key={visitor.id}
+                visitor={visitor}
                 onStatusChange={handleInlineStatusChange}
                 onEdit={handleEditVisitor}
                 onDelete={handleDeleteVisitor}
@@ -1669,6 +1325,91 @@ const VisitorManagement: React.FC = () => {
                 onDurationChange={handleInlineDurationChange}
               />
             ))}
+          </div>
+        );
+        
+      case 'list':
+        // List view - similar to the Ticket Manager list view
+        return (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Visitor</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Host</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Company</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Duration</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {paginatedVisitors.map(visitor => (
+                  <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {visitor.photoUrl ? (
+                          <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mr-3">
+                            <img 
+                              src={visitor.photoUrl} 
+                              alt={`${visitor.firstName} ${visitor.lastName}`} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm mr-3">
+                            {visitor.initials}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-gray-100">{visitor.firstName} {visitor.lastName}</div>
+                          <div className="text-gray-500 dark:text-gray-400 text-sm">{visitor.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span 
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)}`}
+                      >
+                        {getStatusLabel(visitor.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {formatTime(visitor.time)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {visitor.host}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {visitor.company}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {formatDuration(visitor)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <button 
+                        className="text-primary hover:text-primary-dark mr-3"
+                        onClick={() => handleEditVisitor(visitor.id)}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button 
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleDeleteVisitor(visitor.id)}
+                      >
+                        <Trash2Icon className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         );
     }
@@ -2028,70 +1769,7 @@ const VisitorManagement: React.FC = () => {
       {renderVisitorList()}
 
       {/* Pagination - show only for grid and list views */}
-      {viewMode !== 'board' && filteredVisitors.length > 0 && (
-        <div className="flex justify-center gap-2 mt-8">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="w-8 h-8 rounded-full"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-          >
-            &lt;
-          </Button>
-          
-          {Array.from({ length: Math.min(calculateTotalPages(), 5) }).map((_, i) => {
-            let pageNum: number;
-            
-            // Logic to show current page in the middle when possible
-            if (calculateTotalPages() <= 5) {
-              pageNum = i + 1;
-            } else if (currentPage <= 3) {
-              pageNum = i + 1;
-            } else if (currentPage >= calculateTotalPages() - 2) {
-              pageNum = calculateTotalPages() - 4 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
-            
-            return (
-              <Button 
-                key={pageNum}
-                variant={currentPage === pageNum ? "default" : "outline"} 
-                size="sm" 
-                className="w-8 h-8 rounded-full"
-                onClick={() => setCurrentPage(pageNum)}
-              >
-                {pageNum}
-              </Button>
-            );
-          })}
-          
-          {calculateTotalPages() > 5 && currentPage < calculateTotalPages() - 2 && (
-            <>
-              <Button variant="outline" size="sm" disabled className="w-8 h-8 rounded-full">...</Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-8 h-8 rounded-full"
-                onClick={() => setCurrentPage(calculateTotalPages())}
-              >
-                {calculateTotalPages()}
-              </Button>
-            </>
-          )}
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="w-8 h-8 rounded-full"
-            disabled={currentPage === calculateTotalPages()}
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, calculateTotalPages()))}
-          >
-            &gt;
-          </Button>
-        </div>
-      )}
+      {viewMode !== 'board' && filteredVisitors.length > 0 && <Pagination />}
 
       {/* Add Visitor Modal */}
       <Dialog open={showAddVisitorModal} onOpenChange={setShowAddVisitorModal}>
@@ -2386,6 +2064,74 @@ const VisitorManagement: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+};
+
+// New component for board view columns
+interface BoardColumnProps {
+  id: string;
+  title: string;
+  count: number;
+  color: 'blue' | 'green' | 'gray' | 'red';
+  children: React.ReactNode;
+  isOver?: boolean;
+}
+
+const BoardColumn: React.FC<BoardColumnProps> = ({ id, title, count, color, children, isOver = false }) => {
+  const { setNodeRef } = useDroppable({ id });
+  
+  const getColorClass = () => {
+    switch (color) {
+      case 'blue': return 'text-blue-600 dark:text-blue-400';
+      case 'green': return 'text-green-600 dark:text-green-400';
+      case 'gray': return 'text-gray-600 dark:text-gray-400';
+      case 'red': return 'text-red-600 dark:text-red-400';
+      default: return 'text-blue-600 dark:text-blue-400';
+    }
+  };
+  
+  const getIndicatorClass = () => {
+    switch (color) {
+      case 'blue': return 'bg-blue-500';
+      case 'green': return 'bg-green-500';
+      case 'gray': return 'bg-gray-500';
+      case 'red': return 'bg-red-600';
+      default: return 'bg-blue-500';
+    }
+  };
+  
+  return (
+    <div className="flex-shrink-0 w-80">
+      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
+        <div className="flex justify-between items-center">
+          <h3 className={`font-medium ${getColorClass()} flex items-center`}>
+            <span className={`w-2 h-2 rounded-full ${getIndicatorClass()} mr-2`}></span>
+            {title}
+            <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
+              {count}
+            </span>
+          </h3>
+          <Button variant="ghost" size="icon" className="h-7 w-7">
+            <PlusIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div 
+        ref={setNodeRef}
+        className={`bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)] ${isOver ? 'bg-primary/10 transition-colors duration-200' : ''}`}
+      >
+        {children}
+        
+        {/* Empty state feedback when dropping */}
+        {isOver && !count && (
+          <div className="flex items-center justify-center h-24 rounded-md">
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/20"></div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
