@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TicketInbox from '@/components/ticketing/TicketInbox';
 import TicketManager from '../components/ticketing/TicketManager';
+import VisitorManagement from '../components/ticketing/VisitorManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import { 
@@ -59,7 +60,7 @@ const Tickets: React.FC = () => {
       id: 'visitor-management' as TicketCategory, 
       label: 'Visitor Management', 
       icon: Users,
-      content: <PlaceholderContent title="Visitor Management" /> 
+      content: <VisitorManagement /> 
     },
     { 
       id: 'appointments' as TicketCategory, 
