@@ -245,6 +245,22 @@ const getStatusLabel = (status: VisitorStatus) => {
   }
 };
 
+// Make sure the getStatusClass function is properly defined and accessible
+const getStatusClass = (status: VisitorStatus) => {
+  switch (status) {
+    case 'scheduled':
+      return 'bg-blue-500 text-white';
+    case 'checked-in':
+      return 'bg-green-600 text-white';
+    case 'checked-out':
+      return 'bg-gray-500 text-white';
+    case 'no-show':
+      return 'bg-red-600 text-white';
+    default:
+      return 'bg-gray-300 text-gray-800';
+  }
+};
+
 // Component for each visitor card
 const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange }: { 
   visitor: Visitor, 
@@ -309,6 +325,21 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         return 'bg-red-600 text-white';
       default:
         return 'bg-gray-300 text-gray-800';
+    }
+  };
+  
+  const getStatusBackgroundClass = (status: VisitorStatus) => {
+    switch (status) {
+      case 'scheduled':
+        return 'border-l-4 border-blue-500 dark:bg-blue-900/20';
+      case 'checked-in':
+        return 'border-l-4 border-green-600 dark:bg-green-900/20';
+      case 'checked-out':
+        return 'border-l-4 border-gray-500 dark:bg-gray-700/30';
+      case 'no-show':
+        return 'border-l-4 border-red-600 dark:bg-red-900/20';
+      default:
+        return 'border-l-4 border-gray-300 dark:bg-gray-800/50';
     }
   };
   
@@ -420,12 +451,12 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       style={style} 
       {...attributes} 
       {...listeners}
-      className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-700 transition-all duration-200 hover:shadow-lg mb-3 cursor-grab"
+      className={`${getStatusBackgroundClass(visitor.status)} bg-white dark:bg-gray-800/90 rounded-lg p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-lg mb-3 cursor-grab ${isDragging ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-900 rotate-3' : ''}`}
     >
-      <div className="flex justify-between mb-4">
+      <div className="flex justify-between mb-3">
         <div className="flex gap-3">
           {visitor.photoUrl ? (
-            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
               <img 
                 src={visitor.photoUrl} 
                 alt={`${visitor.firstName} ${visitor.lastName}`} 
@@ -439,7 +470,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
               />
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
               {visitor.initials}
             </div>
           )}
@@ -450,32 +481,32 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         </div>
         <div className="flex gap-1 items-start">
           <button 
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
             title="Edit"
             onClick={(e) => {
               e.stopPropagation();
               onEdit(visitor.id);
             }}
           >
-            <PencilIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <PencilIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
           </button>
           <button 
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
             title="Delete"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(visitor.id);
             }}
           >
-            <Trash2Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Trash2Icon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
           </button>
           <div className="relative" ref={dropdownRef}>
             <button 
-              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
               title="More"
               onClick={handleActionClick}
             >
-              <MoreVerticalIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <MoreVerticalIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
             </button>
             
             {showDropdown && (
@@ -509,10 +540,10 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2 my-3">
+      <div className="flex items-center gap-2 my-2">
         <div className="relative">
           <span 
-            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)} cursor-pointer`}
+            className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(visitor.status)} cursor-pointer`}
             onClick={handleStatusClick}
           >
             {getStatusLabel(visitor.status)}
@@ -564,7 +595,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           )}
         </div>
         
-        <div className="relative">
+        <div className="relative ml-2">
           {showTimeEdit ? (
             <div className="inline-block">
               <input 
@@ -586,13 +617,13 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           )}
         </div>
       </div>
-      <div className="flex gap-4 mt-4 text-gray-500 dark:text-gray-400 text-sm">
+      <div className="flex justify-between mt-3 text-gray-500 dark:text-gray-400 text-xs">
         <div className="relative">
           <div 
-            className="flex items-center gap-2 cursor-pointer hover:text-primary dark:hover:text-primary"
+            className="flex items-center gap-1 cursor-pointer hover:text-primary dark:hover:text-primary"
             onClick={handleHostClick}
           >
-            <UserIcon className="h-4 w-4" />
+            <UserIcon className="h-3.5 w-3.5" />
             <span>{visitor.host}</span>
           </div>
           
@@ -616,10 +647,10 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         </div>
         <div className="relative">
           <div 
-            className="flex items-center gap-2 cursor-pointer hover:text-primary dark:hover:text-primary"
+            className="flex items-center gap-1 cursor-pointer hover:text-primary dark:hover:text-primary"
             onClick={handleDurationClick}
           >
-            <CalendarIcon className="h-4 w-4" />
+            <CalendarIcon className="h-3.5 w-3.5" />
             {showDurationEdit ? (
               <input 
                 type="text" 
@@ -1294,7 +1325,7 @@ const VisitorManagement: React.FC = () => {
             
             {activeDragItem && (
               <DragOverlay>
-                <div className="opacity-80 rotate-3 w-80">
+                <div className="opacity-90 rotate-3 w-80 shadow-xl ring-4 ring-red-500/30">
                   <VisitorCard
                     visitor={activeDragItem}
                     onStatusChange={handleInlineStatusChange}
@@ -2119,15 +2150,17 @@ const BoardColumn: React.FC<BoardColumnProps> = ({ id, title, count, color, chil
       </div>
       <div 
         ref={setNodeRef}
-        className={`bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)] ${isOver ? 'bg-primary/10 transition-colors duration-200' : ''}`}
+        className={`bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)] ${
+          isOver ? 'bg-red-500/10 ring-2 ring-inset ring-red-500/30 transition-colors duration-200' : ''
+        }`}
       >
         {children}
         
         {/* Empty state feedback when dropping */}
         {isOver && !count && (
           <div className="flex items-center justify-center h-24 rounded-md">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-primary/20"></div>
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-red-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-red-500/20"></div>
             </div>
           </div>
         )}
