@@ -16,7 +16,8 @@ import {
   Circle,
   CalendarDays,
   Edit,
-  MessageSquare
+  MessageSquare,
+  ChevronDown
 } from 'lucide-react';
 import TicketCard from './TicketCard';
 import TicketDialog from './TicketDialog';
@@ -222,6 +223,12 @@ const BoardLane = ({
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+
+  // Get completed and incomplete tickets
+  const completedTickets = tickets.filter(ticket => ticket.completed);
+  const incompleteTickets = tickets.filter(ticket => !ticket.completed);
+  const hasCompletedTasks = completedTickets.length > 0;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -299,57 +306,66 @@ const BoardLane = ({
         )} 
         ref={setNodeRef}
       >
-        <SortableContext items={tickets.map(ticket => ticket.id)} strategy={verticalListSortingStrategy}>
-          {/* Regular tickets (not completed) */}
-          {tickets
-            .filter(ticket => !ticket.completed)
-            .map((ticket) => (
-              <TicketCard
-                key={ticket.id}
-                id={ticket.id}
-                title={ticket.title}
-                description={ticket.description}
-                assignee={ticket.assignee}
-                priority={ticket.priority}
-                dueDate={ticket.dueDate}
-                commentsCount={ticket.commentsCount}
-                status={ticket.status}
-                completed={ticket.completed}
-                onEdit={() => onEditTicket(ticket.id)}
-                onDelete={() => onDeleteTicket(ticket.id)}
-                onComplete={(id, completed) => onToggleComplete(id, completed)}
-              />
-            ))}
+        <SortableContext items={incompleteTickets.map(ticket => ticket.id)} strategy={verticalListSortingStrategy}>
+          {incompleteTickets.map((ticket) => (
+            <TicketCard
+              key={ticket.id}
+              id={ticket.id}
+              title={ticket.title}
+              description={ticket.description}
+              assignee={ticket.assignee}
+              priority={ticket.priority}
+              dueDate={ticket.dueDate}
+              commentsCount={ticket.commentsCount}
+              status={ticket.status}
+              completed={ticket.completed}
+              onEdit={() => onEditTicket(ticket.id)}
+              onDelete={() => onDeleteTicket(ticket.id)}
+              onComplete={onToggleComplete}
+            />
+          ))}
         </SortableContext>
         
-        {/* Completed tickets section */}
-        {tickets.some(ticket => ticket.completed) && (
+        {/* Completed tasks dropdown section */}
+        {hasCompletedTasks && (
           <div className="mt-4 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-medium text-muted-foreground">Completed tasks</h4>
-              <span className="text-xs text-muted-foreground">{tickets.filter(t => t.completed).length}</span>
-            </div>
-            <SortableContext items={tickets.filter(t => t.completed).map(t => t.id)} strategy={verticalListSortingStrategy}>
-              {tickets
-                .filter(ticket => ticket.completed)
-                .map((ticket) => (
-                  <TicketCard
-                    key={ticket.id}
-                    id={ticket.id}
-                    title={ticket.title}
-                    description={ticket.description}
-                    assignee={ticket.assignee}
-                    priority={ticket.priority}
-                    dueDate={ticket.dueDate}
-                    commentsCount={ticket.commentsCount}
-                    status={ticket.status}
-                    completed={ticket.completed}
-                    onEdit={() => onEditTicket(ticket.id)}
-                    onDelete={() => onDeleteTicket(ticket.id)}
-                    onComplete={(id, completed) => onToggleComplete(id, completed)}
-                  />
-                ))}
-            </SortableContext>
+            <button 
+              onClick={() => setShowCompletedTasks(prev => !prev)}
+              className="w-full flex items-center justify-between text-xs font-medium text-muted-foreground hover:text-foreground py-1 px-2 rounded hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center">
+                <CheckCircle className="h-3.5 w-3.5 mr-2 text-green-600" />
+                <span>Completed tasks</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-1.5">{completedTickets.length}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${showCompletedTasks ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+            
+            {showCompletedTasks && (
+              <div className="pt-2 space-y-3">
+                <SortableContext items={completedTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                  {completedTickets.map((ticket) => (
+                    <TicketCard
+                      key={ticket.id}
+                      id={ticket.id}
+                      title={ticket.title}
+                      description={ticket.description}
+                      assignee={ticket.assignee}
+                      priority={ticket.priority}
+                      dueDate={ticket.dueDate}
+                      commentsCount={ticket.commentsCount}
+                      status={ticket.status}
+                      completed={ticket.completed}
+                      onEdit={() => onEditTicket(ticket.id)}
+                      onDelete={() => onDeleteTicket(ticket.id)}
+                      onComplete={onToggleComplete}
+                    />
+                  ))}
+                </SortableContext>
+              </div>
+            )}
           </div>
         )}
         
@@ -468,6 +484,7 @@ const ListView: React.FC<{
             <tr className="border-b border-gray-200 dark:border-gray-700">
               <th className="text-xs font-medium text-left p-3 text-muted-foreground w-10"></th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Title</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground">Group Name</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Status</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Priority</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground whitespace-nowrap">Due Date</th>
@@ -551,6 +568,11 @@ const ListView: React.FC<{
                         {ticket.description}
                       </div>
                     )}
+                  </td>
+                  <td className="p-3">
+                    <div className="text-sm">
+                      {ticket.columnTitle}
+                    </div>
                   </td>
                   <td className="p-3">
                     <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", statusColor)}>
@@ -1209,34 +1231,41 @@ const TicketManager: React.FC = () => {
                   {filter.label}
                 </DropdownMenuCheckboxItem>
               ))}
+              {activeFilters.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400 font-medium"
+                    onClick={() => {
+                      // Reset all filters
+                      setFilters((prev) => {
+                        const newFilters = { ...prev };
+                        Object.keys(newFilters).forEach(filterType => {
+                          newFilters[filterType as keyof typeof filters].forEach(filter => {
+                            filter.checked = false;
+                          });
+                        });
+                        return newFilters;
+                      });
+                      setActiveFilters([]);
+                    }}
+                  >
+                    Reset Filters
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
-          {activeFilters.length > 0 && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                // Reset all filters
-                setFilters((prev) => {
-                  const newFilters = { ...prev };
-                  Object.keys(newFilters).forEach(filterType => {
-                    newFilters[filterType as keyof typeof filters].forEach(filter => {
-                      filter.checked = false;
-                    });
-                  });
-                  return newFilters;
-                });
-                setActiveFilters([]);
-              }}
-            >
-              Reset Filter
-            </Button>
-          )}
           <Button 
             variant="outline" 
             size="sm"
             className="border-dashed"
-            onClick={() => setIsAddingGroup(true)}
+            onClick={() => {
+              setIsAddingGroup(true);
+              if (viewMode !== 'board') {
+                setViewMode('board');
+              }
+            }}
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Group
@@ -1324,7 +1353,12 @@ const TicketManager: React.FC = () => {
                 <Button
                   variant="outline"
                   className="h-auto flex-shrink-0 w-80 border-dashed py-3 bg-muted/20 dark:bg-muted/10 hover:bg-muted/30 dark:hover:bg-muted/20"
-                  onClick={() => setIsAddingGroup(true)}
+                  onClick={() => {
+                    setIsAddingGroup(true);
+                    if (viewMode !== 'board') {
+                      setViewMode('board');
+                    }
+                  }}
                 >
                   <Plus className="mr-2 h-5 w-5" />
                   Add New Group

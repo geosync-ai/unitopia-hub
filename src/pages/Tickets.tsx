@@ -113,7 +113,10 @@ const Tickets: React.FC = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <img src="/images/SCPNG Original Logo.png" alt="SCPNG Logo" className="h-8" />
-            <h1 className="text-2xl font-bold ml-1">Support Ticketing System</h1>
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold ml-1">Support Ticketing System</h1>
+              <p className="text-sm text-red-600 font-medium ml-1">FRONT DESK TICKETING SYSTEM</p>
+            </div>
           </div>
           
           <div className="flex items-center gap-3">
