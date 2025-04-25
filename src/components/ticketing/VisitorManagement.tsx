@@ -347,6 +347,36 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
     };
   }, [showDropdown, showStatusDropdown, showHostDropdown, showTimeEdit, showDurationEdit]);
 
+  // Fix time input pre-filling
+  useEffect(() => {
+    if (showTimeEdit) {
+      // Convert time string to input format (HH:MM)
+      let timeForInput = visitor.time;
+      
+      // If it's in format like "10:15 AM", convert to 24-hour format
+      if (visitor.time.includes('AM') || visitor.time.includes('PM')) {
+        const timeParts = visitor.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (timeParts) {
+          let hours = parseInt(timeParts[1]);
+          const minutes = timeParts[2];
+          const period = timeParts[3].toUpperCase();
+          
+          // Convert to 24-hour format
+          if (period === 'PM' && hours < 12) {
+            hours += 12;
+          } else if (period === 'AM' && hours === 12) {
+            hours = 0;
+          }
+          
+          // Format with leading zeros
+          timeForInput = `${hours.toString().padStart(2, '0')}:${minutes}`;
+        }
+      }
+      
+      setEditableTime(timeForInput);
+    }
+  }, [showTimeEdit, visitor.time]);
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-800 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
       <div className="flex justify-between mb-4">
@@ -400,7 +430,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
             </button>
             
             {showDropdown && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100]">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
                 {visitor.status === 'scheduled' && (
                   <button 
                     className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -440,7 +470,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </span>
           
           {showStatusDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100]">
+            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
               <button 
                 className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                 onClick={() => {
@@ -518,7 +548,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </div>
           
           {showHostDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100] max-h-40 overflow-y-auto">
+            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200] max-h-40 overflow-y-auto">
               {hostOptions.map((host) => (
                 <button 
                   key={host}
@@ -563,7 +593,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
 // Main VisitorManagement component
 const VisitorManagement: React.FC = () => {
   type TabId = 'all' | 'today' | VisitorStatus;
-  type ViewMode = 'grid' | 'list';
+  type ViewMode = 'grid' | 'list' | 'board';
   
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -574,6 +604,10 @@ const VisitorManagement: React.FC = () => {
   const [visitorToDelete, setVisitorToDelete] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
   
   // Form state for adding a new visitor
   const [newVisitor, setNewVisitor] = useState<Partial<Visitor>>({
@@ -906,7 +940,41 @@ const VisitorManagement: React.FC = () => {
     { id: 'checked-out', label: 'Checked Out' }
   ];
 
-  // Render visitor list based on selected view mode
+  // Calculate total pages for pagination
+  const calculateTotalPages = () => {
+    return Math.ceil(filteredVisitors.length / itemsPerPage);
+  };
+  
+  // Get paginated visitors
+  const getPaginatedVisitors = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredVisitors.slice(startIndex, endIndex);
+  };
+
+  // Close all dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dateRangeRef.current && !dateRangeRef.current.contains(e.target as Node)) {
+        setDateRangeOpen(false);
+      }
+      if (statusFilterRef.current && !statusFilterRef.current.contains(e.target as Node)) {
+        setStatusFilterOpen(false);
+      }
+      if (companyFilterRef.current && !companyFilterRef.current.contains(e.target as Node)) {
+        setCompanyFilterOpen(false);
+      }
+      if (hostFilterRef.current && !hostFilterRef.current.contains(e.target as Node)) {
+        setHostFilterOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const renderVisitorList = () => {
     if (filteredVisitors.length === 0) {
       return (
@@ -922,9 +990,314 @@ const VisitorManagement: React.FC = () => {
       );
     }
 
+    const paginatedVisitors = viewMode === 'board' ? filteredVisitors : getPaginatedVisitors();
+
     switch (viewMode) {
+      case 'board':
+        // Board view - organize visitors by status in columns
+        const scheduledVisitors = filteredVisitors.filter(v => v.status === 'scheduled');
+        const checkedInVisitors = filteredVisitors.filter(v => v.status === 'checked-in');
+        const checkedOutVisitors = filteredVisitors.filter(v => v.status === 'checked-out');
+        const noShowVisitors = filteredVisitors.filter(v => v.status === 'no-show');
+        
+        return (
+          <div className="flex gap-4 overflow-x-auto pb-6">
+            {/* Scheduled Column */}
+            <div className="flex-shrink-0 w-80">
+              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium text-blue-600 dark:text-blue-400 flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                    Scheduled
+                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
+                      {scheduledVisitors.length}
+                    </span>
+                  </h3>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
+                <div className="flex flex-col gap-2">
+                  {scheduledVisitors.map(visitor => (
+                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+                      <div className="flex justify-between mb-2">
+                        <div className="flex gap-2 items-center">
+                          {visitor.photoUrl ? (
+                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                              <img 
+                                src={visitor.photoUrl} 
+                                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                              {visitor.initials}
+                            </div>
+                          )}
+                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleEditVisitor(visitor.id)}
+                          >
+                            <PencilIcon className="h-3 w-3 text-gray-500" />
+                          </button>
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleDeleteVisitor(visitor.id)}
+                          >
+                            <Trash2Icon className="h-3 w-3 text-gray-500" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        <div className="flex justify-between mb-1">
+                          <span>{visitor.company}</span>
+                          <span>{visitor.time}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <UserIcon className="h-3 w-3 mr-1" />
+                          <span>{visitor.host}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* Checked In Column */}
+            <div className="flex-shrink-0 w-80">
+              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium text-green-600 dark:text-green-400 flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                    Checked In
+                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
+                      {checkedInVisitors.length}
+                    </span>
+                  </h3>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
+                <div className="flex flex-col gap-2">
+                  {checkedInVisitors.map(visitor => (
+                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+                      <div className="flex justify-between mb-2">
+                        <div className="flex gap-2 items-center">
+                          {visitor.photoUrl ? (
+                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                              <img 
+                                src={visitor.photoUrl} 
+                                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                              {visitor.initials}
+                            </div>
+                          )}
+                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleEditVisitor(visitor.id)}
+                          >
+                            <PencilIcon className="h-3 w-3 text-gray-500" />
+                          </button>
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleDeleteVisitor(visitor.id)}
+                          >
+                            <Trash2Icon className="h-3 w-3 text-gray-500" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        <div className="flex justify-between mb-1">
+                          <span>{visitor.company}</span>
+                          <span>{visitor.time}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <UserIcon className="h-3 w-3 mr-1" />
+                          <span>{visitor.host}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* Checked Out Column */}
+            <div className="flex-shrink-0 w-80">
+              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium text-gray-600 dark:text-gray-400 flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                    Checked Out
+                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
+                      {checkedOutVisitors.length}
+                    </span>
+                  </h3>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
+                <div className="flex flex-col gap-2">
+                  {checkedOutVisitors.map(visitor => (
+                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+                      <div className="flex justify-between mb-2">
+                        <div className="flex gap-2 items-center">
+                          {visitor.photoUrl ? (
+                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                              <img 
+                                src={visitor.photoUrl} 
+                                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                              {visitor.initials}
+                            </div>
+                          )}
+                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleEditVisitor(visitor.id)}
+                          >
+                            <PencilIcon className="h-3 w-3 text-gray-500" />
+                          </button>
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleDeleteVisitor(visitor.id)}
+                          >
+                            <Trash2Icon className="h-3 w-3 text-gray-500" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        <div className="flex justify-between mb-1">
+                          <span>{visitor.company}</span>
+                          <span>{visitor.time}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <UserIcon className="h-3 w-3 mr-1" />
+                          <span>{visitor.host}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* No Show Column */}
+            <div className="flex-shrink-0 w-80">
+              <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-t-lg border border-gray-200 dark:border-gray-800">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium text-red-600 dark:text-red-400 flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                    No Show
+                    <span className="ml-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full px-2 py-0.5">
+                      {noShowVisitors.length}
+                    </span>
+                  </h3>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-800 min-h-[calc(100vh-250px)]">
+                <div className="flex flex-col gap-2">
+                  {noShowVisitors.map(visitor => (
+                    <div key={visitor.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+                      <div className="flex justify-between mb-2">
+                        <div className="flex gap-2 items-center">
+                          {visitor.photoUrl ? (
+                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                              <img 
+                                src={visitor.photoUrl} 
+                                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold bg-primary/10 text-primary";
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                              {visitor.initials}
+                            </div>
+                          )}
+                          <span className="font-medium text-sm">{visitor.firstName} {visitor.lastName}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleEditVisitor(visitor.id)}
+                          >
+                            <PencilIcon className="h-3 w-3 text-gray-500" />
+                          </button>
+                          <button 
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleDeleteVisitor(visitor.id)}
+                          >
+                            <Trash2Icon className="h-3 w-3 text-gray-500" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        <div className="flex justify-between mb-1">
+                          <span>{visitor.company}</span>
+                          <span>{visitor.time}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <UserIcon className="h-3 w-3 mr-1" />
+                          <span>{visitor.host}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+        
       case 'list':
-        // List view - more compact rows
+        // List view - rows with pagination
         return (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -939,7 +1312,7 @@ const VisitorManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredVisitors.map(visitor => {
+                {paginatedVisitors.map(visitor => {
                   const StatusCell = () => {
                     const [showDropdown, setShowDropdown] = useState(false);
                     const statusRef = useRef<HTMLDivElement>(null);
@@ -976,7 +1349,7 @@ const VisitorManagement: React.FC = () => {
                           </span>
                           
                           {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100]">
+                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
                               <button 
                                 className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                                 onClick={() => {
@@ -1026,8 +1399,38 @@ const VisitorManagement: React.FC = () => {
                   
                   const TimeCell = () => {
                     const [isEditing, setIsEditing] = useState(false);
-                    const [timeValue, setTimeValue] = useState(visitor.time);
+                    const [timeValue, setTimeValue] = useState('');
                     const timeRef = useRef<HTMLDivElement>(null);
+                    
+                    // Pre-fill time when editing starts
+                    useEffect(() => {
+                      if (isEditing) {
+                        // Convert time string to input format (HH:MM)
+                        let timeForInput = visitor.time;
+                        
+                        // If it's in format like "10:15 AM", convert to 24-hour format
+                        if (visitor.time.includes('AM') || visitor.time.includes('PM')) {
+                          const timeParts = visitor.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                          if (timeParts) {
+                            let hours = parseInt(timeParts[1]);
+                            const minutes = timeParts[2];
+                            const period = timeParts[3].toUpperCase();
+                            
+                            // Convert to 24-hour format
+                            if (period === 'PM' && hours < 12) {
+                              hours += 12;
+                            } else if (period === 'AM' && hours === 12) {
+                              hours = 0;
+                            }
+                            
+                            // Format with leading zeros
+                            timeForInput = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                          }
+                        }
+                        
+                        setTimeValue(timeForInput);
+                      }
+                    }, [isEditing, visitor.time]);
                     
                     useEffect(() => {
                       const handleClickOutside = (e: MouseEvent) => {
@@ -1117,7 +1520,7 @@ const VisitorManagement: React.FC = () => {
                           </span>
                           
                           {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100] max-h-40 overflow-y-auto">
+                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200] max-h-40 overflow-y-auto">
                               {hostOptions.map((host) => (
                                 <button 
                                   key={host}
@@ -1251,10 +1654,10 @@ const VisitorManagement: React.FC = () => {
         
       case 'grid':
       default:
-        // Grid view (default) - cards layout
+        // Grid view - cards layout with pagination
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {filteredVisitors.map((visitor) => (
+            {paginatedVisitors.map((visitor) => (
               <VisitorCard 
                 key={visitor.id} 
                 visitor={visitor} 
@@ -1271,31 +1674,8 @@ const VisitorManagement: React.FC = () => {
     }
   };
 
-  // Close all dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dateRangeRef.current && !dateRangeRef.current.contains(e.target as Node)) {
-        setDateRangeOpen(false);
-      }
-      if (statusFilterRef.current && !statusFilterRef.current.contains(e.target as Node)) {
-        setStatusFilterOpen(false);
-      }
-      if (companyFilterRef.current && !companyFilterRef.current.contains(e.target as Node)) {
-        setCompanyFilterOpen(false);
-      }
-      if (hostFilterRef.current && !hostFilterRef.current.contains(e.target as Node)) {
-        setHostFilterOpen(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   return (
-    <div className="p-4">
+    <div className="p-4 bg-[#fdfafa] dark:bg-gray-950 min-h-screen">
       <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-4">
         <div className="flex items-center space-x-3">
           {/* Date Range Filter */}
@@ -1392,57 +1772,56 @@ const VisitorManagement: React.FC = () => {
             
             {statusFilterOpen && (
               <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50">
-                <div className="py-1">
-                  <button 
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'all' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setStatusFilterOpen(false);
-                    }}
-                  >
-                    All Statuses
-                  </button>
-                  <button 
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'scheduled' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                    onClick={() => {
-                      setStatusFilter('scheduled');
-                      setStatusFilterOpen(false);
-                    }}
-                  >
-                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
-                    Scheduled
-                  </button>
-                  <button 
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'checked-in' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                    onClick={() => {
-                      setStatusFilter('checked-in');
-                      setStatusFilterOpen(false);
-                    }}
-                  >
-                    <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
-                    Checked In
-                  </button>
-                  <button 
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'checked-out' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                    onClick={() => {
-                      setStatusFilter('checked-out');
-                      setStatusFilterOpen(false);
-                    }}
-                  >
-                    <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
-                    Checked Out
-                  </button>
-                  <button 
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'no-show' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                    onClick={() => {
-                      setStatusFilter('no-show');
-                      setStatusFilterOpen(false);
-                    }}
-                  >
-                    <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
-                    No Show
-                  </button>
-                </div>
+                <button 
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'all' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setStatusFilterOpen(false);
+                  }}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                  All Statuses
+                </button>
+                <button 
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'scheduled' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                  onClick={() => {
+                    setStatusFilter('scheduled');
+                    setStatusFilterOpen(false);
+                  }}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                  Scheduled
+                </button>
+                <button 
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'checked-in' ? 'bg-green-50 dark:bg-green-900/30' : ''}`}
+                  onClick={() => {
+                    setStatusFilter('checked-in');
+                    setStatusFilterOpen(false);
+                  }}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                  Checked In
+                </button>
+                <button 
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'checked-out' ? 'bg-gray-50 dark:bg-gray-700/50' : ''}`}
+                  onClick={() => {
+                    setStatusFilter('checked-out');
+                    setStatusFilterOpen(false);
+                  }}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                  Checked Out
+                </button>
+                <button 
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'no-show' ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
+                  onClick={() => {
+                    setStatusFilter('no-show');
+                    setStatusFilterOpen(false);
+                  }}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                  No Show
+                </button>
               </div>
             )}
           </div>
@@ -1486,7 +1865,8 @@ const VisitorManagement: React.FC = () => {
                     <button 
                       key={company}
                       className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${companyFilter === company ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setCompanyFilter(company);
                         setCompanyFilterOpen(false);
                       }}
@@ -1527,8 +1907,9 @@ const VisitorManagement: React.FC = () => {
                 <div className="py-1">
                   <button 
                     className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${hostFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                    onClick={() => {
-                      setHostFilter('');
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHostFilter(hostFilter);
                       setHostFilterOpen(false);
                     }}
                   >
@@ -1538,7 +1919,8 @@ const VisitorManagement: React.FC = () => {
                     <button 
                       key={host}
                       className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${hostFilter === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setHostFilter(host);
                         setHostFilterOpen(false);
                       }}
@@ -1595,6 +1977,32 @@ const VisitorManagement: React.FC = () => {
 
           <div className="flex items-center border rounded-md bg-white dark:bg-gray-800">
             <Button
+              variant={viewMode === "board" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("board")}
+              className="h-8 px-2"
+            >
+              <div className="flex items-center">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                Board
+              </div>
+            </Button>
+            <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+            <Button
               variant={viewMode === "grid" ? "default" : "ghost"}
               size="sm"
               onClick={() => setViewMode("grid")}
@@ -1619,19 +2027,71 @@ const VisitorManagement: React.FC = () => {
 
       {renderVisitorList()}
 
-      <div className="flex justify-center gap-2 mt-8">
-        <Button variant="outline" size="icon" className="w-8 h-8 rounded-full">
-          &lt;
-        </Button>
-        <Button size="sm" className="w-8 h-8 rounded-full">1</Button>
-        <Button variant="outline" size="sm" className="w-8 h-8 rounded-full">2</Button>
-        <Button variant="outline" size="sm" className="w-8 h-8 rounded-full">3</Button>
-        <Button variant="outline" size="sm" disabled className="w-8 h-8 rounded-full">...</Button>
-        <Button variant="outline" size="sm" className="w-8 h-8 rounded-full">10</Button>
-        <Button variant="outline" size="icon" className="w-8 h-8 rounded-full">
-          &gt;
-        </Button>
-      </div>
+      {/* Pagination - show only for grid and list views */}
+      {viewMode !== 'board' && filteredVisitors.length > 0 && (
+        <div className="flex justify-center gap-2 mt-8">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="w-8 h-8 rounded-full"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          >
+            &lt;
+          </Button>
+          
+          {Array.from({ length: Math.min(calculateTotalPages(), 5) }).map((_, i) => {
+            let pageNum: number;
+            
+            // Logic to show current page in the middle when possible
+            if (calculateTotalPages() <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= calculateTotalPages() - 2) {
+              pageNum = calculateTotalPages() - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+            
+            return (
+              <Button 
+                key={pageNum}
+                variant={currentPage === pageNum ? "default" : "outline"} 
+                size="sm" 
+                className="w-8 h-8 rounded-full"
+                onClick={() => setCurrentPage(pageNum)}
+              >
+                {pageNum}
+              </Button>
+            );
+          })}
+          
+          {calculateTotalPages() > 5 && currentPage < calculateTotalPages() - 2 && (
+            <>
+              <Button variant="outline" size="sm" disabled className="w-8 h-8 rounded-full">...</Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-8 h-8 rounded-full"
+                onClick={() => setCurrentPage(calculateTotalPages())}
+              >
+                {calculateTotalPages()}
+              </Button>
+            </>
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="w-8 h-8 rounded-full"
+            disabled={currentPage === calculateTotalPages()}
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, calculateTotalPages()))}
+          >
+            &gt;
+          </Button>
+        </div>
+      )}
 
       {/* Add Visitor Modal */}
       <Dialog open={showAddVisitorModal} onOpenChange={setShowAddVisitorModal}>
@@ -1844,12 +2304,9 @@ const VisitorManagement: React.FC = () => {
                   <SelectValue placeholder="Select a host" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="alice">Alice Smith</SelectItem>
-                  <SelectItem value="robert">Robert Chen</SelectItem>
-                  <SelectItem value="jennifer">Jennifer Lee</SelectItem>
-                  <SelectItem value="david">David Miller</SelectItem>
-                  <SelectItem value="sophia">Sophia Garcia</SelectItem>
-                  <SelectItem value="kevin">Kevin Wong</SelectItem>
+                  {uniqueHosts.map(host => (
+                    <SelectItem key={host} value={host}>{host}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {formErrors.host && (
