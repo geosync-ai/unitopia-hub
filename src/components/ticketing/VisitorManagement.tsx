@@ -74,6 +74,7 @@ interface Visitor {
   notes?: string;
   visitDate?: string;
   photoUrl?: string; // New field for visitor photo or company logo
+  assignees?: string[]; // New field for assignees
 }
 
 // Sample visitor data for demonstration
@@ -88,7 +89,8 @@ const sampleVisitors: Visitor[] = [
     host: 'Alice Smith',
     duration: '1h 45m',
     initials: 'JD',
-    photoUrl: '/images/visitors/john-doe.jpg' // Sample photo URL
+    photoUrl: '/images/visitors/john-doe.jpg', // Sample photo URL
+    assignees: ['Alice Smith']
   },
   {
     id: 2,
@@ -100,7 +102,8 @@ const sampleVisitors: Visitor[] = [
     host: 'Robert Chen',
     duration: 'Today',
     initials: 'SJ',
-    photoUrl: '/images/companies/tech-innovations.png' // Sample company logo
+    photoUrl: '/images/companies/tech-innovations.png', // Sample company logo
+    assignees: ['Robert Chen']
   },
   {
     id: 3,
@@ -111,7 +114,8 @@ const sampleVisitors: Visitor[] = [
     time: '11:45 AM',
     host: 'Jennifer Lee',
     duration: '45m',
-    initials: 'MP'
+    initials: 'MP',
+    assignees: ['Jennifer Lee']
   },
   {
     id: 4,
@@ -123,7 +127,8 @@ const sampleVisitors: Visitor[] = [
     host: 'David Miller',
     duration: 'Today',
     initials: 'EW',
-    photoUrl: '/images/visitors/emma-wilson.jpg'
+    photoUrl: '/images/visitors/emma-wilson.jpg',
+    assignees: ['David Miller']
   },
   {
     id: 5,
@@ -134,7 +139,8 @@ const sampleVisitors: Visitor[] = [
     time: '9:30 AM',
     host: 'Sophia Garcia',
     duration: 'Today',
-    initials: 'TB'
+    initials: 'TB',
+    assignees: ['Sophia Garcia']
   },
   {
     id: 6,
@@ -146,7 +152,8 @@ const sampleVisitors: Visitor[] = [
     host: 'Kevin Wong',
     duration: '35m',
     initials: 'LM',
-    photoUrl: '/images/companies/healthcare-solutions.png'
+    photoUrl: '/images/companies/healthcare-solutions.png',
+    assignees: ['Kevin Wong']
   }
 ];
 
@@ -219,19 +226,39 @@ const getStatusLabel = (status: VisitorStatus) => {
 };
 
 // Component for each visitor card
-const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange }: { 
+const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange }: { 
   visitor: Visitor, 
   onStatusChange: (id: number, status: VisitorStatus) => void,
   onEdit: (id: number) => void,
   onDelete: (id: number) => void,
   onHostChange: (id: number, host: string) => void,
-  onTimeChange: (id: number, time: string) => void
+  onTimeChange: (id: number, time: string) => void,
+  onDurationChange: (id: number, duration: string) => void
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showHostDropdown, setShowHostDropdown] = useState(false);
   const [showTimeEdit, setShowTimeEdit] = useState(false);
+  const [showDurationEdit, setShowDurationEdit] = useState(false);
   const [editableTime, setEditableTime] = useState(visitor.time);
+  const [editableDuration, setEditableDuration] = useState(visitor.duration);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDropdown]);
   
   const getStatusClass = (status: VisitorStatus) => {
     switch (status) {
@@ -258,6 +285,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
     setShowStatusDropdown(false);
     setShowHostDropdown(false);
     setShowTimeEdit(false);
+    setShowDurationEdit(false);
   };
   
   const handleStatusClick = (e: React.MouseEvent) => {
@@ -275,14 +303,29 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
     setShowTimeEdit(!showTimeEdit);
   };
   
+  const handleDurationClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDurationEdit(!showDurationEdit);
+  };
+  
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditableTime(e.target.value);
+  };
+  
+  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditableDuration(e.target.value);
   };
   
   const handleTimeSubmit = () => {
     // Update the time
     onTimeChange(visitor.id, editableTime);
     setShowTimeEdit(false);
+  };
+  
+  const handleDurationSubmit = () => {
+    // Update the duration
+    onDurationChange(visitor.id, editableDuration);
+    setShowDurationEdit(false);
   };
   
   // Host options for dropdown
@@ -296,13 +339,13 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   ];
   
   useEffect(() => {
-    if (showDropdown || showStatusDropdown || showHostDropdown || showTimeEdit) {
+    if (showDropdown || showStatusDropdown || showHostDropdown || showTimeEdit || showDurationEdit) {
       document.addEventListener('click', handleOutsideClick);
     }
     return () => {
       document.removeEventListener('click', handleOutsideClick);
     };
-  }, [showDropdown, showStatusDropdown, showHostDropdown, showTimeEdit]);
+  }, [showDropdown, showStatusDropdown, showHostDropdown, showTimeEdit, showDurationEdit]);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-800 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
@@ -332,24 +375,24 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
             <p className="text-gray-500 dark:text-gray-400 text-sm">{visitor.company}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 items-start">
           <button 
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
             title="Edit"
             onClick={() => onEdit(visitor.id)}
           >
             <PencilIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           </button>
           <button 
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
             title="Delete"
             onClick={() => onDelete(visitor.id)}
           >
-            <Trash2Icon className="h-4 w-4 text-red-500 dark:text-red-400" />
+            <Trash2Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           </button>
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button 
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
               title="More"
               onClick={handleActionClick}
             >
@@ -357,7 +400,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
             </button>
             
             {showDropdown && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100]">
                 {visitor.status === 'scheduled' && (
                   <button 
                     className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -382,12 +425,6 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
                     Mark as No-Show
                   </button>
                 )}
-                <button 
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                  onClick={(e) => {e.stopPropagation(); onEdit(visitor.id);}}
-                >
-                  {visitor.photoUrl ? "Change Photo" : "Add Photo"}
-                </button>
               </div>
             )}
           </div>
@@ -403,7 +440,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </span>
           
           {showStatusDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100]">
               <button 
                 className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                 onClick={() => {
@@ -481,7 +518,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </div>
           
           {showHostDropdown && (
-            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-40 overflow-y-auto">
+            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100] max-h-40 overflow-y-auto">
               {hostOptions.map((host) => (
                 <button 
                   key={host}
@@ -498,9 +535,25 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-4 w-4" />
-          <span>{formatDuration(visitor)}</span>
+        <div className="relative">
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:text-primary"
+            onClick={handleDurationClick}
+          >
+            <CalendarIcon className="h-4 w-4" />
+            {showDurationEdit ? (
+              <input 
+                type="text" 
+                value={editableDuration}
+                onChange={handleDurationChange}
+                className="w-24 text-xs p-1 border rounded"
+                onBlur={handleDurationSubmit}
+                autoFocus
+              />
+            ) : (
+              <span>{formatDuration(visitor)}</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -535,7 +588,8 @@ const VisitorManagement: React.FC = () => {
     host: '',
     notes: '',
     status: 'scheduled',
-    photoUrl: ''
+    photoUrl: '',
+    assignees: []
   });
   
   // Form validation
@@ -552,6 +606,19 @@ const VisitorManagement: React.FC = () => {
   const statusFilterRef = useRef<HTMLDivElement>(null);
   const companyFilterRef = useRef<HTMLDivElement>(null);
   const hostFilterRef = useRef<HTMLDivElement>(null);
+  
+  // All staff members for assignee selection
+  const allStaffMembers = [
+    "Alice Smith",
+    "Robert Chen",
+    "Jennifer Lee",
+    "David Miller",
+    "Sophia Garcia",
+    "Kevin Wong",
+    "John Thompson",
+    "Maria Rodriguez",
+    "Ahmed Khan"
+  ];
   
   // Filter values
   const [dateFilter, setDateFilter] = useState<{from?: Date; to?: Date}>({});
@@ -673,7 +740,8 @@ const VisitorManagement: React.FC = () => {
         purpose: newVisitor.purpose,
         notes: newVisitor.notes,
         visitDate: newVisitor.visitDate,
-        photoUrl: newVisitor.photoUrl
+        photoUrl: newVisitor.photoUrl,
+        assignees: newVisitor.assignees || []
       };
       
       if (newVisitor.id) {
@@ -697,7 +765,8 @@ const VisitorManagement: React.FC = () => {
         host: '',
         notes: '',
         status: 'scheduled',
-        photoUrl: ''
+        photoUrl: '',
+        assignees: []
       });
       
       setSelectedFile(null);
@@ -737,6 +806,17 @@ const VisitorManagement: React.FC = () => {
       prevVisitors.map(visitor =>
         visitor.id === id
           ? { ...visitor, time }
+          : visitor
+      )
+    );
+  };
+
+  // Add a new handler for duration changes
+  const handleInlineDurationChange = (id: number, duration: string) => {
+    setVisitors(prevVisitors =>
+      prevVisitors.map(visitor =>
+        visitor.id === id
+          ? { ...visitor, duration }
           : visitor
       )
     );
@@ -896,7 +976,7 @@ const VisitorManagement: React.FC = () => {
                           </span>
                           
                           {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50">
+                            <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100]">
                               <button 
                                 className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                                 onClick={() => {
@@ -1037,12 +1117,13 @@ const VisitorManagement: React.FC = () => {
                           </span>
                           
                           {showDropdown && (
-                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-40 overflow-y-auto">
+                            <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[100] max-h-40 overflow-y-auto">
                               {hostOptions.map((host) => (
                                 <button 
                                   key={host}
                                   className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${visitor.host === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     handleInlineHostChange(visitor.id, host);
                                     setShowDropdown(false);
                                   }}
@@ -1057,12 +1138,65 @@ const VisitorManagement: React.FC = () => {
                     );
                   };
                   
+                  const DurationCell = () => {
+                    const [isEditing, setIsEditing] = useState(false);
+                    const [durationValue, setDurationValue] = useState(visitor.duration);
+                    const durationRef = useRef<HTMLDivElement>(null);
+                    
+                    useEffect(() => {
+                      const handleClickOutside = (e: MouseEvent) => {
+                        if (durationRef.current && !durationRef.current.contains(e.target as Node)) {
+                          if (isEditing) {
+                            handleSave();
+                          }
+                        }
+                      };
+                      
+                      if (isEditing) {
+                        document.addEventListener('mousedown', handleClickOutside);
+                      }
+                      
+                      return () => {
+                        document.removeEventListener('mousedown', handleClickOutside);
+                      };
+                    }, [isEditing]);
+                    
+                    const handleSave = () => {
+                      handleInlineDurationChange(visitor.id, durationValue);
+                      setIsEditing(false);
+                    };
+                    
+                    return (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <div className="relative" ref={durationRef}>
+                          {isEditing ? (
+                            <input 
+                              type="text" 
+                              value={durationValue}
+                              onChange={(e) => setDurationValue(e.target.value)}
+                              onBlur={handleSave}
+                              autoFocus
+                              className="w-24 text-xs p-1 border rounded"
+                            />
+                          ) : (
+                            <span 
+                              className="cursor-pointer hover:text-primary"
+                              onClick={() => setIsEditing(true)}
+                            >
+                              {formatDuration(visitor)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  };
+                  
                   return (
                     <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           {visitor.photoUrl ? (
-                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden mr-3 flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mr-3 flex-shrink-0">
                               <img 
                                 src={visitor.photoUrl} 
                                 alt={`${visitor.firstName} ${visitor.lastName}`} 
@@ -1088,24 +1222,24 @@ const VisitorManagement: React.FC = () => {
                       <StatusCell />
                       <TimeCell />
                       <HostCell />
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDuration(visitor)}
-                      </td>
+                      <DurationCell />
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
-                          onClick={() => handleEditVisitor(visitor.id)}
-                          title="Edit"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 ml-2"
-                          onClick={() => handleDeleteVisitor(visitor.id)}
-                          title="Delete"
-                        >
-                          <Trash2Icon className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button 
+                            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-1"
+                            onClick={() => handleEditVisitor(visitor.id)}
+                            title="Edit"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button 
+                            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-1"
+                            onClick={() => handleDeleteVisitor(visitor.id)}
+                            title="Delete"
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1129,6 +1263,7 @@ const VisitorManagement: React.FC = () => {
                 onDelete={handleDeleteVisitor}
                 onHostChange={handleInlineHostChange}
                 onTimeChange={handleInlineTimeChange}
+                onDurationChange={handleInlineDurationChange}
               />
             ))}
           </div>
@@ -1639,35 +1774,65 @@ const VisitorManagement: React.FC = () => {
                 <p className="text-red-500 text-xs mt-1">{formErrors.purpose}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="visitDate">Visit Date*</Label>
-                <Input 
-                  id="visitDate" 
-                  type="date" 
-                  required 
-                  value={newVisitor.visitDate} 
-                  onChange={handleInputChange}
-                  className={formErrors.visitDate ? "border-red-500" : ""}
-                />
-                {formErrors.visitDate && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.visitDate}</p>
-                )}
+            <div className="space-y-2">
+              <Label htmlFor="assignees">Assignee(s)</Label>
+              <div className="border rounded-md p-2 bg-white dark:bg-gray-800 max-h-32 overflow-y-auto">
+                {allStaffMembers.map(staff => (
+                  <div key={staff} className="flex items-center mb-1">
+                    <input 
+                      type="checkbox" 
+                      id={`assignee-${staff}`}
+                      checked={newVisitor.assignees?.includes(staff) || false}
+                      onChange={e => {
+                        const isChecked = e.target.checked;
+                        setNewVisitor(prev => {
+                          const currentAssignees = prev.assignees || [];
+                          if (isChecked) {
+                            return { ...prev, assignees: [...currentAssignees, staff] };
+                          } else {
+                            return { ...prev, assignees: currentAssignees.filter(a => a !== staff) };
+                          }
+                        });
+                      }}
+                      className="mr-2"
+                    />
+                    <label htmlFor={`assignee-${staff}`} className="text-sm">
+                      {staff}
+                    </label>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="time">Visit Time*</Label>
-                <Input 
-                  id="time" 
-                  type="time" 
-                  required 
-                  value={newVisitor.time} 
-                  onChange={handleInputChange}
-                  className={formErrors.time ? "border-red-500" : ""}
-                />
-                {formErrors.time && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.time}</p>
-                )}
-              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Select staff member(s) who should be notified about this visitor.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="visitDate">Visit Date*</Label>
+              <Input 
+                id="visitDate" 
+                type="date" 
+                required 
+                value={newVisitor.visitDate} 
+                onChange={handleInputChange}
+                className={formErrors.visitDate ? "border-red-500" : ""}
+              />
+              {formErrors.visitDate && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.visitDate}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="time">Visit Time*</Label>
+              <Input 
+                id="time" 
+                type="time" 
+                required 
+                value={newVisitor.time} 
+                onChange={handleInputChange}
+                className={formErrors.time ? "border-red-500" : ""}
+              />
+              {formErrors.time && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.time}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="host">Host*</Label>
