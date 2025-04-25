@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -305,11 +305,11 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   }, [showDropdown, showStatusDropdown, showHostDropdown, showTimeEdit]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-700 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
+    <div className="bg-white dark:bg-gray-900 rounded-lg p-5 shadow-md border border-gray-100 dark:border-gray-800 transition-transform hover:translate-y-[-5px] hover:shadow-lg">
       <div className="flex justify-between mb-4">
         <div className="flex gap-3">
           {visitor.photoUrl ? (
-            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
               <img 
                 src={visitor.photoUrl} 
                 alt={`${visitor.firstName} ${visitor.lastName}`} 
@@ -328,20 +328,20 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
             </div>
           )}
           <div>
-            <h3 className="font-medium text-base">{visitor.firstName} {visitor.lastName}</h3>
+            <h3 className="font-medium text-base text-gray-900 dark:text-gray-100">{visitor.firstName} {visitor.lastName}</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">{visitor.company}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button 
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
             title="Edit"
             onClick={() => onEdit(visitor.id)}
           >
             <PencilIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           </button>
           <button 
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
             title="Delete"
             onClick={() => onDelete(visitor.id)}
           >
@@ -349,7 +349,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
           </button>
           <div className="relative">
             <button 
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
               title="More"
               onClick={handleActionClick}
             >
@@ -540,6 +540,35 @@ const VisitorManagement: React.FC = () => {
   
   // Form validation
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Add filter states
+  const [dateRangeOpen, setDateRangeOpen] = useState(false);
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+  const [companyFilterOpen, setCompanyFilterOpen] = useState(false);
+  const [hostFilterOpen, setHostFilterOpen] = useState(false);
+  
+  // Filter values
+  const [dateFilter, setDateFilter] = useState<{from?: Date; to?: Date}>({});
+  const [statusFilter, setStatusFilter] = useState<VisitorStatus | 'all'>('all');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [hostFilter, setHostFilter] = useState('');
+  
+  // Get unique companies and hosts for filters
+  const uniqueCompanies = useMemo(() => {
+    const companies = new Set<string>();
+    visitors.forEach(visitor => {
+      if (visitor.company) companies.add(visitor.company);
+    });
+    return Array.from(companies);
+  }, [visitors]);
+  
+  const uniqueHosts = useMemo(() => {
+    const hosts = new Set<string>();
+    visitors.forEach(visitor => {
+      if (visitor.host) hosts.add(visitor.host);
+    });
+    return Array.from(hosts);
+  }, [visitors]);
   
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -732,16 +761,44 @@ const VisitorManagement: React.FC = () => {
     }
   };
 
-  // Filter visitors based on tab and search query
+  // Apply filters to visitors
   const filteredVisitors = visitors.filter(visitor => {
     // First filter by tab
     if (activeTab !== 'all') {
       if (activeTab === 'today') {
-        // This is just a simulation; in a real app you'd check dates
-        return true;
+        // Filter to show only today's visitors
+        const today = new Date().toDateString();
+        const visitorDate = visitor.visitDate ? new Date(visitor.visitDate).toDateString() : '';
+        if (visitorDate !== today) return false;
       } else if (activeTab !== visitor.status) {
         return false;
       }
+    }
+    
+    // Apply date range filter if set
+    if (dateFilter.from && visitor.visitDate) {
+      const visitDate = new Date(visitor.visitDate);
+      if (visitDate < dateFilter.from) return false;
+    }
+    
+    if (dateFilter.to && visitor.visitDate) {
+      const visitDate = new Date(visitor.visitDate);
+      if (visitDate > dateFilter.to) return false;
+    }
+    
+    // Apply status filter if not 'all'
+    if (statusFilter !== 'all' && visitor.status !== statusFilter) {
+      return false;
+    }
+    
+    // Apply company filter if set
+    if (companyFilter && visitor.company !== companyFilter) {
+      return false;
+    }
+    
+    // Apply host filter if set
+    if (hostFilter && visitor.host !== hostFilter) {
+      return false;
     }
     
     // Then filter by search query
@@ -1056,22 +1113,234 @@ const VisitorManagement: React.FC = () => {
     <div className="p-4">
       <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-4">
         <div className="flex items-center space-x-3">
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4" />
-            Date Range
-          </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <UserCheckIcon className="h-4 w-4" />
-            Status
-          </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <BuildingIcon className="h-4 w-4" />
-            Company
-          </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <UserIcon className="h-4 w-4" />
-            Host
-          </Button>
+          {/* Date Range Filter */}
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => setDateRangeOpen(!dateRangeOpen)}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Date Range
+              {dateFilter.from && dateFilter.to && (
+                <span className="ml-1 text-xs bg-primary/10 text-primary px-1 rounded">
+                  {dateFilter.from.toLocaleDateString()} - {dateFilter.to.toLocaleDateString()}
+                </span>
+              )}
+            </Button>
+            
+            {dateRangeOpen && (
+              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 p-4">
+                <div className="flex flex-col gap-2">
+                  <Label>From Date</Label>
+                  <Input 
+                    type="date" 
+                    onChange={(e) => {
+                      const date = e.target.value ? new Date(e.target.value) : undefined;
+                      setDateFilter(prev => ({ ...prev, from: date }));
+                    }}
+                    value={dateFilter.from?.toISOString().split('T')[0] || ''}
+                  />
+                  
+                  <Label>To Date</Label>
+                  <Input 
+                    type="date" 
+                    onChange={(e) => {
+                      const date = e.target.value ? new Date(e.target.value) : undefined;
+                      setDateFilter(prev => ({ ...prev, to: date }));
+                    }}
+                    value={dateFilter.to?.toISOString().split('T')[0] || ''}
+                  />
+                  
+                  <div className="flex justify-between mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setDateFilter({});
+                        setDateRangeOpen(false);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button 
+                      size="sm"
+                      onClick={() => setDateRangeOpen(false)}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Status Filter */}
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => setStatusFilterOpen(!statusFilterOpen)}
+            >
+              <UserCheckIcon className="h-4 w-4" />
+              Status
+              {statusFilter !== 'all' && (
+                <span className="ml-1 text-xs bg-primary/10 text-primary px-1 rounded">
+                  {getStatusLabel(statusFilter as VisitorStatus)}
+                </span>
+              )}
+            </Button>
+            
+            {statusFilterOpen && (
+              <div className="absolute left-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10">
+                <div className="py-1">
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'all' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setStatusFilter('all');
+                      setStatusFilterOpen(false);
+                    }}
+                  >
+                    All Statuses
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'scheduled' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setStatusFilter('scheduled');
+                      setStatusFilterOpen(false);
+                    }}
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                    Scheduled
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'checked-in' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setStatusFilter('checked-in');
+                      setStatusFilterOpen(false);
+                    }}
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                    Checked In
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'checked-out' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setStatusFilter('checked-out');
+                      setStatusFilterOpen(false);
+                    }}
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                    Checked Out
+                  </button>
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'no-show' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setStatusFilter('no-show');
+                      setStatusFilterOpen(false);
+                    }}
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                    No Show
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Company Filter */}
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => setCompanyFilterOpen(!companyFilterOpen)}
+            >
+              <BuildingIcon className="h-4 w-4" />
+              Company
+              {companyFilter && (
+                <span className="ml-1 text-xs bg-primary/10 text-primary px-1 rounded">
+                  {companyFilter.length > 10 ? companyFilter.substring(0, 10) + '...' : companyFilter}
+                </span>
+              )}
+            </Button>
+            
+            {companyFilterOpen && (
+              <div className="absolute left-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-60 overflow-y-auto">
+                <div className="py-1">
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${companyFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setCompanyFilter('');
+                      setCompanyFilterOpen(false);
+                    }}
+                  >
+                    All Companies
+                  </button>
+                  {uniqueCompanies.map(company => (
+                    <button 
+                      key={company}
+                      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${companyFilter === company ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                      onClick={() => {
+                        setCompanyFilter(company);
+                        setCompanyFilterOpen(false);
+                      }}
+                    >
+                      {company}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Host Filter */}
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => setHostFilterOpen(!hostFilterOpen)}
+            >
+              <UserIcon className="h-4 w-4" />
+              Host
+              {hostFilter && (
+                <span className="ml-1 text-xs bg-primary/10 text-primary px-1 rounded">
+                  {hostFilter.length > 10 ? hostFilter.substring(0, 10) + '...' : hostFilter}
+                </span>
+              )}
+            </Button>
+            
+            {hostFilterOpen && (
+              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-10 max-h-60 overflow-y-auto">
+                <div className="py-1">
+                  <button 
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${hostFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                    onClick={() => {
+                      setHostFilter('');
+                      setHostFilterOpen(false);
+                    }}
+                  >
+                    All Hosts
+                  </button>
+                  {uniqueHosts.map(host => (
+                    <button 
+                      key={host}
+                      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${hostFilter === host ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
+                      onClick={() => {
+                        setHostFilter(host);
+                        setHostFilterOpen(false);
+                      }}
+                    >
+                      {host}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -1169,10 +1438,10 @@ const VisitorManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Photo/Logo Upload section */}
+            {/* Photo/Logo Upload section - update to show initials if no photo */}
             <div className="flex justify-center mb-4">
               <div 
-                className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center cursor-pointer overflow-hidden relative"
+                className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer overflow-hidden relative"
                 onClick={handlePhotoUploadClick}
               >
                 {newVisitor.photoUrl ? (
@@ -1183,10 +1452,16 @@ const VisitorManagement: React.FC = () => {
                   />
                 ) : (
                   <>
-                    <div className="absolute inset-0 flex items-center justify-center flex-col">
-                      <ImageIcon className="h-8 w-8 text-gray-400" />
-                      <span className="text-xs text-gray-500 mt-1">Add Photo</span>
-                    </div>
+                    {newVisitor.firstName && newVisitor.lastName ? (
+                      <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary text-2xl font-bold">
+                        {newVisitor.firstName[0]?.toUpperCase() || ''}{newVisitor.lastName[0]?.toUpperCase() || ''}
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center flex-col">
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
+                        <span className="text-xs text-gray-500 mt-1">Add Photo</span>
+                      </div>
+                    )}
                   </>
                 )}
                 <input 
