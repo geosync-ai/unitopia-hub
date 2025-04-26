@@ -723,11 +723,20 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       {visitor.assignees && visitor.assignees.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center hover:text-foreground">
-              <Avatar className="h-6 w-6 cursor-pointer">
-                <AvatarFallback className="text-xs">{visitor.assignees[0][0]}</AvatarFallback>
-              </Avatar>
+            {/* START CHANGE: Render multiple avatars */}
+            <button className="flex items-center -space-x-2 hover:text-foreground">
+              {visitor.assignees.slice(0, 3).map((assignee, index) => (
+                <Avatar key={index} className="h-6 w-6 cursor-pointer border-2 border-background dark:border-gray-800">
+                  <AvatarFallback className="text-xs">{assignee.charAt(0)}</AvatarFallback>
+                </Avatar>
+              ))}
+              {visitor.assignees.length > 3 && (
+                 <Avatar className="h-6 w-6 cursor-pointer border-2 border-background dark:border-gray-800 bg-muted text-muted-foreground">
+                   <AvatarFallback className="text-xs">+{visitor.assignees.length - 3}</AvatarFallback>
+                 </Avatar>
+              )}
             </button>
+            {/* END CHANGE */}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="text-xs font-medium p-2 border-b">Assignees</DropdownMenuLabel>
