@@ -18,7 +18,6 @@ import {
   CheckCircle,
   Undo,
   AlertCircle,
-  Inbox,
   Trash2,
   ChevronDown,
 } from 'lucide-react';
@@ -628,9 +627,9 @@ const MailAndPackages: React.FC = () => {
       {/* Tabs and Search/View Toggle Row */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border dark:border-gray-700">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          {/* Inner Tabs - Added overflow-x-auto and scrollbar-hide */}
-          <div className="overflow-x-auto scrollbar-hide">
-            <div className="flex border-b border-gray-200 dark:border-gray-700 -mb-px whitespace-nowrap">
+          {/* Inner Tabs - Removed overflow-x-auto and scrollbar-hide */}
+          <div className="flex-grow"> {/* Allow tabs container to take available space */}
+            <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700 -mb-px"> {/* Removed whitespace-nowrap, added flex-wrap */}
                {(['All Items', ...Object.keys(statusMap)] as Array<MailPackageStatus | 'All Items'>).map(tabKey => (
                      <button
                          key={tabKey}
