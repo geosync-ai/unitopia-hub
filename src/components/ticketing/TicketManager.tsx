@@ -743,7 +743,13 @@ const TicketManager: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState(initialFilters);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<{ from: Date | null, to: Date | null }>({ from: null, to: null });
+  const [dateRange, setDateRange] = useState<{
+    from: Date | null;
+    to: Date | null;
+  }>({
+    from: null,
+    to: null
+  });
 
   // State for managing the dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -1572,13 +1578,13 @@ const TicketManager: React.FC = () => {
                       className="w-full justify-start text-left font-normal"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.date.type === 'custom' && filters.date.custom.from ? (
-                        filters.date.custom.to ? (
+                      {dateRange.from ? (
+                        dateRange.to ? (
                           <>
-                            {format(filters.date.custom.from, "LLL dd, y")} - {format(filters.date.custom.to, "LLL dd, y")}
+                            {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
                           </>
                         ) : (
-                          format(filters.date.custom.from, "LLL dd, y")
+                          format(dateRange.from, "LLL dd, y")
                         )
                       ) : (
                         <span>Pick a date range</span>
@@ -1589,20 +1595,24 @@ const TicketManager: React.FC = () => {
                     <CalendarComponent
                       mode="range"
                       defaultMonth={dateRange.from ?? new Date()}
-                      selected={{ 
-                        from: filters.date.custom.from, 
-                        to: filters.date.custom.to 
+                      selected={{
+                        from: dateRange.from,
+                        to: dateRange.to
                       }}
                       onSelect={(range) => {
                         if (range?.from || range?.to) {
+                          setDateRange({
+                            from: range.from,
+                            to: range.to
+                          });
                           setFilters(prev => ({
                             ...prev,
                             date: {
                               ...prev.date,
                               type: 'custom',
                               custom: {
-                                from: range?.from || null,
-                                to: range?.to || null
+                                from: range.from,
+                                to: range.to
                               }
                             }
                           }));
@@ -1626,12 +1636,11 @@ const TicketManager: React.FC = () => {
               variant="outline" 
               size="sm"
               onClick={() => {
-                // Reset all filters, including date
                 setFilters(() => {
                   const newFilters = JSON.parse(JSON.stringify(initialFilters));
                   return newFilters;
                 });
-                setDateRange({ from: null, to: null }); // Reset date range state used by calendar
+                setDateRange({ from: null, to: null }); // Reset date range state
                 setActiveFilters([]);
               }}
               className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
