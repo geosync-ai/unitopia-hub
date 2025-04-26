@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Inbox,
   Trash2,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -403,39 +404,39 @@ const MailAndPackages: React.FC = () => {
         <p className="text-xs text-gray-500 dark:text-gray-400">{format(item.receivedDate, 'h:mm a')}</p>
       </div>
 
-      {/* Status */}
+      {/* Status - Now a Dropdown */}
       <div className="col-span-1 md:col-span-2 flex items-center">
-         <Badge variant="outline" className={`whitespace-nowrap border ${statusColors[item.statusColorKey]}`}>
-           <item.statusIcon className="h-3 w-3 mr-1" />
-           {item.statusLabel}
-         </Badge>
+         <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                 <Button variant="outline" className={cn("h-auto px-2 py-0.5 text-xs border whitespace-nowrap", statusColors[item.statusColorKey])}>
+                     <item.statusIcon className="h-3 w-3 mr-1" />
+                     {item.statusLabel}
+                     <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+                 </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+                 <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                 <DropdownMenuSeparator />
+                 {(Object.keys(statusMap) as MailPackageStatus[]).map((statusKey) => {
+                     const StatusIcon = statusMap[statusKey].icon;
+                     return (
+                         <DropdownMenuItem
+                             key={statusKey}
+                             disabled={item.status === statusKey}
+                             onClick={() => item.onStatusChange(item.id, statusKey)}
+                             className="text-xs"
+                         >
+                             <StatusIcon className="h-3 w-3 mr-2" />
+                             {statusMap[statusKey].label}
+                         </DropdownMenuItem>
+                     );
+                 })}
+             </DropdownMenuContent>
+         </DropdownMenu>
        </div>
 
       {/* Actions */}
       <div className="col-span-1 md:col-span-2 flex items-center justify-start md:justify-end space-x-1">
-        {/* Status Toggle: Delivered <-> Pending Pickup */}
-        { (item.status === 'Pending Pickup' || item.status === 'Signature Required') && (
-            <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
-                title="Mark as Delivered"
-                onClick={() => item.onStatusChange(item.id, 'Delivered')}
-            >
-                <Check className="h-4 w-4" />
-            </Button>
-        )}
-        { item.status === 'Delivered' && (
-            <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                title="Mark as Pending Pickup"
-                onClick={() => item.onStatusChange(item.id, 'Pending Pickup')}
-            >
-                <Undo className="h-4 w-4" />
-            </Button>
-        )}
         {/* Edit */}
         <Button
             variant="ghost"
@@ -616,23 +617,23 @@ const MailAndPackages: React.FC = () => {
       {/* Tabs and Search/View Toggle Row */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border dark:border-gray-700">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          {/* Inner Tabs */}
-          <div className="overflow-x-auto">
-            <div className="flex border-b border-gray-200 dark:border-gray-700 -mb-px">
+          {/* Inner Tabs - Added overflow-x-auto and scrollbar-hide */}
+          <div className="overflow-x-auto scrollbar-hide">
+            <div className="flex border-b border-gray-200 dark:border-gray-700 -mb-px whitespace-nowrap">
                {(['All Items', ...Object.keys(statusMap)] as Array<MailPackageStatus | 'All Items'>).map(tabKey => (
-                    <button
-                        key={tabKey}
-                        onClick={() => setActiveTab(tabKey)}
-                        className={cn(
-                            "px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2",
-                            activeTab === tabKey
-                                ? "border-primary text-primary"
-                                : "border-transparent text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600"
-                        )}
-                    >
-                       {tabKey === 'All Items' ? tabKey : statusMap[tabKey as MailPackageStatus].label}
-                    </button>
-               ))}
+                     <button
+                         key={tabKey}
+                         onClick={() => setActiveTab(tabKey)}
+                         className={cn(
+                             "px-4 py-2 text-sm font-medium border-b-2",
+                             activeTab === tabKey
+                                 ? "border-primary text-primary"
+                                 : "border-transparent text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600"
+                         )}
+                     >
+                        {tabKey === 'All Items' ? tabKey : statusMap[tabKey as MailPackageStatus].label}
+                     </button>
+                ))}
             </div>
           </div>
           {/* Search and View Toggle */}
