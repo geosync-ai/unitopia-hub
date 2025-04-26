@@ -30,30 +30,6 @@ const AppointmentView: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      {/* Filters Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="flex items-center">
-              <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-              <span>Today</span>
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <Filter className="mr-2 h-4 w-4 text-gray-500" />
-              <span>Meeting Type</span>
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <Briefcase className="mr-2 h-4 w-4 text-gray-500" />
-              <span>Employee</span>
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <MapPin className="mr-2 h-4 w-4 text-gray-500" />
-              <span>Location</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Tabs and View Options Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
