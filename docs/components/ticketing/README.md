@@ -89,7 +89,7 @@ Manages visitor registration, tracking, and status changes throughout the visito
 - Photo upload capabilities
 - Status tracking (scheduled, checked-in, checked-out, no-show)
 - Host assignment
-- Drag-and-drop status management (columns highlight when dragged over)
+- Drag-and-drop status management (columns highlight, red line indicates drop position within column)
 - Search and filtering options
 - Visit date range selection (start and end date)
 
@@ -98,7 +98,7 @@ Manages visitor registration, tracking, and status changes throughout the visito
 - Manages form state for visitor creation/editing (including date range)
 - Handles view mode preferences
 - Tracks active dialog states
-- Manages drag-and-drop interactions
+- Manages drag-and-drop interactions (including drop target position for indicator)
 
 ### Dependencies
 - DndKit library for drag-and-drop
@@ -198,10 +198,12 @@ The ticketing system uses DndKit for its drag-and-drop functionality:
 - **SortableContext** - Manages sortable items within a container
 - **useSortable** - Hook for making items sortable
 - **useDroppable** - Hook for creating drop targets
+- **DragOverlay** - Renders the item being dragged
+- **Visual Drop Indicator**: A red line is rendered between items during drag-over to show the precise insertion point (implemented via state updated in `onDragOver` and conditional rendering within `SortableContext`).
 
 Key handlers:
 - `handleDragStart` - Captures the initial drag state
-- `handleDragOver` - Handles dragging over potential drop targets
+- `handleDragOver` - Handles dragging over potential drop targets, calculates collision and insertion point for indicator
 - `handleDragEnd` - Finalizes the drag operation and updates state
 
 ### View Mode Switching

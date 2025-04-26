@@ -35,7 +35,7 @@ The Ticketing System is a comprehensive front desk solution designed to manage v
 - **Photo Upload**: Upload visitor photos for identification
 - **Visit Scheduling**: Schedule visits with start/end dates and specific time using a date range picker
 - **Host Assignment**: Assign visitors to hosts within the organization
-- **Drag-and-Drop Interface**: Move visitors between different statuses (columns highlight when dragged over)
+- **Drag-and-Drop Interface**: Move visitors between different statuses (columns highlight, red line indicates drop position)
 - **Search and Filter**: Find visitors based on various criteria
 - **Check-in/Check-out**: Process visitor arrivals and departures
 

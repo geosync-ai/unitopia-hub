@@ -64,13 +64,18 @@ import {
   DragStartEvent,
   DragOverEvent,
   useDroppable,
-  DragOverlay
+  DragOverlay,
+  CollisionDetection,
+  getFirstCollision,
+  pointerWithin,
+  rectIntersection
 } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable
+  useSortable,
+  arrayMove // Added for potential reordering logic if needed later
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from "@/components/ui/badge";
@@ -269,14 +274,15 @@ const getStatusClass = (status: VisitorStatus) => {
 };
 
 // Component for each visitor card
-const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange }: { 
+const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange, isDragging = false }: { 
   visitor: Visitor, 
   onStatusChange: (id: number, status: VisitorStatus) => void,
   onEdit: (id: number) => void,
   onDelete: (id: number) => void,
   onHostChange: (id: number, host: string) => void,
   onTimeChange: (id: number, time: string) => void,
-  onDurationChange: (id: number, duration: string) => void
+  onDurationChange: (id: number, duration: string) => void,
+  isDragging?: boolean
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -294,14 +300,17 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
     setNodeRef,
     transform,
     transition,
-    isDragging,
+    isDragging: dndIsDragging
   } = useSortable({ id: visitor.id.toString() });
+  
+  // Use the prop primarily, but fallback to dnd hook for overlay potentially
+  const currentlyDragging = isDragging || dndIsDragging;
   
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 100 : 'auto',
+    opacity: currentlyDragging ? 0.5 : 1, // Apply opacity when dragging
+    zIndex: currentlyDragging ? 100 : 'auto',
   } as React.CSSProperties;
   
   useEffect(() => {
@@ -458,12 +467,13 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       style={style} 
       {...attributes} 
       {...listeners}
-      className="relative mb-3"
+      className="relative" // Remove mb-3 here, handle spacing in BoardColumn with space-y
     >
       <div 
         className={cn(
-          "bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md cursor-grab",
-          isDragging && "shadow-lg ring-2 ring-primary rotate-3"
+          "bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md",
+          // Removed cursor-grab from here, apply on card header or specific handle if needed
+          currentlyDragging && "shadow-lg ring-2 ring-primary rotate-1" // Adjusted dragging style slightly
         )}
       >
         <div className="p-3 pb-2 flex flex-row items-start justify-between">
@@ -613,7 +623,12 @@ const VisitorManagement: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeDragItem, setActiveDragItem] = useState<Visitor | null>(null);
-  const [activeDropId, setActiveDropId] = useState<string | null>(null);
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
+  const [dropTargetInfo, setDropTargetInfo] = useState<{ 
+    columnId: string | null; 
+    overItemId: number | null; // ID of the item we are dropping *before*
+    isBottomHalf: boolean; // Are we over the bottom half of overItemId?
+  }>({ columnId: null, overItemId: null, isBottomHalf: false });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -1087,38 +1102,102 @@ const VisitorManagement: React.FC = () => {
     const activeVisitor = visitors.find(v => v.id === activeId);
     if (activeVisitor) {
       setActiveDragItem(activeVisitor);
+      setOverColumnId(null); // Reset over column on new drag
+      setDropTargetInfo({ columnId: null, overItemId: null, isBottomHalf: false }); // Reset drop target
     }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    if (over) {
-      setActiveDropId(String(over.id));
+    const { active, over, collisions } = event;
+    if (!over || !activeDragItem) return;
+
+    const overId = String(over.id);
+    const activeId = Number(active.id);
+
+    // Determine if we are over a column (droppable)
+    const isOverColumn = ['scheduled', 'checked-in', 'checked-out', 'no-show'].includes(overId);
+    let currentOverColumnId: string | null = null;
+    let currentOverItemId: number | null = null;
+    let isBottomHalf = false;
+
+    if (isOverColumn) {
+        currentOverColumnId = overId;
+        setOverColumnId(overId); // Keep track of the column itself for general highlighting
+        
+        // Find collision with sortable items within the column
+        const collision = collisions?.find(c => c.id !== active.id && !['scheduled', 'checked-in', 'checked-out', 'no-show'].includes(String(c.id)));
+        
+        if (collision) {
+            const overRect = collision.data?.droppableContainer?.rect.current;
+            if (overRect) {
+                const dragY = event.delta.y + (active.rect.current.initial?.top ?? 0);
+                const midpoint = overRect.top + overRect.height / 2;
+                currentOverItemId = Number(collision.id);
+                isBottomHalf = dragY > midpoint;
+            }
+        } else {
+            // If no collision with items but over column, potentially dropping at the end
+             currentOverItemId = null; // Drop at the end
+        }
+
     } else {
-      setActiveDropId(null);
+        // Check if 'over' is a sortable item (VisitorCard)
+        const overIsVisitor = visitors.some(v => v.id === Number(overId));
+        if (overIsVisitor) {
+            const overVisitor = visitors.find(v => v.id === Number(overId));
+            if (overVisitor) {
+                currentOverColumnId = overVisitor.status; // Assume column ID matches status
+                setOverColumnId(overVisitor.status);
+                currentOverItemId = Number(overId);
+
+                const overRect = over.rect;
+                const dragY = event.delta.y + (active.rect.current.initial?.top ?? 0);
+                const midpoint = overRect.top + overRect.height / 2;
+                isBottomHalf = dragY > midpoint;
+            }
+        }
     }
+
+    setDropTargetInfo({
+      columnId: currentOverColumnId,
+      overItemId: currentOverItemId,
+      isBottomHalf: isBottomHalf
+    });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDragItem(null);
-    setActiveDropId(null);
-    
     const { active, over } = event;
-    
-    if (!over) return;
-    
+    setActiveDragItem(null);
+    setOverColumnId(null);
+    setDropTargetInfo({ columnId: null, overItemId: null, isBottomHalf: false });
+
+    if (!over || !active) return;
+
     const activeId = Number(active.id);
     const overId = String(over.id);
     
-    // If we drop onto a status column, change the visitor's status
+    // Determine the target column ID
+    let targetColumnId: VisitorStatus | null = null;
     if (['scheduled', 'checked-in', 'checked-out', 'no-show'].includes(overId)) {
-      setVisitors(prev => 
-        prev.map(visitor => 
-          visitor.id === activeId 
-            ? { ...visitor, status: overId as VisitorStatus } 
-            : visitor
-        )
-      );
+      targetColumnId = overId as VisitorStatus;
+    } else {
+      // If dropped over a card, find that card's column status
+      const overVisitor = visitors.find(v => v.id === Number(overId));
+      if (overVisitor) {
+        targetColumnId = overVisitor.status;
+      }
+    }
+
+    if (targetColumnId && activeId !== Number(overId)) {
+       // --- Actual Reordering Logic would go here if needed --- 
+       // For now, just update the status based on the target column
+       setVisitors(prev =>
+         prev.map(visitor =>
+           visitor.id === activeId
+             ? { ...visitor, status: targetColumnId! }
+             : visitor
+         )
+       );
     }
   };
 
@@ -1141,207 +1220,94 @@ const VisitorManagement: React.FC = () => {
 
     switch (viewMode) {
       case 'board':
-        // Board view - organize visitors by status in columns
         const scheduledVisitors = filteredVisitors.filter(v => v.status === 'scheduled');
         const checkedInVisitors = filteredVisitors.filter(v => v.status === 'checked-in');
         const checkedOutVisitors = filteredVisitors.filter(v => v.status === 'checked-out');
         const noShowVisitors = filteredVisitors.filter(v => v.status === 'no-show');
         
+        const columns: { id: VisitorStatus, title: string, visitors: Visitor[], color: 'blue' | 'green' | 'gray' | 'red' }[] = [
+            { id: 'scheduled', title: 'Scheduled', visitors: scheduledVisitors, color: 'blue' },
+            { id: 'checked-in', title: 'Checked In', visitors: checkedInVisitors, color: 'green' },
+            { id: 'checked-out', title: 'Checked Out', visitors: checkedOutVisitors, color: 'gray' },
+            { id: 'no-show', title: 'No Show', visitors: noShowVisitors, color: 'red' },
+        ];
+
         return (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={rectIntersection} // Use rectIntersection for better detection
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-4 overflow-x-auto pb-6">
-              {/* Scheduled Column */}
-              <BoardColumn 
-                id="scheduled"
-                title="Scheduled"
-                count={scheduledVisitors.length}
-                color="blue"
-                isOver={activeDropId === 'scheduled'}
-                onAddVisitor={() => {
-                  setNewVisitor({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    company: '',
-                    purpose: '',
-                    visitStartDate: undefined,
-                    visitEndDate: undefined,
-                    time: '',
-                    host: '',
-                    notes: '',
-                    photoUrl: '',
-                    assignees: [],
-                    status: 'scheduled'
-                  });
-                  setShowAddVisitorModal(true);
-                }}
-              >
-                <SortableContext items={scheduledVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
-                  {scheduledVisitors.map(visitor => (
-                    <VisitorCard
-                      key={visitor.id}
-                      visitor={visitor}
-                      onStatusChange={handleInlineStatusChange}
-                      onEdit={handleEditVisitor}
-                      onDelete={handleDeleteVisitor}
-                      onHostChange={handleInlineHostChange}
-                      onTimeChange={handleInlineTimeChange}
-                      onDurationChange={handleInlineDurationChange}
-                    />
-                  ))}
-                </SortableContext>
-              </BoardColumn>
-              
-              {/* Checked In Column */}
-              <BoardColumn 
-                id="checked-in"
-                title="Checked In"
-                count={checkedInVisitors.length}
-                color="green"
-                isOver={activeDropId === 'checked-in'}
-                onAddVisitor={() => {
-                  setNewVisitor({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    company: '',
-                    purpose: '',
-                    visitStartDate: undefined,
-                    visitEndDate: undefined,
-                    time: '',
-                    host: '',
-                    notes: '',
-                    photoUrl: '',
-                    assignees: [],
-                    status: 'checked-in'
-                  });
-                  setShowAddVisitorModal(true);
-                }}
-              >
-                <SortableContext items={checkedInVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
-                  {checkedInVisitors.map(visitor => (
-                    <VisitorCard
-                      key={visitor.id}
-                      visitor={visitor}
-                      onStatusChange={handleInlineStatusChange}
-                      onEdit={handleEditVisitor}
-                      onDelete={handleDeleteVisitor}
-                      onHostChange={handleInlineHostChange}
-                      onTimeChange={handleInlineTimeChange}
-                      onDurationChange={handleInlineDurationChange}
-                    />
-                  ))}
-                </SortableContext>
-              </BoardColumn>
-              
-              {/* Checked Out Column */}
-              <BoardColumn 
-                id="checked-out"
-                title="Checked Out"
-                count={checkedOutVisitors.length}
-                color="gray"
-                isOver={activeDropId === 'checked-out'}
-                onAddVisitor={() => {
-                  setNewVisitor({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    company: '',
-                    purpose: '',
-                    visitStartDate: undefined,
-                    visitEndDate: undefined,
-                    time: '',
-                    host: '',
-                    notes: '',
-                    photoUrl: '',
-                    assignees: [],
-                    status: 'checked-out'
-                  });
-                  setShowAddVisitorModal(true);
-                }}
-              >
-                <SortableContext items={checkedOutVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
-                  {checkedOutVisitors.map(visitor => (
-                    <VisitorCard
-                      key={visitor.id}
-                      visitor={visitor}
-                      onStatusChange={handleInlineStatusChange}
-                      onEdit={handleEditVisitor}
-                      onDelete={handleDeleteVisitor}
-                      onHostChange={handleInlineHostChange}
-                      onTimeChange={handleInlineTimeChange}
-                      onDurationChange={handleInlineDurationChange}
-                    />
-                  ))}
-                </SortableContext>
-              </BoardColumn>
-              
-              {/* No Show Column */}
-              <BoardColumn 
-                id="no-show"
-                title="No Show"
-                count={noShowVisitors.length}
-                color="red"
-                isOver={activeDropId === 'no-show'}
-                onAddVisitor={() => {
-                  setNewVisitor({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    company: '',
-                    purpose: '',
-                    visitStartDate: undefined,
-                    visitEndDate: undefined,
-                    time: '',
-                    host: '',
-                    notes: '',
-                    photoUrl: '',
-                    assignees: [],
-                    status: 'no-show'
-                  });
-                  setShowAddVisitorModal(true);
-                }}
-              >
-                <SortableContext items={noShowVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
-                  {noShowVisitors.map(visitor => (
-                    <VisitorCard
-                      key={visitor.id}
-                      visitor={visitor}
-                      onStatusChange={handleInlineStatusChange}
-                      onEdit={handleEditVisitor}
-                      onDelete={handleDeleteVisitor}
-                      onHostChange={handleInlineHostChange}
-                      onTimeChange={handleInlineTimeChange}
-                      onDurationChange={handleInlineDurationChange}
-                    />
-                  ))}
-                </SortableContext>
-              </BoardColumn>
+              {columns.map(col => (
+                <BoardColumn
+                  key={col.id}
+                  id={col.id}
+                  title={col.title}
+                  count={col.visitors.length}
+                  color={col.color}
+                  isOver={overColumnId === col.id} // Pass general column hover state
+                  onAddVisitor={() => { /* ... */ }}
+                  dropTargetInfo={dropTargetInfo} // Pass detailed drop info
+                >
+                  <SortableContext items={col.visitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
+                    {col.visitors.map((visitor, index) => (
+                       <React.Fragment key={visitor.id}>
+                          {/* Render Drop Indicator BEFORE the item if it's the target */}
+                          {dropTargetInfo.columnId === col.id && 
+                           dropTargetInfo.overItemId === visitor.id && 
+                           !dropTargetInfo.isBottomHalf &&
+                           activeDragItem && activeDragItem.id !== visitor.id && (
+                              <div className="h-1 w-full bg-red-500 my-0.5 rounded-full"></div>
+                           )}
+                          
+                          <VisitorCard
+                            visitor={visitor}
+                            isDragging={activeDragItem?.id === visitor.id}
+                            onStatusChange={handleInlineStatusChange}
+                            onEdit={handleEditVisitor}
+                            onDelete={handleDeleteVisitor}
+                            onHostChange={handleInlineHostChange}
+                            onTimeChange={handleInlineTimeChange}
+                            onDurationChange={handleInlineDurationChange}
+                          />
+
+                          {/* Render Drop Indicator AFTER the item if it's the target AND over bottom half */}
+                          {dropTargetInfo.columnId === col.id && 
+                           dropTargetInfo.overItemId === visitor.id && 
+                           dropTargetInfo.isBottomHalf &&
+                           activeDragItem && activeDragItem.id !== visitor.id && (
+                              <div className="h-1 w-full bg-red-500 my-0.5 rounded-full"></div>
+                           )}
+                       </React.Fragment>
+                    ))}
+                     {/* Render Drop Indicator AT THE END if over column but not over specific item */}
+                     {dropTargetInfo.columnId === col.id && 
+                      dropTargetInfo.overItemId === null && 
+                      col.visitors.length > 0 && 
+                      activeDragItem && (
+                        <div className="h-1 w-full bg-red-500 mt-1 rounded-full"></div>
+                     )}
+                  </SortableContext>
+                </BoardColumn>
+              ))}
             </div>
             
             {activeDragItem && (
               <DragOverlay>
-                <div className="w-80 opacity-90 shadow-xl">
-                  <VisitorCard
-                    visitor={activeDragItem}
-                    onStatusChange={handleInlineStatusChange}
-                    onEdit={handleEditVisitor}
-                    onDelete={handleDeleteVisitor}
-                    onHostChange={handleInlineHostChange}
-                    onTimeChange={handleInlineTimeChange}
-                    onDurationChange={handleInlineDurationChange}
-                  />
-                </div>
+                {/* Keep the DragOverlay styling simple */}
+                <VisitorCard
+                  visitor={activeDragItem}
+                  isDragging={true} // Indicate it's the overlay version
+                  onStatusChange={() => {}} // Overlay is non-interactive
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  onHostChange={() => {}}
+                  onTimeChange={() => {}}
+                  onDurationChange={() => {}}
+                />
               </DragOverlay>
             )}
           </DndContext>
@@ -2056,6 +2022,11 @@ interface BoardColumnProps {
   children: React.ReactNode;
   isOver?: boolean;
   onAddVisitor?: () => void;
+  dropTargetInfo: { // Added prop
+    columnId: string | null;
+    overItemId: number | null;
+    isBottomHalf: boolean;
+  };
 }
 
 const BoardColumn: React.FC<BoardColumnProps> = ({ 
@@ -2065,10 +2036,13 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
   color, 
   children, 
   isOver = false,
-  onAddVisitor
+  onAddVisitor,
+  dropTargetInfo // Destructure prop
 }) => {
   const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
-  const isColumnOver = isOver || columnIsOver;
+  // Use the passed isOver for general column highlight
+  const isColumnOver = isOver;
+  
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -2117,20 +2091,20 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
       </div>
       <div 
         className={cn(
-          "p-2 flex-grow overflow-y-auto min-h-[200px]",
-          isColumnOver && count === 0 && "border-2 border-dashed border-primary/50 rounded-md",
-          isColumnOver && "bg-primary/10 transition-colors duration-200"
+          "p-2 flex-grow overflow-y-auto min-h-[200px] space-y-1", // Added space-y for indicators
+          // Highlight when dropping into empty column OR specifically targeting this column
+          (isColumnOver || dropTargetInfo.columnId === id) && count === 0 && "border-2 border-dashed border-primary/50 rounded-md",
+          (isColumnOver || dropTargetInfo.columnId === id) && "bg-primary/5 transition-colors duration-150" // Slightly subtler general highlight
         )} 
         ref={setNodeRef}
       >
-        {children}
+        {children} 
         
-        {/* Empty state feedback when dropping */}
-        {isColumnOver && count === 0 && (
+        {/* Placeholder for empty column drop */}
+        {(isColumnOver || dropTargetInfo.columnId === id) && count === 0 && (
           <div className="flex items-center justify-center h-24 rounded-md">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-primary/20"></div>
-            </div>
+            {/* Dashed circle removed as indicator is now present */}
+             <p className="text-sm text-muted-foreground">Drop here</p>
           </div>
         )}
       </div>
