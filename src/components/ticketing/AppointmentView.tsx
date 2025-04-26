@@ -19,6 +19,7 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarUi } from '@/components/ui/calendar';
 import { 
   Calendar, 
   Filter, 
@@ -43,6 +44,8 @@ import {
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
+import DateRangePicker from '@/components/ui/DateRangePicker';
+import { Badge } from "@/components/ui/badge";
 
 // Define the shape of appointment data
 interface AppointmentData {
@@ -417,41 +420,14 @@ const AppointmentView: React.FC = () => {
               
                <div className="sm:col-span-2 space-y-1">
                 <Label htmlFor="dateRange">Date Range*</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      id="dateRange"
-                      className={cn(
-                        "w-full justify-start text-left font-normal py-3 px-4 rounded-lg",
-                        !newAppointmentData.dateRange?.from && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {newAppointmentData.dateRange?.from ? (
-                        newAppointmentData.dateRange.to ? (
-                          <>
-                            {format(newAppointmentData.dateRange.from, "LLL dd, y")} - {format(newAppointmentData.dateRange.to, "LLL dd, y")}
-                          </>
-                        ) : (
-                          format(newAppointmentData.dateRange.from, "LLL dd, y")
-                        )
-                      ) : (
-                        <span>Pick a date range</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      defaultMonth={newAppointmentData.dateRange?.from || new Date()}
-                      selected={newAppointmentData.dateRange}
-                      onSelect={handleDateRangeChange}
-                      numberOfMonths={2}
-                      className="border-0"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateRangePicker
+                  id="dateRange"
+                  selectedRange={newAppointmentData.dateRange}
+                  onSelectRange={handleDateRangeChange}
+                  placeholder="Pick a date range"
+                  numberOfMonths={2}
+                  className="py-3 px-4 rounded-lg"
+                />
               </div>
               
               <div className="space-y-1">
@@ -501,7 +477,7 @@ const AppointmentView: React.FC = () => {
                   // value={newAppointmentData.attendees.join(', ')}
                   // onChange={(e) => handleAppointmentSelectChange(e.target.value.split(',').map(s => s.trim()), 'attendees')} 
                 />
-                {/* Display added attendees below (simplified) */}
+                {/* Display added attendees below (simplified) - Uses Badge */}
                 {newAppointmentData.attendees.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {newAppointmentData.attendees.map((attendee, index) => (

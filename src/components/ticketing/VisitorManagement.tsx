@@ -89,9 +89,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DateRange } from 'react-day-picker'; // Correct import
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar"; // Keep Calendar import
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Keep Popover imports
 import { BaseCard } from '@/components/ui/BaseCard';
+import DateRangePicker from '@/components/ui/DateRangePicker'; // Import the new component
 
 // Visitor status type
 type VisitorStatus = 'scheduled' | 'checked-in' | 'checked-out' | 'no-show';
@@ -2290,56 +2291,31 @@ Enter the visitor's details below.
                     {formErrors.purpose && <p className="text-red-500 text-xs">{formErrors.purpose}</p>}
                   </div>
 
-                  {/* Date Range Picker - Spanning both columns */}
+                  {/* Date Range Picker - Replace with reusable component */}
                   <div className="sm:col-span-2 space-y-1">
                     <Label htmlFor="visitDateRange">Visit Dates*</Label>
-                     <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="visitDateRange"
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal py-3 px-4 rounded-lg", // Adjusted padding/radius
-                              !visitDateRange && "text-muted-foreground",
-                              formErrors.visitDateRange && "border-red-500"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {visitDateRange?.from ? (
-                              visitDateRange.to ? (
-                                <>
-                                  {format(visitDateRange.from, "LLL dd, y")} - {" "}
-                                  {format(visitDateRange.to, "LLL dd, y")}
-                                </>
-                              ) : (
-                                format(visitDateRange.from, "LLL dd, y")
-                              )
-                            ) : (
-                              <span>Pick a date range</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={visitDateRange?.from}
-                            selected={visitDateRange}
-                            onSelect={(range) => {
-                              setVisitDateRange(range);
-                              if (formErrors.visitDateRange) {
-                                 setFormErrors(prev => {
-                                   const updated = { ...prev };
-                                   delete updated.visitDateRange;
-                                   return updated;
-                                 });
-                              }
-                            }}
-                            numberOfMonths={2}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      {formErrors.visitDateRange && <p className="text-red-500 text-xs mt-1">{formErrors.visitDateRange}</p>}
+                    {/* Replace the specific Popover block */}
+                    <DateRangePicker
+                      id="visitDateRange"
+                      selectedRange={visitDateRange}
+                      onSelectRange={(range) => {
+                        setVisitDateRange(range);
+                        // Clear potential error when a range is selected
+                        if (formErrors.visitDateRange) {
+                          setFormErrors(prev => {
+                            const updated = { ...prev };
+                            delete updated.visitDateRange;
+                            return updated;
+                          });
+                        }
+                      }}
+                      error={!!formErrors.visitDateRange} // Pass error state
+                      placeholder="Pick a date range"
+                      className="py-3 px-4 rounded-lg" // Maintain specific styling if needed
+                      numberOfMonths={2} // Keep 2 months displayed
+                    />
+                    {/* Original Popover/Calendar JSX is removed here */}
+                    {formErrors.visitDateRange && <p className="text-red-500 text-xs mt-1">{formErrors.visitDateRange}</p>}
                   </div>
 
                   <div className="space-y-1">
