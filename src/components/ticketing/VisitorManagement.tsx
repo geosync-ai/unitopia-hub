@@ -562,11 +562,11 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       footerContent={footerContent}
       isDragging={isDragging}
       cardClassName={cn(
-        // Apply custom styling based on visitor status
-        visitor.status === 'scheduled' && "border-l-4 border-blue-500 dark:bg-blue-900/20",
-        visitor.status === 'checked-in' && "border-l-4 border-green-600 dark:bg-green-900/20",
-        visitor.status === 'checked-out' && "border-l-4 border-gray-500 dark:bg-gray-700/30",
-        visitor.status === 'no-show' && "border-l-4 border-red-600 dark:bg-red-900/20",
+        // Remove the colored left borders while keeping dark background styling
+        visitor.status === 'scheduled' && "dark:bg-blue-900/20",
+        visitor.status === 'checked-in' && "dark:bg-green-900/20",
+        visitor.status === 'checked-out' && "dark:bg-gray-700/30",
+        visitor.status === 'no-show' && "dark:bg-red-900/20",
       )}
     />
   );
