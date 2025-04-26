@@ -40,6 +40,14 @@ const statusMap: { [key in MailPackageStatus]: { icon: React.ElementType; color:
     'Delivered': { icon: () => null, color: 'green', label: 'Delivered' },
 };
 
+// Define a type for the form state, similar to MailPackageData but allowing partials
+// and ensuring date is handled correctly.
+// Let's rename recipientDepartment to recipientEntity here as well.
+type MailPackageFormState = Omit<Partial<MailPackageData>, 'receivedDate' | 'pickedUpDate'> & {
+    receivedDate?: Date; 
+    pickedUpDate?: Date | null;
+    recipientEntity?: string; // Explicitly add the renamed field
+};
 
 const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
     isOpen,
@@ -47,21 +55,28 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
     onSubmit,
     initialData,
 }) => {
-    const [formData, setFormData] = useState<Partial<MailPackageData>>({});
+    // Use the defined type for the state
+    const [formData, setFormData] = useState<MailPackageFormState>({});
+    // Keep the separate receivedDate state for the calendar component
     const [receivedDate, setReceivedDate] = useState<Date | undefined>(new Date());
 
     useEffect(() => {
         if (isOpen) {
             if (initialData) {
-                setFormData({ ...initialData });
+                // Map initialData to form state, using the correct field name
+                const { recipientEntity, ...restData } = initialData; // Use recipientEntity
+                setFormData({ 
+                    ...restData, 
+                    recipientEntity: recipientEntity // Use recipientEntity here too
+                }); 
                 setReceivedDate(initialData.receivedDate || new Date());
             } else {
                 // Default new item data
-                setFormData({
-                    type: 'Mail',
-                    status: 'Received',
-                    receivedDate: new Date(),
-                });
+                setFormData({ 
+                    type: 'Mail', 
+                    status: 'Received', 
+                    receivedDate: new Date()
+                 });
                 setReceivedDate(new Date());
             }
         } else {
@@ -71,6 +86,7 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
         }
     }, [isOpen, initialData]);
 
+    // Generic change handler for inputs/textarea
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
@@ -78,26 +94,30 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSelectChange = (name: keyof MailPackageData, value: string) => {
+    // Specific handler for Select components
+    const handleSelectChange = (name: keyof MailPackageFormState, value: string) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    // Specific handler for Date picker
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
-            setReceivedDate(date);
-            setFormData((prev) => ({ ...prev, receivedDate: date }));
+            setFormData(prev => ({ ...prev, receivedDate: date }));
         }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        // Basic validation (example)
         if (!formData.recipientName || !formData.title) {
-            // Add basic validation feedback if needed
-            console.error("Recipient Name and Title/Subject are required.");
+            alert('Recipient Name and Title/Subject are required.'); // Replace with better UI feedback
             return;
         }
+        // Map form state back to MailPackageData
+        const { recipientEntity, ...restForm } = formData;
         onSubmit({
-             ...formData,
+             ...restForm,
+             recipientEntity: recipientEntity, // Use recipientEntity when submitting
              receivedDate: receivedDate || new Date(), // Ensure date is set
         } as MailPackageData); // Assert type after validation
         onClose();
@@ -179,18 +199,18 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
                             />
                         </div>
 
-                        {/* Recipient Department */}
+                        {/* Recipient Entity - Renamed */}
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="recipientDepartment" className="text-right">
-                                Department
+                            <Label htmlFor="recipientEntity" className="text-right">
+                                Entity
                             </Label>
                             <Input
-                                id="recipientDepartment"
-                                name="recipientDepartment"
-                                value={formData.recipientDepartment || ''}
+                                id="recipientEntity"
+                                name="recipientEntity"
+                                value={formData.recipientEntity || ''}
                                 onChange={handleChange}
                                 className="col-span-3"
-                                placeholder="Optional department"
+                                placeholder="Optional entity or unit"
                             />
                         </div>
 
@@ -205,17 +225,17 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
                                        variant={"outline"}
                                        className={cn(
                                            "col-span-3 justify-start text-left font-normal",
-                                           !receivedDate && "text-muted-foreground"
+                                           !formData.receivedDate && "text-muted-foreground"
                                        )}
                                    >
                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                       {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
+                                       {formData.receivedDate ? format(formData.receivedDate, "PPP") : <span>Pick a date</span>}
                                    </Button>
                                </PopoverTrigger>
                                <PopoverContent className="w-auto p-0">
                                    <Calendar
                                        mode="single"
-                                       selected={receivedDate}
+                                       selected={formData.receivedDate}
                                        onSelect={handleDateChange}
                                        initialFocus
                                    />

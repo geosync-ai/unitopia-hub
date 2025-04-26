@@ -60,7 +60,7 @@ export interface MailPackageData {
   from?: string;
   tracking?: string;
   recipientName: string;
-  recipientDepartment?: string;
+  recipientEntity?: string;
   receivedDate: Date;
   status: MailPackageStatus;
   notes?: string;
@@ -122,11 +122,11 @@ const typeIconBgColors: { [key in MailPackageType]: string } = {
 };
 
 const initialMailItems: MailPackageData[] = [
-  { id: 'MP-001', type: 'Mail', title: 'Priority Mail', from: 'Amazon Customer Service', tracking: '#USPS123456789', recipientName: 'David Kim', recipientDepartment: 'Marketing Dept.', receivedDate: new Date(2023, 3, 15, 10, 15), status: 'Pending Pickup' },
-  { id: 'MP-002', type: 'Package', title: 'FedEx Delivery', from: 'Apple Inc.', tracking: '#FX987654321', recipientName: 'Sarah Johnson', recipientDepartment: 'IT Department', receivedDate: new Date(2023, 3, 14, 14, 30), status: 'Delivered', pickedUpDate: new Date(2023, 3, 15, 9, 0) },
-  { id: 'MP-003', type: 'Mail', title: 'Certified Letter', from: 'State Tax Department', tracking: '#USPS987654321', recipientName: 'Robert Chen', recipientDepartment: 'Finance Dept.', receivedDate: new Date(2023, 3, 14, 9, 45), status: 'Signature Required' },
-  { id: 'MP-004', type: 'Package', title: 'UPS Delivery', from: 'Dell Technologies', tracking: '#UPS456789123', recipientName: 'Emily Rodriguez', recipientDepartment: 'HR Department', receivedDate: new Date(2023, 3, 13, 11, 20), status: 'Delivered', pickedUpDate: new Date(2023, 3, 13, 15, 0) },
-  { id: 'MP-005', type: 'Mail', title: 'Standard Mail', from: 'Bank of America', tracking: 'No tracking', recipientName: 'Michael Chen', recipientDepartment: 'Operations', receivedDate: new Date(2023, 3, 12, 15, 15), status: 'Pending Pickup' },
+  { id: 'MP-001', type: 'Mail', title: 'Priority Mail', from: 'Amazon Customer Service', tracking: '#USPS123456789', recipientName: 'David Kim', recipientEntity: 'Marketing Dept.', receivedDate: new Date(2023, 3, 15, 10, 15), status: 'Pending Pickup' },
+  { id: 'MP-002', type: 'Package', title: 'FedEx Delivery', from: 'Apple Inc.', tracking: '#FX987654321', recipientName: 'Sarah Johnson', recipientEntity: 'IT Department', receivedDate: new Date(2023, 3, 14, 14, 30), status: 'Delivered', pickedUpDate: new Date(2023, 3, 15, 9, 0) },
+  { id: 'MP-003', type: 'Mail', title: 'Certified Letter', from: 'State Tax Department', tracking: '#USPS987654321', recipientName: 'Robert Chen', recipientEntity: 'Finance Dept.', receivedDate: new Date(2023, 3, 14, 9, 45), status: 'Signature Required' },
+  { id: 'MP-004', type: 'Package', title: 'UPS Delivery', from: 'Dell Technologies', tracking: '#UPS456789123', recipientName: 'Emily Rodriguez', recipientEntity: 'HR Department', receivedDate: new Date(2023, 3, 13, 11, 20), status: 'Delivered', pickedUpDate: new Date(2023, 3, 13, 15, 0) },
+  { id: 'MP-005', type: 'Mail', title: 'Standard Mail', from: 'Bank of America', tracking: 'No tracking', recipientName: 'Michael Chen', recipientEntity: 'Operations', receivedDate: new Date(2023, 3, 12, 15, 15), status: 'Pending Pickup' },
 ];
 
 const initialFilters = {
@@ -307,7 +307,7 @@ const MailAndPackages: React.FC = () => {
             item.from,
             item.tracking,
             item.recipientName,
-            item.recipientDepartment,
+            item.recipientEntity,
             item.status,
             item.notes
           ];
@@ -402,7 +402,7 @@ const MailAndPackages: React.FC = () => {
            </div>
            <span className="text-sm text-gray-800 dark:text-gray-100">{item.recipientName}</span>
          </div>
-         {item.recipientDepartment && <p className="text-sm text-gray-500 dark:text-gray-400 md:mt-1">{item.recipientDepartment}</p>}
+         {item.recipientEntity && <p className="text-sm text-gray-500 dark:text-gray-400 md:mt-1">{item.recipientEntity}</p>}
        </div>
 
       {/* Received Date/Time */}
@@ -493,24 +493,28 @@ const MailAndPackages: React.FC = () => {
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-800 dark:text-gray-100 truncate">{item.recipientName}</p>
-                {item.recipientDepartment && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.recipientDepartment}</p>}
+                {item.recipientEntity && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.recipientEntity}</p>}
             </div>
          </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{format(item.receivedDate, 'MMM d, h:mm a')}</p>
 
-         {/* Grid Actions (optional, can be simplified or put in dropdown) */}
+         {/* Grid Actions - Updated to cycle through all statuses */}
         <div className="flex items-center justify-end space-x-1 mt-2 -mr-2">
-            {/* Add button for Received -> Pending Pickup */}
+            {/* Received -> Pending Pickup */}
             { item.status === 'Received' && (
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" title="Mark Pending Pickup" onClick={() => item.onStatusChange(item.id, 'Pending Pickup')}><Clock className="h-3.5 w-3.5" /></Button>
             )}
-            {/* Keep button for Pending/SigReq -> Delivered */}
-            { (item.status === 'Pending Pickup' || item.status === 'Signature Required') && (
+            {/* Pending Pickup -> Signature Required */}
+            { item.status === 'Pending Pickup' && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-yellow-600" title="Mark Signature Required" onClick={() => item.onStatusChange(item.id, 'Signature Required')}><AlertCircle className="h-3.5 w-3.5" /></Button>
+            )}
+            {/* Signature Required -> Delivered */}
+            { item.status === 'Signature Required' && (
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-green-600" title="Mark Delivered" onClick={() => item.onStatusChange(item.id, 'Delivered')}><Check className="h-3.5 w-3.5" /></Button>
             )}
-            {/* Keep button for Delivered -> Pending Pickup */}
+            {/* Delivered -> Received (Cycle back) */}
             { item.status === 'Delivered' && (
-                 <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" title="Mark Pending" onClick={() => item.onStatusChange(item.id, 'Pending Pickup')}><Undo className="h-3.5 w-3.5" /></Button>
+                 <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600" title="Mark Received" onClick={() => item.onStatusChange(item.id, 'Received')}><Undo className="h-3.5 w-3.5" /></Button>
             )}
             {/* Keep Edit and Delete buttons */}
             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600" title="Edit" onClick={() => item.onEdit(item.id)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -636,7 +640,7 @@ const MailAndPackages: React.FC = () => {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           {/* Inner Tabs - Removed overflow-x-auto and scrollbar-hide */}
           <div className="flex-grow"> {/* Allow tabs container to take available space */}
-            <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700 -mb-px"> {/* Removed whitespace-nowrap, added flex-wrap */}
+            <div className="flex flex-wrap dark:border-gray-700 -mb-px"> {/* Removed border-b */}
                {(['All Items', ...Object.keys(statusMap)] as Array<MailPackageStatus | 'All Items'>).map(tabKey => (
                      <button
                          key={tabKey}
