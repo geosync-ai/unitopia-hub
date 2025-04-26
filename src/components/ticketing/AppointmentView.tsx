@@ -49,6 +49,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Define the shape of appointment data
 interface AppointmentData {
+  id: string;
   title: string;
   host: string;
   location: string;
@@ -56,8 +57,97 @@ interface AppointmentData {
   dateRange?: DateRange;
   startTime: string;
   endTime: string;
-  attendees: string[]; // Simple array of attendee names/emails for now
+  attendees: string[];
+  status: 'scheduled' | 'completed' | 'canceled';
 }
+
+// Sample Appointment Data (replace with actual data fetching)
+const sampleAppointments: AppointmentData[] = [
+  {
+    id: 'appt-1',
+    title: 'Marketing Strategy Meeting',
+    host: 'Alice Smith',
+    location: 'Room A',
+    description: 'Discuss Q3 marketing plan',
+    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
+    startTime: '09:00',
+    endTime: '10:30',
+    attendees: ['Bob', 'Charlie'],
+    status: 'completed' 
+  },
+  {
+    id: 'appt-2',
+    title: 'Client Onboarding',
+    host: 'Robert Chen',
+    location: 'Meeting Room 3',
+    description: 'Onboard new client Acme Corp',
+    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
+    startTime: '11:00',
+    endTime: '12:00',
+    attendees: ['David'],
+    status: 'completed'
+  },
+    {
+    id: 'appt-3',
+    title: 'Team Sync',
+    host: 'Jennifer Lee',
+    location: 'Online',
+    description: 'Weekly team sync',
+    dateRange: { from: new Date(2023, 3, 3), to: new Date(2023, 3, 3) }, // April 3rd
+    startTime: '09:00',
+    endTime: '09:30',
+    attendees: ['Alice', 'Bob', 'Charlie', 'David'],
+    status: 'scheduled'
+  },
+  {
+    id: 'appt-4',
+    title: 'Interview Candidate',
+    host: 'David Miller',
+    location: 'Interview Room 1',
+    description: 'Interview for Software Engineer role',
+    dateRange: { from: new Date(2023, 3, 7), to: new Date(2023, 3, 7) }, // April 7th
+    startTime: '11:00',
+    endTime: '12:00',
+    attendees: ['Alice'],
+    status: 'scheduled'
+  },
+  {
+    id: 'appt-5',
+    title: 'Company Retreat Planning',
+    host: 'Sophia Garcia',
+    location: 'Conference Room Main',
+    description: 'Finalize retreat details',
+    dateRange: { from: new Date(2023, 3, 12), to: new Date(2023, 3, 12) }, // April 12th 
+    startTime: '14:00',
+    endTime: '15:30',
+    attendees: ['Robert', 'Jennifer'],
+    status: 'canceled' // Example of canceled
+  },
+    {
+    id: 'appt-6',
+    title: 'Product Demo',
+    host: 'Emily Rodriguez',
+    location: 'Demo Room',
+    description: 'Showcase new features',
+    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
+    startTime: '14:00',
+    endTime: '15:30',
+    attendees: ['Guest1', 'Guest2'],
+    status: 'completed'
+  },
+    {
+    id: 'appt-7',
+    title: 'Weekly Team Sync',
+    host: 'David Kim',
+    location: 'Main Conference Room',
+    description: 'Regular team update',
+    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
+    startTime: '16:00',
+    endTime: '17:00',
+    attendees: ['Alice', 'Bob', 'Charlie', 'Emily'],
+    status: 'completed'
+  },
+];
 
 const AppointmentView: React.FC = () => {
   // Placeholder data - replace with actual state and logic
@@ -67,6 +157,7 @@ const AppointmentView: React.FC = () => {
   // State for the modal
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const initialAppointmentState: AppointmentData = {
+    id: '',
     title: '',
     host: '',
     location: '',
@@ -75,8 +166,12 @@ const AppointmentView: React.FC = () => {
     startTime: '',
     endTime: '',
     attendees: [],
+    status: 'scheduled',
   };
   const [newAppointmentData, setNewAppointmentData] = useState<AppointmentData>(initialAppointmentState);
+  const [appointments, setAppointments] = useState<AppointmentData[]>(sampleAppointments);
+  const [activeAppointmentFilter, setActiveAppointmentFilter] = useState<'all' | 'upcoming' | 'completed' | 'canceled'>('all');
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentData | null>(null);
 
   // --- Modal Handlers --- 
   const handleAppointmentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -92,15 +187,38 @@ const AppointmentView: React.FC = () => {
      setNewAppointmentData(prev => ({ ...prev, dateRange: range }));
   };
 
-  // Basic placeholder for creating the appointment
-  const handleCreateAppointment = (e: React.FormEvent) => {
+  // Basic placeholder for creating/updating the appointment
+  const handleAppointmentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Creating Appointment:", newAppointmentData);
-    // Add actual API call or state update logic here
+    if (editingAppointment) {
+      // Update logic
+      console.log("Updating Appointment:", newAppointmentData);
+      setAppointments(prev => prev.map(appt => 
+        appt.id === editingAppointment.id ? { ...newAppointmentData, id: appt.id } : appt
+      ));
+      // TODO: Add API call for update
+    } else {
+      // Create logic
+      console.log("Creating Appointment:", newAppointmentData);
+      const newId = `appt-${Date.now()}`;
+      const appointmentToAdd: AppointmentData = { 
+        ...newAppointmentData, 
+        id: newId, 
+        status: 'scheduled' // Default status for new
+      };
+      setAppointments(prev => [...prev, appointmentToAdd]);
+      // TODO: Add API call for create
+    }
     setIsAppointmentModalOpen(false); // Close modal on submit
-    setNewAppointmentData(initialAppointmentState); // Reset form
+    // Resetting form state happens in onOpenChange
   };
   
+  // Handler to open modal for editing
+  const handleEditAppointment = (appointment: AppointmentData) => {
+    setEditingAppointment(appointment);
+    setIsAppointmentModalOpen(true);
+  };
+
   // Placeholder host options
   const hostOptions = ["Alice Smith", "Robert Chen", "Jennifer Lee"];
 
@@ -111,11 +229,31 @@ const AppointmentView: React.FC = () => {
          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
            <div className="overflow-x-auto">
              <div className="flex border-b border-gray-200 dark:border-gray-700">
-               {/* Consider using Shadcn Tabs component here for better integration */}
-               <button className="px-4 py-2 text-primary border-b-2 border-primary font-medium whitespace-nowrap">All Appointments</button>
-               <button className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white whitespace-nowrap">Upcoming</button>
-               <button className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white whitespace-nowrap">Completed</button>
-               <button className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white whitespace-nowrap">Canceled</button>
+               {/* Update buttons to set filter state */}
+               <button 
+                 className={cn("px-4 py-2 font-medium whitespace-nowrap", activeAppointmentFilter === 'all' ? 'text-primary border-b-2 border-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-b-2 border-transparent')}
+                 onClick={() => setActiveAppointmentFilter('all')}
+               >
+                 All Appointments
+               </button>
+               <button 
+                 className={cn("px-4 py-2 font-medium whitespace-nowrap", activeAppointmentFilter === 'upcoming' ? 'text-primary border-b-2 border-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-b-2 border-transparent')}
+                 onClick={() => setActiveAppointmentFilter('upcoming')}
+               >
+                 Upcoming
+               </button>
+               <button 
+                 className={cn("px-4 py-2 font-medium whitespace-nowrap", activeAppointmentFilter === 'completed' ? 'text-primary border-b-2 border-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-b-2 border-transparent')}
+                 onClick={() => setActiveAppointmentFilter('completed')}
+               >
+                 Completed
+               </button>
+               <button 
+                 className={cn("px-4 py-2 font-medium whitespace-nowrap", activeAppointmentFilter === 'canceled' ? 'text-primary border-b-2 border-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-b-2 border-transparent')}
+                 onClick={() => setActiveAppointmentFilter('canceled')}
+               >
+                 Canceled
+               </button>
              </div>
            </div>
            <div className="flex items-center gap-2">
@@ -187,41 +325,72 @@ const AppointmentView: React.FC = () => {
             <div key={day} className="bg-gray-100 dark:bg-gray-900 p-2 text-center font-medium text-gray-700 dark:text-gray-300">{day}</div>
           ))}
 
-          {/* Calendar Days - Simplified Example */}
+          {/* Calendar Days - Update to use appointments state */}
           {[...Array(35)].map((_, index) => {
-            const dayNumber = (index - 5 + 35) % 30 + 1; // Placeholder logic for day numbers
-            const isCurrentMonth = index >= 5 && index < 35; // Placeholder logic
-            const isToday = isCurrentMonth && dayNumber === today;
-            const hasAppointment = isCurrentMonth && (dayNumber === 1 || dayNumber === 3 || dayNumber === 7 || dayNumber === 12); // Example appointments
+            const dayOffset = index - 5; // Adjust based on where your calendar starts
+            // This logic needs adjustment based on the actual month being displayed
+            // For now, we assume it matches the sample data month (April 2023)
+            const dayNumber = dayOffset + 1; 
+            const isCurrentMonth = dayOffset >= 0 && dayOffset < 30; // Simplified check for April
+            const currentDate = isCurrentMonth ? new Date(2023, 3, dayNumber) : null;
+            
+            const isToday = currentDate && isSameDay(currentDate, new Date()); // Use isSameDay
+
+            // Filter appointments for the current day
+            const dayAppointments = appointments.filter(appt => 
+              appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), currentDate ?? 0)
+            );
+            
+            // Apply the tab filter
+            const filteredDayAppointments = dayAppointments.filter(appt => {
+                if (activeAppointmentFilter === 'all') return true;
+                const todayStart = startOfDay(new Date());
+                const apptStartDate = appt.dateRange?.from ? startOfDay(new Date(appt.dateRange.from)) : null;
+                const apptEndDate = appt.dateRange?.to ? endOfDay(new Date(appt.dateRange.to)) : apptStartDate ? endOfDay(apptStartDate) : null;
+
+                if (activeAppointmentFilter === 'upcoming') {
+                    // Scheduled and starts today or later
+                    return appt.status === 'scheduled' && apptStartDate && !isBefore(apptStartDate, todayStart);
+                }
+                if (activeAppointmentFilter === 'completed') {
+                    // Completed status OR ended before today
+                    return appt.status === 'completed' || (apptEndDate && isBefore(apptEndDate, todayStart));
+                }
+                if (activeAppointmentFilter === 'canceled') {
+                    return appt.status === 'canceled';
+                }
+                return false;
+            });
 
             return (
               <div 
                 key={index} 
-                className={`calendar-day p-1 ${
+                className={`calendar-day p-1 flex flex-col ${ // Added flex-col
                   isCurrentMonth ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500'
                 } ${isToday ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
-                style={{ minHeight: '100px' }}
+                style={{ minHeight: '120px' }} // Increased min height slightly
               >
-                <div className={`text-right p-1 ${isToday ? 'font-bold text-primary' : ''}`}>
-                  {dayNumber}
+                <div className={`text-right p-1 text-xs ${isToday ? 'font-bold text-primary' : ''}`}>
+                  {isCurrentMonth ? dayNumber : ''}
                 </div>
-                {isCurrentMonth && hasAppointment && (
-                  <div className="mt-1 space-y-1 overflow-hidden">
-                    {dayNumber === 1 && (
-                      <>
-                        <div className="text-[10px] sm:text-xs p-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded truncate">10:00 Marketing Mtg</div>
-                        <div className="text-[10px] sm:text-xs p-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded truncate">2:30 Client Consult</div>
-                      </>
-                    )}
-                     {dayNumber === 3 && (
-                        <div className="text-[10px] sm:text-xs p-1 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 rounded truncate">9:00 Team Sync</div>
-                     )}
-                      {dayNumber === 7 && (
-                        <div className="text-[10px] sm:text-xs p-1 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 rounded truncate">11:00 Interview</div>
-                     )}
-                      {dayNumber === 12 && (
-                         <div className="text-[10px] sm:text-xs p-1 bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 rounded truncate">All Day - Retreat</div>
-                     )}
+                {isCurrentMonth && filteredDayAppointments.length > 0 && (
+                  <div className="mt-1 space-y-1 overflow-hidden flex-grow">{/* Added flex-grow */} 
+                    {filteredDayAppointments.map(appt => (
+                       <button 
+                         key={appt.id}
+                         onClick={() => handleEditAppointment(appt)} // Make appointment clickable
+                         className={cn(
+                           "w-full text-left text-[10px] sm:text-xs p-1 rounded truncate block", // Added block
+                           appt.status === 'scheduled' && "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200",
+                           appt.status === 'completed' && "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200",
+                           appt.status === 'canceled' && "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through opacity-70"
+                           // Add other status colors if needed
+                         )}
+                         title={appt.title} // Add tooltip
+                       >
+                         {appt.startTime ? `${format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a')} ` : ''}{appt.title}
+                       </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -363,22 +532,29 @@ const AppointmentView: React.FC = () => {
         </div>
       </div>
 
-      {/* --- Add Appointment Modal --- */}
+      {/* --- Add/Edit Appointment Modal --- */}
       <Dialog open={isAppointmentModalOpen} onOpenChange={(isOpen) => {
         if (!isOpen) {
-          setNewAppointmentData(initialAppointmentState); // Reset form on close
+          // Reset both editing state and form data on close
+          setEditingAppointment(null); 
+          setNewAppointmentData(initialAppointmentState); 
         }
         setIsAppointmentModalOpen(isOpen);
       }}>
         <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh]">
           <DialogHeader className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
-            <DialogTitle className="text-2xl font-semibold">Create New Appointment</DialogTitle>
+            {/* Update title based on editing state */}
+            <DialogTitle className="text-2xl font-semibold">
+              {editingAppointment ? 'Edit Appointment' : 'Create New Appointment'}
+            </DialogTitle>
             <DialogDescription>
-              Fill in the details for the new appointment.
+              {editingAppointment ? 'Update the appointment details.' : 'Fill in the details for the new appointment.'}
             </DialogDescription>
           </DialogHeader>
           
-          <form onSubmit={handleCreateAppointment} id="appointment-form" className="flex-grow overflow-y-auto px-6 pt-4">
+          {/* Update onSubmit handler */}
+          <form onSubmit={handleAppointmentSubmit} id="appointment-form" className="flex-grow overflow-y-auto px-6 pt-4">
+             {/* Form content remains largely the same, but useEffect will handle pre-filling */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 pb-4">
               {/* Form Fields - Adapted from Visitor Management */}
               <div className="sm:col-span-2 space-y-1">
@@ -486,6 +662,26 @@ const AppointmentView: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Add Status dropdown (optional for edit) */}
+              {editingAppointment && (
+                 <div className="sm:col-span-2 space-y-1">
+                   <Label htmlFor="status">Status</Label>
+                   <Select 
+                     value={newAppointmentData.status}
+                     onValueChange={(value) => handleAppointmentSelectChange(value as AppointmentData['status'], 'status')}
+                   >
+                     <SelectTrigger id="status" className="py-3 px-4 rounded-lg">
+                       <SelectValue placeholder="Select status" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="scheduled">Scheduled</SelectItem>
+                       <SelectItem value="completed">Completed</SelectItem>
+                       <SelectItem value="canceled">Canceled</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+               )}
             </div>
           </form>
 
@@ -503,7 +699,8 @@ const AppointmentView: React.FC = () => {
               form="appointment-form" 
               className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg"
             >
-              Create Appointment
+              {/* Update button text based on editing state */} 
+              {editingAppointment ? 'Save Changes' : 'Create Appointment'}
             </Button>
           </DialogFooter>
         </DialogContent>
