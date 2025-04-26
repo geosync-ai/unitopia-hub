@@ -5,6 +5,7 @@ import TicketManager from '../components/ticketing/TicketManager';
 import VisitorManagement from '../components/ticketing/VisitorManagement';
 import AppointmentView from '../components/ticketing/AppointmentView';
 import MailAndPackages from '../components/ticketing/MailAndPackages';
+import GeneralInquiries from '../components/ticketing/GeneralInquiries';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import { 
@@ -80,7 +81,7 @@ const Tickets: React.FC = () => {
       id: 'general-inquiries' as TicketCategory, 
       label: 'General Inquiries', 
       icon: Phone,
-      content: <PlaceholderContent title="General Inquiries / Calls" /> 
+      content: <GeneralInquiries /> 
     },
     { 
       id: 'employee-support' as TicketCategory, 
