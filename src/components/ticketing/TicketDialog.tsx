@@ -19,13 +19,13 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CalendarIcon, User, Send, PaperclipIcon, LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { DateRange } from "react-day-picker";
 import { cn } from '@/lib/utils';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import DateRangePicker from '@/components/ui/DateRangePicker';
 
 // Define the shape of a comment
 interface Comment {
@@ -233,68 +233,14 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="dateRange">Date Range</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      id="dateRange"
-                      className={cn(
-                        "w-full justify-start text-left font-normal py-3 px-4 rounded-lg",
-                        !dateRange?.from && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                          </>
-                        ) : (
-                          format(dateRange.from, "LLL dd, y")
-                        )
-                      ) : (
-                        <span>Pick a date range</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      defaultMonth={dateRange?.from || new Date()}
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      numberOfMonths={2}
-                      className="border-0"
-                    />
-                    <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex justify-between">
-                        <Button 
-                          type="button" 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => {
-                            const today = new Date();
-                            const nextWeek = new Date();
-                            nextWeek.setDate(today.getDate() + 7);
-                            setDateRange({ from: today, to: nextWeek });
-                          }}
-                        >
-                          This Week
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => {
-                            setDateRange(undefined);
-                          }}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <DateRangePicker
+                  id="dateRange"
+                  selectedRange={dateRange}
+                  onSelectRange={setDateRange}
+                  placeholder="Pick a date range"
+                  numberOfMonths={2}
+                  className="py-3 px-4 rounded-lg"
+                />
               </div>
               <div className="sm:col-span-2 space-y-1"> 
                 <Label htmlFor="assignee">Assignee</Label>
