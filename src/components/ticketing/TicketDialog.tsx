@@ -248,7 +248,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={5}>
+                  <PopoverContent className="w-auto p-0" align="start">
                     <div className="p-2">
                       <Calendar
                         initialFocus
@@ -272,11 +272,10 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                         className="border-0"
                       />
                     </div>
-                    
-                    <div className="p-2 border-t border-gray-200 dark:border-gray-700 text-xs">
-                      <p>startDate: {startDate ? format(startDate, "yyyy-MM-dd") : "undefined"}</p>
-                      <p>endDate: {endDate ? format(endDate, "yyyy-MM-dd") : "undefined"}</p>
-                      <div className="flex justify-between mt-2">
+                    <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs text-muted-foreground mb-1">startDate: {startDate ? format(startDate, "yyyy-MM-dd") : "undefined"}</p>
+                      <p className="text-xs text-muted-foreground mb-2">endDate: {endDate ? format(endDate, "yyyy-MM-dd") : "undefined"}</p>
+                      <div className="flex justify-between">
                         <Button 
                           type="button" 
                           variant="secondary" 
