@@ -23,6 +23,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CalendarIcon, User, Send, PaperclipIcon, LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { DateRange } from "react-day-picker";
 import { cn } from '@/lib/utils';
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -251,11 +252,16 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                     <Calendar
                       initialFocus
                       mode="range"
-                      defaultMonth={startDate}
+                      defaultMonth={startDate || new Date()}
                       selected={{ from: startDate, to: endDate }}
-                      onSelect={(range) => {
-                        setStartDate(range?.from);
-                        setEndDate(range?.to);
+                      onSelect={(range: DateRange | undefined) => {
+                        if (range) {
+                          setStartDate(range.from);
+                          setEndDate(range.to);
+                        } else {
+                          setStartDate(undefined);
+                          setEndDate(undefined);
+                        }
                       }}
                       numberOfMonths={2}
                     />
