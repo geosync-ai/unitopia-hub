@@ -21,7 +21,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarIcon, User, Send } from 'lucide-react';
+import { CalendarIcon, User, Send, PaperclipIcon, LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -93,47 +93,42 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setTitle(initialData.title || '');
       setDescription(initialData.description || '');
       setPriority(initialData.priority || 'Medium');
-      setStatus(initialData.status || 'todo');
-      setGroupId(initialData.groupId);
-      setDueDate(initialData.dueDate || undefined);
-      setComments(initialData.comments || []); // Load existing comments
+      setStatus(initialData.status || defaultStatus || statuses[0]?.id || 'todo');
+      setGroupId(initialData.groupId || defaultGroup);
+      setDueDate(initialData.dueDate ? new Date(initialData.dueDate) : undefined);
+      setComments(initialData.comments || []);
     } else {
-      // Reset form for new ticket
       setTitle('');
       setDescription('');
       setPriority('Medium');
-      // Set status based on defaultStatus prop or fallback to first status/todo
       setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
-      // Set group based on defaultGroup prop
       setGroupId(defaultGroup);
       setDueDate(undefined);
-      setComments([]); // Reset comments for new ticket
+      setComments([]);
     }
-    setNewCommentText(''); // Clear comment input on open/change
-  }, [initialData, isOpen, defaultStatus, defaultGroup, statuses]); // Add dependencies
+    setNewCommentText('');
+  }, [initialData, isOpen, defaultStatus, defaultGroup, statuses]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const ticketData: TicketData = {
-      id: initialData?.id, // Keep existing ID if editing
+      id: initialData?.id,
       title,
       description,
       priority,
       status,
       groupId,
       dueDate: dueDate || null,
-      comments: comments, // Note: comments are managed locally in this example
+      comments: comments,
+      // Add assigneeId if implemented
     };
     onSubmit(ticketData);
   };
 
   // Function to handle adding a new comment
   const handleAddComment = () => {
-    if (!newCommentText.trim()) return; // Don't add empty comments
-
-    // Replace with actual logged-in user data later
+    if (!newCommentText.trim()) return;
     const currentUser = { name: "Current User", avatarFallback: "CU" }; 
-
     const newComment: Comment = {
       id: `comment-${Date.now()}`,
       authorName: currentUser.name,
@@ -141,52 +136,47 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       timestamp: new Date(),
       text: newCommentText,
     };
-
     setComments(prevComments => [...prevComments, newComment]);
-    setNewCommentText(''); // Clear input field
+    setNewCommentText('');
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[525px] fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initialData ? 'Edit Ticket' : 'Create New Ticket'}</DialogTitle>
+      <DialogContent className="sm:max-w-2xl p-0">
+        <DialogHeader className="p-6 pb-4">
+          <DialogTitle className="text-2xl font-semibold">{initialData ? 'Edit Ticket' : 'Create New Ticket'}</DialogTitle>
           <DialogDescription>
             {initialData ? 'Update the details of the ticket.' : 'Fill in the details for the new ticket.'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} id="ticket-form">
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
-                Title
-              </Label>
+        <form onSubmit={handleSubmit} id="ticket-form" className="px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 py-4">
+            <div className="sm:col-span-2 space-y-1">
+              <Label htmlFor="title">Title*</Label>
               <Input 
                 id="title" 
+                placeholder="Enter ticket title" 
                 value={title} 
                 onChange={(e) => setTitle(e.target.value)} 
-                className="col-span-3" 
+                className="py-3 px-4 rounded-lg" 
                 required 
               />
             </div>
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="description" className="text-right pt-2">
-                Description
-              </Label>
+            <div className="sm:col-span-2 space-y-1">
+              <Label htmlFor="description">Description</Label>
               <Textarea 
                 id="description" 
+                placeholder="Add a detailed description..." 
                 value={description} 
                 onChange={(e) => setDescription(e.target.value)} 
-                className="col-span-3" 
+                className="py-3 px-4 rounded-lg" 
                 rows={4}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="group" className="text-right">
-                Group
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="group">Group/Column</Label>
               <Select value={groupId} onValueChange={setGroupId}>
-                <SelectTrigger id="group" className="col-span-3">
+                <SelectTrigger id="group" className="py-3 px-4 rounded-lg">
                   <SelectValue placeholder="Select group" />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,12 +188,10 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="status">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="status" className="col-span-3">
+                <SelectTrigger id="status" className="py-3 px-4 rounded-lg">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,12 +203,10 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="priority" className="text-right">
-                Priority
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="priority">Priority</Label>
               <Select value={priority} onValueChange={(value: 'Low' | 'Medium' | 'High') => setPriority(value)}>
-                <SelectTrigger id="priority" className="col-span-3">
+                <SelectTrigger id="priority" className="py-3 px-4 rounded-lg">
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -230,16 +216,14 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="dueDate" className="text-right">
-                Due Date
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="dueDate">Due Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "col-span-3 justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal py-3 px-4 rounded-lg",
                       !dueDate && "text-muted-foreground"
                     )}
                   >
@@ -257,24 +241,35 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="assignee" className="text-right">
-                Assignee
-              </Label>
-              <div className="col-span-3 flex items-center">
-                <Button variant="outline" className="w-full justify-start">
-                  <User className="mr-2 h-4 w-4" />
-                  <span className="text-muted-foreground">Assign to a team member</span>
-                </Button>
+            <div className="sm:col-span-2 space-y-1"> 
+              <Label htmlFor="assignee">Assignee</Label>
+              <Select>
+                 <SelectTrigger className="py-3 px-4 rounded-lg">
+                    <SelectValue placeholder="Assign to team member" />
+                 </SelectTrigger>
+                 <SelectContent>
+                    <SelectItem value="user1">User One</SelectItem>
+                    <SelectItem value="user2">User Two</SelectItem>
+                 </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2 space-y-1">
+              <Label htmlFor="attachments">Attachments</Label>
+              <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50 dark:bg-gray-800/30">
+                  <Button type="button" variant="outline" size="sm">
+                      <PaperclipIcon className="h-4 w-4 mr-1" /> Add File
+                  </Button>
+                   <Button type="button" variant="outline" size="sm">
+                      <LinkIcon className="h-4 w-4 mr-1" /> Add Link
+                  </Button>
               </div>
             </div>
           </div>
         </form>
 
-        <hr className="my-4" /> 
-        <div>
-          <h3 className="text-lg font-medium mb-4">Comments</h3>
-          <ScrollArea className="h-[200px] w-full mb-4 border rounded-md p-2">
+        <div className="px-6 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700/50">
+          <h3 className="text-lg font-medium mb-3">Comments</h3>
+          <ScrollArea className="h-[150px] w-full mb-4 border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/30">
             {comments.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No comments yet.</p>
             ) : (
@@ -282,7 +277,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 {comments.map((comment) => (
                   <div key={comment.id} className="flex items-start space-x-3">
                     <Avatar className="h-8 w-8">
-                      {/* <AvatarImage src={comment.authorAvatarUrl} /> */}
                       <AvatarFallback>{comment.authorAvatarFallback}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -299,24 +293,33 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
               </div>
             )}
           </ScrollArea>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-start">
+            <Avatar className="h-9 w-9 mt-1">
+                <AvatarFallback>CU</AvatarFallback>
+            </Avatar>
             <Textarea 
               placeholder="Add a comment..." 
               value={newCommentText}
               onChange={(e) => setNewCommentText(e.target.value)}
-              rows={2}
-              className="flex-1"
+              rows={3}
+              className="flex-1 py-2 px-3 rounded-lg"
             />
-            <Button type="button" size="icon" onClick={handleAddComment} disabled={!newCommentText.trim()}>
+            <Button 
+                type="button" 
+                size="icon" 
+                onClick={handleAddComment} 
+                disabled={!newCommentText.trim()}
+                className="mt-1"
+            >
               <Send className="h-4 w-4" />
               <span className="sr-only">Send comment</span>
             </Button>
           </div>
         </div>
 
-        <DialogFooter className="mt-6"> 
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="ticket-form">{initialData ? 'Save Changes' : 'Create Ticket'}</Button>
+        <DialogFooter className="px-6 py-4 mt-6 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700/50">
+          <Button type="button" variant="outline" onClick={onClose} className="px-6 py-2 rounded-lg">Cancel</Button>
+          <Button type="submit" form="ticket-form" className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg">{initialData ? 'Save Changes' : 'Create Ticket'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

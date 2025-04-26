@@ -85,7 +85,7 @@ Manages visitor registration, tracking, and status changes throughout the visito
 
 ### Features
 - Multiple view modes (board, grid, list)
-- Visitor registration with detailed information (uses a wider modal with grid layout)
+- Visitor registration with detailed information (uses a wider, two-column modal: photo left, fields right)
 - Photo upload capabilities
 - Status tracking (scheduled, checked-in, checked-out, no-show)
 - Host assignment
@@ -109,7 +109,7 @@ Manages visitor registration, tracking, and status changes throughout the visito
 ## TicketDialog
 
 ### Purpose
-Modal dialog for creating and editing tickets with comprehensive form fields.
+Modal dialog for creating and editing tickets with comprehensive form fields, presented in a wider modal with an organized grid layout.
 
 ### Usage
 ```jsx

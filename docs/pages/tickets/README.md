@@ -31,7 +31,7 @@ The Ticketing System is a comprehensive front desk solution designed to manage v
 ### Visitor Management
 - **Visitor Tracking**: Track visitors across different stages (scheduled, checked-in, checked-out, no-show)
 - **Multiple Views**: Board, grid, and list views for visitor information
-- **Visitor Registration**: Register new visitors with detailed information in a wider, grid-based modal
+- **Visitor Registration**: Register new visitors with detailed information in a wider, two-column modal (photo left, fields right)
 - **Photo Upload**: Upload visitor photos for identification
 - **Visit Scheduling**: Schedule visits with start/end dates and specific time using a date range picker
 - **Host Assignment**: Assign visitors to hosts within the organization
@@ -156,7 +156,7 @@ interface Visitor {
 Modal dialog for creating and editing tickets.
 
 **Key Features:**
-- Form for ticket creation/editing
+- Form for ticket creation/editing (wider modal with grid layout)
 - Priority, status, and group selection
 - Due date picker
 - Comment system

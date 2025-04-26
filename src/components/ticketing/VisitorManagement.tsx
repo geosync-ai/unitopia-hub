@@ -1818,72 +1818,80 @@ const VisitorManagement: React.FC = () => {
         }
         setShowAddVisitorModal(isOpen);
       }}>
-        <DialogContent className="sm:max-w-3xl"> {/* Increased width */}
-          <DialogHeader>
-            <DialogTitle>{newVisitor.id ? 'Edit Visitor' : 'Add New Visitor'}</DialogTitle>
+        {/* Use sm:max-w-4xl or similar for wider modal if 3xl isn't enough */}
+        <DialogContent className="sm:max-w-4xl p-0"> 
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="text-2xl font-semibold">{newVisitor.id ? 'Edit Visitor' : 'Add New Visitor'}</DialogTitle>
             <DialogDescription>
-              Enter the visitor's details below.
+Enter the visitor's details below.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
-            {/* Photo Upload Section */}
-            <div className="md:col-span-1 flex flex-col items-center space-y-4">
-              <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center overflow-hidden border">
+          {/* Applying the two-column form-grid layout */}
+          <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 px-6 pb-6">
+            {/* Left side: Image Upload Section */}
+            <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/30 p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
+              <div className="w-36 h-36 rounded-full overflow-hidden mb-4 border-4 border-white dark:border-gray-700 shadow-md flex items-center justify-center bg-white dark:bg-gray-600">
                 {newVisitor.photoUrl ? (
                   <img src={newVisitor.photoUrl} alt="Visitor" className="w-full h-full object-cover" />
                 ) : (
-                  <ImageIcon className="w-16 h-16 text-muted-foreground" />
+                  <ImageIcon className="w-16 h-16 text-gray-400 dark:text-gray-500" />
                 )}
               </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Upload a profile photo or company logo</p>
               <input
                 type="file"
+                id="visitorImageUpload" // Added id for label association
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 accept="image/*"
                 style={{ display: 'none' }}
               />
-              <Button variant="outline" onClick={handlePhotoUploadClick}>
+              <Label 
+                htmlFor="visitorImageUpload" // Use label for better accessibility
+                className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg cursor-pointer text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
                 <UploadIcon className="mr-2 h-4 w-4" />
-                Upload Photo/Logo
-              </Button>
+                Choose Image
+              </Label>
               {selectedFile && (
-                <p className="text-xs text-muted-foreground">{selectedFile.name}</p>
+                <p className="text-xs text-muted-foreground mt-3 truncate w-full">{selectedFile.name}</p>
               )}
             </div>
 
-            {/* Form Fields Section */}
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Right side: Form Fields Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+              {/* Use form-group styling concept */}
               <div className="space-y-1">
                 <Label htmlFor="firstName">First Name*</Label>
-                <Input id="firstName" required value={newVisitor.firstName} onChange={handleInputChange} className={formErrors.firstName ? "border-red-500" : ""}/>
+                <Input id="firstName" placeholder="Enter first name" required value={newVisitor.firstName} onChange={handleInputChange} className={cn("py-3 px-4 rounded-lg", formErrors.firstName && "border-red-500")} />
                 {formErrors.firstName && <p className="text-red-500 text-xs">{formErrors.firstName}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="lastName">Last Name*</Label>
-                <Input id="lastName" required value={newVisitor.lastName} onChange={handleInputChange} className={formErrors.lastName ? "border-red-500" : ""}/>
+                <Input id="lastName" placeholder="Enter last name" required value={newVisitor.lastName} onChange={handleInputChange} className={cn("py-3 px-4 rounded-lg", formErrors.lastName && "border-red-500")} />
                 {formErrors.lastName && <p className="text-red-500 text-xs">{formErrors.lastName}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="email">Email Address*</Label>
-                <Input id="email" type="email" required value={newVisitor.email} onChange={handleInputChange} className={formErrors.email ? "border-red-500" : ""}/>
+                <Input id="email" type="email" placeholder="e.g., name@company.com" required value={newVisitor.email} onChange={handleInputChange} className={cn("py-3 px-4 rounded-lg", formErrors.email && "border-red-500")} />
                 {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="phone">Phone Number*</Label>
-                <Input id="phone" type="tel" required value={newVisitor.phone} onChange={handleInputChange} className={formErrors.phone ? "border-red-500" : ""}/>
+                <Input id="phone" type="tel" placeholder="Enter phone number" required value={newVisitor.phone} onChange={handleInputChange} className={cn("py-3 px-4 rounded-lg", formErrors.phone && "border-red-500")} />
                 {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <Label htmlFor="company">Company</Label>
-                <Input id="company" value={newVisitor.company} onChange={handleInputChange} />
+                <Input id="company" placeholder="Enter company name" value={newVisitor.company} onChange={handleInputChange} className="py-3 px-4 rounded-lg" />
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <Label htmlFor="purpose">Purpose of Visit*</Label>
-                <Input id="purpose" required value={newVisitor.purpose} onChange={handleInputChange} className={formErrors.purpose ? "border-red-500" : ""}/>
+                <Input id="purpose" placeholder="e.g., Meeting with Sales" required value={newVisitor.purpose} onChange={handleInputChange} className={cn("py-3 px-4 rounded-lg", formErrors.purpose && "border-red-500")} />
                 {formErrors.purpose && <p className="text-red-500 text-xs">{formErrors.purpose}</p>}
               </div>
 
-              {/* Date Range Picker */}
+              {/* Date Range Picker - Spanning both columns */}
               <div className="sm:col-span-2 space-y-1">
                 <Label htmlFor="visitDateRange">Visit Dates*</Label>
                  <Popover>
@@ -1892,7 +1900,7 @@ const VisitorManagement: React.FC = () => {
                         id="visitDateRange"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full justify-start text-left font-normal py-3 px-4 rounded-lg", // Adjusted padding/radius
                           !visitDateRange && "text-muted-foreground",
                           formErrors.visitDateRange && "border-red-500"
                         )}
@@ -1932,18 +1940,18 @@ const VisitorManagement: React.FC = () => {
                       />
                     </PopoverContent>
                   </Popover>
-                  {formErrors.visitDateRange && <p className="text-red-500 text-xs">{formErrors.visitDateRange}</p>}
+                  {formErrors.visitDateRange && <p className="text-red-500 text-xs mt-1">{formErrors.visitDateRange}</p>}
               </div>
 
               <div className="space-y-1">
                 <Label htmlFor="time">Visit Time*</Label>
-                <Input id="time" type="time" required value={newVisitor.time} onChange={handleInputChange} className={formErrors.time ? "border-red-500" : ""}/>
+                <Input id="time" type="time" required value={newVisitor.time} onChange={handleInputChange} className={cn("py-3 px-4 rounded-lg", formErrors.time && "border-red-500")} />
                 {formErrors.time && <p className="text-red-500 text-xs">{formErrors.time}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="host">Host*</Label>
                 <Select value={newVisitor.host} onValueChange={(value) => handleSelectChange(value, 'host')}>
-                  <SelectTrigger className={formErrors.host ? "border-red-500" : ""}>
+                  <SelectTrigger className={cn("py-3 px-4 rounded-lg", formErrors.host && "border-red-500")}>
                     <SelectValue placeholder="Select a host" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1956,12 +1964,12 @@ const VisitorManagement: React.FC = () => {
               </div>
                <div className="sm:col-span-2 space-y-1">
                 <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea id="notes" placeholder="Additional notes" value={newVisitor.notes} onChange={handleInputChange} />
+                <Textarea id="notes" rows={3} placeholder="Enter any additional notes..." value={newVisitor.notes} onChange={handleInputChange} className="py-3 px-4 rounded-lg" />
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <Label htmlFor="status">Status</Label>
                 <Select value={newVisitor.status as string} onValueChange={(value) => handleSelectChange(value, 'status')}>
-                  <SelectTrigger>
+                  <SelectTrigger className="py-3 px-4 rounded-lg">
                     <SelectValue placeholder="Select a status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1974,9 +1982,24 @@ const VisitorManagement: React.FC = () => {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddVisitorModal(false)}>Cancel</Button>
-            <Button type="button" onClick={handleAddVisitor}>{newVisitor.id ? 'Update Visitor' : 'Add Visitor'}</Button>
+          {/* Adjusted DialogFooter padding */}
+          <DialogFooter className="px-6 py-4 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700/50 rounded-b-lg">
+            {/* Apply custom button styles if needed, or use Shadcn variants */}
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAddVisitorModal(false)}
+              className="px-6 py-2 rounded-lg" // Example styling adjustment
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleAddVisitor}
+              // Example custom class or variant for submit button
+              className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg"
+            >
+              {newVisitor.id ? 'Update Visitor' : 'Add Visitor'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
