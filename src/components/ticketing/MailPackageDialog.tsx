@@ -43,10 +43,10 @@ const statusMap: { [key in MailPackageStatus]: { icon: React.ElementType; color:
 // Define a type for the form state, similar to MailPackageData but allowing partials
 // and ensuring date is handled correctly.
 // Let's rename recipientDepartment to recipientEntity here as well.
-type MailPackageFormState = Omit<Partial<MailPackageData>, 'receivedDate' | 'pickedUpDate'> & {
+type MailPackageFormState = Omit<Partial<MailPackageData>, 'receivedDate' | 'pickedUpDate' | 'recipientEntity'> & {
     receivedDate?: Date; 
     pickedUpDate?: Date | null;
-    recipientEntity?: string; // Explicitly add the renamed field
+    recipientUnit?: string; // Renamed from recipientEntity
 };
 
 const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
@@ -64,10 +64,10 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
         if (isOpen) {
             if (initialData) {
                 // Map initialData to form state, using the correct field name
-                const { recipientEntity, ...restData } = initialData; // Use recipientEntity
+                const { recipientUnit, ...restData } = initialData; // Use recipientUnit
                 setFormData({ 
                     ...restData, 
-                    recipientEntity: recipientEntity // Use recipientEntity here too
+                    recipientUnit: recipientUnit // Use recipientUnit here too
                 }); 
                 setReceivedDate(initialData.receivedDate || new Date());
             } else {
@@ -114,10 +114,10 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
             return;
         }
         // Map form state back to MailPackageData
-        const { recipientEntity, ...restForm } = formData;
+        const { recipientUnit, ...restForm } = formData;
         onSubmit({
              ...restForm,
-             recipientEntity: recipientEntity, // Use recipientEntity when submitting
+             recipientUnit: recipientUnit, // Use recipientUnit when submitting
              receivedDate: receivedDate || new Date(), // Ensure date is set
         } as MailPackageData); // Assert type after validation
         onClose();
@@ -199,18 +199,18 @@ const MailPackageDialog: React.FC<MailPackageDialogProps> = ({
                             />
                         </div>
 
-                        {/* Recipient Entity - Renamed */}
+                        {/* Recipient Unit - Renamed */}
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="recipientEntity" className="text-right">
-                                Entity
+                            <Label htmlFor="recipientUnit" className="text-right">
+                                Unit
                             </Label>
                             <Input
-                                id="recipientEntity"
-                                name="recipientEntity"
-                                value={formData.recipientEntity || ''}
+                                id="recipientUnit"
+                                name="recipientUnit"
+                                value={formData.recipientUnit || ''}
                                 onChange={handleChange}
                                 className="col-span-3"
-                                placeholder="Optional entity or unit"
+                                placeholder="Optional unit or department"
                             />
                         </div>
 

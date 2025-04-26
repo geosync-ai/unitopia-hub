@@ -60,7 +60,7 @@ export interface MailPackageData {
   from?: string;
   tracking?: string;
   recipientName: string;
-  recipientEntity?: string;
+  recipientUnit?: string;
   receivedDate: Date;
   status: MailPackageStatus;
   notes?: string;
@@ -78,6 +78,7 @@ interface MailPackageItemProps extends MailPackageData {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, newStatus: MailPackageStatus) => void;
+  recipientUnit?: string;
 }
 
 interface ItemToDelete {
@@ -122,11 +123,11 @@ const typeIconBgColors: { [key in MailPackageType]: string } = {
 };
 
 const initialMailItems: MailPackageData[] = [
-  { id: 'MP-001', type: 'Mail', title: 'Priority Mail', from: 'Amazon Customer Service', tracking: '#USPS123456789', recipientName: 'David Kim', recipientEntity: 'Marketing Dept.', receivedDate: new Date(2023, 3, 15, 10, 15), status: 'Pending Pickup' },
-  { id: 'MP-002', type: 'Package', title: 'FedEx Delivery', from: 'Apple Inc.', tracking: '#FX987654321', recipientName: 'Sarah Johnson', recipientEntity: 'IT Department', receivedDate: new Date(2023, 3, 14, 14, 30), status: 'Delivered', pickedUpDate: new Date(2023, 3, 15, 9, 0) },
-  { id: 'MP-003', type: 'Mail', title: 'Certified Letter', from: 'State Tax Department', tracking: '#USPS987654321', recipientName: 'Robert Chen', recipientEntity: 'Finance Dept.', receivedDate: new Date(2023, 3, 14, 9, 45), status: 'Signature Required' },
-  { id: 'MP-004', type: 'Package', title: 'UPS Delivery', from: 'Dell Technologies', tracking: '#UPS456789123', recipientName: 'Emily Rodriguez', recipientEntity: 'HR Department', receivedDate: new Date(2023, 3, 13, 11, 20), status: 'Delivered', pickedUpDate: new Date(2023, 3, 13, 15, 0) },
-  { id: 'MP-005', type: 'Mail', title: 'Standard Mail', from: 'Bank of America', tracking: 'No tracking', recipientName: 'Michael Chen', recipientEntity: 'Operations', receivedDate: new Date(2023, 3, 12, 15, 15), status: 'Pending Pickup' },
+  { id: 'MP-001', type: 'Mail', title: 'Priority Mail', from: 'Amazon Customer Service', tracking: '#USPS123456789', recipientName: 'David Kim', recipientUnit: 'Marketing Dept.', receivedDate: new Date(2023, 3, 15, 10, 15), status: 'Pending Pickup' },
+  { id: 'MP-002', type: 'Package', title: 'FedEx Delivery', from: 'Apple Inc.', tracking: '#FX987654321', recipientName: 'Sarah Johnson', recipientUnit: 'IT Department', receivedDate: new Date(2023, 3, 14, 14, 30), status: 'Delivered', pickedUpDate: new Date(2023, 3, 15, 9, 0) },
+  { id: 'MP-003', type: 'Mail', title: 'Certified Letter', from: 'State Tax Department', tracking: '#USPS987654321', recipientName: 'Robert Chen', recipientUnit: 'Finance Dept.', receivedDate: new Date(2023, 3, 14, 9, 45), status: 'Signature Required' },
+  { id: 'MP-004', type: 'Package', title: 'UPS Delivery', from: 'Dell Technologies', tracking: '#UPS456789123', recipientName: 'Emily Rodriguez', recipientUnit: 'HR Department', receivedDate: new Date(2023, 3, 13, 11, 20), status: 'Delivered', pickedUpDate: new Date(2023, 3, 13, 15, 0) },
+  { id: 'MP-005', type: 'Mail', title: 'Standard Mail', from: 'Bank of America', tracking: 'No tracking', recipientName: 'Michael Chen', recipientUnit: 'Operations', receivedDate: new Date(2023, 3, 12, 15, 15), status: 'Pending Pickup' },
 ];
 
 const initialFilters = {
@@ -307,7 +308,7 @@ const MailAndPackages: React.FC = () => {
             item.from,
             item.tracking,
             item.recipientName,
-            item.recipientEntity,
+            item.recipientUnit,
             item.status,
             item.notes
           ];
@@ -402,7 +403,7 @@ const MailAndPackages: React.FC = () => {
            </div>
            <span className="text-sm text-gray-800 dark:text-gray-100">{item.recipientName}</span>
          </div>
-         {item.recipientEntity && <p className="text-sm text-gray-500 dark:text-gray-400 md:mt-1">{item.recipientEntity}</p>}
+         {item.recipientUnit && <p className="text-sm text-gray-500 dark:text-gray-400 md:mt-1">{item.recipientUnit}</p>}
        </div>
 
       {/* Received Date/Time */}
@@ -457,11 +458,11 @@ const MailAndPackages: React.FC = () => {
             >
           <Pencil className="h-4 w-4" />
         </Button>
-         {/* Delete */}
+         {/* Delete - Changed color to match pencil */}
          <Button
              variant="ghost"
              size="icon"
-             className="h-8 w-8 text-red-400 hover:text-red-600 dark:hover:text-red-500"
+             className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
              title="Delete Item"
              onClick={() => item.onDelete(item.id)}
              >
@@ -493,7 +494,7 @@ const MailAndPackages: React.FC = () => {
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-800 dark:text-gray-100 truncate">{item.recipientName}</p>
-                {item.recipientEntity && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.recipientEntity}</p>}
+                {item.recipientUnit && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.recipientUnit}</p>}
             </div>
          </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{format(item.receivedDate, 'MMM d, h:mm a')}</p>
