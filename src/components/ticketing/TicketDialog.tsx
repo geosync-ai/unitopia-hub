@@ -249,22 +249,64 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={5}>
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={startDate || new Date()}
-                      selected={{ from: startDate, to: endDate }}
-                      onSelect={(range: DateRange | undefined) => {
-                        if (range) {
-                          setStartDate(range.from);
-                          setEndDate(range.to);
-                        } else {
-                          setStartDate(undefined);
-                          setEndDate(undefined);
-                        }
-                      }}
-                      numberOfMonths={2}
-                    />
+                    <div className="p-2">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={startDate || new Date()}
+                        selected={{ from: startDate, to: endDate }}
+                        onSelect={(range: DateRange | undefined) => {
+                          console.log("Calendar onSelect triggered:", range);
+                          if (range) {
+                            console.log("Setting startDate to:", range.from);
+                            console.log("Setting endDate to:", range.to);
+                            setStartDate(range.from);
+                            setEndDate(range.to);
+                          } else {
+                            console.log("Range cleared");
+                            setStartDate(undefined);
+                            setEndDate(undefined);
+                          }
+                        }}
+                        numberOfMonths={2}
+                        className="border-0"
+                      />
+                    </div>
+                    
+                    <div className="p-2 border-t border-gray-200 dark:border-gray-700 text-xs">
+                      <p>startDate: {startDate ? format(startDate, "yyyy-MM-dd") : "undefined"}</p>
+                      <p>endDate: {endDate ? format(endDate, "yyyy-MM-dd") : "undefined"}</p>
+                      <div className="flex justify-between mt-2">
+                        <Button 
+                          type="button" 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => {
+                            const today = new Date();
+                            const nextWeek = new Date();
+                            nextWeek.setDate(today.getDate() + 7);
+                            console.log("Manual set - today:", today);
+                            console.log("Manual set - nextWeek:", nextWeek);
+                            setStartDate(today);
+                            setEndDate(nextWeek);
+                          }}
+                        >
+                          Set Test Range
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => {
+                            console.log("Clearing dates");
+                            setStartDate(undefined);
+                            setEndDate(undefined);
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>
