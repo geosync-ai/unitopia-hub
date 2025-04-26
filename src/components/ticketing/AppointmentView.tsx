@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +41,7 @@ import {
   Utensils,
   MapPin // Using MapPin for Location
 } from 'lucide-react';
-import { format, isSameDay, startOfDay, endOfDay, isBefore } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, isBefore, addMonths, subMonths, startOfMonth, endOfMonth, getDay, getDaysInMonth, getDate, addDays, subDays } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import DateRangePicker from '@/components/ui/DateRangePicker';
@@ -149,10 +149,13 @@ const sampleAppointments: AppointmentData[] = [
   },
 ];
 
+// Type for ViewMode
+type ViewMode = 'month' | 'day' | 'list' | 'week';
+
 const AppointmentView: React.FC = () => {
   // Placeholder data - replace with actual state and logic
-  const currentMonth = "April 2023"; 
-  const today = 1; // Example day
+  // const currentMonth = "April 2023"; // Remove hardcoded month string
+  // const today = 1; // Remove hardcoded day
 
   // State for the modal
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
@@ -172,7 +175,9 @@ const AppointmentView: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentData[]>(sampleAppointments);
   const [activeAppointmentFilter, setActiveAppointmentFilter] = useState<'all' | 'upcoming' | 'completed' | 'canceled'>('all');
   const [editingAppointment, setEditingAppointment] = useState<AppointmentData | null>(null);
-  const [showDayView, setShowDayView] = useState(false); // State for toggling view
+  const [viewMode, setViewMode] = useState<ViewMode>('month'); // Default to month view
+  const [currentDisplayMonth, setCurrentDisplayMonth] = useState(startOfMonth(new Date())); // State for displayed month
+  const [searchQuery, setSearchQuery] = useState(''); // State for search
 
   // --- Modal Handlers --- 
   const handleAppointmentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -223,6 +228,92 @@ const AppointmentView: React.FC = () => {
   // Placeholder host options
   const hostOptions = ["Alice Smith", "Robert Chen", "Jennifer Lee"];
 
+  // --- Navigation Handlers ---
+  const goToPreviousMonth = () => {
+    setCurrentDisplayMonth(prev => subMonths(prev, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDisplayMonth(prev => addMonths(prev, 1));
+  };
+  
+  const goToToday = () => {
+      setCurrentDisplayMonth(startOfMonth(new Date())); // Go back to current month view
+      setViewMode('day'); // Switch to day view for today
+  };
+
+  // --- Filtering Logic --- 
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter(appt => {
+        // 1. Filter by Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            const titleMatch = appt.title.toLowerCase().includes(lowerQuery);
+            const hostMatch = appt.host.toLowerCase().includes(lowerQuery);
+            const locationMatch = appt.location.toLowerCase().includes(lowerQuery);
+            const descriptionMatch = appt.description.toLowerCase().includes(lowerQuery);
+            const attendeeMatch = appt.attendees.some(a => a.toLowerCase().includes(lowerQuery));
+            if (!(titleMatch || hostMatch || locationMatch || descriptionMatch || attendeeMatch)) {
+                return false;
+            }
+        }
+
+        // 2. Filter by Status Tab (All, Upcoming, Completed, Canceled)
+        if (activeAppointmentFilter === 'all') return true; // No status filtering needed
+        
+        const todayStart = startOfDay(new Date());
+        const apptStartDate = appt.dateRange?.from ? startOfDay(new Date(appt.dateRange.from)) : null;
+        const apptEndDate = appt.dateRange?.to ? endOfDay(new Date(appt.dateRange.to)) : apptStartDate ? endOfDay(apptStartDate) : null;
+
+        if (activeAppointmentFilter === 'upcoming') {
+            return appt.status === 'scheduled' && apptStartDate && !isBefore(apptStartDate, todayStart);
+        }
+        if (activeAppointmentFilter === 'completed') {
+            return appt.status === 'completed' || (apptEndDate && isBefore(apptEndDate, todayStart));
+        }
+        if (activeAppointmentFilter === 'canceled') {
+            return appt.status === 'canceled';
+        }
+        return false; // Should not happen if filter is one of the above
+    });
+  }, [appointments, searchQuery, activeAppointmentFilter]);
+
+  // --- Calendar Grid Data Generation ---
+  const calendarGridData = useMemo(() => {
+    const monthStart = currentDisplayMonth;
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart); // startOfWeek needs import
+    const endDate = endOfWeek(monthEnd); // endOfWeek needs import
+
+    const days = [];
+    let day = startDate;
+
+    while (day <= endDate) {
+      days.push(day);
+      day = addDays(day, 1);
+    }
+    return days;
+
+  }, [currentDisplayMonth]);
+  
+   // Import startOfWeek and endOfWeek if not already imported with others
+   const { startOfWeek, endOfWeek } = require('date-fns'); 
+
+  // --- useEffect to update form data when editing --- 
+  useEffect(() => {
+    if (editingAppointment) {
+        setNewAppointmentData({
+            ...editingAppointment,
+            dateRange: editingAppointment.dateRange ? {
+                from: editingAppointment.dateRange.from ? new Date(editingAppointment.dateRange.from) : undefined,
+                to: editingAppointment.dateRange.to ? new Date(editingAppointment.dateRange.to) : undefined
+            } : undefined
+        });
+    } else {
+        setNewAppointmentData(initialAppointmentState);
+    }
+  }, [editingAppointment]);
+
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Tabs and View Options Section */}
@@ -258,46 +349,71 @@ const AppointmentView: React.FC = () => {
              </div>
            </div>
            <div className="flex items-center gap-2">
+             {/* Search Input */}
              <div className="relative">
                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                <Input 
                  type="text" 
                  placeholder="Search appointments..." 
                  className="pl-9 w-full md:w-64 h-9" 
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
                />
              </div>
+             {/* View Switcher Buttons */}
              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
-               <Button variant="ghost" size="sm" className="rounded-none border-r border-gray-300 dark:border-gray-600">
+               <Button 
+                  variant={viewMode === "day" ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setViewMode('day')} 
+                  className="rounded-none border-r border-gray-300 dark:border-gray-600">
                  <CalendarDays className="h-4 w-4" />
                  <span className="ml-1 hidden sm:inline">Day</span>
                </Button>
-               <Button variant="ghost" size="sm" className="rounded-none border-r border-gray-300 dark:border-gray-600">
+               {/* Week Button Placeholder */}
+               <Button 
+                  variant={viewMode === "week" ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setViewMode('week')} 
+                  className="rounded-none border-r border-gray-300 dark:border-gray-600">
                  <CalendarRange className="h-4 w-4" />
                </Button>
-               <Button variant="ghost" size="sm" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 border-r border-gray-300 dark:border-gray-600">
+               <Button 
+                  variant={viewMode === "month" ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setViewMode('month')} 
+                  className="rounded-none border-r border-gray-300 dark:border-gray-600">
                  <Calendar className="h-4 w-4" />
                  <span className="ml-1 hidden sm:inline">Month</span>
                </Button>
-               <Button variant="ghost" size="sm" className="rounded-none">
+               <Button 
+                  variant={viewMode === "list" ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setViewMode('list')} 
+                  className="rounded-none">
                  <List className="h-4 w-4" />
                </Button>
              </div>
+             {/* New Appointment Button */}
              <Button 
                className="bg-primary text-white hover:bg-primary/90 flex items-center" 
                size="sm"
-               onClick={() => setIsAppointmentModalOpen(true)}
+               onClick={() => {
+                 setEditingAppointment(null); // Ensure we are creating
+                 setIsAppointmentModalOpen(true);
+               }} 
              >
                <Plus className="mr-2 h-4 w-4" />
                <span>New Appointment</span>
              </Button>
+             {/* Today button - now primarily for quick jump to Today in Day view */}
              <Button 
-               variant="outline" 
-               size="sm"
-               onClick={() => setShowDayView(prev => !prev)} // Toggle day view
-               className={cn(showDayView && "bg-muted dark:bg-muted/50")} // Style when active
-             >
-               {showDayView ? 'Calendar View' : 'Today'} {/* Change text based on view */}
-             </Button>
+                variant="outline" 
+                size="sm"
+                onClick={goToToday} 
+              >
+                Today
+              </Button>
            </div>
          </div>
        </div>
@@ -307,23 +423,15 @@ const AppointmentView: React.FC = () => {
         {/* Header for Calendar/Day View */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {/* Month Navigation */} 
-            <Button variant="outline" size="icon" className="h-8 w-8">
+            {/* Month Navigation */}
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-lg font-semibold">{currentMonth}</h3>
-            <Button variant="outline" size="icon" className="h-8 w-8">
+            <h3 className="text-lg font-semibold">{format(currentDisplayMonth, 'MMMM yyyy')}</h3>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-            {/* View Toggle Button */} 
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowDayView(prev => !prev)} 
-              className={cn(showDayView && "bg-muted dark:bg-muted/50")} 
-            >
-              {showDayView ? 'Calendar View' : 'Today'} 
-            </Button>
+            {/* Removed Today toggle button from here - moved logic to main header */}
           </div>
           {/* Action Buttons */} 
           <div className="flex items-center space-x-2">
@@ -337,40 +445,24 @@ const AppointmentView: React.FC = () => {
         </div>
         {/* --- End Header --- */} 
 
-        {/* --- Conditional Calendar Grid --- */}
-        {!showDayView && (
+        {/* --- Conditional Views --- */} 
+        {viewMode === 'month' && (
           <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 text-xs sm:text-sm">
             {/* Weekday Headers */}
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
               <div key={day} className="bg-gray-100 dark:bg-gray-900 p-2 text-center font-medium text-gray-700 dark:text-gray-300">{day}</div>
             ))}
 
-            {/* Calendar Days Logic (ensure correct filtering/mapping) */}
-            {[...Array(35)].map((_, index) => {
-               const dayOffset = index - 5; 
-               const dayNumber = dayOffset + 1; 
-               const isCurrentMonth = dayOffset >= 0 && dayOffset < 30; 
-               const currentDate = isCurrentMonth ? new Date(2023, 3, dayNumber) : null;
-               const isToday = currentDate && isSameDay(currentDate, new Date());
-               const dayAppointments = appointments.filter(appt => 
-                 appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), currentDate ?? 0)
+            {/* Calendar Days - Using generated grid data */}
+            {calendarGridData.map((day, index) => {
+               const dayNumber = getDate(day);
+               const isCurrentMonth = day.getMonth() === currentDisplayMonth.getMonth();
+               const isToday = isSameDay(day, new Date());
+               
+               // Filter appointments for THIS specific day from the already filtered list
+               const dayAppointments = filteredAppointments.filter(appt => 
+                 appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), day)
                );
-               const filteredDayAppointments = dayAppointments.filter(appt => {
-                   if (activeAppointmentFilter === 'all') return true;
-                   const todayStart = startOfDay(new Date());
-                   const apptStartDate = appt.dateRange?.from ? startOfDay(new Date(appt.dateRange.from)) : null;
-                   const apptEndDate = appt.dateRange?.to ? endOfDay(new Date(appt.dateRange.to)) : apptStartDate ? endOfDay(apptStartDate) : null;
-                   if (activeAppointmentFilter === 'upcoming') {
-                       return appt.status === 'scheduled' && apptStartDate && !isBefore(apptStartDate, todayStart);
-                   }
-                   if (activeAppointmentFilter === 'completed') {
-                       return appt.status === 'completed' || (apptEndDate && isBefore(apptEndDate, todayStart));
-                   }
-                   if (activeAppointmentFilter === 'canceled') {
-                       return appt.status === 'canceled';
-                   }
-                   return false;
-               });
 
               return (
                 <div 
@@ -379,54 +471,53 @@ const AppointmentView: React.FC = () => {
                   style={{ minHeight: '120px' }}
                 >
                   <div className={`text-right p-1 text-xs ${isToday ? 'font-bold text-primary' : ''}`}>
-                    {isCurrentMonth ? dayNumber : ''}
+                    {dayNumber}
                   </div>
-                  {isCurrentMonth && filteredDayAppointments.length > 0 && (
+                  {isCurrentMonth && dayAppointments.length > 0 && (
                     <div className="mt-1 space-y-1 overflow-hidden flex-grow">
-                      {filteredDayAppointments.map(appt => (
+                      {dayAppointments.map(appt => (
                          <button 
-                           key={appt.id}
-                           onClick={() => handleEditAppointment(appt)} 
-                           className={cn(
-                             "w-full text-left text-[10px] sm:text-xs p-1 rounded truncate block",
-                             appt.status === 'scheduled' && "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200",
-                             appt.status === 'completed' && "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200",
-                             appt.status === 'canceled' && "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through opacity-70"
-                           )}
-                           title={appt.title}
-                         >
-                           {appt.startTime ? `${format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a')} ` : ''}{appt.title}
-                         </button>
+                            key={appt.id}
+                            onClick={() => handleEditAppointment(appt)} 
+                            className={cn(
+                              "w-full text-left text-[10px] sm:text-xs p-1 rounded truncate block",
+                              appt.status === 'scheduled' && "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200",
+                              appt.status === 'completed' && "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200",
+                              appt.status === 'canceled' && "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through opacity-70"
+                            )}
+                            title={appt.title}
+                          >
+                            {appt.startTime ? `${format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a')} ` : ''}{appt.title}
+                          </button>
                       ))}
                     </div>
                   )}
                 </div>
               );
             })}
-          </div> // Closes the Calendar Grid div
-        )} 
-        {/* --- End Conditional Calendar Grid --- */}
+          </div> 
+        )}
 
-        {/* --- Conditional Day View Section --- */}
-        {showDayView && (
+        {viewMode === 'day' && (
           <div> {/* Container for Day View */} 
-            {/* Header for Day View - can reuse parts or make specific */}
-            {/* <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 className="text-lg font-semibold">Today's Appointments</h3>
+             {/* Day View Header (Optional) */}
+             {/* <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+               <h3 className="text-lg font-semibold">Today's Appointments</h3>
               <Button variant="outline" size="sm">
                 <Plus className="mr-1 h-4 w-4" /> Add Time Block
-              </Button>
-            </div> */} 
-    
-            <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+               </Button>
+             </div> */} 
+             <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
               <div className="grid grid-cols-1 divide-y divide-gray-200 dark:divide-gray-700">
-                {/* Time Slot Rendering Logic */}
+                {/* Time Slot Rendering Logic - Filter from already filteredAppointments */} 
                  {['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map((time) => {
                     const today = new Date();
-                    const todaysAppointments = appointments.filter(appt => 
+                    // Filter the already filtered list for today
+                    const todaysAppointments = filteredAppointments.filter(appt => 
                         appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), today) &&
                         appt.status !== 'canceled'
                     );
+                    // Filter for the current time slot
                     const slotAppointments = todaysAppointments.filter(appt => 
                          appt.startTime && appt.startTime.startsWith(time.split(':')[0]) // Basic match
                     );
@@ -476,11 +567,13 @@ const AppointmentView: React.FC = () => {
                   })}
               </div>
             </div>
-          </div> // Closes Day View container div
+          </div> 
         )}
-        {/* --- End Conditional Day View Section --- */}
 
-      </div> {/* Closes the outer Calendar View Section container */}
+        {viewMode === 'list' && ( <div className="p-4 text-center text-muted-foreground">List View Not Implemented Yet</div> )}
+        {viewMode === 'week' && ( <div className="p-4 text-center text-muted-foreground">Week View Not Implemented Yet</div> )}
+        {/* --- End Conditional Views --- */}
+      </div> 
 
       {/* --- Add/Edit Appointment Modal --- */}
       <Dialog open={isAppointmentModalOpen} onOpenChange={(isOpen) => {
