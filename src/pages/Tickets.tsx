@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TicketInbox from '@/components/ticketing/TicketInbox';
 import TicketManager from '../components/ticketing/TicketManager';
 import VisitorManagement from '../components/ticketing/VisitorManagement';
+import AppointmentView from '../components/ticketing/AppointmentView';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import { 
@@ -66,7 +67,7 @@ const Tickets: React.FC = () => {
       id: 'appointments' as TicketCategory, 
       label: 'Appointments', 
       icon: Calendar,
-      content: <PlaceholderContent title="Appointments" /> 
+      content: <AppointmentView /> 
     },
     { 
       id: 'mail-packages' as TicketCategory, 
