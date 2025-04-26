@@ -743,13 +743,6 @@ const TicketManager: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState(initialFilters);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<{
-    from: Date | null;
-    to: Date | null;
-  }>({
-    from: null,
-    to: null
-  });
 
   // State for managing the dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -1578,13 +1571,13 @@ const TicketManager: React.FC = () => {
                       className="w-full justify-start text-left font-normal"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange.from ? (
-                        dateRange.to ? (
+                      {filters.date.custom.from ? (
+                        filters.date.custom.to ? (
                           <>
-                            {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                            {format(filters.date.custom.from, "LLL dd, y")} - {format(filters.date.custom.to, "LLL dd, y")}
                           </>
                         ) : (
-                          format(dateRange.from, "LLL dd, y")
+                          format(filters.date.custom.from, "LLL dd, y")
                         )
                       ) : (
                         <span>Pick a date range</span>
@@ -1594,22 +1587,19 @@ const TicketManager: React.FC = () => {
                   <PopoverContent className="w-auto p-0" align="end">
                     <CalendarComponent
                       mode="range"
-                      defaultMonth={dateRange.from ?? new Date()}
+                      defaultMonth={filters.date.custom.from ?? new Date()}
                       selected={{
-                        from: dateRange.from,
-                        to: dateRange.to
+                        from: filters.date.custom.from,
+                        to: filters.date.custom.to
                       }}
                       onSelect={(range) => {
                         if (range?.from || range?.to) {
-                          setDateRange({
-                            from: range.from,
-                            to: range.to
-                          });
                           setFilters(prev => ({
                             ...prev,
                             date: {
                               ...prev.date,
                               type: 'custom',
+                              preset: null,
                               custom: {
                                 from: range.from,
                                 to: range.to
@@ -1618,14 +1608,52 @@ const TicketManager: React.FC = () => {
                           }));
                           setActiveFilters(prev => {
                             const newFilters = prev.filter(f => !f.startsWith('date-'));
-                            return [...newFilters, 'date-custom'];
+                            if (range.from || range.to) {
+                               return [...newFilters, 'date-custom'];
+                            }
+                            return newFilters;
                           });
+                        } else {
+                           setFilters(prev => ({
+                             ...prev,
+                             date: {
+                               ...prev.date,
+                               type: null,
+                               preset: null,
+                               custom: { from: null, to: null }
+                             }
+                           }));
+                           setActiveFilters(prev => prev.filter(f => f !== 'date-custom'));
                         }
                       }}
                       numberOfMonths={2}
                     />
                   </PopoverContent>
                 </Popover>
+                <div className="flex justify-end mt-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setFilters(prev => ({
+                        ...prev,
+                        date: {
+                          ...prev.date,
+                          type: null,
+                          preset: null,
+                          custom: {
+                            from: null,
+                            to: null
+                          }
+                        }
+                      }));
+                      setActiveFilters(prev => prev.filter(f => !f.startsWith('date-')));
+                    }}
+                    disabled={!filters.date.custom.from && !filters.date.custom.to}
+                  >
+                    Clear
+                  </Button>
+                </div>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1636,11 +1664,7 @@ const TicketManager: React.FC = () => {
               variant="outline" 
               size="sm"
               onClick={() => {
-                setFilters(() => {
-                  const newFilters = JSON.parse(JSON.stringify(initialFilters));
-                  return newFilters;
-                });
-                setDateRange({ from: null, to: null }); // Reset date range state
+                setFilters(initialFilters); 
                 setActiveFilters([]);
               }}
               className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
