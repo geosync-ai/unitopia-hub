@@ -41,7 +41,24 @@ import {
   Utensils,
   MapPin // Using MapPin for Location
 } from 'lucide-react';
-import { format, isSameDay, startOfDay, endOfDay, isBefore, addMonths, subMonths, startOfMonth, endOfMonth, getDay, getDaysInMonth, getDate, addDays, subDays } from 'date-fns';
+import { 
+  format, 
+  isSameDay, 
+  startOfDay, 
+  endOfDay, 
+  isBefore, 
+  addMonths, 
+  subMonths, 
+  startOfMonth, 
+  endOfMonth, 
+  getDay, 
+  getDaysInMonth, 
+  getDate, 
+  addDays, 
+  subDays, 
+  startOfWeek,
+  endOfWeek
+} from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import DateRangePicker from '@/components/ui/DateRangePicker';
@@ -282,8 +299,8 @@ const AppointmentView: React.FC = () => {
   const calendarGridData = useMemo(() => {
     const monthStart = currentDisplayMonth;
     const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart); // startOfWeek needs import
-    const endDate = endOfWeek(monthEnd); // endOfWeek needs import
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
 
     const days = [];
     let day = startDate;
@@ -296,9 +313,6 @@ const AppointmentView: React.FC = () => {
 
   }, [currentDisplayMonth]);
   
-   // Import startOfWeek and endOfWeek if not already imported with others
-   const { startOfWeek, endOfWeek } = require('date-fns'); 
-
   // --- useEffect to update form data when editing --- 
   useEffect(() => {
     if (editingAppointment) {
