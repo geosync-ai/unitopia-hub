@@ -251,7 +251,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                   <PopoverContent className="w-auto p-0" align="start">
                     <div className="p-2">
                       <Calendar
-                        initialFocus
                         mode="range"
                         defaultMonth={startDate || new Date()}
                         selected={{ from: startDate, to: endDate }}
