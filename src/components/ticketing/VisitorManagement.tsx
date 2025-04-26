@@ -521,18 +521,91 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   // Create card content - status badge and time
   const cardContent = (
     <div className="flex flex-wrap items-center space-x-2 gap-y-1 mt-2">
-      <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal",
-        visitor.status === 'scheduled' && "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
-        visitor.status === 'checked-in' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400",
-        visitor.status === 'checked-out' && "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/30 dark:text-gray-400",
-        visitor.status === 'no-show' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
-      )}>
-        {getStatusLabel(visitor.status)}
-      </Badge>
+      <div className="relative">
+        <Badge 
+          variant="outline" 
+          className={cn("px-1.5 py-0.5 text-xs font-normal cursor-pointer",
+            visitor.status === 'scheduled' && "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+            visitor.status === 'checked-in' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+            visitor.status === 'checked-out' && "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/30 dark:text-gray-400",
+            visitor.status === 'no-show' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+          )}
+          onClick={handleStatusClick}
+        >
+          {getStatusLabel(visitor.status)}
+        </Badge>
+        
+        {showStatusDropdown && (
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[130px]">
+            <button 
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => {
+                onStatusChange(visitor.id, 'scheduled');
+                setShowStatusDropdown(false);
+              }}
+            >
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+              Scheduled
+            </button>
+            <button 
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => {
+                onStatusChange(visitor.id, 'checked-in');
+                setShowStatusDropdown(false);
+              }}
+            >
+              <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+              Checked In
+            </button>
+            <button 
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => {
+                onStatusChange(visitor.id, 'checked-out');
+                setShowStatusDropdown(false);
+              }}
+            >
+              <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+              Checked Out
+            </button>
+            <button 
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => {
+                onStatusChange(visitor.id, 'no-show');
+                setShowStatusDropdown(false);
+              }}
+            >
+              <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+              No Show
+            </button>
+          </div>
+        )}
+      </div>
       
-      <div className="flex items-center text-xs text-muted-foreground">
+      <div className="flex items-center text-xs text-muted-foreground relative">
         <CalendarIcon className="h-3.5 w-3.5 mr-1" />
-        <span>{formatTime(visitor.time)}</span>
+        <span className="cursor-pointer" onClick={handleTimeClick}>
+          {formatTime(visitor.time)}
+        </span>
+        
+        {showTimeEdit && (
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 p-2 min-w-[160px]">
+            <div className="flex items-center space-x-2">
+              <Input 
+                type="time" 
+                value={editableTime}
+                onChange={handleTimeChange}
+                className="text-xs h-7"
+              />
+              <Button 
+                size="sm" 
+                className="h-7 text-xs px-2 py-0" 
+                onClick={handleTimeSubmit}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -540,9 +613,28 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   // Create footer content - host and assignee
   const footerContent = (
     <>
-      <div className="flex items-center">
+      <div className="flex items-center relative">
         <UserIcon className="h-3.5 w-3.5 mr-1" />
-        <span>{visitor.host}</span>
+        <span className="cursor-pointer" onClick={handleHostClick}>
+          {visitor.host}
+        </span>
+        
+        {showHostDropdown && (
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] max-h-[180px] overflow-y-auto">
+            {hostOptions.map(host => (
+              <button 
+                key={host}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  onHostChange(visitor.id, host);
+                  setShowHostDropdown(false);
+                }}
+              >
+                {host}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       
       {visitor.assignees && visitor.assignees.length > 0 && (
@@ -1781,7 +1873,11 @@ Enter the visitor's details below.
                    {newVisitor.photoUrl ? (
                      <img src={newVisitor.photoUrl} alt="Visitor" className="w-full h-full object-cover" />
                    ) : (
-                     <ImageIcon className="w-16 h-16 text-gray-400 dark:text-gray-500" />
+                     <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-primary/70 bg-primary/10">
+                       {newVisitor.firstName && newVisitor.lastName ? 
+                         `${newVisitor.firstName[0]}${newVisitor.lastName[0]}` : 
+                         "Visitor"}
+                     </div>
                    )}
                  </div>
                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Upload a profile photo or company logo</p>

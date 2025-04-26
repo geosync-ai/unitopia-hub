@@ -240,6 +240,9 @@ const BoardLane = ({
   isOver = false,
   onRenameGroup,
   onToggleComplete,
+  onPriorityChange,
+  onDueDateChange,
+  onAssigneeChange,
   dropTargetInfo
 }: { 
   id: string; 
@@ -252,6 +255,9 @@ const BoardLane = ({
   isOver?: boolean;
   onRenameGroup: (groupId: string, newTitle: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
+  onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
+  onDueDateChange: (id: string, dueDate: string) => void;
+  onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
   dropTargetInfo: {
     columnId: string | null;
     overItemId: string | null;
@@ -362,6 +368,9 @@ const BoardLane = ({
                 onEdit={() => onEditTicket(ticket.id)}
                 onDelete={() => onDeleteTicket(ticket.id)}
                 onComplete={onToggleComplete}
+                onPriorityChange={onPriorityChange}
+                onDueDateChange={onDueDateChange}
+                onAssigneeChange={onAssigneeChange}
               />
 
               {dropTargetInfo.columnId === id && 
@@ -414,6 +423,9 @@ const BoardLane = ({
                       onEdit={() => onEditTicket(ticket.id)}
                       onDelete={() => onDeleteTicket(ticket.id)}
                       onComplete={onToggleComplete}
+                      onPriorityChange={onPriorityChange}
+                      onDueDateChange={onDueDateChange}
+                      onAssigneeChange={onAssigneeChange}
                     />
                   ))}
                 </SortableContext>
@@ -439,8 +451,11 @@ const GridView: React.FC<{
   onEditTicket: (id: string) => void;
   onDeleteTicket: (id: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
+  onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
+  onDueDateChange: (id: string, dueDate: string) => void;
+  onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
   onRenameGroup: (groupId: string, newTitle: string) => void;
-}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onRenameGroup }) => {
+}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange, onRenameGroup }) => {
   // Flatten all tickets from all columns
   const allTickets = useMemo(() => {
     const flattened: TicketCardProps[] = [];
@@ -477,6 +492,9 @@ const GridView: React.FC<{
             onEdit={() => onEditTicket(ticket.id)}
             onDelete={() => onDeleteTicket(ticket.id)}
             onComplete={(id, completed) => onToggleComplete(id, completed)}
+            onPriorityChange={onPriorityChange}
+            onDueDateChange={onDueDateChange}
+            onAssigneeChange={onAssigneeChange}
           />
         ))}
       </div>
@@ -491,7 +509,10 @@ const ListView: React.FC<{
   onEditTicket: (id: string) => void;
   onDeleteTicket: (id: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
-}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete }) => {
+  onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
+  onDueDateChange: (id: string, dueDate: string) => void;
+  onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
+}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange }) => {
   // Flatten all tickets from all columns and sort by status and completion
   const allTickets = useMemo(() => {
     const flattened: (TicketCardProps & { columnId: string, columnTitle: string })[] = [];
@@ -1285,6 +1306,70 @@ const TicketManager: React.FC = () => {
     });
   };
 
+  // Handle changing priority directly from the card
+  const handlePriorityChange = (ticketId: string, priority: 'Low' | 'Medium' | 'High') => {
+    setBoardData(prevBoard => {
+      const newBoard = { ...prevBoard };
+      const itemInfo = findTicketAndColumn(ticketId);
+      
+      if (itemInfo) {
+        const { columnId, index } = itemInfo;
+        const ticket = { ...newBoard[columnId][index], priority };
+        
+        // Update the ticket with new priority
+        const columnTickets = [...newBoard[columnId]];
+        columnTickets[index] = ticket;
+        newBoard[columnId] = columnTickets;
+      }
+      
+      return newBoard;
+    });
+  };
+
+  // Handle changing due date directly from the card
+  const handleDueDateChange = (ticketId: string, dueDate: string) => {
+    setBoardData(prevBoard => {
+      const newBoard = { ...prevBoard };
+      const itemInfo = findTicketAndColumn(ticketId);
+      
+      if (itemInfo) {
+        const { columnId, index } = itemInfo;
+        const ticket = { ...newBoard[columnId][index], dueDate };
+        
+        // Update the ticket with new due date
+        const columnTickets = [...newBoard[columnId]];
+        columnTickets[index] = ticket;
+        newBoard[columnId] = columnTickets;
+      }
+      
+      return newBoard;
+    });
+  };
+
+  // Handle changing assignee directly from the card
+  const handleAssigneeChange = (ticketId: string, assignee: { name: string; avatarFallback: string }) => {
+    setBoardData(prevBoard => {
+      const newBoard = { ...prevBoard };
+      const itemInfo = findTicketAndColumn(ticketId);
+      
+      if (itemInfo) {
+        const { columnId, index } = itemInfo;
+        // Only update if a name was provided, otherwise remove the assignee
+        const ticket = { 
+          ...newBoard[columnId][index], 
+          assignee: assignee.name ? assignee : undefined 
+        };
+        
+        // Update the ticket with new assignee
+        const columnTickets = [...newBoard[columnId]];
+        columnTickets[index] = ticket;
+        newBoard[columnId] = columnTickets;
+      }
+      
+      return newBoard;
+    });
+  };
+
   return (
     <div className="h-full overflow-auto">
       <main className="flex-1">
@@ -1602,6 +1687,9 @@ const TicketManager: React.FC = () => {
                     isOver={overColumnId === columnId}
                     onRenameGroup={handleRenameGroup}
                     onToggleComplete={handleToggleComplete}
+                    onPriorityChange={handlePriorityChange}
+                    onDueDateChange={handleDueDateChange}
+                    onAssigneeChange={handleAssigneeChange}
                     dropTargetInfo={dropTargetInfo}
                   />
                 );
@@ -1643,8 +1731,11 @@ const TicketManager: React.FC = () => {
               tickets={getFilteredTickets()} 
               onEditTicket={handleEditTicket} 
               onDeleteTicket={handleDeleteTicket} 
-              onRenameGroup={handleRenameGroup}
               onToggleComplete={handleToggleComplete}
+              onPriorityChange={handlePriorityChange}
+              onDueDateChange={handleDueDateChange}
+              onAssigneeChange={handleAssigneeChange}
+              onRenameGroup={handleRenameGroup}
             />
           ) : (
             <ListView
@@ -1653,6 +1744,9 @@ const TicketManager: React.FC = () => {
               onEditTicket={handleEditTicket}
               onDeleteTicket={handleDeleteTicket}
               onToggleComplete={handleToggleComplete}
+              onPriorityChange={handlePriorityChange}
+              onDueDateChange={handleDueDateChange}
+              onAssigneeChange={handleAssigneeChange}
             />
           )}
           
@@ -1660,9 +1754,11 @@ const TicketManager: React.FC = () => {
             {activeDragItem && (
               <TicketCard
                 {...activeDragItem}
-                id={activeDragItem.id}
-                isDragging={true}
+                isDragOverlay={true}
                 onComplete={() => {}}
+                onPriorityChange={() => {}}
+                onDueDateChange={() => {}}
+                onAssigneeChange={() => {}}
               />
             )}
           </DragOverlay>

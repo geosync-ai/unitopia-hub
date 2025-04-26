@@ -230,16 +230,52 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                      {dueDate ? format(dueDate, "PPP p") : <span>Pick a date and time</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={dueDate}
-                      onSelect={setDueDate}
-                      initialFocus
-                    />
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                      <Calendar
+                        mode="single"
+                        selected={dueDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            // Preserve the current time if a date was already selected
+                            const newDate = new Date(date);
+                            if (dueDate) {
+                              newDate.setHours(dueDate.getHours(), dueDate.getMinutes());
+                            }
+                            setDueDate(newDate);
+                          } else {
+                            setDueDate(undefined);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </div>
+                    {dueDate && (
+                      <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="due-time" className="text-xs font-medium">
+                            Time
+                          </Label>
+                          <Input
+                            id="due-time"
+                            type="time"
+                            className="w-32 text-xs"
+                            value={dueDate ? format(dueDate, "HH:mm") : ""}
+                            onChange={(e) => {
+                              if (e.target.value && dueDate) {
+                                const [hours, minutes] = e.target.value.split(':').map(Number);
+                                const newDate = new Date(dueDate);
+                                newDate.setHours(hours, minutes);
+                                setDueDate(newDate);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </PopoverContent>
                 </Popover>
               </div>
