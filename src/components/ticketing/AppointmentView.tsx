@@ -172,6 +172,7 @@ const AppointmentView: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentData[]>(sampleAppointments);
   const [activeAppointmentFilter, setActiveAppointmentFilter] = useState<'all' | 'upcoming' | 'completed' | 'canceled'>('all');
   const [editingAppointment, setEditingAppointment] = useState<AppointmentData | null>(null);
+  const [showDayView, setShowDayView] = useState(false); // State for toggling view
 
   // --- Modal Handlers --- 
   const handleAppointmentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -289,14 +290,24 @@ const AppointmentView: React.FC = () => {
                <Plus className="mr-2 h-4 w-4" />
                <span>New Appointment</span>
              </Button>
+             <Button 
+               variant="outline" 
+               size="sm"
+               onClick={() => setShowDayView(prev => !prev)} // Toggle day view
+               className={cn(showDayView && "bg-muted dark:bg-muted/50")} // Style when active
+             >
+               {showDayView ? 'Calendar View' : 'Today'} {/* Change text based on view */}
+             </Button>
            </div>
          </div>
        </div>
 
-      {/* Calendar View Section */}
+      {/* Calendar View Section - Container */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
+        {/* Header for Calendar/Day View */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Month Navigation */} 
             <Button variant="outline" size="icon" className="h-8 w-8">
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -304,10 +315,17 @@ const AppointmentView: React.FC = () => {
             <Button variant="outline" size="icon" className="h-8 w-8">
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm">
-              Today
+            {/* View Toggle Button */} 
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowDayView(prev => !prev)} 
+              className={cn(showDayView && "bg-muted dark:bg-muted/50")} 
+            >
+              {showDayView ? 'Calendar View' : 'Today'} 
             </Button>
           </div>
+          {/* Action Buttons */} 
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm">
               <Printer className="mr-1 h-4 w-4" /> Print
@@ -317,220 +335,152 @@ const AppointmentView: React.FC = () => {
             </Button>
           </div>
         </div>
+        {/* --- End Header --- */} 
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 text-xs sm:text-sm">
-          {/* Weekday Headers */}
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="bg-gray-100 dark:bg-gray-900 p-2 text-center font-medium text-gray-700 dark:text-gray-300">{day}</div>
-          ))}
+        {/* --- Conditional Calendar Grid --- */}
+        {!showDayView && (
+          <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 text-xs sm:text-sm">
+            {/* Weekday Headers */}
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="bg-gray-100 dark:bg-gray-900 p-2 text-center font-medium text-gray-700 dark:text-gray-300">{day}</div>
+            ))}
 
-          {/* Calendar Days - Update to use appointments state */}
-          {[...Array(35)].map((_, index) => {
-            const dayOffset = index - 5; // Adjust based on where your calendar starts
-            // This logic needs adjustment based on the actual month being displayed
-            // For now, we assume it matches the sample data month (April 2023)
-            const dayNumber = dayOffset + 1; 
-            const isCurrentMonth = dayOffset >= 0 && dayOffset < 30; // Simplified check for April
-            const currentDate = isCurrentMonth ? new Date(2023, 3, dayNumber) : null;
-            
-            const isToday = currentDate && isSameDay(currentDate, new Date()); // Use isSameDay
+            {/* Calendar Days Logic (ensure correct filtering/mapping) */}
+            {[...Array(35)].map((_, index) => {
+               const dayOffset = index - 5; 
+               const dayNumber = dayOffset + 1; 
+               const isCurrentMonth = dayOffset >= 0 && dayOffset < 30; 
+               const currentDate = isCurrentMonth ? new Date(2023, 3, dayNumber) : null;
+               const isToday = currentDate && isSameDay(currentDate, new Date());
+               const dayAppointments = appointments.filter(appt => 
+                 appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), currentDate ?? 0)
+               );
+               const filteredDayAppointments = dayAppointments.filter(appt => {
+                   if (activeAppointmentFilter === 'all') return true;
+                   const todayStart = startOfDay(new Date());
+                   const apptStartDate = appt.dateRange?.from ? startOfDay(new Date(appt.dateRange.from)) : null;
+                   const apptEndDate = appt.dateRange?.to ? endOfDay(new Date(appt.dateRange.to)) : apptStartDate ? endOfDay(apptStartDate) : null;
+                   if (activeAppointmentFilter === 'upcoming') {
+                       return appt.status === 'scheduled' && apptStartDate && !isBefore(apptStartDate, todayStart);
+                   }
+                   if (activeAppointmentFilter === 'completed') {
+                       return appt.status === 'completed' || (apptEndDate && isBefore(apptEndDate, todayStart));
+                   }
+                   if (activeAppointmentFilter === 'canceled') {
+                       return appt.status === 'canceled';
+                   }
+                   return false;
+               });
 
-            // Filter appointments for the current day
-            const dayAppointments = appointments.filter(appt => 
-              appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), currentDate ?? 0)
-            );
-            
-            // Apply the tab filter
-            const filteredDayAppointments = dayAppointments.filter(appt => {
-                if (activeAppointmentFilter === 'all') return true;
-                const todayStart = startOfDay(new Date());
-                const apptStartDate = appt.dateRange?.from ? startOfDay(new Date(appt.dateRange.from)) : null;
-                const apptEndDate = appt.dateRange?.to ? endOfDay(new Date(appt.dateRange.to)) : apptStartDate ? endOfDay(apptStartDate) : null;
-
-                if (activeAppointmentFilter === 'upcoming') {
-                    // Scheduled and starts today or later
-                    return appt.status === 'scheduled' && apptStartDate && !isBefore(apptStartDate, todayStart);
-                }
-                if (activeAppointmentFilter === 'completed') {
-                    // Completed status OR ended before today
-                    return appt.status === 'completed' || (apptEndDate && isBefore(apptEndDate, todayStart));
-                }
-                if (activeAppointmentFilter === 'canceled') {
-                    return appt.status === 'canceled';
-                }
-                return false;
-            });
-
-            return (
-              <div 
-                key={index} 
-                className={`calendar-day p-1 flex flex-col ${ // Added flex-col
-                  isCurrentMonth ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500'
-                } ${isToday ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
-                style={{ minHeight: '120px' }} // Increased min height slightly
-              >
-                <div className={`text-right p-1 text-xs ${isToday ? 'font-bold text-primary' : ''}`}>
-                  {isCurrentMonth ? dayNumber : ''}
-                </div>
-                {isCurrentMonth && filteredDayAppointments.length > 0 && (
-                  <div className="mt-1 space-y-1 overflow-hidden flex-grow">{/* Added flex-grow */} 
-                    {filteredDayAppointments.map(appt => (
-                       <button 
-                         key={appt.id}
-                         onClick={() => handleEditAppointment(appt)} // Make appointment clickable
-                         className={cn(
-                           "w-full text-left text-[10px] sm:text-xs p-1 rounded truncate block", // Added block
-                           appt.status === 'scheduled' && "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200",
-                           appt.status === 'completed' && "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200",
-                           appt.status === 'canceled' && "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through opacity-70"
-                           // Add other status colors if needed
-                         )}
-                         title={appt.title} // Add tooltip
-                       >
-                         {appt.startTime ? `${format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a')} ` : ''}{appt.title}
-                       </button>
-                    ))}
+              return (
+                <div 
+                  key={index} 
+                  className={`calendar-day p-1 flex flex-col ${ isCurrentMonth ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500'} ${isToday ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
+                  style={{ minHeight: '120px' }}
+                >
+                  <div className={`text-right p-1 text-xs ${isToday ? 'font-bold text-primary' : ''}`}>
+                    {isCurrentMonth ? dayNumber : ''}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Day View Section (Simplified Example) */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="text-lg font-semibold">Today's Appointments</h3>
-          <Button variant="outline" size="sm">
-            <Plus className="mr-1 h-4 w-4" /> Add Time Block
-          </Button>
-        </div>
-
-        <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-          <div className="grid grid-cols-1 divide-y divide-gray-200 dark:divide-gray-700">
-            {/* Time Slot Example */}
-            {['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map((time, index) => (
-              <div key={time} className="time-slot relative flex" style={{ minHeight: '60px' }}>
-                <div className="w-20 flex-shrink-0 h-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700">
-                  {time}
-                </div>
-                <div className="flex-grow h-full p-2">
-                  {/* Example Appointment Card */}
-                  {index === 0 && ( // Example for 9:00 AM
-                    <div className="appointment-card bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 p-2 sm:p-3 rounded-md shadow-sm">
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <h4 className="font-medium text-blue-800 dark:text-blue-200 text-sm sm:text-base">Marketing Strategy</h4>
-                          <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-300">Room A</p>
-                        </div>
-                        <div className="flex space-x-1 flex-shrink-0">
-                           <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900">
-                            <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900">
-                            <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex items-center mt-1 text-xs sm:text-sm flex-wrap gap-x-3">
-                        <div className="flex items-center text-blue-700 dark:text-blue-300">
-                          <Clock className="mr-1 h-3 w-3" />
-                          <span>9:00-10:30</span>
-                        </div>
-                        <div className="flex items-center text-blue-700 dark:text-blue-300">
-                          <User className="mr-1 h-3 w-3" />
-                          <span>S. Johnson</span>
-                        </div>
-                      </div>
-                       <div className="mt-1 flex items-center space-x-1">
-                         <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-200 dark:bg-blue-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-blue-800 dark:text-blue-100 font-medium">SJ</div>
-                         <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-200 dark:bg-green-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-green-800 dark:text-green-100 font-medium">RC</div>
-                         <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">+3</span>
-                       </div>
+                  {isCurrentMonth && filteredDayAppointments.length > 0 && (
+                    <div className="mt-1 space-y-1 overflow-hidden flex-grow">
+                      {filteredDayAppointments.map(appt => (
+                         <button 
+                           key={appt.id}
+                           onClick={() => handleEditAppointment(appt)} 
+                           className={cn(
+                             "w-full text-left text-[10px] sm:text-xs p-1 rounded truncate block",
+                             appt.status === 'scheduled' && "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200",
+                             appt.status === 'completed' && "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200",
+                             appt.status === 'canceled' && "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through opacity-70"
+                           )}
+                           title={appt.title}
+                         >
+                           {appt.startTime ? `${format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a')} ` : ''}{appt.title}
+                         </button>
+                      ))}
                     </div>
                   )}
-                   {index === 3 && ( // Example for 12:00 PM Lunch
-                    <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-4 h-full flex items-center justify-center">
-                      <Utensils className="mr-1 h-4 w-4" /> Lunch
-                    </div>
-                   )}
-                     {/* Add more appointment cards for other times as needed */}
-                      {index === 5 && ( // Example for 2:00 PM
-                        <div className="appointment-card bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 p-2 sm:p-3 rounded-md shadow-sm">
-                           <div className="flex justify-between items-start gap-2">
-                                <div>
-                                <h4 className="font-medium text-purple-800 dark:text-purple-200 text-sm sm:text-base">Product Demo</h4>
-                                <p className="text-xs sm:text-sm text-purple-600 dark:text-purple-300">Demo Room</p>
-                                </div>
-                                <div className="flex space-x-1 flex-shrink-0">
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-purple-500 hover:text-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900">
-                                    <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-purple-500 hover:text-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900">
-                                    <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                                </div>
-                            </div>
-                            <div className="flex items-center mt-1 text-xs sm:text-sm flex-wrap gap-x-3">
-                                <div className="flex items-center text-purple-700 dark:text-purple-300">
-                                <Clock className="mr-1 h-3 w-3" />
-                                <span>2:00-3:30</span>
-                                </div>
-                                <div className="flex items-center text-purple-700 dark:text-purple-300">
-                                <User className="mr-1 h-3 w-3" />
-                                <span>E. Rodriguez</span>
-                                </div>
-                            </div>
-                            <div className="mt-1 flex items-center space-x-1">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-purple-200 dark:bg-purple-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-purple-800 dark:text-purple-100 font-medium">ER</div>
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-red-200 dark:bg-red-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-red-800 dark:text-red-100 font-medium">TB</div>
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-yellow-200 dark:bg-yellow-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-yellow-800 dark:text-yellow-100 font-medium">LM</div>
-                            </div>
-                        </div>
-                    )}
-                    {index === 7 && ( // Example for 4:00 PM
-                         <div className="appointment-card bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 p-2 sm:p-3 rounded-md shadow-sm">
-                           <div className="flex justify-between items-start gap-2">
-                                <div>
-                                <h4 className="font-medium text-yellow-800 dark:text-yellow-200 text-sm sm:text-base">Weekly Team Sync</h4>
-                                <p className="text-xs sm:text-sm text-yellow-600 dark:text-yellow-300">Main Conf Room</p>
-                                </div>
-                                <div className="flex space-x-1 flex-shrink-0">
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-yellow-500 hover:text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900">
-                                    <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-yellow-500 hover:text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900">
-                                    <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                                </div>
-                            </div>
-                            <div className="flex items-center mt-1 text-xs sm:text-sm flex-wrap gap-x-3">
-                                <div className="flex items-center text-yellow-700 dark:text-yellow-300">
-                                <Clock className="mr-1 h-3 w-3" />
-                                <span>4:00-5:00</span>
-                                </div>
-                                <div className="flex items-center text-yellow-700 dark:text-yellow-300">
-                                <User className="mr-1 h-3 w-3" />
-                                <span>D. Kim</span>
-                                </div>
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-200 dark:bg-blue-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-blue-800 dark:text-blue-100 font-medium">DK</div>
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-200 dark:bg-green-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-green-800 dark:text-green-100 font-medium">SJ</div>
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-purple-200 dark:bg-purple-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-purple-800 dark:text-purple-100 font-medium">MC</div>
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-red-200 dark:bg-red-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-red-800 dark:text-red-100 font-medium">ER</div>
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-pink-200 dark:bg-pink-700 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-pink-800 dark:text-pink-100 font-medium">AM</div>
-                           </div>
-                        </div>
-                    )}
                 </div>
+              );
+            })}
+          </div> // Closes the Calendar Grid div
+        )} 
+        {/* --- End Conditional Calendar Grid --- */}
+
+        {/* --- Conditional Day View Section --- */}
+        {showDayView && (
+          <div> {/* Container for Day View */} 
+            {/* Header for Day View - can reuse parts or make specific */}
+            {/* <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="text-lg font-semibold">Today's Appointments</h3>
+              <Button variant="outline" size="sm">
+                <Plus className="mr-1 h-4 w-4" /> Add Time Block
+              </Button>
+            </div> */} 
+    
+            <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+              <div className="grid grid-cols-1 divide-y divide-gray-200 dark:divide-gray-700">
+                {/* Time Slot Rendering Logic */}
+                 {['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map((time) => {
+                    const today = new Date();
+                    const todaysAppointments = appointments.filter(appt => 
+                        appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), today) &&
+                        appt.status !== 'canceled'
+                    );
+                    const slotAppointments = todaysAppointments.filter(appt => 
+                         appt.startTime && appt.startTime.startsWith(time.split(':')[0]) // Basic match
+                    );
+                    
+                   return (
+                      <div key={time} className="time-slot relative flex" style={{ minHeight: '60px' }}>
+                        <div className="w-20 flex-shrink-0 h-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700">
+                          {time}
+                        </div>
+                        <div className="flex-grow h-full p-2 space-y-2">
+                          {slotAppointments.map(appt => (
+                             <div key={appt.id} className="appointment-card bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 p-2 sm:p-3 rounded-md shadow-sm cursor-pointer" onClick={() => handleEditAppointment(appt)}>
+                               <div className="flex justify-between items-start gap-2">
+                                 <div>
+                                   <h4 className="font-medium text-blue-800 dark:text-blue-200 text-sm sm:text-base">{appt.title}</h4>
+                                   <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-300">{appt.location}</p>
+                                 </div>
+                                 <div className="flex space-x-1 flex-shrink-0">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900">
+                                      <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900">
+                                      <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                  </div>
+                               </div>
+                               <div className="flex items-center mt-1 text-xs sm:text-sm flex-wrap gap-x-3">
+                                 <div className="flex items-center text-blue-700 dark:text-blue-300">
+                                   <Clock className="mr-1 h-3 w-3" />
+                                   <span>{appt.startTime ? format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a') : ''} - {appt.endTime ? format(new Date(`1970-01-01T${appt.endTime}`), 'h:mm a') : ''}</span>
+                                 </div>
+                                 <div className="flex items-center text-blue-700 dark:text-blue-300">
+                                   <User className="mr-1 h-3 w-3" />
+                                   <span>{appt.host}</span>
+                                 </div>
+                               </div>
+                             </div>
+                           ))}
+                           {time === '12:00 PM' && slotAppointments.length === 0 && (
+                             <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-4 h-full flex items-center justify-center">
+                              <Utensils className="mr-1 h-4 w-4" /> Lunch
+                             </div>
+                           )}
+                        </div>
+                      </div>
+                   );
+                  })}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
+            </div>
+          </div> // Closes Day View container div
+        )}
+        {/* --- End Conditional Day View Section --- */}
+
+      </div> {/* Closes the outer Calendar View Section container */}
 
       {/* --- Add/Edit Appointment Modal --- */}
       <Dialog open={isAppointmentModalOpen} onOpenChange={(isOpen) => {
