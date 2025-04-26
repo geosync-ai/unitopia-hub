@@ -4,6 +4,7 @@ import TicketInbox from '@/components/ticketing/TicketInbox';
 import TicketManager from '../components/ticketing/TicketManager';
 import VisitorManagement from '../components/ticketing/VisitorManagement';
 import AppointmentView from '../components/ticketing/AppointmentView';
+import MailAndPackages from '../components/ticketing/MailAndPackages';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import { 
@@ -73,7 +74,7 @@ const Tickets: React.FC = () => {
       id: 'mail-packages' as TicketCategory, 
       label: 'Mail & Packages', 
       icon: Mail,
-      content: <PlaceholderContent title="Mail & Packages" /> 
+      content: <MailAndPackages /> 
     },
     { 
       id: 'general-inquiries' as TicketCategory, 
