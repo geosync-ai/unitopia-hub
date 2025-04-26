@@ -41,7 +41,7 @@ import {
   Utensils,
   MapPin // Using MapPin for Location
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, isBefore } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import DateRangePicker from '@/components/ui/DateRangePicker';
