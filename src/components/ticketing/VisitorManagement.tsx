@@ -469,8 +469,11 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
                 onError={(e) => {
                   // If image fails to load, show initials instead
                   (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
+                  const parent = (e.target as HTMLImageElement).parentElement;
+                  if (parent) {
+                    parent.innerHTML = visitor.initials;
+                    parent.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
+                  }
                 }}
               />
             </div>
@@ -561,7 +564,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   // Create card content - status badge and time
   const cardContent = (
     <div className="flex flex-wrap items-center space-x-2 gap-y-1 mt-2">
-      <div className="relative">
+      <div className="relative" ref={statusDropdownRef}>
         <Badge 
           variant="outline" 
           className={cn("px-1.5 py-0.5 text-xs font-normal cursor-pointer",
@@ -576,47 +579,58 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         </Badge>
         
         {showStatusDropdown && (
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[130px]">
-            <button 
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => {
-                onStatusChange(visitor.id, 'scheduled');
-                setShowStatusDropdown(false);
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowStatusDropdown(false)}>
+            <div 
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[130px]"
+              style={{ 
+                left: statusDropdownRef.current?.getBoundingClientRect().left + 'px',
+                top: (statusDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px',
+                maxHeight: '200px',
+                overflowY: 'auto'
               }}
+              onClick={e => e.stopPropagation()}
             >
-              <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
-              Scheduled
-            </button>
-            <button 
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => {
-                onStatusChange(visitor.id, 'checked-in');
-                setShowStatusDropdown(false);
-              }}
-            >
-              <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
-              Checked In
-            </button>
-            <button 
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => {
-                onStatusChange(visitor.id, 'checked-out');
-                setShowStatusDropdown(false);
-              }}
-            >
-              <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
-              Checked Out
-            </button>
-            <button 
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => {
-                onStatusChange(visitor.id, 'no-show');
-                setShowStatusDropdown(false);
-              }}
-            >
-              <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
-              No Show
-            </button>
+              <button 
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  onStatusChange(visitor.id, 'scheduled');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                Scheduled
+              </button>
+              <button 
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  onStatusChange(visitor.id, 'checked-in');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                Checked In
+              </button>
+              <button 
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  onStatusChange(visitor.id, 'checked-out');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                Checked Out
+              </button>
+              <button 
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  onStatusChange(visitor.id, 'no-show');
+                  setShowStatusDropdown(false);
+                }}
+              >
+                <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                No Show
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1603,17 +1617,131 @@ const VisitorManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span 
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)}`}
-                      >
-                        {getStatusLabel(visitor.status)}
-                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="px-2 py-1 rounded-full text-xs font-medium cursor-pointer flex items-center gap-1 w-full justify-start">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)}`}>
+                              {getStatusLabel(visitor.status)}
+                            </span>
+                            <ChevronDown className="h-3 w-3 text-gray-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-36">
+                          <DropdownMenuItem 
+                            onClick={() => handleInlineStatusChange(visitor.id, 'scheduled')}
+                            className="text-xs py-1.5"
+                          >
+                            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                            Scheduled
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleInlineStatusChange(visitor.id, 'checked-in')}
+                            className="text-xs py-1.5"
+                          >
+                            <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                            Checked In
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleInlineStatusChange(visitor.id, 'checked-out')}
+                            className="text-xs py-1.5"
+                          >
+                            <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                            Checked Out
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleInlineStatusChange(visitor.id, 'no-show')}
+                            className="text-xs py-1.5"
+                          >
+                            <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                            No Show
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatTime(visitor.time)}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center hover:text-foreground gap-1">
+                            <Clock className="h-3.5 w-3.5 mr-1" />
+                            {formatTime(visitor.time)}
+                            <ChevronDown className="h-3 w-3 text-gray-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48 p-2">
+                          <div className="flex flex-col gap-2">
+                            <div className="text-xs font-medium mb-1 flex items-center">
+                              <Clock className="h-4 w-4 mr-1.5 text-primary" />
+                              Select Time
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <Input 
+                                  type="time" 
+                                  defaultValue={visitor.time}
+                                  onChange={(e) => {
+                                    // Store temporarily for the Save button
+                                    (e.target as any).tempValue = e.target.value;
+                                  }}
+                                  className="text-xs h-7 pl-7"
+                                />
+                                <Clock className="h-3.5 w-3.5 absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                              </div>
+                              <Button 
+                                size="sm" 
+                                className="h-7 text-xs px-2 py-0" 
+                                onClick={(e) => {
+                                  const input = (e.target as HTMLElement).closest('.flex')?.querySelector('input');
+                                  if (input && (input as any).tempValue) {
+                                    handleInlineTimeChange(visitor.id, (input as any).tempValue);
+                                  }
+                                }}
+                              >
+                                Save
+                              </Button>
+                            </div>
+
+                            <div className="text-xs font-medium mt-2 mb-1">Quick Select</div>
+                            {["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM"].map(time => (
+                              <DropdownMenuItem 
+                                key={time}
+                                onClick={() => handleInlineTimeChange(visitor.id, time)}
+                                className="text-xs py-1.5"
+                              >
+                                <Clock className="h-3.5 w-3.5 mr-2 inline-block" />
+                                {time}
+                              </DropdownMenuItem>
+                            ))}
+                          </div>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {visitor.host}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center hover:text-foreground gap-1">
+                            <UserIcon className="h-3.5 w-3.5 mr-1" />
+                            {visitor.host}
+                            <ChevronDown className="h-3 w-3 text-gray-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                          <div className="text-xs font-medium p-2 border-b">Select Host</div>
+                          {uniqueHosts.map(host => (
+                            <DropdownMenuItem 
+                              key={host}
+                              onClick={() => handleInlineHostChange(visitor.id, host)}
+                              className="text-xs py-1.5 cursor-pointer"
+                            >
+                              <div className="flex items-center">
+                                <span className="h-5 w-5 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-2 text-xs font-medium">
+                                  {host.charAt(0)}
+                                </span>
+                                {host}
+                              </div>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {visitor.company}
@@ -2036,8 +2164,8 @@ Enter the visitor's details below.
                    ) : (
                      <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-primary/70 bg-primary/10">
                        {newVisitor.firstName && newVisitor.lastName ? 
-                         `${newVisitor.firstName[0]}${newVisitor.lastName[0]}` : 
-                         "Visitor"}
+                         `${newVisitor.firstName[0]}${newVisitor.lastName[0]}`.toUpperCase() : 
+                         "V"}
                      </div>
                    )}
                  </div>
