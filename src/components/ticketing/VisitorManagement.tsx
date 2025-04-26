@@ -299,7 +299,7 @@ const getStatusClass = (status: VisitorStatus) => {
  * The component supports inline editing for certain fields and manages
  * its own dropdown states for actions.
  */
-const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange, onVisitDateChange, onAssigneeChange, isDragging = false }: { 
+const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange, onVisitDateChange, onAssigneeChange, onCompanyChange, isDragging = false }: { 
   visitor: Visitor, 
   onStatusChange: (id: number, status: VisitorStatus) => void,
   onEdit: (id: number) => void,
@@ -309,6 +309,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   onDurationChange: (id: number, duration: string) => void,
   onVisitDateChange?: (id: number, date: Date) => void,
   onAssigneeChange: (id: number, assignees: string[]) => void,
+  onCompanyChange: (id: number, company: string) => void,
   isDragging?: boolean
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -1110,6 +1111,17 @@ const VisitorManagement: React.FC = () => {
     );
   };
 
+  // Handle company change
+  const handleInlineCompanyChange = (id: number, company: string) => {
+    setVisitors(prevVisitors =>
+      prevVisitors.map(visitor =>
+        visitor.id === id
+          ? { ...visitor, company }
+          : visitor
+      )
+    );
+  };
+
   // Handle visitor edit (open modal with visitor data)
   const handleEditVisitor = (id: number) => {
     const visitorToEdit = visitors.find(v => v.id === id);
@@ -1510,6 +1522,7 @@ const VisitorManagement: React.FC = () => {
                             onDurationChange={handleInlineDurationChange}
                             onVisitDateChange={() => {}} // Add this line
                             onAssigneeChange={handleInlineAssigneeChange}
+                            onCompanyChange={handleInlineCompanyChange}
                           />
 
                           {/* Render Drop Indicator AFTER the item if it's the target AND over bottom half */}
@@ -1546,6 +1559,7 @@ const VisitorManagement: React.FC = () => {
                   onTimeChange={() => {}}
                   onDurationChange={() => {}}
                   onAssigneeChange={() => {}}
+                  onCompanyChange={() => {}}
                 />
               </DragOverlay>
             )}
@@ -1566,6 +1580,7 @@ const VisitorManagement: React.FC = () => {
                 onTimeChange={handleInlineTimeChange}
                 onDurationChange={handleInlineDurationChange}
                 onAssigneeChange={handleInlineAssigneeChange}
+                onCompanyChange={handleInlineCompanyChange}
               />
             ))}
           </div>
@@ -1744,10 +1759,53 @@ const VisitorManagement: React.FC = () => {
                       </DropdownMenu>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {visitor.company}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center hover:text-foreground gap-1">
+                            <BuildingIcon className="h-3.5 w-3.5 mr-1" />
+                            {visitor.company}
+                            <ChevronDown className="h-3 w-3 text-gray-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                          <div className="text-xs font-medium p-2 border-b">Select Company</div>
+                          {uniqueCompanies.map(company => (
+                            <DropdownMenuItem 
+                              key={company}
+                              onClick={() => handleInlineCompanyChange(visitor.id, company)}
+                              className="text-xs py-1.5 cursor-pointer"
+                            >
+                              {company}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatDuration(visitor)}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center hover:text-foreground gap-1">
+                            <Clock className="h-3.5 w-3.5 mr-1" />
+                            {formatDuration(visitor)}
+                            <ChevronDown className="h-3 w-3 text-gray-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-40">
+                          <div className="text-xs font-medium p-2 border-b">Select Duration</div>
+                          {["15m", "30m", "45m", "1h", "1h 30m", "2h", "Today"].map(duration => (
+                            <DropdownMenuItem 
+                              key={duration}
+                              onClick={() => handleInlineDurationChange(visitor.id, duration)}
+                              className="text-xs py-1.5 cursor-pointer"
+                            >
+                              <div className="flex items-center">
+                                <Clock className="h-3.5 w-3.5 mr-2" />
+                                {duration}
+                              </div>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button 
