@@ -18,7 +18,8 @@ export interface TicketCardProps {
   description?: string;
   assignee?: { name: string; avatarFallback: string; avatarImage?: string };
   priority?: 'Low' | 'Medium' | 'High';
-  dueDate?: string;
+  startDate?: string | null;
+  endDate?: string | null;
   commentsCount?: number;
   status?: string;
   completed?: boolean;
@@ -29,7 +30,6 @@ export interface TicketCardProps {
   onDelete?: () => void;
   onComplete?: (id: string, completed: boolean) => void;
   onPriorityChange?: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
-  onDueDateChange?: (id: string, dueDate: string) => void;
   onAssigneeChange?: (id: string, assignee: { name: string; avatarFallback: string }) => void;
   onStatusChange?: (id: string, status: string) => void;
 }
@@ -58,7 +58,8 @@ const TicketCard: React.FC<TicketCardProps> = ({
   description,
   assignee,
   priority = 'Medium',
-  dueDate,
+  startDate,
+  endDate,
   commentsCount = 0,
   status,
   completed = false,
@@ -69,22 +70,15 @@ const TicketCard: React.FC<TicketCardProps> = ({
   onDelete,
   onComplete,
   onPriorityChange,
-  onDueDateChange,
   onAssigneeChange,
   onStatusChange
 }) => {
   // State for editable dropdowns
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
-  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [tempDueDate, setTempDueDate] = useState<Date | undefined>(
-    dueDate ? new Date(dueDate) : undefined
-  );
   
   // Refs for dropdowns
   const priorityDropdownRef = useRef<HTMLDivElement>(null);
-  const dueDatePickerRef = useRef<HTMLDivElement>(null);
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
   
   // Sample assignees for dropdown
@@ -96,21 +90,22 @@ const TicketCard: React.FC<TicketCardProps> = ({
     { name: 'Emma', avatarFallback: 'E' }
   ];
 
-  // Check if due date is passed
+  // Check if due date is passed (checking endDate if available)
   const isDueDatePassed = React.useMemo(() => {
-    if (!dueDate) return false;
+    const dateToCheckStr = endDate || startDate;
+    if (!dateToCheckStr) return false;
     
     try {
       // Attempt to parse the date - format could be "MMM d" or ISO string
       let date: Date | null = null;
       
       // First check if it's already a valid ISO string
-      if (dueDate.includes('-') || dueDate.includes('T')) {
-        date = parseISO(dueDate);
+      if (dateToCheckStr.includes('-') || dateToCheckStr.includes('T')) {
+        date = parseISO(dateToCheckStr);
       } else {
         // Try to parse from format like "Jul 25"
         const currentYear = new Date().getFullYear();
-        const fullDateStr = `${dueDate} ${currentYear}`;
+        const fullDateStr = `${dateToCheckStr} ${currentYear}`;
         date = new Date(fullDateStr);
       }
       
@@ -124,21 +119,12 @@ const TicketCard: React.FC<TicketCardProps> = ({
       console.error("Error parsing date:", error);
       return false;
     }
-  }, [dueDate, completed]);
+  }, [startDate, endDate, completed]);
 
   // Handle editing priority
   const handlePriorityClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowPriorityDropdown(!showPriorityDropdown);
-    setShowDueDatePicker(false);
-    setShowAssigneeDropdown(false);
-  };
-
-  // Handle editing due date
-  const handleDueDateClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowDueDatePicker(!showDueDatePicker);
-    setShowPriorityDropdown(false);
     setShowAssigneeDropdown(false);
   };
 
@@ -147,7 +133,6 @@ const TicketCard: React.FC<TicketCardProps> = ({
     e.stopPropagation();
     setShowAssigneeDropdown(!showAssigneeDropdown);
     setShowPriorityDropdown(false);
-    setShowDueDatePicker(false);
   };
 
   // Handle changing priority
@@ -158,44 +143,26 @@ const TicketCard: React.FC<TicketCardProps> = ({
     setShowPriorityDropdown(false);
   };
 
-  // Handle changing due date
-  const handleChangeDueDate = (date: Date | undefined) => {
-    if (date && onDueDateChange) {
-      onDueDateChange(id, format(date, "MMM d"));
-    }
-    setShowDueDatePicker(false);
-  };
-
-  // Handle changing assignee
-  const handleChangeAssignee = (newAssignee: { name: string; avatarFallback: string }) => {
-    if (onAssigneeChange) {
-      onAssigneeChange(id, newAssignee);
-    }
-    setShowAssigneeDropdown(false);
-  };
-
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
         (priorityDropdownRef.current && !priorityDropdownRef.current.contains(e.target as Node)) &&
-        (dueDatePickerRef.current && !dueDatePickerRef.current.contains(e.target as Node)) &&
         (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node))
       ) {
         setShowPriorityDropdown(false);
-        setShowDueDatePicker(false);
         setShowAssigneeDropdown(false);
       }
     };
     
-    if (showPriorityDropdown || showDueDatePicker || showAssigneeDropdown) {
+    if (showPriorityDropdown || showAssigneeDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showPriorityDropdown, showDueDatePicker, showAssigneeDropdown]);
+  }, [showPriorityDropdown, showAssigneeDropdown]);
 
   const handleToggleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -342,102 +309,81 @@ const TicketCard: React.FC<TicketCardProps> = ({
         </div>
       )}
       
+      {/* Priority Badge/Dropdown */}
       {priority && (
-        <div className="relative" ref={priorityDropdownRef}>
-          <Badge 
-            variant="outline" 
-            className={cn("px-1.5 py-0.5 text-xs font-normal border cursor-pointer", priorityColors[priority])}
-            onClick={handlePriorityClick}
-          >
-            <AlertCircle className="h-3 w-3 mr-1" />
-            {priority}
-          </Badge>
-          
-          {showPriorityDropdown && onPriorityChange && (
-            <div className="fixed inset-0 z-[100]" onClick={() => setShowPriorityDropdown(false)}>
-              <div 
-                className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
-                style={{ 
-                  left: priorityDropdownRef.current?.getBoundingClientRect().left + 'px',
-                  top: (priorityDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
-                }}
-                onClick={e => e.stopPropagation()}
-              >
-                <button 
-                  className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                    "flex items-center", priorityColors['Low'])}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    handleChangePriority('Low');
-                  }}
+        <div className="relative inline-block" ref={priorityDropdownRef}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "px-1.5 py-0.5 text-xs font-normal border cursor-pointer", 
+                    priorityColors[priority],
+                    "hover:opacity-80 transition-opacity"
+                  )}
+                  onClick={handlePriorityClick}
+                  onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
                 >
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Low
-                </button>
-                <button 
-                  className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                    "flex items-center", priorityColors['Medium'])}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    handleChangePriority('Medium');
-                  }}
+                  {priority}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Change Priority</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {showPriorityDropdown && (
+            <div className="absolute z-10 mt-1 w-24 bg-background border rounded shadow-lg">
+              {(['Low', 'Medium', 'High'] as const).map(p => (
+                <Button
+                  key={p}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs h-7 px-2"
+                  onClick={(e) => { e.stopPropagation(); handleChangePriority(p); }}
                 >
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Medium
-                </button>
-                <button 
-                  className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                    "flex items-center", priorityColors['High'])}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    handleChangePriority('High');
-                  }}
-                >
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  High
-                </button>
-              </div>
+                  {p}
+                </Button>
+              ))}
             </div>
           )}
         </div>
       )}
       
-      {/* Due Date with dropdown calendar */}
-      <div className="relative" ref={dueDatePickerRef}>
-        <div 
-          className={cn("inline-flex items-center text-xs gap-1 cursor-pointer", 
-            isDueDatePassed && "text-red-600 dark:text-red-500")}
-          onClick={handleDueDateClick}
-        >
-          <CalendarDays className="h-3.5 w-3.5" />
-          <span>{dueDate || 'Set date'}</span>
-        </div>
-        
-        {showDueDatePicker && onDueDateChange && (
-          <div className="fixed inset-0 z-[100]" onClick={() => setShowDueDatePicker(false)}>
-            <div 
-              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2"
-              style={{ 
-                left: dueDatePickerRef.current?.getBoundingClientRect().left + 'px',
-                top: (dueDatePickerRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
-              }}
-              onClick={e => e.stopPropagation()}
-            >
-              <Calendar
-                mode="single"
-                selected={tempDueDate}
-                onSelect={(date) => {
-                  setTempDueDate(date);
-                  if (date) handleChangeDueDate(date);
-                }}
-                initialFocus
-                className="max-w-[250px]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-      
+      {/* Due Date Display - Now displays range */}
+      {startDate && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div 
+                  className={cn(
+                    "text-xs flex items-center text-muted-foreground", 
+                    isDueDatePassed && "text-red-600 dark:text-red-500 font-semibold"
+                    // Remove click handler and related styles for inline editing
+                    // "cursor-pointer hover:text-foreground"
+                  )}
+                  // Remove click handler
+                  // onClick={handleDueDateClick}
+                  onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
+                >
+                  <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                  {/* Display date range */}
+                  <span>
+                    {startDate}
+                    {endDate && endDate !== startDate ? ` - ${endDate}` : ''}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Date Range: {startDate}{endDate && endDate !== startDate ? ` - ${endDate}` : ''}</p>
+                {/* Tooltip can be updated if needed */}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+      )}
+      {/* Remove the date picker popover that was here */}
+
       {commentsCount > 0 && (
         <div className="inline-flex items-center text-xs gap-1">
           <MessageSquare className="h-3.5 w-3.5" />

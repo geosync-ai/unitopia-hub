@@ -125,14 +125,14 @@ export interface TicketData {
   description?: string;
   priority: "High" | "Medium" | "Low";
   status?: string;
-  dueDate?: Date | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
   assigneeId?: string;
   completed: boolean;
   onComplete: () => void;
   groupId?: string;
   onStatusChange?: (id: string, status: string) => void;
   onPriorityChange?: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
-  onDueDateChange?: (id: string, dueDate: string) => void;
   onAssigneeChange?: (id: string, assignee: { name: string; avatarFallback: string }) => void;
 }
 
@@ -147,7 +147,8 @@ export interface TicketCardProps {
     avatarFallback: string;
     avatarImage?: string;
   };
-  dueDate?: string;
+  startDate?: string;
+  endDate?: string;
   commentsCount?: number;
   status?: string;
   type?: string;
@@ -159,7 +160,6 @@ export interface TicketCardProps {
   onComplete: (id: string, completed: boolean) => void;
   onStatusChange?: (id: string, status: string) => void;
   onPriorityChange?: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
-  onDueDateChange?: (id: string, dueDate: string) => void;
   onAssigneeChange?: (id: string, assignee: { name: string; avatarFallback: string }) => void;
 }
 
@@ -190,14 +190,14 @@ type ViewMode = 'board' | 'grid' | 'list';
 // Sample initial data
 const initialBoardData: BoardData = {
   todo: [
-    { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
-    { id: 'TKT-002', title: 'Design database schema', description: 'Define tables...', priority: 'Medium', commentsCount: 2, status: 'todo', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
+    { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', startDate: 'Jul 25', endDate: 'Jul 26', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onAssigneeChange: () => {} },
+    { id: 'TKT-002', title: 'Design database schema', description: 'Define tables...', priority: 'Medium', commentsCount: 2, startDate: 'Jul 27', status: 'todo', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onAssigneeChange: () => {} },
   ],
   inprogress: [
-    { id: 'TKT-003', title: 'Develop Ticket Board UI', description: 'Create Kanban...', priority: 'Medium', assignee: { name: 'Bob', avatarFallback: 'B' }, commentsCount: 5, dueDate: 'Jul 28', status: 'inprogress', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
+    { id: 'TKT-003', title: 'Develop Ticket Board UI', description: 'Create Kanban...', priority: 'Medium', assignee: { name: 'Bob', avatarFallback: 'B' }, commentsCount: 5, startDate: 'Jul 28', endDate: 'Jul 30', status: 'inprogress', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onAssigneeChange: () => {} },
   ],
   done: [
-    { id: 'TKT-004', title: 'Setup project repository', priority: 'Low', assignee: { name: 'Charlie', avatarFallback: 'C' }, dueDate: 'Jul 20', status: 'done', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
+    { id: 'TKT-004', title: 'Setup project repository', priority: 'Low', assignee: { name: 'Charlie', avatarFallback: 'C' }, startDate: 'Jul 20', endDate: 'Jul 20', status: 'done', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onAssigneeChange: () => {} },
   ]
 };
 
@@ -249,7 +249,6 @@ const BoardLane = ({
   onRenameGroup,
   onToggleComplete,
   onPriorityChange,
-  onDueDateChange,
   onAssigneeChange,
   onStatusChange,
   dropTargetInfo
@@ -265,7 +264,6 @@ const BoardLane = ({
   onRenameGroup: (groupId: string, newTitle: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
   onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
-  onDueDateChange: (id: string, dueDate: string) => void;
   onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
   onStatusChange: (id: string, status: string) => void;
   dropTargetInfo: {
@@ -379,7 +377,6 @@ const BoardLane = ({
                 onDelete={() => onDeleteTicket(ticket.id)}
                 onComplete={onToggleComplete}
                 onPriorityChange={onPriorityChange}
-                onDueDateChange={onDueDateChange}
                 onAssigneeChange={onAssigneeChange}
                 onStatusChange={onStatusChange}
               />
@@ -427,7 +424,8 @@ const BoardLane = ({
                       description={ticket.description}
                       assignee={ticket.assignee}
                       priority={ticket.priority}
-                      dueDate={ticket.dueDate}
+                      startDate={ticket.startDate}
+                      endDate={ticket.endDate}
                       commentsCount={ticket.commentsCount}
                       status={ticket.status}
                       completed={ticket.completed}
@@ -435,7 +433,6 @@ const BoardLane = ({
                       onDelete={() => onDeleteTicket(ticket.id)}
                       onComplete={onToggleComplete}
                       onPriorityChange={onPriorityChange}
-                      onDueDateChange={onDueDateChange}
                       onAssigneeChange={onAssigneeChange}
                       onStatusChange={onStatusChange}
                     />
@@ -464,11 +461,10 @@ const GridView: React.FC<{
   onDeleteTicket: (id: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
   onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
-  onDueDateChange: (id: string, dueDate: string) => void;
   onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
   onStatusChange: (id: string, status: string) => void;
   onRenameGroup: (groupId: string, newTitle: string) => void;
-}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange, onStatusChange, onRenameGroup }) => {
+}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onAssigneeChange, onStatusChange, onRenameGroup }) => {
   // Flatten all tickets from all columns
   const allTickets = useMemo(() => {
     const flattened: TicketCardProps[] = [];
@@ -498,7 +494,8 @@ const GridView: React.FC<{
             description={ticket.description || ""}
             priority={ticket.priority as "High" | "Medium" | "Low"}
             assignee={ticket.assignee}
-            dueDate={ticket.dueDate}
+            startDate={ticket.startDate}
+            endDate={ticket.endDate}
             commentsCount={ticket.commentsCount}
             status={ticket.status}
             completed={ticket.completed}
@@ -506,7 +503,6 @@ const GridView: React.FC<{
             onDelete={() => onDeleteTicket(ticket.id)}
             onComplete={(id, completed) => onToggleComplete(id, completed)}
             onPriorityChange={onPriorityChange}
-            onDueDateChange={onDueDateChange}
             onAssigneeChange={onAssigneeChange}
             onStatusChange={onStatusChange}
           />
@@ -524,10 +520,9 @@ const ListView: React.FC<{
   onDeleteTicket: (id: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
   onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
-  onDueDateChange: (id: string, dueDate: string) => void;
   onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
   onStatusChange: (id: string, status: string) => void;
-}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange, onStatusChange }) => {
+}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onAssigneeChange, onStatusChange }) => {
   // Flatten all tickets from all columns and sort by status and completion
   const allTickets = useMemo(() => {
     const flattened: (TicketCardProps & { columnId: string, columnTitle: string })[] = [];
@@ -575,7 +570,7 @@ const ListView: React.FC<{
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Group Name</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Status</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Priority</th>
-              <th className="text-xs font-medium text-left p-3 text-muted-foreground whitespace-nowrap">Due Date</th>
+              <th className="text-xs font-medium text-left p-3 text-muted-foreground whitespace-nowrap">Date Range</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground">Assignee</th>
               <th className="text-xs font-medium text-left p-3 text-muted-foreground w-20">Actions</th>
             </tr>
@@ -598,19 +593,20 @@ const ListView: React.FC<{
               const statusLabel = statusLabels[statusKey] || ticket.columnTitle;
               const statusColor = statusColors[statusKey as keyof typeof statusColors] || '';
               
-              // Check if due date is passed
+              // Check if due date is passed (using endDate if available)
               const isDueDatePassed = useMemo(() => {
-                if (!ticket.dueDate) return false;
+                const dateToCheckStr = ticket.endDate || ticket.startDate;
+                if (!dateToCheckStr) return false;
                 
                 try {
                   // Parse the date
                   let date: Date | null = null;
                   
-                  if (ticket.dueDate.includes('-') || ticket.dueDate.includes('T')) {
-                    date = parseISO(ticket.dueDate);
+                  if (dateToCheckStr.includes('-') || dateToCheckStr.includes('T')) {
+                    date = parseISO(dateToCheckStr);
                   } else {
                     const currentYear = new Date().getFullYear();
-                    const fullDateStr = `${ticket.dueDate} ${currentYear}`;
+                    const fullDateStr = `${dateToCheckStr} ${currentYear}`;
                     date = new Date(fullDateStr);
                   }
                   
@@ -624,7 +620,7 @@ const ListView: React.FC<{
                   console.error("Error parsing date:", error);
                   return false;
                 }
-              }, [ticket.dueDate, ticket.completed]);
+              }, [ticket.startDate, ticket.endDate, ticket.completed]);
               
               return (
                 <tr 
@@ -681,10 +677,13 @@ const ListView: React.FC<{
                     </Badge>
                   </td>
                   <td className="p-3">
-                    {ticket.dueDate ? (
+                    {ticket.startDate ? (
                       <div className={cn("text-xs flex items-center", isDueDatePassed && "text-red-600 dark:text-red-500 font-semibold")}>
                         <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
-                        {ticket.dueDate}
+                        <span>
+                          {ticket.startDate}
+                          {ticket.endDate && ticket.endDate !== ticket.startDate ? ` - ${ticket.endDate}` : ''}
+                        </span>
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">None</span>
@@ -846,7 +845,8 @@ const TicketManager: React.FC = () => {
         priority: ticket.priority,
         status: ticket.status || columnId,
         groupId: columnId,
-        dueDate: ticket.dueDate ? new Date(ticket.dueDate) : null,
+        startDate: ticket.startDate ? new Date(ticket.startDate) : null,
+        endDate: ticket.endDate ? new Date(ticket.endDate) : null,
         completed: ticket.completed,
         onComplete: () => {}
       };
@@ -913,7 +913,7 @@ const TicketManager: React.FC = () => {
           
           // Check date filters
           if (filters.date.type) {
-            const ticketDate = ticket.dueDate ? new Date(ticket.dueDate) : null;
+            const ticketDate = ticket.endDate ? new Date(ticket.endDate) : null;
             if (!ticketDate) return true; // If no date, include by default
             
             const today = startOfDay(new Date());
@@ -967,7 +967,8 @@ const TicketManager: React.FC = () => {
         title: ticketData.title,
         description: ticketData.description,
         priority: ticketData.priority,
-        dueDate: ticketData.dueDate ? format(ticketData.dueDate, "MMM d") : undefined,
+        startDate: ticketData.startDate ? format(ticketData.startDate, "MMM d") : undefined,
+        endDate: ticketData.endDate ? format(ticketData.endDate, "MMM d") : undefined,
         status: ticketData.status || targetColumn,
         completed: ticketData.completed,
         onComplete: () => {}
@@ -1332,26 +1333,6 @@ const TicketManager: React.FC = () => {
         const ticket = { ...newBoard[columnId][index], priority };
         
         // Update the ticket with new priority
-        const columnTickets = [...newBoard[columnId]];
-        columnTickets[index] = ticket;
-        newBoard[columnId] = columnTickets;
-      }
-      
-      return newBoard;
-    });
-  };
-
-  // Handle changing due date directly from the card
-  const handleDueDateChange = (ticketId: string, dueDate: string) => {
-    setBoardData(prevBoard => {
-      const newBoard = { ...prevBoard };
-      const itemInfo = findTicketAndColumn(ticketId);
-      
-      if (itemInfo) {
-        const { columnId, index } = itemInfo;
-        const ticket = { ...newBoard[columnId][index], dueDate };
-        
-        // Update the ticket with new due date
         const columnTickets = [...newBoard[columnId]];
         columnTickets[index] = ticket;
         newBoard[columnId] = columnTickets;
@@ -1735,7 +1716,6 @@ const TicketManager: React.FC = () => {
                     onRenameGroup={handleRenameGroup}
                     onToggleComplete={handleToggleComplete}
                     onPriorityChange={handlePriorityChange}
-                    onDueDateChange={handleDueDateChange}
                     onAssigneeChange={handleAssigneeChange}
                     onStatusChange={handleStatusChange}
                     dropTargetInfo={dropTargetInfo}
@@ -1781,7 +1761,6 @@ const TicketManager: React.FC = () => {
               onDeleteTicket={handleDeleteTicket} 
               onToggleComplete={handleToggleComplete}
               onPriorityChange={handlePriorityChange}
-              onDueDateChange={handleDueDateChange}
               onAssigneeChange={handleAssigneeChange}
               onStatusChange={handleStatusChange}
               onRenameGroup={handleRenameGroup}
@@ -1794,7 +1773,6 @@ const TicketManager: React.FC = () => {
               onDeleteTicket={handleDeleteTicket}
               onToggleComplete={handleToggleComplete}
               onPriorityChange={handlePriorityChange}
-              onDueDateChange={handleDueDateChange}
               onAssigneeChange={handleAssigneeChange}
               onStatusChange={handleStatusChange}
             />
@@ -1807,7 +1785,6 @@ const TicketManager: React.FC = () => {
                 isDragOverlay={true}
                 onComplete={() => {}}
                 onPriorityChange={() => {}}
-                onDueDateChange={() => {}}
                 onAssigneeChange={() => {}}
                 onStatusChange={() => {}}
               />

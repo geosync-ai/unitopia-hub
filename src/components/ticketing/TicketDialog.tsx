@@ -42,7 +42,8 @@ export interface TicketData {
   description?: string;
   priority?: 'Low' | 'Medium' | 'High';
   status?: string; // e.g., 'todo', 'inprogress', 'done'
-  dueDate?: Date | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
   assigneeId?: string | null; // ID of the assigned user
   groupId?: string; // The column/group ID
   comments?: Comment[]; // Added comments array
@@ -84,7 +85,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [status, setStatus] = useState<string>('todo');
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
-  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [comments, setComments] = useState<Comment[]>([]); // State for comments
   const [newCommentText, setNewCommentText] = useState(''); // State for new comment input
   
@@ -95,7 +97,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setPriority(initialData.priority || 'Medium');
       setStatus(initialData.status || defaultStatus || statuses[0]?.id || 'todo');
       setGroupId(initialData.groupId || defaultGroup);
-      setDueDate(initialData.dueDate ? new Date(initialData.dueDate) : undefined);
+      setStartDate(initialData.startDate ? new Date(initialData.startDate) : undefined);
+      setEndDate(initialData.endDate ? new Date(initialData.endDate) : undefined);
       setComments(initialData.comments || []);
     } else {
       setTitle('');
@@ -103,7 +106,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setPriority('Medium');
       setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
       setGroupId(defaultGroup);
-      setDueDate(undefined);
+      setStartDate(undefined);
+      setEndDate(undefined);
       setComments([]);
     }
     setNewCommentText('');
@@ -118,7 +122,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       priority,
       status,
       groupId,
-      dueDate: dueDate || null,
+      startDate: startDate || null,
+      endDate: endDate || null,
       comments: comments,
       // Add assigneeId if implemented
     };
@@ -219,64 +224,41 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="startDate">Date Range</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
+                      id="date"
                       className={cn(
                         "w-full justify-start text-left font-normal py-3 px-4 rounded-lg",
-                        !dueDate && "text-muted-foreground"
+                        !startDate && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dueDate ? format(dueDate, "PPP p") : <span>Pick a date and time</span>}
+                      {startDate ? (
+                        endDate ? (
+                          <>{format(startDate, "LLL dd, y")} - {format(endDate, "LLL dd, y")}</>
+                        ) : (
+                          format(startDate, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={5}>
-                    <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                      <Calendar
-                        mode="single"
-                        selected={dueDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            // Preserve the current time if a date was already selected
-                            const newDate = new Date(date);
-                            if (dueDate) {
-                              newDate.setHours(dueDate.getHours(), dueDate.getMinutes());
-                            }
-                            setDueDate(newDate);
-                          } else {
-                            setDueDate(undefined);
-                          }
-                        }}
-                        initialFocus
-                        className="max-w-[300px]"
-                      />
-                    </div>
-                    {dueDate && (
-                      <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="due-time" className="text-xs font-medium">
-                            Time
-                          </Label>
-                          <Input
-                            id="due-time"
-                            type="time"
-                            className="w-32 text-xs"
-                            value={dueDate ? format(dueDate, "HH:mm") : ""}
-                            onChange={(e) => {
-                              if (e.target.value && dueDate) {
-                                const [hours, minutes] = e.target.value.split(':').map(Number);
-                                const newDate = new Date(dueDate);
-                                newDate.setHours(hours, minutes);
-                                setDueDate(newDate);
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={startDate}
+                      selected={{ from: startDate, to: endDate }}
+                      onSelect={(range) => {
+                        setStartDate(range?.from);
+                        setEndDate(range?.to);
+                      }}
+                      numberOfMonths={2}
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
