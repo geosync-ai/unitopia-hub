@@ -76,10 +76,12 @@ const TicketCard: React.FC<TicketCardProps> = ({
   // State for editable dropdowns
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
   // Refs for dropdowns
   const priorityDropdownRef = useRef<HTMLDivElement>(null);
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
   
   // Sample assignees for dropdown
   const availableAssignees = [
@@ -126,6 +128,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
     e.stopPropagation();
     setShowPriorityDropdown(!showPriorityDropdown);
     setShowAssigneeDropdown(false);
+    setShowStatusDropdown(false);
   };
 
   // Handle editing assignee
@@ -133,9 +136,18 @@ const TicketCard: React.FC<TicketCardProps> = ({
     e.stopPropagation();
     setShowAssigneeDropdown(!showAssigneeDropdown);
     setShowPriorityDropdown(false);
+    setShowStatusDropdown(false);
+  };
+  
+  // --- Define handleStatusClick BEFORE usage ---
+  const handleStatusClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowStatusDropdown(!showStatusDropdown);
+    setShowPriorityDropdown(false);
+    setShowAssigneeDropdown(false);
   };
 
-  // Handle changing priority
+  // --- Restore handleChangePriority --- 
   const handleChangePriority = (newPriority: 'Low' | 'Medium' | 'High') => {
     if (onPriorityChange) {
       onPriorityChange(id, newPriority);
@@ -143,26 +155,44 @@ const TicketCard: React.FC<TicketCardProps> = ({
     setShowPriorityDropdown(false);
   };
 
+  // Handle changing status
+  const handleChangeStatus = (newStatus: string) => {
+    if (onStatusChange) {
+      onStatusChange(id, newStatus);
+    }
+    setShowStatusDropdown(false);
+  };
+  
+  // Handle changing assignee
+  const handleChangeAssignee = (newAssignee: { name: string; avatarFallback: string }) => {
+    if (onAssigneeChange) {
+      onAssigneeChange(id, newAssignee);
+    }
+    setShowAssigneeDropdown(false);
+  };
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
         (priorityDropdownRef.current && !priorityDropdownRef.current.contains(e.target as Node)) &&
-        (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node))
+        (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node)) &&
+        (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node))
       ) {
         setShowPriorityDropdown(false);
         setShowAssigneeDropdown(false);
+        setShowStatusDropdown(false);
       }
     };
     
-    if (showPriorityDropdown || showAssigneeDropdown) {
+    if (showPriorityDropdown || showAssigneeDropdown || showStatusDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showPriorityDropdown, showAssigneeDropdown]);
+  }, [showPriorityDropdown, showAssigneeDropdown, showStatusDropdown]);
 
   const handleToggleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -266,46 +296,40 @@ const TicketCard: React.FC<TicketCardProps> = ({
   const footerContent = (
     <div className="flex items-center space-x-2 flex-wrap gap-y-1">
       {status && (
-        <Badge 
-          variant="outline" 
-          className={cn("px-1.5 py-0.5 text-xs font-normal border cursor-pointer", statusColor)}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowStatusDropdown(!showStatusDropdown);
-            setShowPriorityDropdown(false);
-            setShowDueDatePicker(false);
-            setShowAssigneeDropdown(false);
-          }}
-        >
-          {statusLabel}
-        </Badge>
-      )}
-      
-      {showStatusDropdown && status && (
-        <div className="fixed inset-0 z-[100]" onClick={() => setShowStatusDropdown(false)}>
-          <div 
-            className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] mt-1"
-            style={{ 
-              left: priorityDropdownRef.current?.getBoundingClientRect().left + 'px',
-              top: (priorityDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            {Object.keys(statusLabels).map(key => (
-              <button 
-                key={key}
-                className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                  "flex items-center", statusColors[key as keyof typeof statusColors] || '')}
-                onClick={(e) => { 
-                  e.stopPropagation();
-                  if (onStatusChange) onStatusChange(id, key as any);
-                  setShowStatusDropdown(false);
-                }}
-              >
-                {statusLabels[key as keyof typeof statusLabels]}
-              </button>
-            ))}
-          </div>
+        <div className="relative inline-block" ref={statusDropdownRef}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={cn("px-1.5 py-0.5 text-xs font-normal border cursor-pointer", statusColor, "hover:opacity-80 transition-opacity")}
+                  onClick={handleStatusClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  {statusLabel}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Change Status</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          {showStatusDropdown && (
+            <div className="absolute z-10 mt-1 min-w-[120px] bg-background border rounded shadow-lg py-1">
+              {Object.keys(statusLabels).map(key => (
+                <Button 
+                  key={key}
+                  variant="ghost"
+                  size="sm"
+                  className={cn("w-full justify-start text-xs h-7 px-2", statusColors[key as keyof typeof statusColors] || '')}
+                  onClick={(e) => { e.stopPropagation(); handleChangeStatus(key); }}
+                >
+                  {statusLabels[key as keyof typeof statusLabels]}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       
@@ -323,7 +347,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
                     "hover:opacity-80 transition-opacity"
                   )}
                   onClick={handlePriorityClick}
-                  onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   {priority}
                 </Badge>
@@ -360,15 +384,10 @@ const TicketCard: React.FC<TicketCardProps> = ({
                   className={cn(
                     "text-xs flex items-center text-muted-foreground", 
                     isDueDatePassed && "text-red-600 dark:text-red-500 font-semibold"
-                    // Remove click handler and related styles for inline editing
-                    // "cursor-pointer hover:text-foreground"
                   )}
-                  // Remove click handler
-                  // onClick={handleDueDateClick}
-                  onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                  {/* Display date range */}
                   <span>
                     {startDate}
                     {endDate && endDate !== startDate ? ` - ${endDate}` : ''}
@@ -377,12 +396,10 @@ const TicketCard: React.FC<TicketCardProps> = ({
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p>Date Range: {startDate}{endDate && endDate !== startDate ? ` - ${endDate}` : ''}</p>
-                {/* Tooltip can be updated if needed */}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
       )}
-      {/* Remove the date picker popover that was here */}
 
       {commentsCount > 0 && (
         <div className="inline-flex items-center text-xs gap-1">
@@ -437,7 +454,6 @@ const TicketCard: React.FC<TicketCardProps> = ({
                 </button>
               ))}
               
-              {/* Option to unassign */}
               <button 
                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-500"
                 onClick={(e) => {
@@ -468,9 +484,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
       isDragging={false}
       isDragOverlay={isDragOverlay}
       cardClassName={cn(
-        // Apply overdue styling
         isDueDatePassed && "border-red-500 dark:border-red-600",
-        // Apply completed styling
         completed && "opacity-80 bg-gray-50 dark:bg-gray-800/50",
         className
       )}
