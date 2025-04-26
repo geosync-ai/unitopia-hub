@@ -154,6 +154,120 @@ const MailAndPackages: React.FC = () => {
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
   const [activeTab, setActiveTab] = useState<MailPackageStatus | 'All Items'>('All Items');
 
+  // --- Handlers (Define BEFORE useMemo) ---
+
+  const handleFilterChange = useCallback((filterType: 'type' | 'status', id: string, checked: boolean) => {
+    setFilters(prev => {
+      const newFilters = { ...prev };
+      const filterArray = newFilters[filterType] as Array<{ id: string, label: string, checked: boolean }>;
+      const filterIndex = filterArray.findIndex(f => f.id === id);
+      if (filterIndex !== -1) {
+        filterArray[filterIndex].checked = checked;
+      }
+      return newFilters;
+    });
+
+    setActiveFilters(prev => {
+      const key = `${filterType}-${id}`;
+      if (checked) {
+        return [...prev, key];
+      } else {
+        return prev.filter(f => f !== key);
+      }
+    });
+  }, []);
+
+  const handleDateFilterChange = useCallback(( newDateFilter: typeof initialFilters.date) => {
+     setFilters(prev => ({ ...prev, date: newDateFilter }));
+
+     // Update active filters based on the new date state
+     setActiveFilters(prevActive => {
+       let nextActive = prevActive.filter(f => !f.startsWith('date-')); // Remove old date filters
+       if (newDateFilter.type === 'preset' && newDateFilter.preset) {
+         nextActive.push(`date-${newDateFilter.preset}`);
+       } else if (newDateFilter.type === 'custom' && (newDateFilter.custom.from || newDateFilter.custom.to)) {
+         nextActive.push('date-custom');
+       }
+       return nextActive;
+     });
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters(initialFilters);
+    setActiveFilters([]);
+    setSearchQuery('');
+  }, []);
+
+
+  const handleCreateItem = useCallback(() => {
+    setEditingItem(null);
+    setIsDialogOpen(true);
+  }, []);
+
+  const handleEditItem = useCallback((id: string) => {
+    const item = mailItems.find(i => i.id === id);
+    if (item) {
+      setEditingItem(item);
+      setIsDialogOpen(true);
+    }
+  }, [mailItems]);
+
+  const handleDeleteRequest = useCallback((id: string) => {
+    const item = mailItems.find(i => i.id === id);
+    if (item) {
+      setItemToDelete({ id, name: `${item.type} for ${item.recipientName}` });
+      setIsConfirmDeleteDialogOpen(true);
+    }
+  }, [mailItems]);
+
+  const confirmDelete = useCallback(() => {
+    if (!itemToDelete) return;
+    setMailItems(prev => prev.filter(item => item.id !== itemToDelete.id));
+    setItemToDelete(null);
+    setIsConfirmDeleteDialogOpen(false);
+    // TODO: Add toast notification for deletion
+  }, [itemToDelete]);
+
+  const cancelDelete = useCallback(() => {
+    setItemToDelete(null);
+    setIsConfirmDeleteDialogOpen(false);
+  }, []);
+
+  const handleItemSubmit = useCallback((data: MailPackageData) => {
+    setMailItems(prev => {
+      if (data.id) {
+        // Update existing item
+        return prev.map(item => item.id === data.id ? data : item);
+      } else {
+        // Add new item with a unique ID
+        return [{ ...data, id: `MP-${Date.now()}` }, ...prev];
+      }
+    });
+    setIsDialogOpen(false);
+     // TODO: Add toast notification for add/update
+  }, []);
+
+  const handleStatusChange = useCallback((id: string, newStatus: MailPackageStatus) => {
+    setMailItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, status: newStatus };
+        // If changing to Delivered, set pickedUpDate
+        if (newStatus === 'Delivered' && !item.pickedUpDate) {
+            updatedItem.pickedUpDate = new Date();
+            // Optionally set pickedUpBy later if needed
+        }
+        // If changing away from Delivered, clear pickedUpDate
+        else if (newStatus !== 'Delivered') {
+            updatedItem.pickedUpDate = null;
+            updatedItem.pickedUpBy = undefined;
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
+     // TODO: Add toast notification for status change
+  }, []);
+
   // --- Filtering Logic ---
   const filteredMailItems = useMemo(() => {
     return mailItems
@@ -172,7 +286,7 @@ const MailAndPackages: React.FC = () => {
       }))
       .filter(item => {
         // ... (filtering conditions as before) ...
-        // 1. Inner Tab Filter
+         // 1. Inner Tab Filter
         if (activeTab !== 'All Items' && item.status !== activeTab) {
           return false;
         }
@@ -251,122 +365,7 @@ const MailAndPackages: React.FC = () => {
         return true; // Include item if it passes all checks
       })
       .sort((a, b) => b.receivedDate.getTime() - a.receivedDate.getTime()); // Sort by most recent first
-  }, [mailItems, searchQuery, filters, activeFilters, activeTab]); // Dependencies updated
-
-
-  // --- Handlers ---
-
-  const handleFilterChange = useCallback((filterType: 'type' | 'status', id: string, checked: boolean) => {
-    setFilters(prev => {
-      const newFilters = { ...prev };
-      const filterArray = newFilters[filterType] as Array<{ id: string, label: string, checked: boolean }>;
-      const filterIndex = filterArray.findIndex(f => f.id === id);
-      if (filterIndex !== -1) {
-        filterArray[filterIndex].checked = checked;
-      }
-      return newFilters;
-    });
-
-    setActiveFilters(prev => {
-      const key = `${filterType}-${id}`;
-      if (checked) {
-        return [...prev, key];
-      } else {
-        return prev.filter(f => f !== key);
-      }
-    });
-  }, []);
-
-  const handleDateFilterChange = useCallback(( newDateFilter: typeof initialFilters.date) => {
-     setFilters(prev => ({ ...prev, date: newDateFilter }));
-
-     // Update active filters based on the new date state
-     setActiveFilters(prevActive => {
-       let nextActive = prevActive.filter(f => !f.startsWith('date-')); // Remove old date filters
-       if (newDateFilter.type === 'preset' && newDateFilter.preset) {
-         nextActive.push(`date-${newDateFilter.preset}`);
-       } else if (newDateFilter.type === 'custom' && (newDateFilter.custom.from || newDateFilter.custom.to)) {
-         nextActive.push('date-custom');
-       }
-       return nextActive;
-     });
-  }, []);
-
-  const resetFilters = useCallback(() => {
-    setFilters(initialFilters);
-    setActiveFilters([]);
-    setSearchQuery('');
-  }, []);
-
-
-  const handleCreateItem = useCallback(() => {
-    setEditingItem(null);
-    setIsDialogOpen(true);
-  }, []);
-
-  const handleEditItem = useCallback((id: string) => {
-    const item = mailItems.find(i => i.id === id);
-    if (item) {
-      setEditingItem(item);
-      setIsDialogOpen(true);
-    }
-  }, [mailItems]);
-
-  const handleDeleteRequest = useCallback((id: string) => {
-    const item = mailItems.find(i => i.id === id);
-    if (item) {
-      setItemToDelete({ id, name: `${item.type} for ${item.recipientName}` });
-      setIsConfirmDeleteDialogOpen(true);
-    }
-  }, [mailItems]);
-
-  const confirmDelete = useCallback(() => {
-    if (!itemToDelete) return;
-    setMailItems(prev => prev.filter(item => item.id !== itemToDelete.id));
-    setItemToDelete(null);
-    setIsConfirmDeleteDialogOpen(false);
-    // Add toast notification for deletion
-  }, [itemToDelete]);
-
-  const cancelDelete = useCallback(() => {
-    setItemToDelete(null);
-    setIsConfirmDeleteDialogOpen(false);
-  }, []);
-
-  const handleItemSubmit = useCallback((data: MailPackageData) => {
-    setMailItems(prev => {
-      if (data.id) {
-        // Update existing item
-        return prev.map(item => item.id === data.id ? data : item);
-      } else {
-        // Add new item with a unique ID
-        return [{ ...data, id: `MP-${Date.now()}` }, ...prev];
-      }
-    });
-    setIsDialogOpen(false);
-     // Add toast notification for add/update
-  }, []);
-
-  const handleStatusChange = useCallback((id: string, newStatus: MailPackageStatus) => {
-    setMailItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, status: newStatus };
-        // If changing to Delivered, set pickedUpDate
-        if (newStatus === 'Delivered' && !item.pickedUpDate) {
-            updatedItem.pickedUpDate = new Date();
-            // Optionally set pickedUpBy later if needed
-        }
-        // If changing away from Delivered, clear pickedUpDate
-        else if (newStatus !== 'Delivered') {
-            updatedItem.pickedUpDate = null;
-            updatedItem.pickedUpBy = undefined;
-        }
-        return updatedItem;
-      }
-      return item;
-    }));
-     // Add toast notification for status change
-  }, []);
+  }, [mailItems, searchQuery, filters, activeFilters, activeTab, handleEditItem, handleDeleteRequest, handleStatusChange]); // Dependencies updated
 
   // --- Render Logic ---
 
