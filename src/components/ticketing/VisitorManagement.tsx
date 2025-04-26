@@ -310,9 +310,6 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   const [showDurationEdit, setShowDurationEdit] = useState(false);
   const [editableTime, setEditableTime] = useState(visitor.time);
   const [editableDuration, setEditableDuration] = useState(visitor.duration);
-  const [editableDate, setEditableDate] = useState<Date | undefined>(
-    visitor.visitStartDate ? new Date(visitor.visitStartDate) : undefined
-  );
   const dropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const hostDropdownRef = useRef<HTMLDivElement>(null);
@@ -597,45 +594,30 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         {showTimeEdit && (
           <div className="fixed inset-0 z-[100]" onClick={() => setShowTimeEdit(false)}>
             <div 
-              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-3 min-w-[280px]"
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2"
               style={{ 
                 left: timeEditRef.current?.getBoundingClientRect().left + 'px',
                 top: (timeEditRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
               }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs mb-1 block">Date</Label>
-                  <Calendar
-                    mode="single"
-                    selected={editableDate}
-                    onSelect={(date) => setEditableDate(date)}
-                    className="rounded border border-gray-200 dark:border-gray-700 p-2 max-w-[250px]"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs mb-1 block">Time</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input 
-                      type="time" 
-                      value={editableTime}
-                      onChange={handleTimeChange}
-                      className="text-xs h-7"
-                    />
-                    <Button 
-                      size="sm" 
-                      className="h-7 text-xs px-2 py-0" 
-                      onClick={() => {
-                        // Just update the time string
-                        handleTimeSubmit();
-                        setShowTimeEdit(false);
-                      }}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex items-center space-x-2">
+                <Input 
+                  type="time" 
+                  value={editableTime}
+                  onChange={handleTimeChange}
+                  className="text-xs h-7 w-24"
+                />
+                <Button 
+                  size="sm" 
+                  className="h-7 text-xs px-2 py-0" 
+                  onClick={() => {
+                    handleTimeSubmit();
+                    setShowTimeEdit(false);
+                  }}
+                >
+                  Save
+                </Button>
               </div>
             </div>
           </div>
@@ -656,7 +638,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         {showHostDropdown && (
           <div className="fixed inset-0 z-[100]" onClick={() => setShowHostDropdown(false)}>
             <div 
-              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] max-h-[180px] overflow-y-auto"
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] max-h-[180px] overflow-y-auto"
               style={{ 
                 left: hostDropdownRef.current?.getBoundingClientRect().left + 'px',
                 top: (hostDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
