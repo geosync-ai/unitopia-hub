@@ -78,39 +78,66 @@ interface AppointmentData {
   status: 'scheduled' | 'completed' | 'canceled';
 }
 
-// Sample Appointment Data (replace with actual data fetching)
+// Expanded Sample Appointment Data
+const today = new Date();
 const sampleAppointments: AppointmentData[] = [
+  // --- Completed Appointments (Past) ---
   {
     id: 'appt-1',
     title: 'Marketing Strategy Meeting',
     host: 'Alice Smith',
     location: 'Room A',
-    description: 'Discuss Q3 marketing plan',
-    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
+    description: 'Discuss Q3 marketing plan results',
+    dateRange: { from: subDays(today, 15), to: subDays(today, 15) }, // 15 days ago
     startTime: '09:00',
     endTime: '10:30',
-    attendees: ['Bob', 'Charlie'],
+    attendees: ['Bob', 'Charlie', 'david.m@example.com'],
     status: 'completed' 
   },
   {
     id: 'appt-2',
-    title: 'Client Onboarding',
+    title: 'Client Onboarding - Beta Inc',
     host: 'Robert Chen',
     location: 'Meeting Room 3',
-    description: 'Onboard new client Acme Corp',
-    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
+    description: 'Onboard new client Beta Inc',
+    dateRange: { from: subDays(today, 8), to: subDays(today, 8) }, // 8 days ago
     startTime: '11:00',
     endTime: '12:00',
     attendees: ['David'],
     status: 'completed'
   },
-    {
+  {
+    id: 'appt-6',
+    title: 'Product Demo - Old Version',
+    host: 'Emily Rodriguez',
+    location: 'Demo Room',
+    description: 'Showcase deprecated features',
+    dateRange: { from: subDays(today, 30), to: subDays(today, 30) }, // 30 days ago
+    startTime: '14:00',
+    endTime: '15:30',
+    attendees: ['Guest1', 'Guest2'],
+    status: 'completed'
+  },
+  {
+    id: 'appt-7',
+    title: 'Weekly Team Sync - Last Month',
+    host: 'David Kim',
+    location: 'Main Conference Room',
+    description: 'Regular team update from last month',
+    dateRange: { from: subMonths(today, 1), to: subMonths(today, 1) }, // Last month
+    startTime: '16:00',
+    endTime: '17:00',
+    attendees: ['Alice', 'Bob', 'Charlie', 'Emily'],
+    status: 'completed'
+  },
+  // --- Scheduled Appointments (Today & Future) ---
+  {
     id: 'appt-3',
-    title: 'Team Sync',
+    title: 'Team Sync - Today',
     host: 'Jennifer Lee',
     location: 'Online',
-    description: 'Weekly team sync',
-    dateRange: { from: new Date(2023, 3, 3), to: new Date(2023, 3, 3) }, // April 3rd
+    description: 'Weekly team sync meeting',
+    dateRange: { from: today, to: today }, // Today
     startTime: '09:00',
     endTime: '09:30',
     attendees: ['Alice', 'Bob', 'Charlie', 'David'],
@@ -118,51 +145,64 @@ const sampleAppointments: AppointmentData[] = [
   },
   {
     id: 'appt-4',
-    title: 'Interview Candidate',
+    title: 'Interview Candidate - John Smith',
     host: 'David Miller',
     location: 'Interview Room 1',
-    description: 'Interview for Software Engineer role',
-    dateRange: { from: new Date(2023, 3, 7), to: new Date(2023, 3, 7) }, // April 7th
+    description: 'Interview John Smith for Software Engineer role',
+    dateRange: { from: today, to: today }, // Today
     startTime: '11:00',
     endTime: '12:00',
     attendees: ['Alice'],
     status: 'scheduled'
   },
   {
+    id: 'appt-8',
+    title: 'Project Kickoff - Phoenix Project',
+    host: 'Alice Smith',
+    location: 'Conference Room B',
+    description: 'Initial meeting for the Phoenix Project',
+    dateRange: { from: addDays(today, 3), to: addDays(today, 3) }, // 3 days from now
+    startTime: '13:00',
+    endTime: '14:00',
+    attendees: ['Robert', 'Jennifer', 'David K'],
+    status: 'scheduled'
+  },
+   {
+    id: 'appt-9',
+    title: 'Client Check-in - Gamma LLC',
+    host: 'Robert Chen',
+    location: 'Online',
+    description: 'Quarterly check-in with Gamma LLC',
+    dateRange: { from: addDays(today, 7), to: addDays(today, 7) }, // 1 week from now
+    startTime: '10:00',
+    endTime: '10:45',
+    attendees: ['client@gamma.com'],
+    status: 'scheduled'
+  },
+  // --- Canceled Appointments ---
+  {
     id: 'appt-5',
-    title: 'Company Retreat Planning',
+    title: 'Company Retreat Planning (Canceled)',
     host: 'Sophia Garcia',
     location: 'Conference Room Main',
-    description: 'Finalize retreat details',
-    dateRange: { from: new Date(2023, 3, 12), to: new Date(2023, 3, 12) }, // April 12th 
+    description: 'Finalize retreat details - Postponed',
+    dateRange: { from: addDays(today, 1), to: addDays(today, 1) }, // Was tomorrow
     startTime: '14:00',
     endTime: '15:30',
     attendees: ['Robert', 'Jennifer'],
-    status: 'canceled' // Example of canceled
+    status: 'canceled'
   },
-    {
-    id: 'appt-6',
-    title: 'Product Demo',
-    host: 'Emily Rodriguez',
-    location: 'Demo Room',
-    description: 'Showcase new features',
-    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
-    startTime: '14:00',
-    endTime: '15:30',
-    attendees: ['Guest1', 'Guest2'],
-    status: 'completed'
-  },
-    {
-    id: 'appt-7',
-    title: 'Weekly Team Sync',
+  {
+    id: 'appt-10',
+    title: 'Supplier Meeting (Canceled)',
     host: 'David Kim',
-    location: 'Main Conference Room',
-    description: 'Regular team update',
-    dateRange: { from: new Date(2023, 3, 1), to: new Date(2023, 3, 1) }, // April 1st
-    startTime: '16:00',
-    endTime: '17:00',
-    attendees: ['Alice', 'Bob', 'Charlie', 'Emily'],
-    status: 'completed'
+    location: 'Meeting Room 2',
+    description: 'Meeting with packaging supplier - Rescheduled',
+    dateRange: { from: subDays(today, 2), to: subDays(today, 2) }, // Was 2 days ago
+    startTime: '10:00',
+    endTime: '11:00',
+    attendees: ['supplier@example.com'],
+    status: 'canceled'
   },
 ];
 
