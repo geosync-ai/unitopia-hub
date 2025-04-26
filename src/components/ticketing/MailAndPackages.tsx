@@ -109,6 +109,14 @@ const statusColors: { [key: string]: string } = {
   gray: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600',
 };
 
+// Add a map specifically for text colors for dropdown items
+const statusTextColors: { [key: string]: string } = {
+  blue: 'text-blue-800 dark:text-blue-300',
+  green: 'text-green-800 dark:text-green-300',
+  yellow: 'text-yellow-800 dark:text-yellow-300',
+  gray: 'text-gray-800 dark:text-gray-300',
+};
+
 const typeIconBgColors: { [key in MailPackageType]: string } = {
   Mail: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
   Package: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
@@ -419,14 +427,17 @@ const MailAndPackages: React.FC = () => {
                  <DropdownMenuSeparator />
                  {(Object.keys(statusMap) as MailPackageStatus[]).map((statusKey) => {
                      const StatusIcon = statusMap[statusKey].icon;
+                     const colorKey = statusMap[statusKey].colorKey; // Get the color key
+                     const textColorClass = statusTextColors[colorKey]; // Get the text color class
                      return (
                          <DropdownMenuItem
                              key={statusKey}
                              disabled={item.status === statusKey}
                              onClick={() => item.onStatusChange(item.id, statusKey)}
-                             className="text-xs"
+                             // Apply the text color class along with existing styles
+                             className={cn("text-xs font-medium", textColorClass)}
                          >
-                             <StatusIcon className="h-3 w-3 mr-2" />
+                             <StatusIcon className={cn("h-3 w-3 mr-2", textColorClass)} /> {/* Optionally color the icon too */}
                              {statusMap[statusKey].label}
                          </DropdownMenuItem>
                      );
