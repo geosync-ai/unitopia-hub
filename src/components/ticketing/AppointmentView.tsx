@@ -28,19 +28,12 @@ const AppointmentView: React.FC = () => {
   const currentMonth = "April 2023"; 
   const today = 1; // Example day
 
-  // Store the New Appointment Button JSX for reuse
-  const newAppointmentButton = (
-    <Button className="bg-primary text-white hover:bg-primary/90 flex items-center" size="sm">
-      <Plus className="mr-2 h-4 w-4" />
-      <span>New Appointment</span>
-    </Button>
-  );
-
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Filters Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" className="flex items-center">
               <Calendar className="mr-2 h-4 w-4 text-gray-500" />
               <span>Today</span>
@@ -57,8 +50,54 @@ const AppointmentView: React.FC = () => {
               <MapPin className="mr-2 h-4 w-4 text-gray-500" />
               <span>Location</span>
             </Button>
+          </div>
         </div>
       </div>
+
+      {/* Tabs and View Options Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
+         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+           <div className="overflow-x-auto">
+             <div className="flex border-b border-gray-200 dark:border-gray-700">
+               {/* Consider using Shadcn Tabs component here for better integration */}
+               <button className="px-4 py-2 text-primary border-b-2 border-primary font-medium whitespace-nowrap">All Appointments</button>
+               <button className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white whitespace-nowrap">Upcoming</button>
+               <button className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white whitespace-nowrap">Completed</button>
+               <button className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white whitespace-nowrap">Canceled</button>
+             </div>
+           </div>
+           <div className="flex items-center gap-2">
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+               <Input 
+                 type="text" 
+                 placeholder="Search appointments..." 
+                 className="pl-9 w-full md:w-64 h-9" 
+               />
+             </div>
+             <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+               <Button variant="ghost" size="sm" className="rounded-none border-r border-gray-300 dark:border-gray-600">
+                 <CalendarDays className="h-4 w-4" />
+                 <span className="ml-1 hidden sm:inline">Day</span>
+               </Button>
+               <Button variant="ghost" size="sm" className="rounded-none border-r border-gray-300 dark:border-gray-600">
+                 <CalendarRange className="h-4 w-4" />
+               </Button>
+               <Button variant="ghost" size="sm" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 border-r border-gray-300 dark:border-gray-600">
+                 <Calendar className="h-4 w-4" />
+                 <span className="ml-1 hidden sm:inline">Month</span>
+               </Button>
+               <Button variant="ghost" size="sm" className="rounded-none">
+                 <List className="h-4 w-4" />
+               </Button>
+             </div>
+             <Button className="bg-primary text-white hover:bg-primary/90 flex items-center" size="sm">
+               <Plus className="mr-2 h-4 w-4" />
+               <span>New Appointment</span>
+             </Button>
+           </div>
+         </div>
+       </div>
 
       {/* Calendar View Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
@@ -76,8 +115,6 @@ const AppointmentView: React.FC = () => {
             </Button>
           </div>
           <div className="flex items-center space-x-2">
-            {/* Add the New Appointment button here */}
-            {newAppointmentButton}
             <Button variant="outline" size="sm">
               <Printer className="mr-1 h-4 w-4" /> Print
             </Button>
