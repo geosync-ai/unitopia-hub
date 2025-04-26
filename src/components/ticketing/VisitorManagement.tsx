@@ -274,7 +274,24 @@ const getStatusClass = (status: VisitorStatus) => {
   }
 };
 
-// Component for each visitor card
+/**
+ * VisitorCard component displays visitor information in a card format.
+ * 
+ * This component uses the BaseCard component which is based on the TicketManager UI
+ * and drag-and-drop functionality, ensuring consistent styling and behavior across
+ * all card types in the application.
+ * 
+ * The card includes:
+ * - Visitor photo/avatar with initials fallback
+ * - Name and company information
+ * - Status badge
+ * - Visit time
+ * - Host information
+ * - Action buttons (edit, delete, more options)
+ * 
+ * The component supports inline editing for certain fields and manages
+ * its own dropdown states for actions.
+ */
 const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange, isDragging = false }: { 
   visitor: Visitor, 
   onStatusChange: (id: number, status: VisitorStatus) => void,
@@ -1068,48 +1085,61 @@ const VisitorManagement: React.FC = () => {
     let isBottomHalf = false;
 
     if (isOverColumn) {
-        currentOverColumnId = overId;
-        setOverColumnId(overId); // Keep track of the column itself for general highlighting
-        
-        // Find collision with sortable items within the column
-        const collision = collisions?.find(c => c.id !== active.id && !['scheduled', 'checked-in', 'checked-out', 'no-show'].includes(String(c.id)));
-        
-        if (collision) {
-            const overRect = collision.data?.droppableContainer?.rect.current;
-            if (overRect) {
-                const dragY = event.delta.y + (active.rect.current.initial?.top ?? 0);
-                const midpoint = overRect.top + overRect.height / 2;
-                currentOverItemId = Number(collision.id);
-                isBottomHalf = dragY > midpoint;
-            }
-        } else {
-            // If no collision with items but over column, potentially dropping at the end
-             currentOverItemId = null; // Drop at the end
+      currentOverColumnId = overId;
+      setOverColumnId(overId); // Keep track of the column itself for general highlighting
+      
+      // Find collision with sortable items within the column
+      const collision = collisions?.find(c => 
+        c.id !== active.id && 
+        !['scheduled', 'checked-in', 'checked-out', 'no-show'].includes(String(c.id))
+      );
+      
+      if (collision) {
+        const overRect = collision.data?.droppableContainer?.rect.current;
+        if (overRect) {
+          const pointerY = event.activatorEvent instanceof MouseEvent 
+                            ? event.activatorEvent.clientY 
+                            : (event.activatorEvent as TouchEvent).touches[0].clientY;
+          const midpoint = overRect.top + overRect.height / 2;
+          currentOverItemId = Number(collision.id);
+          isBottomHalf = pointerY > midpoint;
         }
-
+      } else {
+        // If no collision with items but over column, potentially dropping at the end
+        currentOverItemId = null; // Drop at the end
+      }
     } else {
-        // Check if 'over' is a sortable item (VisitorCard)
-        const overIsVisitor = visitors.some(v => v.id === Number(overId));
-        if (overIsVisitor) {
-            const overVisitor = visitors.find(v => v.id === Number(overId));
-            if (overVisitor) {
-                currentOverColumnId = overVisitor.status; // Assume column ID matches status
-                setOverColumnId(overVisitor.status);
-                currentOverItemId = Number(overId);
+      // Check if 'over' is a sortable item (VisitorCard)
+      const overIsVisitor = visitors.some(v => v.id === Number(overId));
+      if (overIsVisitor) {
+        const overVisitor = visitors.find(v => v.id === Number(overId));
+        if (overVisitor) {
+          currentOverColumnId = overVisitor.status; // Assume column ID matches status
+          setOverColumnId(overVisitor.status);
+          currentOverItemId = Number(overId);
 
-                const overRect = over.rect;
-                const dragY = event.delta.y + (active.rect.current.initial?.top ?? 0);
-                const midpoint = overRect.top + overRect.height / 2;
-                isBottomHalf = dragY > midpoint;
-            }
+          const overRect = over.rect;
+          const pointerY = event.activatorEvent instanceof MouseEvent 
+                           ? event.activatorEvent.clientY 
+                           : (event.activatorEvent as TouchEvent).touches[0].clientY;
+          const midpoint = overRect.top + overRect.height / 2;
+          isBottomHalf = pointerY > midpoint;
         }
+      }
     }
 
-    setDropTargetInfo({
-      columnId: currentOverColumnId,
-      overItemId: currentOverItemId,
-      isBottomHalf: isBottomHalf
-    });
+    // Only update the state if something changed to avoid unnecessary rerenders
+    if (
+      dropTargetInfo.columnId !== currentOverColumnId || 
+      dropTargetInfo.overItemId !== currentOverItemId || 
+      dropTargetInfo.isBottomHalf !== isBottomHalf
+    ) {
+      setDropTargetInfo({
+        columnId: currentOverColumnId,
+        overItemId: currentOverItemId,
+        isBottomHalf: isBottomHalf
+      });
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -1136,15 +1166,16 @@ const VisitorManagement: React.FC = () => {
     }
 
     if (targetColumnId && activeId !== Number(overId)) {
-       // --- Actual Reordering Logic would go here if needed --- 
-       // For now, just update the status based on the target column
-       setVisitors(prev =>
-         prev.map(visitor =>
-           visitor.id === activeId
-             ? { ...visitor, status: targetColumnId! }
-             : visitor
-         )
-       );
+      // Update the visitor's status based on the target column
+      setVisitors(prev =>
+        prev.map(visitor =>
+          visitor.id === activeId
+            ? { ...visitor, status: targetColumnId! }
+            : visitor
+        )
+      );
+      
+      // Could add a toast notification here if desired
     }
   };
 
@@ -1207,7 +1238,7 @@ const VisitorManagement: React.FC = () => {
                            dropTargetInfo.overItemId === visitor.id && 
                            !dropTargetInfo.isBottomHalf &&
                            activeDragItem && activeDragItem.id !== visitor.id && (
-                              <div className="h-1 w-full bg-red-500 my-0.5 rounded-full"></div>
+                              <div className="h-1 w-full bg-primary my-0.5 rounded-full"></div>
                            )}
                           
                           <VisitorCard
@@ -1226,7 +1257,7 @@ const VisitorManagement: React.FC = () => {
                            dropTargetInfo.overItemId === visitor.id && 
                            dropTargetInfo.isBottomHalf &&
                            activeDragItem && activeDragItem.id !== visitor.id && (
-                              <div className="h-1 w-full bg-red-500 my-0.5 rounded-full"></div>
+                              <div className="h-1 w-full bg-primary my-0.5 rounded-full"></div>
                            )}
                        </React.Fragment>
                     ))}
@@ -1235,7 +1266,7 @@ const VisitorManagement: React.FC = () => {
                       dropTargetInfo.overItemId === null && 
                       col.visitors.length > 0 && 
                       activeDragItem && (
-                        <div className="h-1 w-full bg-red-500 mt-1 rounded-full"></div>
+                        <div className="h-1 w-full bg-primary mt-1 rounded-full"></div>
                      )}
                   </SortableContext>
                 </BoardColumn>
@@ -1963,6 +1994,21 @@ Enter the visitor's details below.
 };
 
 // New component for board view columns - updated to match Ticket Manager style
+/**
+ * BoardColumn is a container for VisitorCard components in the board view.
+ * 
+ * This component is based on the BoardLane component from TicketManager to ensure
+ * consistent UI and behavior across different board-style views in the application.
+ * 
+ * The component:
+ * 1. Provides a droppable area for drag-and-drop operations
+ * 2. Displays a column header with title, count, and actions
+ * 3. Handles visual indicators for drag targets
+ * 4. Uses consistent styling with the TicketManager UI
+ * 5. Manages the spacing between cards with space-y-3
+ * 
+ * Always use this component for column-based layouts to maintain consistency.
+ */
 interface BoardColumnProps {
   id: string;
   title: string;
@@ -1971,7 +2017,7 @@ interface BoardColumnProps {
   children: React.ReactNode;
   isOver?: boolean;
   onAddVisitor?: () => void;
-  dropTargetInfo: { // Added prop
+  dropTargetInfo: { 
     columnId: string | null;
     overItemId: number | null;
     isBottomHalf: boolean;
@@ -1986,7 +2032,7 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
   children, 
   isOver = false,
   onAddVisitor,
-  dropTargetInfo // Destructure prop
+  dropTargetInfo 
 }) => {
   // Using refs for drag and drop
   const { setNodeRef, isOver: isColumnOver } = useDroppable({ id: id });
@@ -2008,12 +2054,12 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-200 dark:border-gray-800",
+        "w-80 flex-shrink-0 flex flex-col bg-muted/30 dark:bg-muted/20 rounded-lg overflow-hidden",
         isOver && "ring-2 ring-primary ring-inset",
         isDropTargetColumn && "relative before:content-[''] before:absolute before:inset-0 before:z-10 before:pointer-events-none before:rounded-lg before:ring-2 before:ring-primary before:ring-inset"
       )}
     >
-      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
+      <div className="p-3 font-medium flex items-center justify-between bg-muted/50 dark:bg-muted/30">
         <div className="flex items-center">
           <div className={cn(
             "w-3 h-3 rounded-full mr-2",
@@ -2023,29 +2069,27 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
             color === 'red' && "bg-red-600"
           )} />
           <h3 className="font-medium text-sm">{title}</h3>
-          <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-800 font-normal text-xs">
+          <Badge variant="outline" className="ml-2 bg-gray-100 dark:bg-gray-800 font-normal text-xs">
             {count}
           </Badge>
         </div>
         {onAddVisitor && (
           <Button
-            variant="ghost"
+            variant="ghost" 
             size="icon"
-            className="h-6 w-6"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
             onClick={onAddVisitor}
+            title="Add Visitor"
           >
-            <PlusIcon className="h-4 w-4" />
+            <PlusIcon className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
       <div 
         className={cn(
-          "flex-grow p-2 min-h-[200px] overflow-y-auto",
-          // Add spacing between cards
-          "space-y-3",
-          // Highlight when dropping into empty column OR specifically targeting this column
+          "p-2 flex-grow overflow-y-auto min-h-[200px] space-y-3",
           (isColumnOver || dropTargetInfo.columnId === id) && count === 0 && "border-2 border-dashed border-primary/50 rounded-md",
-          (isColumnOver || dropTargetInfo.columnId === id) && "bg-primary/5 transition-colors duration-150" // Slightly subtler general highlight
+          (isColumnOver || dropTargetInfo.columnId === id) && "bg-primary/5 transition-colors duration-150"
         )} 
         ref={setNodeRef}
       >

@@ -35,26 +35,29 @@ export interface BaseCardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * BaseCard is a reusable, draggable card component that serves as the foundation for 
- * specialized card components like TicketCard and VisitorCard in the application.
+ * BaseCard is the foundation for all draggable card components in the application.
+ * 
+ * It is based on the TicketManager UI and drag-and-drop functionality, providing
+ * a consistent look and behavior across different card types (like tickets and visitors).
  * 
  * This component:
- * 1. Integrates with @dnd-kit/sortable to enable drag-and-drop functionality
- * 2. Provides a consistent structure (header, content, footer) across different card types
- * 3. Manages drag states, transitions, and visual feedback
- * 4. Defines no margins by itself - spacing between cards is handled by parent components
- *    which should use either flex gap or space-y-{n} utility classes
+ * 1. Provides the drag-and-drop functionality from @dnd-kit/sortable
+ * 2. Handles all drag states, transitions, and visual feedback
+ * 3. Maintains consistent styling across all card types
+ * 4. Supports the common structure of header, content, and footer
+ * 5. Renders drag indicators and handles drop targets consistently
  * 
- * Usage examples:
- * - TicketCard in ticketing/TicketCard.tsx (for ticket management)
- * - VisitorCard in ticketing/VisitorManagement.tsx (for visitor management)
+ * The parent components (BoardLane, BoardColumn) handle the layout and spacing
+ * of cards using the space-y-3 utility class.
  * 
- * Parent components responsible for layout and spacing:
- * - BoardLane in TicketManager.tsx uses space-y-3
- * - BoardColumn in VisitorManagement.tsx uses space-y-3
+ * Card-specific styling can be applied through the cardClassName prop.
  * 
- * This architecture allows for consistent drag behavior and visual styling across
- * different card types while enabling specialized content and interactions.
+ * Implementation examples:
+ * - TicketCard in ticketing/TicketCard.tsx
+ * - VisitorCard in ticketing/VisitorManagement.tsx
+ * 
+ * When creating new card types, always extend this BaseCard to maintain
+ * UI consistency across the application.
  */
 export const BaseCard: React.FC<BaseCardProps> = ({
   id,
@@ -64,12 +67,12 @@ export const BaseCard: React.FC<BaseCardProps> = ({
   footerContent,
   wrapperClassName,
   cardClassName,
-  isDragging: externalIsDragging, // Rename to avoid conflict with useSortable's isDragging
-  isOver: externalIsOver,         // Rename to avoid conflict with useSortable's isOver
+  isDragging: externalIsDragging, 
+  isOver: externalIsOver,
   isDragOverlay = false,
   onClick,
   onPointerDown,
-  ...rest // Pass remaining div props to the outer wrapper
+  ...rest
 }) => {
   const {
     attributes,
@@ -77,11 +80,11 @@ export const BaseCard: React.FC<BaseCardProps> = ({
     setNodeRef,
     transform,
     transition,
-    isDragging: dndIsDragging, // isDragging from useSortable
-    isOver: dndIsOver,         // isOver from useSortable
+    isDragging: dndIsDragging,
+    isOver: dndIsOver,
   } = useSortable({ id: id });
 
-  // Use externally provided dragging/over state if available (e.g., for overlays), otherwise use dnd-kit's state
+  // Use externally provided dragging/over state if available, otherwise use dnd-kit's state
   const isActuallyDragging = externalIsDragging ?? dndIsDragging;
   const isActuallyOver = externalIsOver ?? dndIsOver;
 
@@ -121,17 +124,18 @@ export const BaseCard: React.FC<BaseCardProps> = ({
       {...(!isDragOverlay ? attributes : {})}
       {...(!isDragOverlay ? combinedListeners : {})}
       className={cn(
-        "relative group", // Added group for potential future styling needs
-        isActuallyOver && !isDragOverlay && "mt-4 before:content-[''] before:absolute before:left-0 before:right-0 before:-top-2 before:h-1 before:bg-primary before:rounded-full", // Visual drop indicator
+        "relative",
+        // Add the visual indicator for drop target from TicketManager
+        isActuallyOver && !isDragOverlay && "mt-4 before:content-[''] before:absolute before:left-0 before:right-0 before:top-[-8px] before:h-1 before:bg-primary before:rounded-full",
         wrapperClassName
       )}
-      {...rest} // Spread other div props
+      {...rest}
     >
       <Card
         className={cn(
-          // Base styles - NO MARGINS HERE
+          // Base styles from TicketManager - no margins
           "cursor-grab hover:shadow-md transition-shadow duration-200 border dark:border-gray-700",
-          // Dragging states
+          // Dragging states with styling from TicketManager
           isActuallyDragging && "shadow-lg ring-2 ring-primary",
           isActuallyOver && !isDragOverlay && "ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-800",
           isDragOverlay && "shadow-xl rotate-3 cursor-grabbing",
@@ -151,7 +155,6 @@ export const BaseCard: React.FC<BaseCardProps> = ({
             {/* Keep actions from shrinking */}
             {headerActions && (
               <div className="flex items-center flex-shrink-0 space-x-1">
-                 {/* Actions render here */}
                 {headerActions}
               </div>
             )}
