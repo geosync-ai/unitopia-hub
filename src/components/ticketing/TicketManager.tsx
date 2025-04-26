@@ -36,12 +36,14 @@ import {
   DragStartEvent,
   DragOverEvent,
   useDroppable,
-  DragOverlay
+  DragOverlay,
+  rectIntersection
 } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy
+  verticalListSortingStrategy,
+  useSortable
 } from '@dnd-kit/sortable';
 import { format, parseISO, isValid, isBefore, addDays, subDays, subMonths, subWeeks, isAfter, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { Input } from '@/components/ui/input';
@@ -76,6 +78,13 @@ import {
   PopoverTrigger
 } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // UserNav component
 const UserNav = () => {
@@ -230,7 +239,8 @@ const BoardLane = ({
   onDeleteGroup,
   isOver = false,
   onRenameGroup,
-  onToggleComplete
+  onToggleComplete,
+  dropTargetInfo
 }: { 
   id: string; 
   title: string; 
@@ -242,6 +252,11 @@ const BoardLane = ({
   isOver?: boolean;
   onRenameGroup: (groupId: string, newTitle: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
+  dropTargetInfo: {
+    columnId: string | null;
+    overItemId: string | null;
+    isBottomHalf: boolean;
+  };
 }) => {
   const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
   const isColumnOver = isOver || columnIsOver;
@@ -325,30 +340,43 @@ const BoardLane = ({
       </div>
       <div 
         className={cn(
-          "p-2 flex-grow overflow-y-auto min-h-[200px]",
-          isColumnOver && tickets.length === 0 && "border-2 border-dashed border-primary/50 rounded-md",
-          isColumnOver && "bg-primary/10 transition-colors duration-200"
+          "p-2 flex-grow overflow-y-auto min-h-[200px] space-y-1",
+          (isColumnOver || dropTargetInfo.columnId === id) && tickets.length === 0 && "border-2 border-dashed border-primary/50 rounded-md",
+          (isColumnOver || dropTargetInfo.columnId === id) && "bg-primary/5 transition-colors duration-150"
         )} 
         ref={setNodeRef}
       >
         <SortableContext items={incompleteTickets.map(ticket => ticket.id)} strategy={verticalListSortingStrategy}>
           {incompleteTickets.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              id={ticket.id}
-              title={ticket.title}
-              description={ticket.description}
-              assignee={ticket.assignee}
-              priority={ticket.priority}
-              dueDate={ticket.dueDate}
-              commentsCount={ticket.commentsCount}
-              status={ticket.status}
-              completed={ticket.completed}
-              onEdit={() => onEditTicket(ticket.id)}
-              onDelete={() => onDeleteTicket(ticket.id)}
-              onComplete={onToggleComplete}
-            />
+            <React.Fragment key={ticket.id}>
+              {dropTargetInfo.columnId === id && 
+               dropTargetInfo.overItemId === ticket.id && 
+               !dropTargetInfo.isBottomHalf && 
+               dropTargetInfo.overItemId !== dropTargetInfo.columnId &&
+                <div className="h-1 w-full bg-red-500 my-0.5 rounded-full"></div>
+              }
+
+              <TicketCard
+                {...ticket}
+                id={ticket.id}
+                onEdit={() => onEditTicket(ticket.id)}
+                onDelete={() => onDeleteTicket(ticket.id)}
+                onComplete={onToggleComplete}
+              />
+
+              {dropTargetInfo.columnId === id && 
+               dropTargetInfo.overItemId === ticket.id && 
+               dropTargetInfo.isBottomHalf && 
+                <div className="h-1 w-full bg-red-500 my-0.5 rounded-full"></div>
+              }
+            </React.Fragment>
           ))}
+          
+          {dropTargetInfo.columnId === id && 
+           dropTargetInfo.overItemId === null && 
+           incompleteTickets.length > 0 &&
+            <div className="h-1 w-full bg-red-500 mt-1 rounded-full"></div>
+          }
         </SortableContext>
         
         {/* Completed tasks dropdown section */}
@@ -394,11 +422,10 @@ const BoardLane = ({
           </div>
         )}
         
-        {isColumnOver && tickets.length === 0 && (
+        {/* Placeholder for empty column drop */}
+        {(isColumnOver || dropTargetInfo.columnId === id) && tickets.length === 0 && (
           <div className="flex items-center justify-center h-24 rounded-md">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-primary/20"></div>
-            </div>
+            <p className="text-sm text-muted-foreground">Drop here</p>
           </div>
         )}
       </div>
@@ -695,6 +722,12 @@ const TicketManager: React.FC = () => {
   const [isAddingGroup, setIsAddingGroup] = useState<boolean>(false);
   const [newGroupName, setNewGroupName] = useState<string>('');
   const [activeDropId, setActiveDropId] = useState<string | null>(null);
+  const [overColumnId, setOverColumnId] = useState<BoardColumnId | null>(null);
+  const [dropTargetInfo, setDropTargetInfo] = useState<{ 
+    columnId: string | null; 
+    overItemId: string | null;
+    isBottomHalf: boolean; 
+  }>({ columnId: null, overItemId: null, isBottomHalf: false });
 
   const { toast } = useToast();
   const columns = buckets;
@@ -985,158 +1018,132 @@ const TicketManager: React.FC = () => {
   // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const itemInfo = findTicketAndColumn(String(active.id));
-    setActiveDragItem(itemInfo ? itemInfo.ticket : null);
-  }
+    const activeId = String(active.id);
+    const { columnId, ticket } = findTicketAndColumn(activeId) || {};
+    if (ticket) {
+      setActiveDragItem({ ...ticket, id: activeId });
+      setOverColumnId(null);
+      setDropTargetInfo({ columnId: null, overItemId: null, isBottomHalf: false });
+    }
+  };
 
   // Handle drag over
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    
-    if (!over || !active) return;
-    
-    const activeId = String(active.id);
+    const { active, over, collisions } = event;
+    if (!over || !activeDragItem) return;
+
     const overId = String(over.id);
-    
-    // Skip if not a valid drop target
-    if (activeId === overId) return;
-    
-    // Check if we're dragging over a column
-    const isColumnDrop = columns.some(col => col.id === overId);
-    if (isColumnDrop) {
-      setActiveDropId(overId);
-      return;
+    const activeId = String(active.id);
+
+    // Determine if we are over a column (droppable)
+    const isOverColumn = columns.some(b => b.id === overId);
+    let currentOverColumnId: string | null = null;
+    let currentOverItemId: string | null = null;
+    let isBottomHalf = false;
+
+    if (isOverColumn) {
+      currentOverColumnId = overId;
+      setOverColumnId(overId);
+
+      // Find collision with sortable items within the column
+      const collision = collisions?.find(c => 
+        c.id !== active.id && 
+        !columns.some(b => b.id === String(c.id))
+      );
+
+      if (collision) {
+          const overRect = collision.data?.droppableContainer?.rect.current;
+          if (overRect) {
+              const pointerY = event.activatorEvent instanceof MouseEvent 
+                                 ? event.activatorEvent.clientY 
+                                 : (event.activatorEvent as TouchEvent).touches[0].clientY;
+              const midpoint = overRect.top + overRect.height / 2;
+              currentOverItemId = String(collision.id);
+              isBottomHalf = pointerY > midpoint;
+          }
+      } else {
+          // Over column, but no specific item collision
+          currentOverItemId = null;
+      }
+
     } else {
-      setActiveDropId(null);
+      // Check if 'over' is a sortable item (TicketCard)
+      const { columnId: overItemColumnId, ticket: overTicket } = findTicketAndColumn(overId) || {};
+      if (overTicket) {
+        currentOverColumnId = overItemColumnId!;
+        setOverColumnId(overItemColumnId!);
+        currentOverItemId = overId;
+
+        const overRect = over.rect;
+         const pointerY = event.activatorEvent instanceof MouseEvent 
+                                 ? event.activatorEvent.clientY 
+                                 : (event.activatorEvent as TouchEvent).touches[0].clientY;
+        const midpoint = overRect.top + overRect.height / 2;
+        isBottomHalf = pointerY > midpoint;
+      }
     }
     
-    // Check if we're dragging over another ticket
-    const overItemInfo = findTicketAndColumn(overId);
-    if (!overItemInfo) return;
-    
-    const activeInfo = findTicketAndColumn(activeId);
-    if (!activeInfo) return;
-    
-    // Only react if dragging to a different column
-    if (activeInfo.columnId !== overItemInfo.columnId) {
-      setBoardData(prev => {
-        const newBoard = { ...prev };
-        
-        // Remove from original column
-        const sourceColumn = [...newBoard[activeInfo.columnId]];
-        sourceColumn.splice(activeInfo.index, 1);
-        
-        // Add to the new column
-        const targetColumn = [...newBoard[overItemInfo.columnId]];
-        const updatedTicket = { ...activeInfo.ticket, status: overItemInfo.columnId };
-        targetColumn.splice(overItemInfo.index, 0, updatedTicket);
-        
-        // Update the board
-        newBoard[activeInfo.columnId] = sourceColumn;
-        newBoard[overItemInfo.columnId] = targetColumn;
-        
-        return newBoard;
-      });
+    // Avoid updating state if the target hasn't changed significantly
+    if (dropTargetInfo.columnId !== currentOverColumnId || 
+        dropTargetInfo.overItemId !== currentOverItemId ||
+        dropTargetInfo.isBottomHalf !== isBottomHalf) {
+        setDropTargetInfo({
+          columnId: currentOverColumnId,
+          overItemId: currentOverItemId,
+          isBottomHalf: isBottomHalf
+        });
     }
   };
 
   // Handle drag end
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    
     setActiveDragItem(null);
-    setActiveDropId(null); // Clear the highlight after dropping
+    setOverColumnId(null);
+    setDropTargetInfo({ columnId: null, overItemId: null, isBottomHalf: false });
 
-    // Check if we have a valid drop target
-    if (!over || !active) {
-      console.log("No valid drop target or active item");
-      return;
-    }
+    if (!over || !active) return;
 
     const activeId = String(active.id);
     const overId = String(over.id);
-
-    if (activeId === overId) {
-      console.log("Dropped on self");
-      return;
-    }
-
-    // Find the active item's current position
-    const activeItemInfo = findTicketAndColumn(activeId);
-    if (!activeItemInfo) {
-      console.error("Could not find active item info for:", activeId);
-      return;
-    }
-
-    const { columnId: activeColumnId, index: activeIndex, ticket: activeTicket } = activeItemInfo;
     
-    // Determine the target column
-    let targetColumnId: BoardColumnId | null = null;
-    
-    // First check if we're dropping directly onto a column
-    const isColumnDrop = columns.some(col => col.id === overId);
-    if (isColumnDrop) {
+    const { columnId: originalColumnId } = findTicketAndColumn(activeId) || {};
+    if (!originalColumnId) return; // Should not happen if drag started correctly
+
+    let targetColumnId: string | null = null;
+    if (columns.some(b => b.id === overId)) {
       targetColumnId = overId;
-      console.log("Dropped directly onto column:", targetColumnId);
-    } 
-    // Next check if we're dropping onto a ticket
-    else {
-      const overItemInfo = findTicketAndColumn(overId);
-      if (overItemInfo) {
-        targetColumnId = overItemInfo.columnId;
-        console.log("Dropped onto ticket in column:", targetColumnId);
-      } 
-    }
-
-    // If we still couldn't determine a target column, exit
-    if (!targetColumnId) {
-      console.error("Could not determine target column");
-      return;
-    }
-
-    // Find the target insertion index
-    let targetIndex = 0;
-    const overItemInfo = findTicketAndColumn(overId);
-    
-    // If dropping onto another ticket, place it at that position
-    if (overItemInfo) {
-      targetIndex = overItemInfo.index;
     } else {
-      // Otherwise place at the end of the target column
-      targetIndex = boardData[targetColumnId]?.length || 0;
+      const { columnId: overItemColumnId } = findTicketAndColumn(overId) || {};
+      targetColumnId = overItemColumnId;
     }
 
-    // Make a copy of the entire board data to avoid direct mutations
-    setBoardData(prevBoard => {
-      // Create a new board object
-      const newBoard = { ...prevBoard };
-      
-      // Ensure columns exist
-      if (!newBoard[activeColumnId]) newBoard[activeColumnId] = [];
-      if (!newBoard[targetColumnId]) newBoard[targetColumnId] = [];
-      
-      // Create copies of the affected arrays
-      const sourceItems = [...newBoard[activeColumnId]];
-      const targetItems = activeColumnId === targetColumnId 
-        ? sourceItems 
-        : [...newBoard[targetColumnId]];
-      
-      // Remove item from source
-      sourceItems.splice(activeIndex, 1);
-      
-      // Clone the active ticket to avoid reference issues
-      const ticketToMove = { ...activeTicket, status: targetColumnId };
-      
-      // Insert into target
-      targetItems.splice(targetIndex, 0, ticketToMove);
-      
-      // Update the board data
-      newBoard[activeColumnId] = sourceItems;
-      if (activeColumnId !== targetColumnId) {
-        newBoard[targetColumnId] = targetItems;
-      }
-      
-      return newBoard;
-    });
+    if (targetColumnId && originalColumnId !== targetColumnId) {
+        // Simple status update based on column drop for now
+        setBoardData(prevData => {
+            const newData = { ...prevData };
+            const ticketIndex = newData[originalColumnId]?.findIndex(t => t.id === activeId);
+            
+            if (ticketIndex > -1) {
+                const [ticketToMove] = newData[originalColumnId].splice(ticketIndex, 1);
+                const updatedTicket = { ...ticketToMove, status: targetColumnId! };
+                
+                if (!newData[targetColumnId!]) {
+                  newData[targetColumnId!] = [];
+                }
+                // Basic append - reordering logic needs the dropTargetInfo from dragEnd
+                newData[targetColumnId!].push(updatedTicket);
+            }
+            return newData;
+        });
+        // Add toast or confirmation here if needed
+    } else if (targetColumnId && originalColumnId === targetColumnId) {
+      // --- Reordering Logic within the same column --- 
+      // This requires using dropTargetInfo saved during onDragOver or recalculated here
+      // and potentially the arrayMove utility from dnd-kit/sortable
+      console.log("TODO: Implement reordering within column", targetColumnId);
+    }
   };
 
   // Delete handlers
@@ -1571,7 +1578,7 @@ const TicketManager: React.FC = () => {
         </div>
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
@@ -1592,9 +1599,10 @@ const TicketManager: React.FC = () => {
                     onEditTicket={handleEditTicket}
                     onDeleteTicket={handleDeleteTicket}
                     onDeleteGroup={handleDeleteGroup}
-                    isOver={activeDropId === columnId}
+                    isOver={overColumnId === columnId}
                     onRenameGroup={handleRenameGroup}
                     onToggleComplete={handleToggleComplete}
+                    dropTargetInfo={dropTargetInfo}
                   />
                 );
               })}
@@ -1651,18 +1659,10 @@ const TicketManager: React.FC = () => {
           <DragOverlay>
             {activeDragItem && (
               <TicketCard
+                {...activeDragItem}
                 id={activeDragItem.id}
-                title={activeDragItem.title}
-                description={activeDragItem.description}
-                priority={activeDragItem.priority}
-                assignee={activeDragItem.assignee}
-                dueDate={activeDragItem.dueDate}
-                commentsCount={activeDragItem.commentsCount}
-                status={activeDragItem.status}
-                completed={activeDragItem.completed}
-                className="opacity-80 w-[320px] shadow-lg"
-                isDragOverlay={true}
-                onComplete={handleToggleComplete}
+                isDragging={true}
+                onComplete={() => {}}
               />
             )}
           </DragOverlay>

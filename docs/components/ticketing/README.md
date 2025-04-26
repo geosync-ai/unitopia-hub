@@ -25,7 +25,7 @@ Provides a flexible interface for managing tickets using multiple view modes (bo
 ### Features
 - Kanban board view with customizable columns
 - Grid and list alternative views
-- Drag-and-drop ticket management
+- Drag-and-drop ticket management (columns highlight, red line indicates drop position)
 - Ticket creation, editing, and deletion
 - Custom column creation, renaming, and deletion
 - Priority and status management
@@ -38,7 +38,7 @@ Provides a flexible interface for managing tickets using multiple view modes (bo
 - Manages ticket filters
 - Handles view mode preferences
 - Tracks active dialog states
-- Manages drag-and-drop interactions
+- Manages drag-and-drop interactions (including drop target position for indicator)
 
 ### Dependencies
 - DndKit library for drag-and-drop
