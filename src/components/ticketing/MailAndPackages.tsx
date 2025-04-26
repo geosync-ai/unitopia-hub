@@ -95,7 +95,7 @@ const getInitials = (name: string): string => {
 };
 
 const statusMap: { [key in MailPackageStatus]: { icon: React.ElementType; colorKey: 'blue' | 'green' | 'yellow' | 'gray'; label: string } } = {
-  'Received': { icon: Inbox, colorKey: 'gray', label: 'Received' },
+  'Received': { icon: Mail, colorKey: 'gray', label: 'Received' },
   'Pending Pickup': { icon: Clock, colorKey: 'blue', label: 'Pending Pickup' },
   'Signature Required': { icon: AlertCircle, colorKey: 'yellow', label: 'Signature Req.' },
   'Delivered': { icon: CheckCircle, colorKey: 'green', label: 'Delivered' },
@@ -500,12 +500,19 @@ const MailAndPackages: React.FC = () => {
 
          {/* Grid Actions (optional, can be simplified or put in dropdown) */}
         <div className="flex items-center justify-end space-x-1 mt-2 -mr-2">
+            {/* Add button for Received -> Pending Pickup */}
+            { item.status === 'Received' && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" title="Mark Pending Pickup" onClick={() => item.onStatusChange(item.id, 'Pending Pickup')}><Clock className="h-3.5 w-3.5" /></Button>
+            )}
+            {/* Keep button for Pending/SigReq -> Delivered */}
             { (item.status === 'Pending Pickup' || item.status === 'Signature Required') && (
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-green-600" title="Mark Delivered" onClick={() => item.onStatusChange(item.id, 'Delivered')}><Check className="h-3.5 w-3.5" /></Button>
             )}
+            {/* Keep button for Delivered -> Pending Pickup */}
             { item.status === 'Delivered' && (
                  <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" title="Mark Pending" onClick={() => item.onStatusChange(item.id, 'Pending Pickup')}><Undo className="h-3.5 w-3.5" /></Button>
             )}
+            {/* Keep Edit and Delete buttons */}
             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600" title="Edit" onClick={() => item.onEdit(item.id)}><Pencil className="h-3.5 w-3.5" /></Button>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" title="Delete" onClick={() => item.onDelete(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
         </div>
@@ -708,7 +715,7 @@ const MailAndPackages: React.FC = () => {
          )
        ) : (
           <div className="text-center py-16 text-gray-500 dark:text-gray-400">
-            <Inbox className="mx-auto h-12 w-12 text-gray-400" />
+            <Mail className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">No mail or packages found</h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {activeFilters.length > 0 || searchQuery ? "Try adjusting your search or filters." : "Add a new item to get started."}
