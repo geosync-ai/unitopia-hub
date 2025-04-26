@@ -1,6 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Calendar, 
   Filter, 
@@ -22,11 +40,66 @@ import {
   Utensils,
   MapPin // Using MapPin for Location
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+
+// Define the shape of appointment data
+interface AppointmentData {
+  title: string;
+  host: string;
+  location: string;
+  description: string;
+  dateRange?: DateRange;
+  startTime: string;
+  endTime: string;
+  attendees: string[]; // Simple array of attendee names/emails for now
+}
 
 const AppointmentView: React.FC = () => {
   // Placeholder data - replace with actual state and logic
   const currentMonth = "April 2023"; 
   const today = 1; // Example day
+
+  // State for the modal
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const initialAppointmentState: AppointmentData = {
+    title: '',
+    host: '',
+    location: '',
+    description: '',
+    dateRange: undefined,
+    startTime: '',
+    endTime: '',
+    attendees: [],
+  };
+  const [newAppointmentData, setNewAppointmentData] = useState<AppointmentData>(initialAppointmentState);
+
+  // --- Modal Handlers --- 
+  const handleAppointmentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setNewAppointmentData(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleAppointmentSelectChange = (value: string, field: keyof AppointmentData) => {
+    setNewAppointmentData(prev => ({ ...prev, [field]: value }));
+  };
+  
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+     setNewAppointmentData(prev => ({ ...prev, dateRange: range }));
+  };
+
+  // Basic placeholder for creating the appointment
+  const handleCreateAppointment = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Creating Appointment:", newAppointmentData);
+    // Add actual API call or state update logic here
+    setIsAppointmentModalOpen(false); // Close modal on submit
+    setNewAppointmentData(initialAppointmentState); // Reset form
+  };
+  
+  // Placeholder host options
+  const hostOptions = ["Alice Smith", "Robert Chen", "Jennifer Lee"];
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -67,7 +140,11 @@ const AppointmentView: React.FC = () => {
                  <List className="h-4 w-4" />
                </Button>
              </div>
-             <Button className="bg-primary text-white hover:bg-primary/90 flex items-center" size="sm">
+             <Button 
+               className="bg-primary text-white hover:bg-primary/90 flex items-center" 
+               size="sm"
+               onClick={() => setIsAppointmentModalOpen(true)}
+             >
                <Plus className="mr-2 h-4 w-4" />
                <span>New Appointment</span>
              </Button>
@@ -282,6 +359,179 @@ const AppointmentView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* --- Add Appointment Modal --- */}
+      <Dialog open={isAppointmentModalOpen} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setNewAppointmentData(initialAppointmentState); // Reset form on close
+        }
+        setIsAppointmentModalOpen(isOpen);
+      }}>
+        <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh]">
+          <DialogHeader className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
+            <DialogTitle className="text-2xl font-semibold">Create New Appointment</DialogTitle>
+            <DialogDescription>
+              Fill in the details for the new appointment.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleCreateAppointment} id="appointment-form" className="flex-grow overflow-y-auto px-6 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 pb-4">
+              {/* Form Fields - Adapted from Visitor Management */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="title">Appointment Title*</Label>
+                <Input 
+                  id="title" 
+                  placeholder="e.g., Project Kickoff Meeting" 
+                  value={newAppointmentData.title} 
+                  onChange={handleAppointmentFormChange} 
+                  className="py-3 px-4 rounded-lg" 
+                  required 
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <Label htmlFor="host">Host*</Label>
+                 <Select value={newAppointmentData.host} onValueChange={(value) => handleAppointmentSelectChange(value, 'host')}>
+                    <SelectTrigger id="host" className="py-3 px-4 rounded-lg">
+                      <SelectValue placeholder="Select a host" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hostOptions.map(host => (
+                        <SelectItem key={host} value={host}>{host}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+              </div>
+              
+               <div className="space-y-1">
+                <Label htmlFor="location">Location</Label>
+                <Input 
+                  id="location" 
+                  placeholder="e.g., Conference Room B" 
+                  value={newAppointmentData.location} 
+                  onChange={handleAppointmentFormChange} 
+                  className="py-3 px-4 rounded-lg" 
+                />
+              </div>
+              
+               <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="dateRange">Date Range*</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      id="dateRange"
+                      className={cn(
+                        "w-full justify-start text-left font-normal py-3 px-4 rounded-lg",
+                        !newAppointmentData.dateRange?.from && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {newAppointmentData.dateRange?.from ? (
+                        newAppointmentData.dateRange.to ? (
+                          <>
+                            {format(newAppointmentData.dateRange.from, "LLL dd, y")} - {format(newAppointmentData.dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(newAppointmentData.dateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      defaultMonth={newAppointmentData.dateRange?.from || new Date()}
+                      selected={newAppointmentData.dateRange}
+                      onSelect={handleDateRangeChange}
+                      numberOfMonths={2}
+                      className="border-0"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="space-y-1">
+                <Label htmlFor="startTime">Start Time*</Label>
+                <Input 
+                  id="startTime" 
+                  type="time" 
+                  value={newAppointmentData.startTime} 
+                  onChange={handleAppointmentFormChange} 
+                  className="py-3 px-4 rounded-lg" 
+                  required 
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <Label htmlFor="endTime">End Time*</Label>
+                <Input 
+                  id="endTime" 
+                  type="time" 
+                  value={newAppointmentData.endTime} 
+                  onChange={handleAppointmentFormChange} 
+                  className="py-3 px-4 rounded-lg" 
+                  required 
+                />
+              </div>
+
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="description">Description / Agenda</Label>
+                <Textarea 
+                  id="description" 
+                  placeholder="Add details about the appointment..." 
+                  value={newAppointmentData.description} 
+                  onChange={handleAppointmentFormChange} 
+                  className="py-3 px-4 rounded-lg" 
+                  rows={4}
+                />
+              </div>
+              
+              {/* Placeholder for Attendees - needs more complex implementation */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label htmlFor="attendees">Attendees</Label>
+                <Input 
+                  id="attendees-input" // Temp ID, not linked to state directly
+                  placeholder="Add attendees (e.g., email addresses - comma separated)" 
+                  className="py-3 px-4 rounded-lg" 
+                  // Basic handling - needs proper parsing/state update
+                  // value={newAppointmentData.attendees.join(', ')}
+                  // onChange={(e) => handleAppointmentSelectChange(e.target.value.split(',').map(s => s.trim()), 'attendees')} 
+                />
+                {/* Display added attendees below (simplified) */}
+                {newAppointmentData.attendees.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {newAppointmentData.attendees.map((attendee, index) => (
+                       <Badge key={index} variant="secondary">{attendee}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </form>
+
+          <DialogFooter className="px-6 py-4 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700/50 flex-shrink-0">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsAppointmentModalOpen(false)} 
+              className="px-6 py-2 rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              form="appointment-form" 
+              className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg"
+            >
+              Create Appointment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
