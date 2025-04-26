@@ -439,7 +439,11 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
               />
             </div>
           ) : (
-            <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+            <div 
+              className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm ${
+                getInitialsColor(visitor.firstName, visitor.lastName)
+              }`}
+            >
               {visitor.initials}
             </div>
           )}
@@ -587,7 +591,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
       
       <div className="flex items-center text-xs text-muted-foreground relative" ref={timeEditRef}>
         <CalendarIcon className="h-3.5 w-3.5 mr-1" />
-        <span className="cursor-pointer" onClick={handleTimeClick}>
+        <span className="cursor-pointer hover:text-primary" onClick={handleTimeClick}>
           {formatTime(visitor.time)}
         </span>
         
@@ -597,7 +601,8 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
               className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2"
               style={{ 
                 left: timeEditRef.current?.getBoundingClientRect().left + 'px',
-                top: (timeEditRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
+                top: (timeEditRef.current?.getBoundingClientRect().bottom + 5) + 'px',
+                position: 'fixed'
               }}
               onClick={e => e.stopPropagation()}
             >
@@ -631,7 +636,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
     <>
       <div className="flex items-center relative" ref={hostDropdownRef}>
         <UserIcon className="h-3.5 w-3.5 mr-1" />
-        <span className="cursor-pointer" onClick={handleHostClick}>
+        <span className="cursor-pointer hover:text-primary" onClick={handleHostClick}>
           {visitor.host}
         </span>
         
@@ -641,7 +646,8 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
               className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] max-h-[180px] overflow-y-auto"
               style={{ 
                 left: hostDropdownRef.current?.getBoundingClientRect().left + 'px',
-                top: (hostDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
+                top: (hostDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px',
+                position: 'fixed'
               }}
               onClick={e => e.stopPropagation()}
             >
@@ -710,6 +716,26 @@ const VisitorManagement: React.FC = () => {
     overItemId: number | null; // ID of the item we are dropping *before*
     isBottomHalf: boolean; // Are we over the bottom half of overItemId?
   }>({ columnId: null, overItemId: null, isBottomHalf: false });
+  
+  // States for table view editing
+  const [visitorStatusEdit, setVisitorStatusEdit] = useState<{
+    id: number | null;
+    show: boolean;
+    anchorEl: HTMLElement | null;
+  }>({ id: null, show: false, anchorEl: null });
+  
+  const [visitorTimeEdit, setVisitorTimeEdit] = useState<{
+    id: number | null;
+    show: boolean;
+    anchorEl: HTMLElement | null;
+    value: string;
+  }>({ id: null, show: false, anchorEl: null, value: '' });
+  
+  const [visitorHostEdit, setVisitorHostEdit] = useState<{
+    id: number | null;
+    show: boolean;
+    anchorEl: HTMLElement | null;
+  }>({ id: null, show: false, anchorEl: null });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -1411,20 +1437,47 @@ const VisitorManagement: React.FC = () => {
         
       case 'grid':
         return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
-            {paginatedVisitors.map(visitor => (
-              <VisitorCard
-                key={visitor.id}
-                visitor={visitor}
-                onStatusChange={handleInlineStatusChange}
-                onEdit={handleEditVisitor}
-                onDelete={handleDeleteVisitor}
-                onHostChange={handleInlineHostChange}
-                onTimeChange={handleInlineTimeChange}
-                onDurationChange={handleInlineDurationChange}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={rectIntersection}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
+              <SortableContext items={paginatedVisitors.map(v => v.id.toString())} strategy={verticalListSortingStrategy}>
+                {paginatedVisitors.map(visitor => (
+                  <VisitorCard
+                    key={visitor.id}
+                    visitor={visitor}
+                    isDragging={activeDragItem?.id === visitor.id}
+                    onStatusChange={handleInlineStatusChange}
+                    onEdit={handleEditVisitor}
+                    onDelete={handleDeleteVisitor}
+                    onHostChange={handleInlineHostChange}
+                    onTimeChange={handleInlineTimeChange}
+                    onDurationChange={handleInlineDurationChange}
+                    onVisitDateChange={() => {}} // Add this line
+                  />
+                ))}
+              </SortableContext>
+            </div>
+            
+            {activeDragItem && (
+              <DragOverlay>
+                <VisitorCard
+                  visitor={activeDragItem}
+                  isDragging={true}
+                  onStatusChange={() => {}}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  onHostChange={() => {}}
+                  onTimeChange={() => {}}
+                  onDurationChange={() => {}}
+                />
+              </DragOverlay>
+            )}
+          </DndContext>
         );
         
       case 'list':
@@ -1462,7 +1515,7 @@ const VisitorManagement: React.FC = () => {
                             />
                           </div>
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm mr-3">
+                          <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center font-bold text-sm ${getInitialsColor(visitor.firstName, visitor.lastName)}`}>
                             {visitor.initials}
                           </div>
                         )}
@@ -1473,17 +1526,175 @@ const VisitorManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span 
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)}`}
-                      >
-                        {getStatusLabel(visitor.status)}
-                      </span>
+                      <div className="relative">
+                        <span 
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(visitor.status)} cursor-pointer`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVisitorStatusEdit({
+                              id: visitor.id,
+                              show: true,
+                              anchorEl: e.currentTarget
+                            });
+                          }}
+                        >
+                          {getStatusLabel(visitor.status)}
+                        </span>
+                        
+                        {visitorStatusEdit.show && visitorStatusEdit.id === visitor.id && (
+                          <div className="fixed inset-0 z-[100]" onClick={() => setVisitorStatusEdit({ id: null, show: false, anchorEl: null })}>
+                            <div 
+                              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[130px]"
+                              style={{
+                                left: visitorStatusEdit.anchorEl?.getBoundingClientRect().left + 'px',
+                                top: (visitorStatusEdit.anchorEl?.getBoundingClientRect().bottom + 5) + 'px',
+                                position: 'fixed'
+                              }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <button 
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'scheduled');
+                                  setVisitorStatusEdit({ id: null, show: false, anchorEl: null });
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                                Scheduled
+                              </button>
+                              <button 
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'checked-in');
+                                  setVisitorStatusEdit({ id: null, show: false, anchorEl: null });
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                                Checked In
+                              </button>
+                              <button 
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'checked-out');
+                                  setVisitorStatusEdit({ id: null, show: false, anchorEl: null });
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                                Checked Out
+                              </button>
+                              <button 
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => {
+                                  handleInlineStatusChange(visitor.id, 'no-show');
+                                  setVisitorStatusEdit({ id: null, show: false, anchorEl: null });
+                                }}
+                              >
+                                <span className="inline-block w-2 h-2 rounded-full bg-red-600 mr-2"></span>
+                                No Show
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatTime(visitor.time)}
+                      <div className="relative">
+                        <span 
+                          className="cursor-pointer hover:text-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVisitorTimeEdit({
+                              id: visitor.id,
+                              show: true,
+                              anchorEl: e.currentTarget,
+                              value: visitor.time
+                            });
+                          }}
+                        >
+                          {formatTime(visitor.time)}
+                        </span>
+                        
+                        {visitorTimeEdit.show && visitorTimeEdit.id === visitor.id && (
+                          <div className="fixed inset-0 z-[100]" onClick={() => setVisitorTimeEdit({ id: null, show: false, anchorEl: null, value: '' })}>
+                            <div 
+                              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2"
+                              style={{
+                                left: visitorTimeEdit.anchorEl?.getBoundingClientRect().left + 'px',
+                                top: (visitorTimeEdit.anchorEl?.getBoundingClientRect().bottom + 5) + 'px',
+                                position: 'fixed'
+                              }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <Input 
+                                  type="time" 
+                                  value={visitorTimeEdit.value}
+                                  onChange={(e) => setVisitorTimeEdit(prev => ({ ...prev, value: e.target.value }))}
+                                  className="text-xs h-7 w-24"
+                                />
+                                <Button 
+                                  size="sm" 
+                                  className="h-7 text-xs px-2 py-0" 
+                                  onClick={() => {
+                                    if (visitorTimeEdit.id !== null) {
+                                      handleInlineTimeChange(visitorTimeEdit.id, visitorTimeEdit.value);
+                                    }
+                                    setVisitorTimeEdit({ id: null, show: false, anchorEl: null, value: '' });
+                                  }}
+                                >
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {visitor.host}
+                      <div className="relative">
+                        <span 
+                          className="cursor-pointer hover:text-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVisitorHostEdit({
+                              id: visitor.id,
+                              show: true,
+                              anchorEl: e.currentTarget
+                            });
+                          }}
+                        >
+                          {visitor.host}
+                        </span>
+                        
+                        {visitorHostEdit.show && visitorHostEdit.id === visitor.id && (
+                          <div className="fixed inset-0 z-[100]" onClick={() => setVisitorHostEdit({ id: null, show: false, anchorEl: null })}>
+                            <div 
+                              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] max-h-[180px] overflow-y-auto"
+                              style={{
+                                left: visitorHostEdit.anchorEl?.getBoundingClientRect().left + 'px',
+                                top: (visitorHostEdit.anchorEl?.getBoundingClientRect().bottom + 5) + 'px',
+                                position: 'fixed'
+                              }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {hostOptions.map(host => (
+                                <button 
+                                  key={host}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  onClick={() => {
+                                    if (visitorHostEdit.id !== null) {
+                                      handleInlineHostChange(visitorHostEdit.id, host);
+                                    }
+                                    setVisitorHostEdit({ id: null, show: false, anchorEl: null });
+                                  }}
+                                >
+                                  {host}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {visitor.company}
@@ -1542,7 +1753,7 @@ const VisitorManagement: React.FC = () => {
             </Button>
             
             {dateRangeOpen && (
-              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 p-4">
+              <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 p-4 w-64 max-w-[300px]">
                 <div className="flex flex-col gap-2">
                   <Label>From Date</Label>
                   <Input 
@@ -1690,7 +1901,7 @@ const VisitorManagement: React.FC = () => {
             </Button>
             
             {companyFilterOpen && (
-              <div className="absolute left-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-60 overflow-y-auto">
+              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-50 max-h-60 overflow-y-auto">
                 <div className="py-1">
                   <button 
                     className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${companyFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
@@ -1749,7 +1960,7 @@ const VisitorManagement: React.FC = () => {
                     className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${hostFilter === '' ? 'bg-primary/10 dark:bg-primary/30' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setHostFilter(hostFilter);
+                      setHostFilter('');
                       setHostFilterOpen(false);
                     }}
                   >
@@ -1772,6 +1983,27 @@ const VisitorManagement: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Reset Filters Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={() => {
+              setDateFilter({});
+              setStatusFilter('all');
+              setCompanyFilter('');
+              setHostFilter('');
+              setSearchQuery('');
+              setDateRangeOpen(false);
+              setStatusFilterOpen(false);
+              setCompanyFilterOpen(false);
+              setHostFilterOpen(false);
+            }}
+          >
+            <XIcon className="h-4 w-4" />
+            Reset Filters
+          </Button>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -2229,6 +2461,29 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
       )}
     </div>
   );
+};
+
+// Add this function to get a consistent color based on name
+const getInitialsColor = (firstName: string, lastName: string): string => {
+  // Create a simple hash from the name
+  const nameHash = (firstName + lastName).split('').reduce(
+    (hash, char) => hash + char.charCodeAt(0), 0
+  );
+  
+  // Define a set of color combinations (bg and text)
+  const colorPairs = [
+    "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+    "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+    "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+    "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+    "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400",
+    "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400",
+    "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+  ];
+  
+  // Select a color based on name hash
+  return colorPairs[nameHash % colorPairs.length];
 };
 
 export default VisitorManagement; 
