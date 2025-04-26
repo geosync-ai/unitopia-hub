@@ -130,6 +130,10 @@ export interface TicketData {
   completed: boolean;
   onComplete: () => void;
   groupId?: string;
+  onStatusChange?: (id: string, status: string) => void;
+  onPriorityChange?: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
+  onDueDateChange?: (id: string, dueDate: string) => void;
+  onAssigneeChange?: (id: string, assignee: { name: string; avatarFallback: string }) => void;
 }
 
 // Type for ticket props
@@ -153,6 +157,10 @@ export interface TicketCardProps {
   className?: string;
   completed: boolean;
   onComplete: (id: string, completed: boolean) => void;
+  onStatusChange?: (id: string, status: string) => void;
+  onPriorityChange?: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
+  onDueDateChange?: (id: string, dueDate: string) => void;
+  onAssigneeChange?: (id: string, assignee: { name: string; avatarFallback: string }) => void;
 }
 
 // Type for the board data structure
@@ -182,14 +190,14 @@ type ViewMode = 'board' | 'grid' | 'list';
 // Sample initial data
 const initialBoardData: BoardData = {
   todo: [
-    { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo', completed: false, onComplete: () => {} },
-    { id: 'TKT-002', title: 'Design database schema', description: 'Define tables...', priority: 'Medium', commentsCount: 2, status: 'todo', completed: false, onComplete: () => {} },
+    { id: 'TKT-001', title: 'Implement user authentication', description: 'Set up login...', priority: 'High', dueDate: 'Jul 25', assignee: { name: 'Alice', avatarFallback: 'A' }, status: 'todo', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
+    { id: 'TKT-002', title: 'Design database schema', description: 'Define tables...', priority: 'Medium', commentsCount: 2, status: 'todo', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
   ],
   inprogress: [
-    { id: 'TKT-003', title: 'Develop Ticket Board UI', description: 'Create Kanban...', priority: 'Medium', assignee: { name: 'Bob', avatarFallback: 'B' }, commentsCount: 5, dueDate: 'Jul 28', status: 'inprogress', completed: false, onComplete: () => {} },
+    { id: 'TKT-003', title: 'Develop Ticket Board UI', description: 'Create Kanban...', priority: 'Medium', assignee: { name: 'Bob', avatarFallback: 'B' }, commentsCount: 5, dueDate: 'Jul 28', status: 'inprogress', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
   ],
   done: [
-    { id: 'TKT-004', title: 'Setup project repository', priority: 'Low', assignee: { name: 'Charlie', avatarFallback: 'C' }, dueDate: 'Jul 20', status: 'done', completed: false, onComplete: () => {} },
+    { id: 'TKT-004', title: 'Setup project repository', priority: 'Low', assignee: { name: 'Charlie', avatarFallback: 'C' }, dueDate: 'Jul 20', status: 'done', completed: false, onComplete: () => {}, onStatusChange: () => {}, onPriorityChange: () => {}, onDueDateChange: () => {}, onAssigneeChange: () => {} },
   ]
 };
 
@@ -243,6 +251,7 @@ const BoardLane = ({
   onPriorityChange,
   onDueDateChange,
   onAssigneeChange,
+  onStatusChange,
   dropTargetInfo
 }: { 
   id: string; 
@@ -258,6 +267,7 @@ const BoardLane = ({
   onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
   onDueDateChange: (id: string, dueDate: string) => void;
   onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
+  onStatusChange: (id: string, status: string) => void;
   dropTargetInfo: {
     columnId: string | null;
     overItemId: string | null;
@@ -371,6 +381,7 @@ const BoardLane = ({
                 onPriorityChange={onPriorityChange}
                 onDueDateChange={onDueDateChange}
                 onAssigneeChange={onAssigneeChange}
+                onStatusChange={onStatusChange}
               />
 
               {dropTargetInfo.columnId === id && 
@@ -426,6 +437,7 @@ const BoardLane = ({
                       onPriorityChange={onPriorityChange}
                       onDueDateChange={onDueDateChange}
                       onAssigneeChange={onAssigneeChange}
+                      onStatusChange={onStatusChange}
                     />
                   ))}
                 </SortableContext>
@@ -454,8 +466,9 @@ const GridView: React.FC<{
   onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
   onDueDateChange: (id: string, dueDate: string) => void;
   onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
+  onStatusChange: (id: string, status: string) => void;
   onRenameGroup: (groupId: string, newTitle: string) => void;
-}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange, onRenameGroup }) => {
+}> = ({ tickets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange, onStatusChange, onRenameGroup }) => {
   // Flatten all tickets from all columns
   const allTickets = useMemo(() => {
     const flattened: TicketCardProps[] = [];
@@ -495,6 +508,7 @@ const GridView: React.FC<{
             onPriorityChange={onPriorityChange}
             onDueDateChange={onDueDateChange}
             onAssigneeChange={onAssigneeChange}
+            onStatusChange={onStatusChange}
           />
         ))}
       </div>
@@ -512,7 +526,8 @@ const ListView: React.FC<{
   onPriorityChange: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
   onDueDateChange: (id: string, dueDate: string) => void;
   onAssigneeChange: (id: string, assignee: { name: string; avatarFallback: string }) => void;
-}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange }) => {
+  onStatusChange: (id: string, status: string) => void;
+}> = ({ tickets, buckets, onEditTicket, onDeleteTicket, onToggleComplete, onPriorityChange, onDueDateChange, onAssigneeChange, onStatusChange }) => {
   // Flatten all tickets from all columns and sort by status and completion
   const allTickets = useMemo(() => {
     const flattened: (TicketCardProps & { columnId: string, columnTitle: string })[] = [];
@@ -1370,6 +1385,38 @@ const TicketManager: React.FC = () => {
     });
   };
 
+  // Handle changing status directly from the card
+  const handleStatusChange = (ticketId: string, status: string) => {
+    setBoardData(prevBoard => {
+      const newBoard = { ...prevBoard };
+      const itemInfo = findTicketAndColumn(ticketId);
+      
+      if (itemInfo) {
+        const { columnId, index } = itemInfo;
+        const ticket = { ...newBoard[columnId][index], status };
+        
+        // If the status change means the ticket should move to a different column
+        if (status !== columnId) {
+          // Remove from original column
+          newBoard[columnId].splice(index, 1);
+          
+          // Ensure target column exists
+          if (!newBoard[status]) {
+            newBoard[status] = [];
+          }
+          
+          // Add to target column
+          newBoard[status].push(ticket);
+        } else {
+          // Just update the status
+          newBoard[columnId][index] = ticket;
+        }
+      }
+      
+      return newBoard;
+    });
+  };
+
   return (
     <div className="h-full overflow-auto">
       <main className="flex-1">
@@ -1690,6 +1737,7 @@ const TicketManager: React.FC = () => {
                     onPriorityChange={handlePriorityChange}
                     onDueDateChange={handleDueDateChange}
                     onAssigneeChange={handleAssigneeChange}
+                    onStatusChange={handleStatusChange}
                     dropTargetInfo={dropTargetInfo}
                   />
                 );
@@ -1735,6 +1783,7 @@ const TicketManager: React.FC = () => {
               onPriorityChange={handlePriorityChange}
               onDueDateChange={handleDueDateChange}
               onAssigneeChange={handleAssigneeChange}
+              onStatusChange={handleStatusChange}
               onRenameGroup={handleRenameGroup}
             />
           ) : (
@@ -1747,6 +1796,7 @@ const TicketManager: React.FC = () => {
               onPriorityChange={handlePriorityChange}
               onDueDateChange={handleDueDateChange}
               onAssigneeChange={handleAssigneeChange}
+              onStatusChange={handleStatusChange}
             />
           )}
           
@@ -1759,6 +1809,7 @@ const TicketManager: React.FC = () => {
                 onPriorityChange={() => {}}
                 onDueDateChange={() => {}}
                 onAssigneeChange={() => {}}
+                onStatusChange={() => {}}
               />
             )}
           </DragOverlay>

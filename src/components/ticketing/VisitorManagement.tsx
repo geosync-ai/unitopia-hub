@@ -292,7 +292,7 @@ const getStatusClass = (status: VisitorStatus) => {
  * The component supports inline editing for certain fields and manages
  * its own dropdown states for actions.
  */
-const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange, isDragging = false }: { 
+const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, onTimeChange, onDurationChange, onVisitDateChange, isDragging = false }: { 
   visitor: Visitor, 
   onStatusChange: (id: number, status: VisitorStatus) => void,
   onEdit: (id: number) => void,
@@ -300,6 +300,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   onHostChange: (id: number, host: string) => void,
   onTimeChange: (id: number, time: string) => void,
   onDurationChange: (id: number, duration: string) => void,
+  onVisitDateChange?: (id: number, date: Date) => void,
   isDragging?: boolean
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -309,7 +310,13 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   const [showDurationEdit, setShowDurationEdit] = useState(false);
   const [editableTime, setEditableTime] = useState(visitor.time);
   const [editableDuration, setEditableDuration] = useState(visitor.duration);
+  const [editableDate, setEditableDate] = useState<Date | undefined>(
+    visitor.visitStartDate ? new Date(visitor.visitStartDate) : undefined
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const hostDropdownRef = useRef<HTMLDivElement>(null);
+  const timeEditRef = useRef<HTMLDivElement>(null);
   
   // VisitorCard no longer needs useSortable as BaseCard handles that
   
@@ -581,28 +588,55 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
         )}
       </div>
       
-      <div className="flex items-center text-xs text-muted-foreground relative">
+      <div className="flex items-center text-xs text-muted-foreground relative" ref={timeEditRef}>
         <CalendarIcon className="h-3.5 w-3.5 mr-1" />
         <span className="cursor-pointer" onClick={handleTimeClick}>
           {formatTime(visitor.time)}
         </span>
         
         {showTimeEdit && (
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 p-2 min-w-[160px]">
-            <div className="flex items-center space-x-2">
-              <Input 
-                type="time" 
-                value={editableTime}
-                onChange={handleTimeChange}
-                className="text-xs h-7"
-              />
-              <Button 
-                size="sm" 
-                className="h-7 text-xs px-2 py-0" 
-                onClick={handleTimeSubmit}
-              >
-                Save
-              </Button>
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowTimeEdit(false)}>
+            <div 
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-3 min-w-[280px]"
+              style={{ 
+                left: timeEditRef.current?.getBoundingClientRect().left + 'px',
+                top: (timeEditRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs mb-1 block">Date</Label>
+                  <Calendar
+                    mode="single"
+                    selected={editableDate}
+                    onSelect={(date) => setEditableDate(date)}
+                    className="rounded border border-gray-200 dark:border-gray-700 p-2 max-w-[250px]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">Time</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input 
+                      type="time" 
+                      value={editableTime}
+                      onChange={handleTimeChange}
+                      className="text-xs h-7"
+                    />
+                    <Button 
+                      size="sm" 
+                      className="h-7 text-xs px-2 py-0" 
+                      onClick={() => {
+                        // Just update the time string
+                        handleTimeSubmit();
+                        setShowTimeEdit(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -613,26 +647,35 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   // Create footer content - host and assignee
   const footerContent = (
     <>
-      <div className="flex items-center relative">
+      <div className="flex items-center relative" ref={hostDropdownRef}>
         <UserIcon className="h-3.5 w-3.5 mr-1" />
         <span className="cursor-pointer" onClick={handleHostClick}>
           {visitor.host}
         </span>
         
         {showHostDropdown && (
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] max-h-[180px] overflow-y-auto">
-            {hostOptions.map(host => (
-              <button 
-                key={host}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => {
-                  onHostChange(visitor.id, host);
-                  setShowHostDropdown(false);
-                }}
-              >
-                {host}
-              </button>
-            ))}
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowHostDropdown(false)}>
+            <div 
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] max-h-[180px] overflow-y-auto"
+              style={{ 
+                left: hostDropdownRef.current?.getBoundingClientRect().left + 'px',
+                top: (hostDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {hostOptions.map(host => (
+                <button 
+                  key={host}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => {
+                    onHostChange(visitor.id, host);
+                    setShowHostDropdown(false);
+                  }}
+                >
+                  {host}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -1342,6 +1385,7 @@ const VisitorManagement: React.FC = () => {
                             onHostChange={handleInlineHostChange}
                             onTimeChange={handleInlineTimeChange}
                             onDurationChange={handleInlineDurationChange}
+                            onVisitDateChange={() => {}} // Add this line
                           />
 
                           {/* Render Drop Indicator AFTER the item if it's the target AND over bottom half */}

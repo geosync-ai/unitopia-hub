@@ -233,7 +233,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                       {dueDate ? format(dueDate, "PPP p") : <span>Pick a date and time</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={5}>
                     <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                       <Calendar
                         mode="single"
@@ -251,6 +251,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                           }
                         }}
                         initialFocus
+                        className="max-w-[300px]"
                       />
                     </div>
                     {dueDate && (

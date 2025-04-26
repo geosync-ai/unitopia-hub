@@ -31,6 +31,7 @@ export interface TicketCardProps {
   onPriorityChange?: (id: string, priority: 'Low' | 'Medium' | 'High') => void;
   onDueDateChange?: (id: string, dueDate: string) => void;
   onAssigneeChange?: (id: string, assignee: { name: string; avatarFallback: string }) => void;
+  onStatusChange?: (id: string, status: string) => void;
 }
 
 const priorityColors = {
@@ -69,12 +70,14 @@ const TicketCard: React.FC<TicketCardProps> = ({
   onComplete,
   onPriorityChange,
   onDueDateChange,
-  onAssigneeChange
+  onAssigneeChange,
+  onStatusChange
 }) => {
   // State for editable dropdowns
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [tempDueDate, setTempDueDate] = useState<Date | undefined>(
     dueDate ? new Date(dueDate) : undefined
   );
@@ -296,9 +299,47 @@ const TicketCard: React.FC<TicketCardProps> = ({
   const footerContent = (
     <div className="flex items-center space-x-2 flex-wrap gap-y-1">
       {status && (
-        <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", statusColor)}>
+        <Badge 
+          variant="outline" 
+          className={cn("px-1.5 py-0.5 text-xs font-normal border cursor-pointer", statusColor)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowStatusDropdown(!showStatusDropdown);
+            setShowPriorityDropdown(false);
+            setShowDueDatePicker(false);
+            setShowAssigneeDropdown(false);
+          }}
+        >
           {statusLabel}
         </Badge>
+      )}
+      
+      {showStatusDropdown && status && (
+        <div className="fixed inset-0 z-[100]" onClick={() => setShowStatusDropdown(false)}>
+          <div 
+            className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] mt-1"
+            style={{ 
+              left: priorityDropdownRef.current?.getBoundingClientRect().left + 'px',
+              top: (priorityDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {Object.keys(statusLabels).map(key => (
+              <button 
+                key={key}
+                className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
+                  "flex items-center", statusColors[key as keyof typeof statusColors] || '')}
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  if (onStatusChange) onStatusChange(id, key as any);
+                  setShowStatusDropdown(false);
+                }}
+              >
+                {statusLabels[key as keyof typeof statusLabels]}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       
       {priority && (
@@ -313,40 +354,49 @@ const TicketCard: React.FC<TicketCardProps> = ({
           </Badge>
           
           {showPriorityDropdown && onPriorityChange && (
-            <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]">
-              <button 
-                className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                  "flex items-center", priorityColors['Low'])}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  handleChangePriority('Low');
+            <div className="fixed inset-0 z-[100]" onClick={() => setShowPriorityDropdown(false)}>
+              <div 
+                className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
+                style={{ 
+                  left: priorityDropdownRef.current?.getBoundingClientRect().left + 'px',
+                  top: (priorityDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
                 }}
+                onClick={e => e.stopPropagation()}
               >
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Low
-              </button>
-              <button 
-                className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                  "flex items-center", priorityColors['Medium'])}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  handleChangePriority('Medium');
-                }}
-              >
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Medium
-              </button>
-              <button 
-                className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
-                  "flex items-center", priorityColors['High'])}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  handleChangePriority('High');
-                }}
-              >
-                <AlertCircle className="h-3 w-3 mr-1" />
-                High
-              </button>
+                <button 
+                  className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
+                    "flex items-center", priorityColors['Low'])}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    handleChangePriority('Low');
+                  }}
+                >
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Low
+                </button>
+                <button 
+                  className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
+                    "flex items-center", priorityColors['Medium'])}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    handleChangePriority('Medium');
+                  }}
+                >
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Medium
+                </button>
+                <button 
+                  className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700",
+                    "flex items-center", priorityColors['High'])}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    handleChangePriority('High');
+                  }}
+                >
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  High
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -364,16 +414,26 @@ const TicketCard: React.FC<TicketCardProps> = ({
         </div>
         
         {showDueDatePicker && onDueDateChange && (
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 p-2">
-            <Calendar
-              mode="single"
-              selected={tempDueDate}
-              onSelect={(date) => {
-                setTempDueDate(date);
-                if (date) handleChangeDueDate(date);
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowDueDatePicker(false)}>
+            <div 
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2"
+              style={{ 
+                left: dueDatePickerRef.current?.getBoundingClientRect().left + 'px',
+                top: (dueDatePickerRef.current?.getBoundingClientRect().bottom + 5) + 'px' 
               }}
-              initialFocus
-            />
+              onClick={e => e.stopPropagation()}
+            >
+              <Calendar
+                mode="single"
+                selected={tempDueDate}
+                onSelect={(date) => {
+                  setTempDueDate(date);
+                  if (date) handleChangeDueDate(date);
+                }}
+                initialFocus
+                className="max-w-[250px]"
+              />
+            </div>
           </div>
         )}
       </div>
@@ -406,36 +466,45 @@ const TicketCard: React.FC<TicketCardProps> = ({
         </div>
         
         {showAssigneeDropdown && onAssigneeChange && (
-          <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] max-h-[180px] overflow-y-auto">
-            {availableAssignees.map(person => (
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowAssigneeDropdown(false)}>
+            <div 
+              className="absolute z-[101] bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] max-h-[180px] overflow-y-auto"
+              style={{ 
+                right: assigneeDropdownRef.current ? (window.innerWidth - assigneeDropdownRef.current.getBoundingClientRect().right) + 'px' : '0px',
+                top: (assigneeDropdownRef.current?.getBoundingClientRect().bottom + 5) + 'px'
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {availableAssignees.map(person => (
+                <button 
+                  key={person.name}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleChangeAssignee(person);
+                  }}
+                >
+                  <Avatar className="h-5 w-5 mr-2">
+                    <AvatarFallback className="text-xs">{person.avatarFallback}</AvatarFallback>
+                  </Avatar>
+                  {person.name}
+                </button>
+              ))}
+              
+              {/* Option to unassign */}
               <button 
-                key={person.name}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-500"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleChangeAssignee(person);
+                  handleChangeAssignee({ name: '', avatarFallback: '' });
                 }}
               >
-                <Avatar className="h-5 w-5 mr-2">
-                  <AvatarFallback className="text-xs">{person.avatarFallback}</AvatarFallback>
-                </Avatar>
-                {person.name}
+                <div className="h-5 w-5 mr-2 flex items-center justify-center">
+                  <User className="h-3 w-3" />
+                </div>
+                Unassign
               </button>
-            ))}
-            
-            {/* Option to unassign */}
-            <button 
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-500"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleChangeAssignee({ name: '', avatarFallback: '' });
-              }}
-            >
-              <div className="h-5 w-5 mr-2 flex items-center justify-center">
-                <User className="h-3 w-3" />
-              </div>
-              Unassign
-            </button>
+            </div>
           </div>
         )}
       </div>
