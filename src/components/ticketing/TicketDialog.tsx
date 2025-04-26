@@ -86,8 +86,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [status, setStatus] = useState<string>('todo');
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [comments, setComments] = useState<Comment[]>([]); // State for comments
   const [newCommentText, setNewCommentText] = useState(''); // State for new comment input
   
@@ -98,8 +97,17 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setPriority(initialData.priority || 'Medium');
       setStatus(initialData.status || defaultStatus || statuses[0]?.id || 'todo');
       setGroupId(initialData.groupId || defaultGroup);
-      setStartDate(initialData.startDate ? new Date(initialData.startDate) : undefined);
-      setEndDate(initialData.endDate ? new Date(initialData.endDate) : undefined);
+      
+      // Set date range if both start and end dates exist
+      if (initialData.startDate) {
+        setDateRange({
+          from: new Date(initialData.startDate),
+          to: initialData.endDate ? new Date(initialData.endDate) : undefined
+        });
+      } else {
+        setDateRange(undefined);
+      }
+      
       setComments(initialData.comments || []);
     } else {
       setTitle('');
@@ -107,8 +115,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       setPriority('Medium');
       setStatus(defaultStatus || statuses[0]?.id || 'todo'); 
       setGroupId(defaultGroup);
-      setStartDate(undefined);
-      setEndDate(undefined);
+      setDateRange(undefined);
       setComments([]);
     }
     setNewCommentText('');
@@ -123,8 +130,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       priority,
       status,
       groupId,
-      startDate: startDate || null,
-      endDate: endDate || null,
+      startDate: dateRange?.from || null,
+      endDate: dateRange?.to || null,
       comments: comments,
       // Add assigneeId if implemented
     };
@@ -225,23 +232,25 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="startDate">Date Range</Label>
+                <Label htmlFor="dateRange">Date Range</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant={"outline"}
-                      id="date"
+                      variant="outline"
+                      id="dateRange"
                       className={cn(
                         "w-full justify-start text-left font-normal py-3 px-4 rounded-lg",
-                        !startDate && "text-muted-foreground"
+                        !dateRange?.from && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? (
-                        endDate ? (
-                          <>{format(startDate, "LLL dd, y")} - {format(endDate, "LLL dd, y")}</>
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                          </>
                         ) : (
-                          format(startDate, "LLL dd, y")
+                          format(dateRange.from, "LLL dd, y")
                         )
                       ) : (
                         <span>Pick a date range</span>
@@ -249,31 +258,15 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-2">
-                      <Calendar
-                        mode="range"
-                        defaultMonth={startDate || new Date()}
-                        selected={{ from: startDate, to: endDate }}
-                        onSelect={(range: DateRange | undefined) => {
-                          console.log("Calendar onSelect triggered:", range);
-                          if (range) {
-                            console.log("Setting startDate to:", range.from);
-                            console.log("Setting endDate to:", range.to);
-                            setStartDate(range.from);
-                            setEndDate(range.to);
-                          } else {
-                            console.log("Range cleared");
-                            setStartDate(undefined);
-                            setEndDate(undefined);
-                          }
-                        }}
-                        numberOfMonths={2}
-                        className="border-0"
-                      />
-                    </div>
+                    <Calendar
+                      mode="range"
+                      defaultMonth={dateRange?.from || new Date()}
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                      className="border-0"
+                    />
                     <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-xs text-muted-foreground mb-1">startDate: {startDate ? format(startDate, "yyyy-MM-dd") : "undefined"}</p>
-                      <p className="text-xs text-muted-foreground mb-2">endDate: {endDate ? format(endDate, "yyyy-MM-dd") : "undefined"}</p>
                       <div className="flex justify-between">
                         <Button 
                           type="button" 
@@ -283,22 +276,17 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                             const today = new Date();
                             const nextWeek = new Date();
                             nextWeek.setDate(today.getDate() + 7);
-                            console.log("Manual set - today:", today);
-                            console.log("Manual set - nextWeek:", nextWeek);
-                            setStartDate(today);
-                            setEndDate(nextWeek);
+                            setDateRange({ from: today, to: nextWeek });
                           }}
                         >
-                          Set Test Range
+                          This Week
                         </Button>
                         <Button 
                           type="button" 
                           variant="secondary" 
                           size="sm"
                           onClick={() => {
-                            console.log("Clearing dates");
-                            setStartDate(undefined);
-                            setEndDate(undefined);
+                            setDateRange(undefined);
                           }}
                         >
                           Clear
