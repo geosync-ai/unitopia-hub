@@ -1,14 +1,12 @@
 import React from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, MessageSquare, User, AlertCircle, MoreVertical, Edit, Trash2, Circle, CheckCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { CalendarDays, MessageSquare, User, AlertCircle, Circle, CheckCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format, isBefore, parseISO, isValid } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BaseCard } from '@/components/ui/BaseCard';
 
 // Extend props to include anything needed by useSortable or event handlers
 export interface TicketCardProps {
@@ -64,37 +62,6 @@ const TicketCard: React.FC<TicketCardProps> = ({
   onDelete,
   onComplete
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver
-  } = useSortable({ id: id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 100 : 'auto',
-  };
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Don't trigger click when clicking buttons
-    if (
-      (e.target as HTMLElement).closest('.edit-button') || 
-      (e.target as HTMLElement).closest('.delete-button') ||
-      (e.target as HTMLElement).closest('.complete-button')
-    ) {
-      return;
-    }
-    
-    // If a general onClick is provided for the card, call it
-    if (onClick) onClick();
-  };
-
   // Check if due date is passed
   const isDueDatePassed = React.useMemo(() => {
     if (!dueDate) return false;
@@ -135,147 +102,152 @@ const TicketCard: React.FC<TicketCardProps> = ({
   const statusLabel = status ? (statusLabels[status as keyof typeof statusLabels] || status) : '';
   const statusColor = status ? (statusColors[status as keyof typeof statusColors] || '') : '';
 
+  // Create header content - title with optional completion checkbox
+  const headerContent = (
+    <div className="flex items-start gap-2">
+      {onComplete && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="complete-button h-5 w-5 p-0 flex-shrink-0 mt-0.5 text-muted-foreground hover:text-primary" 
+                onClick={handleToggleComplete}
+                onPointerDown={(e) => e.stopPropagation()}
+                draggable="false"
+              >
+                {completed ? 
+                  <CheckCircle className="h-4 w-4 text-green-600" /> : 
+                  <Circle className="h-4 w-4" />
+                }
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{completed ? 'Mark as incomplete' : 'Mark as complete'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      <div className={cn("text-sm font-medium leading-tight flex-grow mr-1", completed && "line-through text-muted-foreground")}>{title}</div>
+    </div>
+  );
+
+  // Create header actions - edit and delete buttons
+  const headerActions = (
+    <>
+      {onEdit && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 p-0 edit-button text-muted-foreground hover:text-foreground" 
+          onClick={(e) => {
+            e.stopPropagation(); 
+            onEdit();
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          draggable="false"
+          title="Edit Ticket"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+            <path d="m15 5 4 4"/>
+          </svg>
+        </Button>
+      )}
+      {onDelete && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 p-0 delete-button text-muted-foreground hover:text-red-600" 
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          onPointerDown={(e) => {
+            // Prevent drag start on button click
+            e.stopPropagation();
+          }}
+          draggable="false"
+          title="Delete Ticket"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+            <path d="M3 6h18"/>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            <line x1="10" x2="10" y1="11" y2="17"/>
+            <line x1="14" x2="14" y1="11" y2="17"/>
+          </svg>
+        </Button>
+      )}
+    </>
+  );
+
+  // Create card content - description if exists
+  const cardContent = description ? (
+    <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
+  ) : undefined;
+
+  // Create footer content - badges, dates, comments, assignee
+  const footerContent = (
+    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+      {status && (
+        <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", statusColor)}>
+          {statusLabel}
+        </Badge>
+      )}
+      {priority && (
+        <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", priorityColors[priority])}>
+          <AlertCircle className="h-3 w-3 mr-1" />
+          {priority}
+        </Badge>
+      )}
+      {dueDate && (
+        <div className={cn("inline-flex items-center text-xs gap-1", 
+          isDueDatePassed && "text-red-600 dark:text-red-500")}>
+          <CalendarDays className="h-3.5 w-3.5" />
+          <span>{dueDate}</span>
+        </div>
+      )}
+      {commentsCount > 0 && (
+        <div className="inline-flex items-center text-xs gap-1">
+          <MessageSquare className="h-3.5 w-3.5" />
+          <span>{commentsCount}</span>
+        </div>
+      )}
+      <div className="flex-grow"></div>
+      {assignee && (
+        <Avatar className="h-6 w-6">
+          {assignee.avatarImage ? (
+            <AvatarImage src={assignee.avatarImage} alt={assignee.name} />
+          ) : (
+            <AvatarFallback className="text-xs">{assignee.avatarFallback}</AvatarFallback>
+          )}
+        </Avatar>
+      )}
+    </div>
+  );
+
   return (
-    <div 
-      ref={!isDragOverlay ? setNodeRef : undefined} 
-      style={isDragOverlay ? undefined : style} 
-      {...(!isDragOverlay ? attributes : {})} 
-      {...(!isDragOverlay ? listeners : {})} 
-      className={cn(
-        "relative", 
-        isOver && "mt-4 before:content-[''] before:absolute before:left-0 before:right-0 before:top-[-8px] before:h-1 before:bg-primary before:rounded-full",
+    <BaseCard
+      id={id}
+      headerContent={headerContent}
+      headerActions={headerActions}
+      cardContent={cardContent}
+      footerContent={footerContent}
+      onClick={onClick}
+      isDragging={false}
+      isDragOverlay={isDragOverlay}
+      cardClassName={cn(
+        // Apply overdue styling
+        isDueDatePassed && "border-red-500 dark:border-red-600",
+        // Apply completed styling
+        completed && "opacity-80 bg-gray-50 dark:bg-gray-800/50",
         className
       )}
-    >
-      <Card 
-        className={cn(
-          "mb-3 cursor-grab hover:shadow-md transition-shadow duration-200 border dark:border-gray-700",
-          isDragging && "shadow-lg ring-2 ring-primary",
-          isOver && "ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-800",
-          isDragOverlay && "shadow-xl rotate-3 cursor-grabbing",
-          isDueDatePassed && "border-red-500 dark:border-red-600",
-          completed && "opacity-80 bg-gray-50 dark:bg-gray-800/50",
-          className
-        )}
-        onClick={handleCardClick}
-      >
-        <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between">
-          <div className="flex items-start gap-2">
-            {onComplete && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="complete-button h-5 w-5 p-0 flex-shrink-0 mt-0.5 text-muted-foreground hover:text-primary" 
-                      onClick={handleToggleComplete}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      draggable="false"
-                    >
-                      {completed ? 
-                        <CheckCircle className="h-4 w-4 text-green-600" /> : 
-                        <Circle className="h-4 w-4" />
-                      }
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{completed ? 'Mark as incomplete' : 'Mark as complete'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            <CardTitle className={cn("text-sm font-medium leading-tight flex-grow mr-1", completed && "line-through text-muted-foreground")}>{title}</CardTitle>
-          </div>
-          
-          <div className="flex items-center flex-shrink-0">
-            {onEdit && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6 p-0 edit-button text-muted-foreground hover:text-foreground" 
-                onClick={(e) => {
-                  e.stopPropagation(); 
-                  onEdit();
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
-                draggable="false"
-                title="Edit Ticket"
-              >
-                <Edit className="h-3.5 w-3.5" />
-              </Button>
-            )}
-             {onDelete && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6 p-0 delete-button text-muted-foreground hover:text-red-600" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                 onPointerDown={(e) => {
-                  // Prevent drag start on button click
-                  e.stopPropagation();
-                }}
-                draggable="false"
-                title="Delete Ticket"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        
-        {description && (
-          <CardContent className="p-3 pt-0">
-            <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
-          </CardContent>
-        )}
-        
-        <CardFooter className="p-3 pt-1 flex justify-between items-center text-xs text-muted-foreground">
-          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-            {status && (
-              <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", statusColor)}>
-                {statusLabel}
-              </Badge>
-            )}
-            {priority && (
-              <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", priorityColors[priority])}>
-                <AlertCircle className="h-3 w-3 mr-1" />
-                {priority}
-              </Badge>
-            )}
-            {dueDate && (
-              <div className={cn("flex items-center", isDueDatePassed && "text-red-600 dark:text-red-500 font-semibold")}>
-                <CalendarDays className="h-3.5 w-3.5 mr-1" />
-                <span>{dueDate}</span>
-              </div>
-            )}
-            {commentsCount > 0 && (
-              <div className="flex items-center">
-                <MessageSquare className="h-3.5 w-3.5 mr-1" />
-                <span>{commentsCount}</span>
-              </div>
-            )}
-          </div>
-          
-          {assignee && (
-            <Avatar className="h-6 w-6">
-              {assignee.avatarImage && <AvatarImage src={assignee.avatarImage} alt={assignee.name} />}
-              <AvatarFallback className="text-xs">{assignee.avatarFallback}</AvatarFallback>
-            </Avatar>
-          )}
-          {!assignee && (
-             <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                <User className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
-             </div>
-          )}
-        </CardFooter>
-      </Card>
-    </div>
+    />
   );
 };
 

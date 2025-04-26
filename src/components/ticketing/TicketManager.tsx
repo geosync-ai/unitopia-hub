@@ -340,7 +340,7 @@ const BoardLane = ({
       </div>
       <div 
         className={cn(
-          "p-2 flex-grow overflow-y-auto min-h-[200px] space-y-1",
+          "p-2 flex-grow overflow-y-auto min-h-[200px] space-y-3",
           (isColumnOver || dropTargetInfo.columnId === id) && tickets.length === 0 && "border-2 border-dashed border-primary/50 rounded-md",
           (isColumnOver || dropTargetInfo.columnId === id) && "bg-primary/5 transition-colors duration-150"
         )} 

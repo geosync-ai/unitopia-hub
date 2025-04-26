@@ -84,6 +84,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DateRange } from 'react-day-picker'; // Correct import
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BaseCard } from '@/components/ui/BaseCard';
 
 // Visitor status type
 type VisitorStatus = 'scheduled' | 'checked-in' | 'checked-out' | 'no-show';
@@ -293,71 +294,7 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
   const [editableDuration, setEditableDuration] = useState(visitor.duration);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // Add sortable functionality
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: dndIsDragging
-  } = useSortable({ id: visitor.id.toString() });
-  
-  // Use the prop primarily, but fallback to dnd hook for overlay potentially
-  const currentlyDragging = isDragging || dndIsDragging;
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: currentlyDragging ? 0.5 : 1, // Apply opacity when dragging
-    zIndex: currentlyDragging ? 100 : 'auto',
-  } as React.CSSProperties;
-  
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    
-    if (showDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showDropdown]);
-  
-  const getStatusClass = (status: VisitorStatus) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-blue-500 text-white';
-      case 'checked-in':
-        return 'bg-green-600 text-white';
-      case 'checked-out':
-        return 'bg-gray-500 text-white';
-      case 'no-show':
-        return 'bg-red-600 text-white';
-      default:
-        return 'bg-gray-300 text-gray-800';
-    }
-  };
-  
-  const getStatusBackgroundClass = (status: VisitorStatus) => {
-    switch (status) {
-      case 'scheduled':
-        return 'border-l-4 border-blue-500 dark:bg-blue-900/20';
-      case 'checked-in':
-        return 'border-l-4 border-green-600 dark:bg-green-900/20';
-      case 'checked-out':
-        return 'border-l-4 border-gray-500 dark:bg-gray-700/30';
-      case 'no-show':
-        return 'border-l-4 border-red-600 dark:bg-red-900/20';
-      default:
-        return 'border-l-4 border-gray-300 dark:bg-gray-800/50';
-    }
-  };
+  // VisitorCard no longer needs useSortable as BaseCard handles that
   
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -461,150 +398,160 @@ const VisitorCard = ({ visitor, onStatusChange, onEdit, onDelete, onHostChange, 
     }
   }, [showTimeEdit, visitor.time]);
 
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      {...attributes} 
-      {...listeners}
-      className="relative" // Remove mb-3 here, handle spacing in BoardColumn with space-y
-    >
-      <div 
-        className={cn(
-          "bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md",
-          // Removed cursor-grab from here, apply on card header or specific handle if needed
-          currentlyDragging && "shadow-lg ring-2 ring-primary rotate-1" // Adjusted dragging style slightly
-        )}
-      >
-        <div className="p-3 pb-2 flex flex-row items-start justify-between">
-          <div className="flex items-start gap-2">
-            <div className="flex-shrink-0">
-              {visitor.photoUrl ? (
-                <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                  <img 
-                    src={visitor.photoUrl} 
-                    alt={`${visitor.firstName} ${visitor.lastName}`} 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // If image fails to load, show initials instead
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
-                      (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                  {visitor.initials}
-                </div>
-              )}
+  // Create header content - visitor name and company
+  const headerContent = (
+    <div>
+      <div className="flex items-start gap-2">
+        <div className="flex-shrink-0">
+          {visitor.photoUrl ? (
+            <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+              <img 
+                src={visitor.photoUrl} 
+                alt={`${visitor.firstName} ${visitor.lastName}`} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // If image fails to load, show initials instead
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = visitor.initials;
+                  (e.target as HTMLImageElement).parentElement!.className += " flex items-center justify-center font-bold text-sm bg-primary/10 text-primary";
+                }}
+              />
             </div>
-            <div>
-              <h3 className="text-sm font-medium leading-tight flex-grow mr-1">{visitor.firstName} {visitor.lastName}</h3>
-              <p className="text-xs text-muted-foreground">{visitor.company}</p>
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+              {visitor.initials}
             </div>
-          </div>
-          
-          <div className="flex items-center flex-shrink-0">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(visitor.id);
-              }}
-              title="Edit Visitor"
-            >
-              <PencilIcon className="h-3.5 w-3.5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(visitor.id);
-              }}
-              title="Delete Visitor"
-            >
-              <Trash2Icon className="h-3.5 w-3.5" />
-            </Button>
-            <div className="relative" ref={dropdownRef}>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
-                onClick={handleActionClick}
-                title="More Options"
-              >
-                <MoreVerticalIcon className="h-3.5 w-3.5" />
-              </Button>
-              
-              {showDropdown && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
-                  {visitor.status === 'scheduled' && (
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => onStatusChange(visitor.id, 'checked-in')}
-                    >
-                      Check In
-                    </button>
-                  )}
-                  {visitor.status === 'checked-in' && (
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => onStatusChange(visitor.id, 'checked-out')}
-                    >
-                      Check Out
-                    </button>
-                  )}
-                  {visitor.status === 'scheduled' && (
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500"
-                      onClick={() => onStatusChange(visitor.id, 'no-show')}
-                    >
-                      Mark as No-Show
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-3 pt-0 pb-1">
-          <div className="flex flex-wrap items-center space-x-2 gap-y-1 mt-2">
-            <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal",
-              visitor.status === 'scheduled' && "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
-              visitor.status === 'checked-in' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400",
-              visitor.status === 'checked-out' && "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/30 dark:text-gray-400",
-              visitor.status === 'no-show' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
-            )}>
-              {getStatusLabel(visitor.status)}
-            </Badge>
-            
-            <div className="flex items-center text-xs text-muted-foreground">
-              <CalendarIcon className="h-3.5 w-3.5 mr-1" />
-              <span>{formatTime(visitor.time)}</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-3 pt-1 flex justify-between items-center text-xs text-muted-foreground">
-          <div className="flex items-center">
-            <UserIcon className="h-3.5 w-3.5 mr-1" />
-            <span>{visitor.host}</span>
-          </div>
-          
-          {visitor.assignees && visitor.assignees.length > 0 && (
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-xs">{visitor.assignees[0][0]}</AvatarFallback>
-            </Avatar>
           )}
+        </div>
+        <div>
+          <h3 className="text-sm font-medium leading-tight flex-grow mr-1">{visitor.firstName} {visitor.lastName}</h3>
+          <p className="text-xs text-muted-foreground">{visitor.company}</p>
         </div>
       </div>
     </div>
+  );
+
+  // Create header actions - edit, delete, more options buttons
+  const headerActions = (
+    <>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit(visitor.id);
+        }}
+        title="Edit Visitor"
+      >
+        <PencilIcon className="h-3.5 w-3.5" />
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(visitor.id);
+        }}
+        title="Delete Visitor"
+      >
+        <Trash2Icon className="h-3.5 w-3.5" />
+      </Button>
+      <div className="relative" ref={dropdownRef}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" 
+          onClick={handleActionClick}
+          title="More Options"
+        >
+          <MoreVerticalIcon className="h-3.5 w-3.5" />
+        </Button>
+        
+        {showDropdown && (
+          <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[200]">
+            {visitor.status === 'scheduled' && (
+              <button 
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => onStatusChange(visitor.id, 'checked-in')}
+              >
+                Check In
+              </button>
+            )}
+            {visitor.status === 'checked-in' && (
+              <button 
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => onStatusChange(visitor.id, 'checked-out')}
+              >
+                Check Out
+              </button>
+            )}
+            {visitor.status === 'scheduled' && (
+              <button 
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500"
+                onClick={() => onStatusChange(visitor.id, 'no-show')}
+              >
+                Mark as No-Show
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // Create card content - status badge and time
+  const cardContent = (
+    <div className="flex flex-wrap items-center space-x-2 gap-y-1 mt-2">
+      <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal",
+        visitor.status === 'scheduled' && "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+        visitor.status === 'checked-in' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+        visitor.status === 'checked-out' && "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/30 dark:text-gray-400",
+        visitor.status === 'no-show' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+      )}>
+        {getStatusLabel(visitor.status)}
+      </Badge>
+      
+      <div className="flex items-center text-xs text-muted-foreground">
+        <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+        <span>{formatTime(visitor.time)}</span>
+      </div>
+    </div>
+  );
+
+  // Create footer content - host and assignee
+  const footerContent = (
+    <>
+      <div className="flex items-center">
+        <UserIcon className="h-3.5 w-3.5 mr-1" />
+        <span>{visitor.host}</span>
+      </div>
+      
+      {visitor.assignees && visitor.assignees.length > 0 && (
+        <Avatar className="h-6 w-6">
+          <AvatarFallback className="text-xs">{visitor.assignees[0][0]}</AvatarFallback>
+        </Avatar>
+      )}
+    </>
+  );
+
+  return (
+    <BaseCard
+      id={visitor.id.toString()}
+      headerContent={headerContent}
+      headerActions={headerActions}
+      cardContent={cardContent}
+      footerContent={footerContent}
+      isDragging={isDragging}
+      cardClassName={cn(
+        // Apply custom styling based on visitor status
+        visitor.status === 'scheduled' && "border-l-4 border-blue-500 dark:bg-blue-900/20",
+        visitor.status === 'checked-in' && "border-l-4 border-green-600 dark:bg-green-900/20",
+        visitor.status === 'checked-out' && "border-l-4 border-gray-500 dark:bg-gray-700/30",
+        visitor.status === 'no-show' && "border-l-4 border-red-600 dark:bg-red-900/20",
+      )}
+    />
   );
 };
 
@@ -2041,75 +1988,79 @@ const BoardColumn: React.FC<BoardColumnProps> = ({
   onAddVisitor,
   dropTargetInfo // Destructure prop
 }) => {
-  const { setNodeRef, isOver: columnIsOver } = useDroppable({ id });
-  // Use the passed isOver for general column highlight
-  const isColumnOver = isOver;
+  // Using refs for drag and drop
+  const { setNodeRef, isOver: isColumnOver } = useDroppable({ id: id });
   
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempTitle, setTempTitle] = useState(title);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [showCompletedVisitors, setShowCompletedVisitors] = useState(false);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isEditing]);
-
-  // Helper to get status colors based on the status type
+  // Is the user specifically targeting this column?
+  const isDropTargetColumn = dropTargetInfo.columnId === id;
+  
+  // Get class for the colored indicator dot
   const getIndicatorClass = () => {
-    switch (color) {
-      case 'blue': return 'bg-blue-500';
-      case 'green': return 'bg-green-600';
-      case 'gray': return 'bg-gray-500';
-      case 'red': return 'bg-red-600';
-      default: return 'bg-blue-500';
+    if (isColumnOver || isDropTargetColumn) {
+      // This indicates where the item will be placed in a parent-targeted drag
+      if (dropTargetInfo.overItemId === null && count > 0) {
+        return "h-1 bg-primary rounded-full mx-2 mb-2";
+      }
     }
+    return "";
   };
-
-  // Check if there are any completed visitors (checked-out) in this column
-  const hasCompletedVisitors = React.Children.toArray(children).length > 0 && 
-    id === 'checked-out';
   
   return (
-    <div className="w-80 flex-shrink-0 flex flex-col bg-muted/30 dark:bg-muted/20 rounded-lg overflow-hidden">
-      <div className="p-3 font-medium flex items-center justify-between bg-muted/50 dark:bg-muted/30">
+    <div
+      className={cn(
+        "flex flex-col bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-200 dark:border-gray-800",
+        isOver && "ring-2 ring-primary ring-inset",
+        isDropTargetColumn && "relative before:content-[''] before:absolute before:inset-0 before:z-10 before:pointer-events-none before:rounded-lg before:ring-2 before:ring-primary before:ring-inset"
+      )}
+    >
+      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center">
-          <span className={`w-2 h-2 rounded-full ${getIndicatorClass()} mr-2`}></span>
-          <h3>{title}</h3>
+          <div className={cn(
+            "w-3 h-3 rounded-full mr-2",
+            color === 'blue' && "bg-blue-500",
+            color === 'green' && "bg-green-600",
+            color === 'gray' && "bg-gray-500",
+            color === 'red' && "bg-red-600"
+          )} />
+          <h3 className="font-medium text-sm">{title}</h3>
+          <Badge variant="secondary" className="ml-2 bg-gray-100 dark:bg-gray-800 font-normal text-xs">
+            {count}
+          </Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="ml-2">{count}</Badge>
-          <Button 
-            variant="ghost" 
+        {onAddVisitor && (
+          <Button
+            variant="ghost"
             size="icon"
-            className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+            className="h-6 w-6"
             onClick={onAddVisitor}
-            title="Add Visitor"
           >
-            <PlusIcon className="h-3.5 w-3.5" />
+            <PlusIcon className="h-4 w-4" />
           </Button>
-        </div>
+        )}
       </div>
       <div 
         className={cn(
-          "p-2 flex-grow overflow-y-auto min-h-[200px] space-y-1", // Added space-y for indicators
+          "flex-grow p-2 min-h-[200px] overflow-y-auto",
+          // Add spacing between cards
+          "space-y-3",
           // Highlight when dropping into empty column OR specifically targeting this column
           (isColumnOver || dropTargetInfo.columnId === id) && count === 0 && "border-2 border-dashed border-primary/50 rounded-md",
           (isColumnOver || dropTargetInfo.columnId === id) && "bg-primary/5 transition-colors duration-150" // Slightly subtler general highlight
         )} 
         ref={setNodeRef}
       >
-        {children} 
+        {children}
         
         {/* Placeholder for empty column drop */}
         {(isColumnOver || dropTargetInfo.columnId === id) && count === 0 && (
           <div className="flex items-center justify-center h-24 rounded-md">
-            {/* Dashed circle removed as indicator is now present */}
-             <p className="text-sm text-muted-foreground">Drop here</p>
+            <p className="text-sm text-muted-foreground">Drop here</p>
           </div>
         )}
       </div>
+      {getIndicatorClass() && (
+        <div className={getIndicatorClass()} />
+      )}
     </div>
   );
 };
