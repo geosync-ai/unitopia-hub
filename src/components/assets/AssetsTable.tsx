@@ -50,7 +50,7 @@ export function AssetsTable({
 
   return (
     <div className="rounded-md border">
-      <div className="relative overflow-x-auto">
+      <div className="responsive-table-container">
         {/* Ensure the container has a fixed height and overflow settings */}
         <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
           <Table>
@@ -59,7 +59,7 @@ export function AssetsTable({
               <TableRow>
                 <TableCell className="w-12 p-2 text-center"></TableCell>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('name')}
                 >
                   <div className="flex items-center">
@@ -67,7 +67,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('id')}
                 >
                   <div className="flex items-center">
@@ -75,7 +75,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('type')}
                 >
                   <div className="flex items-center">
@@ -83,7 +83,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('condition')}
                 >
                   <div className="flex items-center">
@@ -91,7 +91,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('assignedTo')}
                 >
                   <div className="flex items-center">
@@ -99,7 +99,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('email')}
                 >
                   <div className="flex items-center">
@@ -107,7 +107,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('unit')}
                 >
                   <div className="flex items-center">
@@ -115,7 +115,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('division')}
                 >
                   <div className="flex items-center">
@@ -123,7 +123,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('description')}
                 >
                   <div className="flex items-center">
@@ -131,7 +131,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('assignedDate')}
                 >
                   <div className="flex items-center">
@@ -139,7 +139,7 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('purchasedDate')}
                 >
                   <div className="flex items-center">
@@ -147,20 +147,20 @@ export function AssetsTable({
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-medium cursor-pointer"
+                  className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('lastUpdated')}
                 >
                   <div className="flex items-center">
                     Last Updated {renderSortIndicator('lastUpdated')}
                   </div>
                 </TableHead>
-                <TableHead className="text-right font-medium">Actions</TableHead>
+                <TableHead className="text-right font-medium sticky right-0 bg-white z-20 whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {assets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-24 text-center">
+                  <TableCell colSpan={14} className="h-24 text-center">
                     No assets found
                   </TableCell>
                 </TableRow>
@@ -180,19 +180,19 @@ export function AssetsTable({
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>{asset.name}</TableCell>
-                    <TableCell>{asset.asset_id || asset.id}</TableCell>
-                    <TableCell>{asset.type}</TableCell>
-                    <TableCell>{asset.condition}</TableCell>
-                    <TableCell>{asset.assigned_to || asset.assignedTo}</TableCell>
-                    <TableCell>{asset.email}</TableCell>
-                    <TableCell>{asset.unit}</TableCell>
-                    <TableCell>{asset.division}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.name}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.asset_id || asset.id}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.type}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.condition}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.assigned_to || asset.assignedTo}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.email}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.unit}</TableCell>
+                    <TableCell className="whitespace-nowrap">{asset.division}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{asset.description}</TableCell>
-                    <TableCell>{formatDate(asset.assigned_date || asset.assignedDate)}</TableCell>
-                    <TableCell>{formatDate(asset.purchased_date || asset.purchasedDate)}</TableCell>
-                    <TableCell>{formatDate(asset.last_updated || asset.lastUpdated)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="whitespace-nowrap">{formatDate(asset.assigned_date || asset.assignedDate)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatDate(asset.purchased_date || asset.purchasedDate)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatDate(asset.last_updated || asset.lastUpdated)}</TableCell>
+                    <TableCell className="text-right sticky right-0 bg-white z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">

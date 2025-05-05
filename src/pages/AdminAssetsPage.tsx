@@ -72,10 +72,9 @@ const AdminAssetsPage: React.FC = () => {
   };
 
   return (
-    <div className="asset-registry-content pt-6">
-      {/* Header Row with Back Button, Title, and Tabs */}
-      <div className="flex items-center justify-between mb-6">
-        {/* Left Side: Back Button and Title */}
+    <div className="asset-registry-content">
+      {/* Top navigation bar with tabs */}
+      <div className="top-nav-container">
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
@@ -88,10 +87,9 @@ const AdminAssetsPage: React.FC = () => {
           </Button>
           <h1 className="text-2xl font-semibold">{activeTabLabel}</h1>
         </div>
-
-        {/* Right Side: Tab Navigation */}
-        <nav className="content-tabs">
-          <ul>
+        
+        <nav className="top-tabs">
+          <ul className="flex space-x-2">
             {tabs.map((tab) => (
               <li key={tab.id}>
                 <a 
@@ -99,7 +97,7 @@ const AdminAssetsPage: React.FC = () => {
                   className={activeTab === tab.id ? 'active' : ''}
                   onClick={(e) => handleTabClick(e, tab.id)}
                 >
-                  <tab.icon size={16} className="mr-2" /> 
+                  <tab.icon size={18} className="mr-2" /> 
                   {tab.label}
                 </a>
               </li>
@@ -109,7 +107,7 @@ const AdminAssetsPage: React.FC = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="tab-content">
+      <div className="tab-content mt-6">
         {renderTabContent()}
       </div>
     </div>
