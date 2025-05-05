@@ -120,7 +120,7 @@ const AppContent = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-gray-600">Initializing Authentication...</span>
+        <span className="ml-2 text-gray-600">Initializings Authentication...</span>
       </div>
     );
   }
