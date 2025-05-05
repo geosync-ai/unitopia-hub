@@ -1,32 +1,10 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { TooltipWrapper } from '@/components/ui/tooltip-wrapper';
-import { Eye, Edit, Trash2, Search, RotateCcw } from 'lucide-react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast";
+import { FilterGroup } from '@/components/assets/filters/FilterGroup';
+import { DecommissionedAssetTableHeader } from '@/components/assets/table/DecommissionedAssetTableHeader';
+import { DecommissionedAssetTableRow } from '@/components/assets/table/DecommissionedAssetTableRow';
 
 // Sample decommissioned assets data
 const decommissionedAssets = [
@@ -126,6 +104,52 @@ const DecommissionedAssets: React.FC = () => {
   const units = [...new Set(decommissionedAssets.map(asset => asset.unit))];
   const divisions = [...new Set(decommissionedAssets.map(asset => asset.division))];
 
+  // Create filter options
+  const filterOptions = {
+    type: {
+      value: typeFilter,
+      options: types.map(type => ({ value: type, label: type })),
+      label: 'Type',
+      tooltip: 'Filter by asset type'
+    },
+    reason: {
+      value: reasonFilter,
+      options: reasons.map(reason => ({ value: reason, label: reason })),
+      label: 'Reason',
+      tooltip: 'Filter by decommission reason'
+    },
+    unit: {
+      value: unitFilter,
+      options: units.map(unit => ({ value: unit, label: unit })),
+      label: 'Unit',
+      tooltip: 'Filter by unit'
+    },
+    division: {
+      value: divisionFilter,
+      options: divisions.map(division => ({ value: division, label: division })),
+      label: 'Division',
+      tooltip: 'Filter by division'
+    }
+  };
+
+  // Handle filter changes
+  const handleFilterChange = (key: string, value: string) => {
+    switch(key) {
+      case 'type':
+        setTypeFilter(value);
+        break;
+      case 'reason':
+        setReasonFilter(value);
+        break;
+      case 'unit':
+        setUnitFilter(value);
+        break;
+      case 'division':
+        setDivisionFilter(value);
+        break;
+    }
+  };
+
   // Apply filters and sorting
   const filteredAssets = decommissionedAssets.filter(asset => {
     const matchesSearch = 
@@ -190,185 +214,30 @@ const DecommissionedAssets: React.FC = () => {
     return date.toLocaleDateString();
   };
 
-  // Render sort indicator
-  const renderSortIndicator = (column: string) => {
-    if (sortColumn === column) {
-      return <span className="ml-1">{sortDirection === 'asc' ? '▲' : '▼'}</span>;
-    }
-    return null;
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Decommissioned Assets</h1>
       </div>
 
-      <div className="flex flex-col space-y-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <TooltipWrapper content="Search decommissioned assets">
-            <Input
-              placeholder="Search assets..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </TooltipWrapper>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <TooltipWrapper content="Filter by asset type">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {types.map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TooltipWrapper>
-
-          <TooltipWrapper content="Filter by decommission reason">
-            <Select value={reasonFilter} onValueChange={setReasonFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by Reason" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Reasons</SelectItem>
-                {reasons.map(reason => (
-                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TooltipWrapper>
-
-          <TooltipWrapper content="Filter by unit">
-            <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by Unit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Units</SelectItem>
-                {units.map(unit => (
-                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TooltipWrapper>
-
-          <TooltipWrapper content="Filter by division">
-            <Select value={divisionFilter} onValueChange={setDivisionFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by Division" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Divisions</SelectItem>
-                {divisions.map(division => (
-                  <SelectItem key={division} value={division}>{division}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TooltipWrapper>
-
-          <TooltipWrapper content="Reset all filters">
-            <Button variant="outline" onClick={resetFilters}>
-              <RotateCcw className="mr-2 h-4 w-4" /> Reset
-            </Button>
-          </TooltipWrapper>
-        </div>
-      </div>
+      <FilterGroup
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        filters={filterOptions}
+        onFilterChange={handleFilterChange}
+        onResetFilters={resetFilters}
+      />
 
       <Card>
         <CardContent className="p-0">
           <div className="responsive-table-container">
             <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-white border-b">
-                  <TableRow>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('name')}>
-                      <TooltipWrapper content="Click to sort by name">
-                        <div className="flex items-center">
-                          Name {renderSortIndicator('name')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('asset_id')}>
-                      <TooltipWrapper content="Click to sort by asset ID">
-                        <div className="flex items-center">
-                          Asset ID {renderSortIndicator('asset_id')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('type')}>
-                      <TooltipWrapper content="Click to sort by type">
-                        <div className="flex items-center">
-                          Type {renderSortIndicator('type')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('reason')}>
-                      <TooltipWrapper content="Click to sort by reason">
-                        <div className="flex items-center">
-                          Reason {renderSortIndicator('reason')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('assigned_to')}>
-                      <TooltipWrapper content="Click to sort by assigned person">
-                        <div className="flex items-center">
-                          Assigned To {renderSortIndicator('assigned_to')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('email')}>
-                      <TooltipWrapper content="Click to sort by email">
-                        <div className="flex items-center">
-                          Email {renderSortIndicator('email')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('unit')}>
-                      <TooltipWrapper content="Click to sort by unit">
-                        <div className="flex items-center">
-                          Unit {renderSortIndicator('unit')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('division')}>
-                      <TooltipWrapper content="Click to sort by division">
-                        <div className="flex items-center">
-                          Division {renderSortIndicator('division')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('decommission_date')}>
-                      <TooltipWrapper content="Click to sort by decommission date">
-                        <div className="flex items-center">
-                          Decommission Date {renderSortIndicator('decommission_date')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('purchased_date')}>
-                      <TooltipWrapper content="Click to sort by purchase date">
-                        <div className="flex items-center">
-                          Purchase Date {renderSortIndicator('purchased_date')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="font-medium cursor-pointer whitespace-nowrap max-w-[200px]" onClick={() => handleSort('description')}>
-                      <TooltipWrapper content="Click to sort by description">
-                        <div className="flex items-center">
-                          Description {renderSortIndicator('description')}
-                        </div>
-                      </TooltipWrapper>
-                    </TableHead>
-                    <TableHead className="text-right font-medium sticky right-0 bg-white z-20 whitespace-nowrap">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+                <DecommissionedAssetTableHeader
+                  onSort={handleSort}
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                />
                 <TableBody>
                   {filteredAssets.length === 0 ? (
                     <TableRow>
@@ -378,106 +247,14 @@ const DecommissionedAssets: React.FC = () => {
                     </TableRow>
                   ) : (
                     filteredAssets.map((asset) => (
-                      <TableRow key={asset.id}>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Asset name: ${asset.name}`}>
-                            {asset.name}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Asset ID: ${asset.asset_id}`}>
-                            {asset.asset_id}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Asset type: ${asset.type}`}>
-                            {asset.type}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Reason for decommissioning: ${asset.reason}`}>
-                            {asset.reason}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Last assigned to: ${asset.assigned_to}`}>
-                            {asset.assigned_to}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={asset.email}>
-                            {asset.email}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={asset.unit}>
-                            {asset.unit}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={asset.division}>
-                            {asset.division}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Decommissioned on: ${formatDate(asset.decommission_date)}`}>
-                            {formatDate(asset.decommission_date)}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <TooltipWrapper content={`Purchased on: ${formatDate(asset.purchased_date)}`}>
-                            {formatDate(asset.purchased_date)}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          <TooltipWrapper content={asset.description}>
-                            {asset.description}
-                          </TooltipWrapper>
-                        </TableCell>
-                        <TableCell className="text-right sticky right-0 bg-white z-10">
-                          <DropdownMenu>
-                            <TooltipWrapper content="Asset actions">
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="h-4 w-4"
-                                  >
-                                    <circle cx="12" cy="12" r="1" />
-                                    <circle cx="19" cy="12" r="1" />
-                                    <circle cx="5" cy="12" r="1" />
-                                  </svg>
-                                </Button>
-                              </DropdownMenuTrigger>
-                            </TooltipWrapper>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewAsset(asset)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditAsset(asset)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteAsset(asset)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
+                      <DecommissionedAssetTableRow
+                        key={asset.id}
+                        asset={asset}
+                        onView={handleViewAsset}
+                        onEdit={handleEditAsset}
+                        onDelete={handleDeleteAsset}
+                        formatDate={formatDate}
+                      />
                     ))
                   )}
                 </TableBody>
