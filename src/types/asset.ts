@@ -27,5 +27,7 @@ export interface Asset {
   assigned_date?: string;
   assignedDate?: string;
   image?: string;
+  value?: number;
+  category?: string;
   [key: string]: any;
 }

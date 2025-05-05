@@ -27,3 +27,14 @@ export function formatDate(dateString: string | Date | undefined): string {
     return "N/A";
   }
 }
+
+export function formatCurrency(amount: number | undefined): string {
+  if (amount === undefined || isNaN(amount)) return "N/A";
+  
+  return new Intl.NumberFormat('en-US', { 
+    style: 'currency', 
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+}

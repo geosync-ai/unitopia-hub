@@ -2,9 +2,15 @@
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, ChevronUp, ChevronDown } from "lucide-react";
+import { MoreHorizontal, ChevronUp, ChevronDown, Eye, Edit, Trash2 } from "lucide-react";
 import { Asset } from "@/types/asset";
 import { formatDate } from "@/lib/utils";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 interface AssetsTableProps {
   assets: Asset[];
@@ -12,6 +18,9 @@ interface AssetsTableProps {
   sortColumn?: string;
   sortDirection?: 'asc' | 'desc';
   divisionId?: string;
+  onView?: (asset: Asset) => void;
+  onEdit?: (asset: Asset) => void;
+  onDelete?: (asset: Asset) => void;
 }
 
 export function AssetsTable({ 
@@ -19,7 +28,10 @@ export function AssetsTable({
   onSort, 
   sortColumn, 
   sortDirection,
-  divisionId
+  divisionId,
+  onView,
+  onEdit,
+  onDelete
 }: AssetsTableProps) {
   // Function to render sort indicator
   const renderSortIndicator = (column: string) => {
@@ -38,110 +50,111 @@ export function AssetsTable({
 
   return (
     <div className="rounded-md border">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
+        {/* Ensure the container has a fixed height and overflow settings */}
         <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
           <Table>
             {/* Apply sticky styling to table header */}
             <TableHeader className="sticky top-0 z-10 bg-white border-b">
               <TableRow>
                 <TableCell className="w-12 p-2 text-center"></TableCell>
-                <TableCell 
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('name')}
                 >
                   <div className="flex items-center">
                     Name {renderSortIndicator('name')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('id')}
                 >
                   <div className="flex items-center">
                     ID {renderSortIndicator('id')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('type')}
                 >
                   <div className="flex items-center">
                     Type {renderSortIndicator('type')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('condition')}
                 >
                   <div className="flex items-center">
                     Condition {renderSortIndicator('condition')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('assignedTo')}
                 >
                   <div className="flex items-center">
                     Assigned To {renderSortIndicator('assignedTo')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('email')}
                 >
                   <div className="flex items-center">
                     Email {renderSortIndicator('email')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('unit')}
                 >
                   <div className="flex items-center">
                     Unit {renderSortIndicator('unit')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('division')}
                 >
                   <div className="flex items-center">
                     Division {renderSortIndicator('division')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('description')}
                 >
                   <div className="flex items-center">
                     Description {renderSortIndicator('description')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('assignedDate')}
                 >
                   <div className="flex items-center">
                     Assigned Date {renderSortIndicator('assignedDate')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('purchasedDate')}
                 >
                   <div className="flex items-center">
                     Purchased Date {renderSortIndicator('purchasedDate')}
                   </div>
-                </TableCell>
-                <TableCell 
+                </TableHead>
+                <TableHead 
                   className="font-medium cursor-pointer"
                   onClick={() => handleColumnClick('lastUpdated')}
                 >
                   <div className="flex items-center">
                     Last Updated {renderSortIndicator('lastUpdated')}
                   </div>
-                </TableCell>
-                <TableCell className="text-right font-medium">Actions</TableCell>
+                </TableHead>
+                <TableHead className="text-right font-medium">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -180,9 +193,36 @@ export function AssetsTable({
                     <TableCell>{formatDate(asset.purchased_date || asset.purchasedDate)}</TableCell>
                     <TableCell>{formatDate(asset.last_updated || asset.lastUpdated)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {onView && (
+                            <DropdownMenuItem onClick={() => onView(asset)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </DropdownMenuItem>
+                          )}
+                          {onEdit && (
+                            <DropdownMenuItem onClick={() => onEdit(asset)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {onDelete && (
+                            <DropdownMenuItem 
+                              onClick={() => onDelete(asset)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
