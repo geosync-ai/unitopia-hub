@@ -1,773 +1,497 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import PageLayout from '@/components/layout/PageLayout';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Loader2, Plus, Edit, Trash2, List, LayoutGrid, Search, Download, 
-  RotateCcw, Rows, MoreVertical
-} from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast";
-import { logger } from '@/lib/supabaseClient'; // Keep logger if used elsewhere
-import { supabase } from '@/lib/supabaseClient'; // Add import for supabase client
-import { useAssetsData } from '@/hooks/useSupabaseData';
-import { useMsal } from '@azure/msal-react'; // <--- Import useMsal from msal-react
-import { InteractionStatus } from '@azure/msal-browser'; // Import InteractionStatus if needed for loading
-import { UserAsset } from '@/types';
-import { divisions } from '@/data/divisions'; // Import divisions data
-import { units } from '@/data/units'; // Import units data
-import { staffMembers } from '@/data/divisions'; // Import staffMembers data
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { TooltipWrapper } from '@/components/ui/tooltip-wrapper';
+import { Eye, Edit, Trash2, Search, RotateCcw } from 'lucide-react';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { useToast } from "@/hooks/use-toast";
 
-// Import modal components
-import AddAssetModal from '@/components/unit-tabs/modals/AddAssetModal';
-import EditAssetModal from '@/components/unit-tabs/modals/EditAssetModal';
-import DeleteModal from '@/components/unit-tabs/modals/DeleteModal';
-import AssetCard from '@/components/assets/AssetCard';
-import HighlightMatch from '@/components/ui/HighlightMatch';
-import AssetInfoModal from '@/components/assets/AssetInfoModal';
+// Sample decommissioned assets data
+const decommissionedAssets = [
+  {
+    id: '1',
+    name: 'Dell XPS 15',
+    asset_id: 'DELL-001',
+    type: 'Laptop',
+    condition: 'Decommissioned',
+    reason: 'Obsolete',
+    decommission_date: '2023-01-15',
+    assigned_to: 'John Doe',
+    email: 'john.doe@example.com',
+    unit: 'IT Unit',
+    division: 'Corporate Services',
+    description: 'Old laptop with damaged screen',
+    assigned_date: '2020-06-01',
+    purchased_date: '2020-05-15',
+    last_updated: '2023-01-15'
+  },
+  {
+    id: '2',
+    name: 'HP LaserJet Pro',
+    asset_id: 'HP-002',
+    type: 'Printer',
+    condition: 'Decommissioned',
+    reason: 'Damaged',
+    decommission_date: '2023-02-20',
+    assigned_to: 'Sarah Johnson',
+    email: 'sarah.johnson@example.com',
+    unit: 'Marketing',
+    division: 'Corporate Services',
+    description: 'Office printer with mechanical issues',
+    assigned_date: '2019-03-10',
+    purchased_date: '2019-02-28',
+    last_updated: '2023-02-20'
+  },
+  {
+    id: '3',
+    name: 'Cisco IP Phone',
+    asset_id: 'CISCO-003',
+    type: 'Phone',
+    condition: 'Decommissioned',
+    reason: 'Replaced',
+    decommission_date: '2023-03-05',
+    assigned_to: 'Mike Williams',
+    email: 'mike.williams@example.com',
+    unit: 'Legal Advisory',
+    division: 'Legal Services',
+    description: 'Office phone replaced with newer model',
+    assigned_date: '2018-11-15',
+    purchased_date: '2018-10-30',
+    last_updated: '2023-03-05'
+  },
+  {
+    id: '4',
+    name: 'Apple iMac',
+    asset_id: 'APPLE-004',
+    type: 'Desktop PC',
+    condition: 'Decommissioned',
+    reason: 'Obsolete',
+    decommission_date: '2023-04-12',
+    assigned_to: 'Emma Davis',
+    email: 'emma.davis@example.com',
+    unit: 'Design',
+    division: 'Marketing',
+    description: 'Design team iMac, no longer compatible with new software',
+    assigned_date: '2017-08-20',
+    purchased_date: '2017-08-10',
+    last_updated: '2023-04-12'
+  }
+];
 
-// --- Add dropdown components ---
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-// --- End dropdown components ---
-
-const DecommissionedAssets = () => {
-  const { instance, accounts, inProgress } = useMsal(); // <-- Use MSAL hook
-  const account = useMemo(() => accounts[0], [accounts]); // Get the first (active) account
-  const authLoading = useMemo(() => inProgress !== InteractionStatus.None, [inProgress]); // Determine loading state
-  
+const DecommissionedAssets: React.FC = () => {
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [reasonFilter, setReasonFilter] = useState('all');
+  const [unitFilter, setUnitFilter] = useState('all');
+  const [divisionFilter, setDivisionFilter] = useState('all');
+  const [sortColumn, setSortColumn] = useState<string>('decommission_date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  // Use the asset data hook
-  const { 
-    data: assets, 
-    loading: assetsLoading, 
-    error: assetsError, 
-    add: addAsset,
-    update: editAsset,
-    remove: deleteAsset,
-  } = useAssetsData();
+  // Handle sort column click
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
-  // State for managing modals
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<UserAsset | null>(null);
-  const [infoModalAsset, setInfoModalAsset] = useState<UserAsset | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'card' | 'detailed-list'>('table');
-  const [filterText, setFilterText] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterCondition, setFilterCondition] = useState('Decommissioned');
-  const [filterUnit, setFilterUnit] = useState('all');
-  const [filterDivision, setFilterDivision] = useState('all');
-  const [filterVendor, setFilterVendor] = useState('all');
+  // Extract unique values for filters
+  const types = [...new Set(decommissionedAssets.map(asset => asset.type))];
+  const reasons = [...new Set(decommissionedAssets.map(asset => asset.reason))];
+  const units = [...new Set(decommissionedAssets.map(asset => asset.unit))];
+  const divisions = [...new Set(decommissionedAssets.map(asset => asset.division))];
 
-  // --- Derive unique lists for modal suggestions --- 
-  const existingNames = useMemo(() => 
-    Array.from(new Set(assets.map(a => a.name).filter(Boolean) as string[])).sort(), 
-    [assets]
-  );
-  const existingTypes = useMemo(() => 
-    Array.from(new Set(assets.map(a => a.type).filter(Boolean) as string[])).sort(), 
-    [assets]
-  );
-  const existingVendors = useMemo(() => 
-    Array.from(new Set(assets.map(a => a.vendor).filter(Boolean) as string[])).sort(), 
-    [assets]
-  );
-
-  // --- Derive user name for filtering directly from MSAL account --- 
-  // This is now mainly used for display or potentially for the 'add' action
-  const userNameForFiltering = useMemo(() => account?.name || null, [account]);
-
-  // Log the user object and the raw assets array from the hook
-  console.log('[DecommissionedAssets] MSAL Account object:', account);
-  console.log('[DecommissionedAssets] User Name (for display/add):', userNameForFiltering); 
-  console.log('[DecommissionedAssets] Assets array (already filtered by hook):', assets);
-
-  // --- Filtering Logic (Client-side) --- 
-  // [Cursor] Updated filtering logic to include all filters
-  const filteredAssets = useMemo(() => {
-    // Ensure the asset is decommissioned first
-    const decommissioned = assets.filter(asset => asset.condition === 'Decommissioned');
-    
-    return decommissioned.filter(asset => {
-      const searchTerm = filterText.toLowerCase();
-      
-      // Text search check (excluding condition)
-      const textMatch = !searchTerm || (
-        (asset.name && asset.name.toLowerCase().includes(searchTerm)) ||
-        (asset.id && asset.id.toLowerCase().includes(searchTerm)) || // Use id
-        (asset.type && asset.type.toLowerCase().includes(searchTerm)) ||
-        // Skip condition check here as it's pre-filtered
-        (asset.vendor && asset.vendor.toLowerCase().includes(searchTerm)) ||
-        (asset.unit && asset.unit.toLowerCase().includes(searchTerm)) ||
-        (asset.division && asset.division.toLowerCase().includes(searchTerm)) ||
-        (asset.assigned_to && asset.assigned_to.toLowerCase().includes(searchTerm)) ||
-        // (asset.serial_number && asset.serial_number.toLowerCase().includes(searchTerm)) || // Remove serial_number
-        (asset.notes && asset.notes.toLowerCase().includes(searchTerm)) ||
-        (asset.description && asset.description.toLowerCase().includes(searchTerm))
+  // Apply filters and sorting
+  const filteredAssets = decommissionedAssets.filter(asset => {
+    const matchesSearch = 
+      searchTerm === '' || 
+      Object.values(asset).some(val => 
+        val && val.toString().toLowerCase().includes(searchTerm.toLowerCase())
       );
+    
+    const matchesType = typeFilter === 'all' || asset.type === typeFilter;
+    const matchesReason = reasonFilter === 'all' || asset.reason === reasonFilter;
+    const matchesUnit = unitFilter === 'all' || asset.unit === unitFilter;
+    const matchesDivision = divisionFilter === 'all' || asset.division === divisionFilter;
+    
+    return matchesSearch && matchesType && matchesReason && matchesUnit && matchesDivision;
+  }).sort((a, b) => {
+    const aValue = a[sortColumn as keyof typeof a];
+    const bValue = b[sortColumn as keyof typeof b];
+    
+    if (!aValue && !bValue) return 0;
+    if (!aValue) return 1;
+    if (!bValue) return -1;
+    
+    const comparison = String(aValue).localeCompare(String(bValue));
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
-      // Dropdown filter checks (excluding condition)
-      const typeMatch = filterType === 'all' || (asset.type && asset.type === filterType);
-      const unitMatch = filterUnit === 'all' || (asset.unit && asset.unit === filterUnit);
-      const divisionMatch = filterDivision === 'all' || (asset.division && asset.division === filterDivision);
-      const vendorMatch = filterVendor === 'all' || (asset.vendor && asset.vendor === filterVendor);
+  // Reset filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setTypeFilter('all');
+    setReasonFilter('all');
+    setUnitFilter('all');
+    setDivisionFilter('all');
+  };
 
-      return textMatch && typeMatch && unitMatch && divisionMatch && vendorMatch;
+  // Handle asset actions
+  const handleViewAsset = (asset: any) => {
+    toast({
+      title: 'View Asset',
+      description: `Viewing decommissioned asset: ${asset.name}`,
     });
-  }, [assets, filterText, filterType, filterUnit, filterDivision, filterVendor]); // Removed filterCondition
-
-  console.log(`[DecommissionedAssets] Filters: Text="${filterText}", Type="${filterType}", Condition="${filterCondition}", Unit="${filterUnit}", Division="${filterDivision}", Vendor="${filterVendor}"`);
-  console.log('[DecommissionedAssets] Assets array AFTER text filtering:', filteredAssets);
-  // --- End Filtering Logic ---
-
-  // --- Email for filtering (derive from MSAL account) ---
-  // Ensure 'account.username' holds the email address
-  const loggedInUserEmail = useMemo(() => account?.username || null, [account]);
-  // --- End Email for filtering ---
-
-  // --- Modal Handlers ---
-
-  const handleAddClick = () => {
-    setIsAddModalOpen(true);
   };
 
-  const handleEditClick = (asset: UserAsset) => {
-    setSelectedAsset(asset);
-    setIsEditModalOpen(true);
+  const handleEditAsset = (asset: any) => {
+    toast({
+      title: 'Edit Asset',
+      description: `Editing decommissioned asset: ${asset.name}`,
+    });
   };
 
-  const handleDeleteClick = (asset: UserAsset) => {
-    setSelectedAsset(asset);
-    setIsDeleteModalOpen(true);
+  const handleDeleteAsset = (asset: any) => {
+    toast({
+      title: 'Delete Asset',
+      description: `Deleting decommissioned asset: ${asset.name}`,
+    });
   };
 
-  const handleCloseModals = () => {
-    setIsAddModalOpen(false);
-    setIsEditModalOpen(false);
-    setIsDeleteModalOpen(false);
-    setSelectedAsset(null);
-    setInfoModalAsset(null);
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
-  // [Cursor] Handler to open the info modal
-  const handleInfoClick = (asset: UserAsset) => {
-    setInfoModalAsset(asset);
-  };
-
-  // [Cursor] Handler to reset all filters
-  const handleResetFilters = () => {
-    setFilterText('');
-    setFilterType('all');
-    setFilterCondition('Decommissioned');
-    setFilterUnit('all');
-    setFilterDivision('all');
-    setFilterVendor('all');
-  };
-
-  // --- Data Operation Handlers ---
-
-  const handleSaveAdd = async (newAssetData: Partial<Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>>) => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Use assignee details from modal if provided, otherwise default (though validation should prevent this)
-    const completeAssetData = {
-      ...newAssetData,
-      assigned_to: newAssetData.assigned_to || userNameForFiltering, // Use name from modal
-      assigned_to_email: newAssetData.assigned_to_email || loggedInUserEmail, // Use email from modal
-      assigned_date: newAssetData.assigned_date || today, // Keep defaulting assigned_date
-    } as Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>;
-    
-    // Validation should now happen inside the modal, but keep a basic check here
-    if (!completeAssetData.name || !completeAssetData.assigned_to) {
-      toast({ title: "Error", description: "Asset name and Assigned To are required.", variant: "destructive" });
-      return;
+  // Render sort indicator
+  const renderSortIndicator = (column: string) => {
+    if (sortColumn === column) {
+      return <span className="ml-1">{sortDirection === 'asc' ? '▲' : '▼'}</span>;
     }
-    // Removed redundant check for assigned_to determination
-
-    try {
-      await addAsset(completeAssetData as any); 
-      toast({ title: "Asset Added", description: "New asset has been added successfully." });
-      handleCloseModals();
-    } catch (err) {
-      logger.error("Error adding asset:", err);
-      toast({ title: "Error Adding Asset", description: err instanceof Error ? err.message : "Could not add asset.", variant: "destructive" });
-    }
+    return null;
   };
-
-  const handleSaveEdit = async (updatedAssetData: Partial<UserAsset>) => {
-    if (!selectedAsset) return;
-    try {
-      const dataToSave = loggedInUserEmail ? { ...updatedAssetData, last_updated_by: loggedInUserEmail } : updatedAssetData;
-      await editAsset(selectedAsset.id, dataToSave);
-      toast({ title: "Asset Updated", description: "Asset details have been updated." });
-      handleCloseModals();
-    } catch (err) {
-      logger.error("Error updating asset:", err);
-      toast({ title: "Error Updating Asset", description: err instanceof Error ? err.message : "Could not update asset.", variant: "destructive" });
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!selectedAsset) return;
-    try {
-      await deleteAsset(selectedAsset.id);
-      toast({ title: "Asset Deleted", description: "Asset has been removed successfully." });
-      handleCloseModals();
-    } catch (err) {
-      logger.error("Error deleting asset:", err);
-      toast({ title: "Error Deleting Asset", description: err instanceof Error ? err.message : "Could not delete asset.", variant: "destructive" });
-    }
-  };
-
-  // Updated formatDate to handle timestamps better
-  const formatDate = (dateInput: Date | string | null | undefined, includeTime = false) => {
-    if (!dateInput) return 'N/A';
-    try {
-      const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-      if (isNaN(date.getTime())) return 'Invalid Date'; // Check if date is valid
-      
-      const options: Intl.DateTimeFormatOptions = {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric'
-      };
-      if (includeTime) {
-        options.hour = 'numeric';
-        options.minute = 'numeric';
-        // options.second = 'numeric'; // Optional: include seconds
-      }
-      return date.toLocaleString(undefined, options);
-    } catch (e) {
-      console.error("Error formatting date:", dateInput, e); // Log error
-      return 'Invalid Date';
-    }
-  };
-
-  // Use authLoading derived from useMsal
-  if (authLoading) {
-    return (
-        <PageLayout>
-            <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Initializing Authentication...</span>
-            </div>
-        </PageLayout>
-    );
-  }
-
-  // Handle case where MSAL account is not available after loading
-  if (!authLoading && !account) {
-     return (
-        <PageLayout>
-            <div className="text-center py-10 px-4 text-destructive">
-              <p>User not authenticated. Please log in.</p>
-              {/* Optionally add a login button here */}
-            </div>
-        </PageLayout>
-    );
-  }
 
   return (
-    <PageLayout>
-      {/* --- Row 1: Title/Subtitle and Add Button --- */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Decommissioned Assets</h1>
-          <p className="text-muted-foreground">View assets marked as decommissioned, damaged, or pending disposal.</p>
-        </div>
-        {/* <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAddClick}>
-              <Plus className="mr-2 h-4 w-4" /> Add Asset
-            </Button>
-          </DialogTrigger>
-          <AddAssetModal 
-            isOpen={isAddModalOpen} 
-            onClose={handleCloseModals} 
-            onAdd={handleSaveAdd}
-            divisions={divisions}
-            units={units}
-            staffMembers={staffMembers}
-            existingNames={existingNames}
-            existingTypes={existingTypes}
-            existingVendors={existingVendors}
-          />
-        </Dialog> */}
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Decommissioned Assets</h1>
       </div>
 
-      {/* --- Row 2: Filters, Search, View, Export --- */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Filters */}
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Filter by Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {['all', ...new Set(assets.map(a => a.type).filter(Boolean))].map(type => <SelectItem key={type} value={type}>{type === 'all' ? 'All Types' : type}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterCondition} onValueChange={setFilterCondition}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Filter by Condition" />
-          </SelectTrigger>
-          <SelectContent>
-            {['all', ...new Set(assets.map(a => a.condition).filter(Boolean))].map(cond => <SelectItem key={cond} value={cond}>{cond === 'all' ? 'All Conditions' : cond}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterUnit} onValueChange={setFilterUnit}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Filter by Unit" />
-          </SelectTrigger>
-          <SelectContent>
-            {['all', ...new Set(assets.map(a => a.unit).filter(Boolean))].map(unit => <SelectItem key={unit} value={unit}>{unit === 'all' ? 'All Units' : unit}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterDivision} onValueChange={setFilterDivision}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by Division" />
-          </SelectTrigger>
-          <SelectContent>
-            {['all', ...new Set(assets.map(a => a.division).filter(Boolean))].map(div => <SelectItem key={div} value={div}>{div === 'all' ? 'All Divisions' : div}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterVendor} onValueChange={setFilterVendor}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by Vendor" />
-          </SelectTrigger>
-          <SelectContent>
-            {['all', ...new Set(assets.map(a => a.vendor).filter(Boolean))].map(vendor => <SelectItem key={vendor} value={vendor}>{vendor === 'all' ? 'All Vendors' : vendor}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        
-        {/* Reset Button */}
-        <Button 
-          variant="ghost" 
-          onClick={handleResetFilters}
-          className="text-muted-foreground hover:text-foreground"
-          title="Reset Filters"
-        >
-          <RotateCcw className="h-4 w-4 mr-1" /> Reset
-        </Button>
-
-        {/* Search Input */}
-        <div className="relative flex-grow md:flex-grow-0 md:w-64"> {/* Adjusted width and growth */}
+      <div className="flex flex-col space-y-4">
+        <div className="relative max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            type="text"
-            placeholder="Filter by name, type, vendor..."
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            className="pl-8 w-full"
-          />
+          <TooltipWrapper content="Search decommissioned assets">
+            <Input
+              placeholder="Search assets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </TooltipWrapper>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-grow hidden md:block"></div> {/* Added spacer for large screens */}
+        <div className="flex flex-wrap gap-3">
+          <TooltipWrapper content="Filter by asset type">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {types.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </TooltipWrapper>
 
-        {/* View Toggle */}
-        <ToggleGroup 
-          type="single" 
-          defaultValue="table" 
-          value={viewMode}
-          onValueChange={(value) => { if (value) setViewMode(value as 'table' | 'card' | 'detailed-list'); }}
-          aria-label="View mode"
-        >
-          <ToggleGroupItem value="detailed-list" aria-label="Detailed list view">
-            <List className="h-4 w-4" /> 
-          </ToggleGroupItem>
-          <ToggleGroupItem value="table" aria-label="Table view">
-            <Rows className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="card" aria-label="Card view">
-            <LayoutGrid className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          <TooltipWrapper content="Filter by decommission reason">
+            <Select value={reasonFilter} onValueChange={setReasonFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Reason" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Reasons</SelectItem>
+                {reasons.map(reason => (
+                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </TooltipWrapper>
 
-        {/* Export Button moved into Dropdown */}
-        {/* <Button
-          variant="outline"
-          onClick={() => toast({ title: "Export Clicked", description: "Export functionality to be implemented."})}
-        >
-          <Download className="mr-2 h-4 w-4" /> Export
-        </Button> */}
+          <TooltipWrapper content="Filter by unit">
+            <Select value={unitFilter} onValueChange={setUnitFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Unit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Units</SelectItem>
+                {units.map(unit => (
+                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </TooltipWrapper>
 
-        {/* More Options Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="ml-2">
-              <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">More options</span>
+          <TooltipWrapper content="Filter by division">
+            <Select value={divisionFilter} onValueChange={setDivisionFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Division" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Divisions</SelectItem>
+                {divisions.map(division => (
+                  <SelectItem key={division} value={division}>{division}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </TooltipWrapper>
+
+          <TooltipWrapper content="Reset all filters">
+            <Button variant="outline" onClick={resetFilters}>
+              <RotateCcw className="mr-2 h-4 w-4" /> Reset
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => toast({ title: "Export Clicked", description: "Export functionality to be implemented."})}>
-              <Download className="mr-2 h-4 w-4" />
-              Export Data
-            </DropdownMenuItem>
-            {/* Add other menu items here if needed */}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </TooltipWrapper>
+        </div>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          {assetsLoading && (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" /> 
-              <span className="ml-2 text-muted-foreground">Loading assets...</span>
-            </div>
-          )}
-          {assetsError && (
-            <div className="text-center py-10 px-4 text-destructive">
-              <p>Error loading assets: {assetsError.message}</p>
-            </div>
-          )}
-          {!assetsLoading && !assetsError && (
-            <>
-              {viewMode === 'table' && (
-                <div className="overflow-x-auto">
-                  <Table className="min-w-max">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="sticky left-0 bg-background z-10 w-[60px]">Img</TableHead>
-                        <TableHead className="sticky left-[60px] bg-background z-10 min-w-[200px]">Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Condition</TableHead>
-                        <TableHead>Assigned To</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Unit</TableHead>
-                        <TableHead>Division</TableHead>
-                        <TableHead>Assigned Date</TableHead>
-                        <TableHead>Purchase Date</TableHead>
-                        <TableHead>Purchase Cost</TableHead>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Warranty Expiry</TableHead>
-                        <TableHead>Expiry Date</TableHead>
-                        <TableHead>Life Exp (Yrs)</TableHead>
-                        <TableHead>Depreciated Value</TableHead>
-                        <TableHead>YTD Usage</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead>Admin Comments</TableHead>
-                        <TableHead>Invoice URL</TableHead>
-                        <TableHead>Barcode URL</TableHead>
-                        <TableHead>Last Updated</TableHead>
-                        <TableHead>Updated By</TableHead>
-                        <TableHead>Created At</TableHead>
-                        <TableHead className="sticky right-0 bg-background z-10 text-right w-[100px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAssets.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={23} className="h-24 text-center text-muted-foreground">
-                            {filterText || filterType !== 'all' || filterCondition !== 'all' || filterUnit !== 'all' || filterDivision !== 'all' || filterVendor !== 'all'
-                              ? `No decommissioned assets found matching the current filters.` 
-                              : "No decommissioned assets found."}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredAssets.map((asset) => (
-                          <TableRow key={asset.id}>
-                            <TableCell className="sticky left-0 bg-background z-10 cursor-pointer" onClick={() => handleInfoClick(asset)}>
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
-                                <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
-                              </Avatar>
-                            </TableCell>
-                            <TableCell className="sticky left-[60px] bg-background z-10 font-medium cursor-pointer" onClick={() => handleInfoClick(asset)}>
-                                <HighlightMatch text={asset.name} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>
-                                <HighlightMatch text={asset.type} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>
-                                <HighlightMatch text={asset.condition} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>
-                                <HighlightMatch text={asset.assigned_to} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>{asset.assigned_to_email || 'N/A'}</TableCell>
-                            <TableCell>
-                                <HighlightMatch text={asset.unit} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>
-                                <HighlightMatch text={asset.division} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>{formatDate(asset.assigned_date)}</TableCell>
-                            <TableCell>{formatDate(asset.purchase_date)}</TableCell>
-                            <TableCell>{asset.purchase_cost != null ? `$${asset.purchase_cost.toFixed(2)}` : 'N/A'}</TableCell>
-                            <TableCell>
-                                <HighlightMatch text={asset.vendor} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell>{formatDate(asset.warranty_expiry_date)}</TableCell>
-                            <TableCell>{formatDate(asset.expiry_date)}</TableCell>
-                            <TableCell>{asset.life_expectancy_years ?? 'N/A'}</TableCell>
-                            <TableCell>{asset.depreciated_value != null ? `$${asset.depreciated_value.toFixed(2)}` : 'N/A'}</TableCell>
-                            <TableCell>{asset.ytd_usage || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.notes}>{asset.notes || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.admin_comments}>{asset.admin_comments || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.invoice_url}>{asset.invoice_url || 'N/A'}</TableCell>
-                            <TableCell className="max-w-xs truncate" title={asset.barcode_url}>{asset.barcode_url || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(asset.last_updated, true)}</TableCell>
-                            <TableCell>{asset.last_updated_by || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(asset.created_at, true)}</TableCell>
-                            <TableCell className="sticky right-0 bg-background z-10 text-right">
-                              <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
-                                 <DialogTrigger asChild>
-                                   <Button variant="ghost" size="icon" onClick={() => handleEditClick(asset)} title="Edit Asset">
-                                     <Edit className="h-4 w-4" />
-                                   </Button>
-                                 </DialogTrigger>
-                                 {isEditModalOpen && selectedAsset?.id === asset.id && (
-                                   <EditAssetModal 
-                                      isOpen={true}
-                                      onClose={handleCloseModals} 
-                                      onEdit={handleSaveEdit}
-                                      asset={selectedAsset as UserAsset} 
-                                      onDelete={() => handleDeleteClick(asset)}
-                                      divisions={divisions}
-                                      units={units}
-                                      staffMembers={staffMembers}
-                                      existingNames={existingNames}
-                                      existingTypes={existingTypes}
-                                      existingVendors={existingVendors}
-                                   />
-                                 )}
-                              </Dialog>
-                              <Dialog open={isDeleteModalOpen && selectedAsset?.id === asset.id} onOpenChange={setIsDeleteModalOpen}>
-                                 <DialogTrigger asChild>
-                                   <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(asset)} title="Delete Asset">
-                                     <Trash2 className="h-4 w-4 text-destructive" />
-                                   </Button>
-                                 </DialogTrigger>
-                                 {isDeleteModalOpen && selectedAsset?.id === asset.id && (
-                                   <DeleteModal 
-                                     open={true}
-                                     onOpenChange={setIsDeleteModalOpen} 
-                                     onDelete={handleConfirmDelete}
-                                     title="Delete Asset"
-                                     description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`}
-                                   />
-                                 )}
-                              </Dialog>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              {viewMode === 'detailed-list' && (
-                <div className="overflow-x-auto">
-                  <Table className="min-w-max text-xs">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="sticky left-0 bg-background z-10 w-[50px] h-auto py-1 px-2">Img</TableHead>
-                        <TableHead className="sticky left-[50px] bg-background z-10 min-w-[150px] h-auto py-1 px-2">Name</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Type</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Condition</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Assigned To</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Email</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Unit</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Division</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Assigned Date</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Purchase Date</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Purchase Cost</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Vendor</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Warranty Expiry</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Expiry Date</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Life Exp (Yrs)</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Depreciated Value</TableHead>
-                        <TableHead className="h-auto py-1 px-2">YTD Usage</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Notes</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Admin Comments</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Invoice URL</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Barcode URL</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Last Updated</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Updated By</TableHead>
-                        <TableHead className="h-auto py-1 px-2">Created At</TableHead>
-                        <TableHead className="sticky right-0 bg-background z-10 text-right w-[80px] h-auto py-1 px-2">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAssets.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={23} className="h-16 text-center text-muted-foreground py-1 px-2">
-                             {filterText || filterType !== 'all' || filterCondition !== 'all' || filterUnit !== 'all' || filterDivision !== 'all' || filterVendor !== 'all'
-                              ? `No decommissioned assets found matching the current filters.` 
-                              : "No decommissioned assets found."}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredAssets.map((asset) => (
-                          <TableRow key={asset.id} className="h-auto">
-                            <TableCell className="sticky left-0 bg-background z-10 py-1 px-2 cursor-pointer" onClick={() => handleInfoClick(asset)}>
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
-                                <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
-                              </Avatar>
-                            </TableCell>
-                            <TableCell className="sticky left-[50px] bg-background z-10 font-medium py-1 px-2 cursor-pointer" onClick={() => handleInfoClick(asset)}>
-                                <HighlightMatch text={asset.name} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.type} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.condition} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.assigned_to} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">{asset.assigned_to_email || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.unit} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.division} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.assigned_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.purchase_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.purchase_cost != null ? `$${asset.purchase_cost.toFixed(2)}` : 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.vendor} searchTerm={filterText} />
-                            </TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.warranty_expiry_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.expiry_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.life_expectancy_years ?? 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.depreciated_value != null ? `$${asset.depreciated_value.toFixed(2)}` : 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.ytd_usage || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.notes}>{asset.notes || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.admin_comments}>{asset.admin_comments || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.invoice_url}>{asset.invoice_url || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.barcode_url}>{asset.barcode_url || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.last_updated, true)}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.last_updated_by || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.created_at, true)}</TableCell>
-                            <TableCell className="sticky right-0 bg-background z-10 text-right py-1 px-2">
-                              <Dialog open={isEditModalOpen && selectedAsset?.id === asset.id} onOpenChange={(isOpen) => !isOpen && handleCloseModals()}>
-                                 <DialogTrigger asChild>
-                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(asset)} title="Edit Asset">
-                                     <Edit className="h-3.5 w-3.5" />
-                                   </Button>
-                                 </DialogTrigger>
-                                 {isEditModalOpen && selectedAsset?.id === asset.id && (
-                                   <EditAssetModal 
-                                      isOpen={true}
-                                      onClose={handleCloseModals} 
-                                      onEdit={handleSaveEdit}
-                                      asset={selectedAsset as UserAsset} 
-                                      onDelete={() => handleDeleteClick(asset)}
-                                      divisions={divisions}
-                                      units={units}
-                                      staffMembers={staffMembers}
-                                      existingNames={existingNames}
-                                      existingTypes={existingTypes}
-                                      existingVendors={existingVendors}
-                                   />
-                                 )}
-                              </Dialog>
-                              <Dialog open={isDeleteModalOpen && selectedAsset?.id === asset.id} onOpenChange={setIsDeleteModalOpen}>
-                                 <DialogTrigger asChild>
-                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(asset)} title="Delete Asset">
-                                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                   </Button>
-                                 </DialogTrigger>
-                                 {isDeleteModalOpen && selectedAsset?.id === asset.id && (
-                                   <DeleteModal 
-                                     open={true}
-                                     onOpenChange={setIsDeleteModalOpen} 
-                                     onDelete={handleConfirmDelete}
-                                     title="Delete Asset"
-                                     description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`}
-                                   />
-                                 )}
-                              </Dialog>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              {viewMode === 'card' && (
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="responsive-table-container">
+            <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-white border-b">
+                  <TableRow>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('name')}>
+                      <TooltipWrapper content="Click to sort by name">
+                        <div className="flex items-center">
+                          Name {renderSortIndicator('name')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('asset_id')}>
+                      <TooltipWrapper content="Click to sort by asset ID">
+                        <div className="flex items-center">
+                          Asset ID {renderSortIndicator('asset_id')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('type')}>
+                      <TooltipWrapper content="Click to sort by type">
+                        <div className="flex items-center">
+                          Type {renderSortIndicator('type')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('reason')}>
+                      <TooltipWrapper content="Click to sort by reason">
+                        <div className="flex items-center">
+                          Reason {renderSortIndicator('reason')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('assigned_to')}>
+                      <TooltipWrapper content="Click to sort by assigned person">
+                        <div className="flex items-center">
+                          Assigned To {renderSortIndicator('assigned_to')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('email')}>
+                      <TooltipWrapper content="Click to sort by email">
+                        <div className="flex items-center">
+                          Email {renderSortIndicator('email')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('unit')}>
+                      <TooltipWrapper content="Click to sort by unit">
+                        <div className="flex items-center">
+                          Unit {renderSortIndicator('unit')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('division')}>
+                      <TooltipWrapper content="Click to sort by division">
+                        <div className="flex items-center">
+                          Division {renderSortIndicator('division')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('decommission_date')}>
+                      <TooltipWrapper content="Click to sort by decommission date">
+                        <div className="flex items-center">
+                          Decommission Date {renderSortIndicator('decommission_date')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap" onClick={() => handleSort('purchased_date')}>
+                      <TooltipWrapper content="Click to sort by purchase date">
+                        <div className="flex items-center">
+                          Purchase Date {renderSortIndicator('purchased_date')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="font-medium cursor-pointer whitespace-nowrap max-w-[200px]" onClick={() => handleSort('description')}>
+                      <TooltipWrapper content="Click to sort by description">
+                        <div className="flex items-center">
+                          Description {renderSortIndicator('description')}
+                        </div>
+                      </TooltipWrapper>
+                    </TableHead>
+                    <TableHead className="text-right font-medium sticky right-0 bg-white z-20 whitespace-nowrap">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredAssets.length === 0 ? (
-                    <p className="col-span-full text-center text-muted-foreground py-10">
-                       {filterText || filterType !== 'all' || filterCondition !== 'all' || filterUnit !== 'all' || filterDivision !== 'all' || filterVendor !== 'all'
-                         ? `No decommissioned assets found matching the current filters.` 
-                         : "No decommissioned assets found."} 
-                    </p>
+                    <TableRow>
+                      <TableCell colSpan={12} className="h-24 text-center">
+                        No decommissioned assets found
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     filteredAssets.map((asset) => (
-                      <AssetCard 
-                        key={asset.id} 
-                        asset={asset} 
-                        onEdit={() => handleEditClick(asset)} 
-                        onDelete={() => handleDeleteClick(asset)}
-                        onClick={() => handleInfoClick(asset)}
-                      />
+                      <TableRow key={asset.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Asset name: ${asset.name}`}>
+                            {asset.name}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Asset ID: ${asset.asset_id}`}>
+                            {asset.asset_id}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Asset type: ${asset.type}`}>
+                            {asset.type}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Reason for decommissioning: ${asset.reason}`}>
+                            {asset.reason}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Last assigned to: ${asset.assigned_to}`}>
+                            {asset.assigned_to}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={asset.email}>
+                            {asset.email}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={asset.unit}>
+                            {asset.unit}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={asset.division}>
+                            {asset.division}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Decommissioned on: ${formatDate(asset.decommission_date)}`}>
+                            {formatDate(asset.decommission_date)}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <TooltipWrapper content={`Purchased on: ${formatDate(asset.purchased_date)}`}>
+                            {formatDate(asset.purchased_date)}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          <TooltipWrapper content={asset.description}>
+                            {asset.description}
+                          </TooltipWrapper>
+                        </TableCell>
+                        <TableCell className="text-right sticky right-0 bg-white z-10">
+                          <DropdownMenu>
+                            <TooltipWrapper content="Asset actions">
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="h-4 w-4"
+                                  >
+                                    <circle cx="12" cy="12" r="1" />
+                                    <circle cx="19" cy="12" r="1" />
+                                    <circle cx="5" cy="12" r="1" />
+                                  </svg>
+                                </Button>
+                              </DropdownMenuTrigger>
+                            </TooltipWrapper>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewAsset(asset)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditAsset(asset)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteAsset(asset)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </div>
-              )}
-            </>
-          )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
-
-      {/* Render EditModal outside the map, controlled by selectedAsset */}
-      {selectedAsset && isEditModalOpen && (
-        <EditAssetModal 
-            isOpen={isEditModalOpen} 
-            onClose={handleCloseModals} 
-            onEdit={handleSaveEdit}
-            asset={selectedAsset} // No need for type assertion here
-            onDelete={() => handleDeleteClick(selectedAsset)} // Ensure this uses selectedAsset
-            // Pass necessary data props
-            divisions={divisions}
-            units={units}
-            staffMembers={staffMembers}
-            existingNames={existingNames}
-            existingTypes={existingTypes}
-            existingVendors={existingVendors}
-         />
-      )}
-
-      {/* DeleteModal remains the same */}
-      {selectedAsset && isDeleteModalOpen && (
-          <DeleteModal 
-            open={isDeleteModalOpen} 
-            onOpenChange={setIsDeleteModalOpen} 
-            onDelete={handleConfirmDelete}
-            title="Delete Asset"
-            description={`Are you sure you want to delete the asset "${selectedAsset?.name || "this asset"}"? This action cannot be undone.`}
-          />
-      )}
-
-      <AssetInfoModal 
-        asset={infoModalAsset} 
-        isOpen={!!infoModalAsset} 
-        onClose={handleCloseModals} 
-      />
-    </PageLayout>
+      
+      <div className="text-sm text-muted-foreground">
+        Showing {filteredAssets.length} of {decommissionedAssets.length} decommissioned assets
+      </div>
+    </div>
   );
 };
 
-export default DecommissionedAssets; 
+export default DecommissionedAssets;

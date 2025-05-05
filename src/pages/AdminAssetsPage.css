@@ -1,3 +1,4 @@
+
 /* --- Theme Variables (approximated from screenshot) --- */
 :root {
     --primary-color: #800020; /* Dark Burgundy/Maroon */
@@ -71,6 +72,35 @@
     overflow-x: auto;
     width: 100%;
     position: relative;
+}
+
+/* Improve horizontal scrolling visibility */
+.max-h-\[calc\(100vh-220px\)\] {
+    border-bottom: 1px solid var(--light-grey);
+}
+
+/* Add scrollbar styling for better visibility */
+.max-h-\[calc\(100vh-220px\)\]::-webkit-scrollbar,
+.responsive-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.max-h-\[calc\(100vh-220px\)\]::-webkit-scrollbar-track,
+.responsive-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.max-h-\[calc\(100vh-220px\)\]::-webkit-scrollbar-thumb,
+.responsive-table-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.max-h-\[calc\(100vh-220px\)\]::-webkit-scrollbar-thumb:hover,
+.responsive-table-container::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
 
 /* --- Dashboard Specific Styles --- */
@@ -268,8 +298,8 @@
     margin-top: 10px; 
 }
 
-/* --- Generic Table Styles (from original, may be overridden by integrated components) --- */
-/* Keep these for other potential tables within the admin view, but note they might conflict */
+/* --- Generic Table Styles --- */
+/* Keep these for other potential tables within the admin view */
 .data-table { 
     width: 100%; 
     border-collapse: collapse; 
@@ -327,8 +357,7 @@
     vertical-align: middle; 
 }
 
-/* Styles for the filters/actions above the Asset table in the HTML */
-/* These might conflict if AssetManagement has its own similar controls */
+/* Styles for the filters/actions above the Asset table */
 #assets-view .asset-filters {
     margin-bottom: 15px; 
     display: flex; 
@@ -361,7 +390,20 @@
     background-color: #5a6268;
 }
 
-/* Ensure the integrated AssetManagement page takes full width */
-#assets-view > div { /* Assuming AssetManagement renders a div as its root */
+/* Ensure all tables have the same styling for horizontal scrolling */
+.table-container {
     width: 100%;
+    overflow-x: auto;
+}
+
+/* Add box shadow to cards for better visual hierarchy */
+.card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Make sure all action buttons are aligned properly */
+.button-with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }

@@ -11,6 +11,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 
 interface AssetsTableProps {
   assets: Asset[];
@@ -62,97 +63,121 @@ export function AssetsTable({
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('name')}
                 >
-                  <div className="flex items-center">
-                    Name {renderSortIndicator('name')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by name">
+                    <div className="flex items-center">
+                      Name {renderSortIndicator('name')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('id')}
                 >
-                  <div className="flex items-center">
-                    ID {renderSortIndicator('id')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by ID">
+                    <div className="flex items-center">
+                      ID {renderSortIndicator('id')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('type')}
                 >
-                  <div className="flex items-center">
-                    Type {renderSortIndicator('type')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by asset type">
+                    <div className="flex items-center">
+                      Type {renderSortIndicator('type')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('condition')}
                 >
-                  <div className="flex items-center">
-                    Condition {renderSortIndicator('condition')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by asset condition">
+                    <div className="flex items-center">
+                      Condition {renderSortIndicator('condition')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('assignedTo')}
                 >
-                  <div className="flex items-center">
-                    Assigned To {renderSortIndicator('assignedTo')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by person assigned">
+                    <div className="flex items-center">
+                      Assigned To {renderSortIndicator('assignedTo')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('email')}
                 >
-                  <div className="flex items-center">
-                    Email {renderSortIndicator('email')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by email">
+                    <div className="flex items-center">
+                      Email {renderSortIndicator('email')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('unit')}
                 >
-                  <div className="flex items-center">
-                    Unit {renderSortIndicator('unit')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by unit">
+                    <div className="flex items-center">
+                      Unit {renderSortIndicator('unit')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('division')}
                 >
-                  <div className="flex items-center">
-                    Division {renderSortIndicator('division')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by division">
+                    <div className="flex items-center">
+                      Division {renderSortIndicator('division')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('description')}
                 >
-                  <div className="flex items-center">
-                    Description {renderSortIndicator('description')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by description">
+                    <div className="flex items-center">
+                      Description {renderSortIndicator('description')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('assignedDate')}
                 >
-                  <div className="flex items-center">
-                    Assigned Date {renderSortIndicator('assignedDate')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by assigned date">
+                    <div className="flex items-center">
+                      Assigned Date {renderSortIndicator('assignedDate')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('purchasedDate')}
                 >
-                  <div className="flex items-center">
-                    Purchased Date {renderSortIndicator('purchasedDate')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by purchase date">
+                    <div className="flex items-center">
+                      Purchased Date {renderSortIndicator('purchasedDate')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead 
                   className="font-medium cursor-pointer whitespace-nowrap"
                   onClick={() => handleColumnClick('lastUpdated')}
                 >
-                  <div className="flex items-center">
-                    Last Updated {renderSortIndicator('lastUpdated')}
-                  </div>
+                  <TooltipWrapper content="Click to sort by last updated date">
+                    <div className="flex items-center">
+                      Last Updated {renderSortIndicator('lastUpdated')}
+                    </div>
+                  </TooltipWrapper>
                 </TableHead>
                 <TableHead className="text-right font-medium sticky right-0 bg-white z-20 whitespace-nowrap">Actions</TableHead>
               </TableRow>
@@ -168,37 +193,89 @@ export function AssetsTable({
                 assets.map((asset) => (
                   <TableRow key={asset.id}>
                     <TableCell className="p-2 text-center">
-                      {asset.image ? (
-                        <img 
-                          src={asset.image} 
-                          alt={asset.name} 
-                          className="w-8 h-8 mx-auto rounded-md object-cover"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 mx-auto rounded-md bg-gray-200 flex items-center justify-center">
-                          {asset.name.charAt(0)}
-                        </div>
-                      )}
+                      <TooltipWrapper content={asset.name || "Asset image"}>
+                        {asset.image ? (
+                          <img 
+                            src={asset.image} 
+                            alt={asset.name} 
+                            className="w-8 h-8 mx-auto rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 mx-auto rounded-md bg-gray-200 flex items-center justify-center">
+                            {asset.name.charAt(0)}
+                          </div>
+                        )}
+                      </TooltipWrapper>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.name}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.asset_id || asset.id}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.type}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.condition}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.assigned_to || asset.assignedTo}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.email}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.unit}</TableCell>
-                    <TableCell className="whitespace-nowrap">{asset.division}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{asset.description}</TableCell>
-                    <TableCell className="whitespace-nowrap">{formatDate(asset.assigned_date || asset.assignedDate)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{formatDate(asset.purchased_date || asset.purchasedDate)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{formatDate(asset.last_updated || asset.lastUpdated)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={`Asset name: ${asset.name}`}>
+                        {asset.name}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={`Asset ID: ${asset.asset_id || asset.id}`}>
+                        {asset.asset_id || asset.id}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={`Asset type: ${asset.type}`}>
+                        {asset.type}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={`Asset condition: ${asset.condition}`}>
+                        {asset.condition}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={`Assigned to: ${asset.assigned_to || asset.assignedTo || 'N/A'}`}>
+                        {asset.assigned_to || asset.assignedTo}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={asset.email || 'N/A'}>
+                        {asset.email}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={asset.unit || 'N/A'}>
+                        {asset.unit}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={asset.division || 'N/A'}>
+                        {asset.division}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      <TooltipWrapper content={asset.description || 'N/A'}>
+                        {asset.description}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={formatDate(asset.assigned_date || asset.assignedDate) || 'N/A'}>
+                        {formatDate(asset.assigned_date || asset.assignedDate)}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={formatDate(asset.purchased_date || asset.purchasedDate) || 'N/A'}>
+                        {formatDate(asset.purchased_date || asset.purchasedDate)}
+                      </TooltipWrapper>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <TooltipWrapper content={formatDate(asset.last_updated || asset.lastUpdated) || 'N/A'}>
+                        {formatDate(asset.last_updated || asset.lastUpdated)}
+                      </TooltipWrapper>
+                    </TableCell>
                     <TableCell className="text-right sticky right-0 bg-white z-10">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
+                        <TooltipWrapper content="Asset actions">
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </TooltipWrapper>
                         <DropdownMenuContent align="end">
                           {onView && (
                             <DropdownMenuItem onClick={() => onView(asset)}>
