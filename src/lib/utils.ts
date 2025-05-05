@@ -1,30 +1,29 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-// Function to format date/timestamps
-export const formatDate = (dateInput: Date | string | null | undefined, includeTime = false): string => {
-  if (!dateInput) return 'N/A';
+export function formatDate(dateString: string | Date | undefined): string {
+  if (!dateString) return "N/A";
+  
   try {
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    if (isNaN(date.getTime())) return 'Invalid Date'; // Check if date is valid
+    const date = typeof dateString === "string" ? new Date(dateString) : dateString;
     
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
-    };
-    if (includeTime) {
-      options.hour = 'numeric';
-      options.minute = 'numeric';
-      // options.second = 'numeric'; // Optional: include seconds
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return "N/A";
     }
-    return date.toLocaleString(undefined, options);
-  } catch (e) {
-    console.error("Error formatting date:", dateInput, e); // Log error
-    return 'Invalid Date';
+    
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "N/A";
   }
-};
+}
