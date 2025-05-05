@@ -90,12 +90,15 @@ export interface UserAsset {
   id: string;
   name: string;
   type?: string;
+  description?: string;
   assigned_date: string;
   assigned_to?: string;
   assigned_to_email?: string;
   unit?: string;
   division?: string;
   purchase_date?: string;
+  purchase_cost?: number | null;
+  depreciated_value?: number | null;
   vendor?: string;
   warranty_expiry_date?: string;
   invoice_url?: string;

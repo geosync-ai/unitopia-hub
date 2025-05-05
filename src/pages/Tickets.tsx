@@ -121,16 +121,6 @@ const Tickets: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            {activeTab === 'ticket-manager' && (
-              <Button 
-                onClick={() => document.dispatchEvent(new CustomEvent('create-ticket'))}
-                className="bg-primary text-white hover:bg-primary/90 h-8"
-                size="sm"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New Ticket
-              </Button>
-            )}
             <div className="flex items-center gap-3 ml-2 pl-2 border-l">
               <ThemeToggle />
               <Button variant="ghost" size="icon" className="h-8 w-8 relative">

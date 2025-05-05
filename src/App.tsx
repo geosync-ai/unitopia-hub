@@ -26,6 +26,7 @@ import Notes from "./pages/Notes";
 import AssetManagement from './pages/AssetManagement';
 import Reports from './pages/Reports';
 import Tickets from './pages/Tickets';
+import AdminAssetsPage from './pages/AdminAssetsPage';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 
 // MSAL Imports
@@ -34,6 +35,16 @@ import { InteractionStatus } from '@azure/msal-browser';
 import { MsalAuthProvider } from '@/integrations/microsoft/MsalProvider';
 
 const queryClient = new QueryClient();
+
+// Placeholder for your actual authentication/role hook
+// Replace this with your real implementation
+const useAuth = () => {
+  // TODO: Implement your actual logic to get user role
+  // This might involve checking MSAL account info, claims, or calling an API
+  console.warn('[App.tsx] Using placeholder useAuth. Replace with actual implementation.');
+  const isAdmin = true; // <-- Placeholder: Assume admin for now
+  return { isAdmin }; 
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Use MSAL hooks for authentication status
@@ -63,6 +74,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// New wrapper component for asset page routing based on role
+const AssetsPageRoute = () => {
+  const { isAdmin } = useAuth(); // Use the placeholder auth hook
+  // You might want a loading state here if checking the role is async
+
+  logger.info(`[AssetsPageRoute] Rendering assets page. isAdmin: ${isAdmin}`);
+
+  return isAdmin ? <AdminAssetsPage /> : <AssetManagement />;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -84,7 +105,7 @@ const AppRoutes = () => {
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       
-      <Route path="/asset-management" element={<ProtectedRoute><AssetManagement /></ProtectedRoute>} />
+      <Route path="/asset-management" element={<ProtectedRoute><AssetsPageRoute /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

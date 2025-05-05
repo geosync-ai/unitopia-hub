@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
 import { supabase } from '@/lib/supabaseClient';
+import { Loader2 } from 'lucide-react';
 
 // Define admin emails that match the ones in useAuth.tsx
 const ADMIN_EMAILS = ['geosyncsurvey@gmail.com', 'admin@scpng.com'];
@@ -404,12 +405,16 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     authError
   };
 
-  if (!msalInstance) {
+  // Conditionally render based on initialization status
+  if (isInitializing || !isInitialized || !msalInstance) {
+    // Show loading indicator or return null while MSAL is initializing
+    // You can customize this loading state
     return (
-      <MsalContext.Provider value={contextValue}>
-        {children}
-      </MsalContext.Provider>
-    );
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-gray-600\">Initializing Authentication Library...</span>
+      </div>
+    ); 
   }
 
   // Add fallback UI for when authentication fails

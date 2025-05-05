@@ -12,6 +12,9 @@ import {
   kpisService,
   objectivesService
 } from '@/integrations/supabase/unitService';
+// --- Add Realtime types ---
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+// --- End Add Realtime types ---
 
 // Define the type for the 'id' field, assuming it's always string or undefined
 interface Identifiable {
@@ -43,6 +46,18 @@ function isMsalAccountInfo(account: any): account is MsalAccountInfo {
 // Define the possible entity types
 type EntityType = 'tasks' | 'projects' | 'risks' | 'assets' | 'kras' | 'kpis' | 'objectives'; // Added kpis, objectives
 
+// --- Add table name mapping ---
+const entityTableMap: Record<EntityType, string> = {
+  tasks: 'tasks',
+  projects: 'projects',
+  risks: 'risks',
+  assets: 'assets',
+  kras: 'kras',
+  kpis: 'kpis',
+  objectives: 'objectives',
+};
+// --- End table name mapping ---
+
 // Extend the generic type to include assigned_to_email
 export function useSupabaseData<T extends Identifiable>(
   entityType: EntityType,
@@ -52,17 +67,18 @@ export function useSupabaseData<T extends Identifiable>(
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const { accounts } = useMsal(); // Get MSAL accounts
+  const account = accounts[0]; // Get the primary account
 
   // Memoize helper functions for CRUD operations
   const getFetchMethod = useCallback((): FetchFunction<T> => {
     switch (entityType) {
-      case 'tasks': return tasksService.getTasks;
-      case 'projects': return projectsService.getProjects;
-      case 'risks': return risksService.getRisks;
-      case 'assets': return assetsService.getAssets;
-      case 'kras': return krasService.getKRAs;
-      case 'kpis': return kpisService.getKPIs;
-      case 'objectives': return objectivesService.getObjectives;
+      case 'tasks': return tasksService.getTasks as any;
+      case 'projects': return projectsService.getProjects as any;
+      case 'risks': return risksService.getRisks as any;
+      case 'assets': return assetsService.getAssets as any;
+      case 'kras': return krasService.getKRAs as any;
+      case 'kpis': return kpisService.getKPIs as any;
+      case 'objectives': return objectivesService.getObjectives as any;
       default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
@@ -70,13 +86,13 @@ export function useSupabaseData<T extends Identifiable>(
   // Get the appropriate add method based on entity type
   const getAddMethod = useCallback((): AddFunction<T> => {
     switch (entityType) {
-      case 'tasks': return tasksService.addTask;
-      case 'projects': return projectsService.addProject;
-      case 'risks': return risksService.addRisk;
-      case 'assets': return assetsService.addAsset;
-      case 'kras': return krasService.addKRA;
-      case 'kpis': return kpisService.addKPI;
-      case 'objectives': return objectivesService.addObjective;
+      case 'tasks': return tasksService.addTask as any;
+      case 'projects': return projectsService.addProject as any;
+      case 'risks': return risksService.addRisk as any;
+      case 'assets': return assetsService.addAsset as any;
+      case 'kras': return krasService.addKRA as any;
+      case 'kpis': return kpisService.addKPI as any;
+      case 'objectives': return objectivesService.addObjective as any;
       default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
@@ -84,13 +100,13 @@ export function useSupabaseData<T extends Identifiable>(
   // Get the appropriate update method based on entity type
   const getUpdateMethod = useCallback((): UpdateFunction<T> => {
     switch (entityType) {
-      case 'tasks': return tasksService.updateTask;
-      case 'projects': return projectsService.updateProject;
-      case 'risks': return risksService.updateRisk;
-      case 'assets': return assetsService.updateAsset;
-      case 'kras': return krasService.updateKRA;
-      case 'kpis': return kpisService.updateKPI;
-      case 'objectives': return objectivesService.updateObjective;
+      case 'tasks': return tasksService.updateTask as any;
+      case 'projects': return projectsService.updateProject as any;
+      case 'risks': return risksService.updateRisk as any;
+      case 'assets': return assetsService.updateAsset as any;
+      case 'kras': return krasService.updateKRA as any;
+      case 'kpis': return kpisService.updateKPI as any;
+      case 'objectives': return objectivesService.updateObjective as any;
       default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
@@ -98,13 +114,13 @@ export function useSupabaseData<T extends Identifiable>(
   // Get the appropriate delete method based on entity type
   const getDeleteMethod = useCallback((): DeleteFunction => {
     switch (entityType) {
-      case 'tasks': return tasksService.deleteTask;
-      case 'projects': return projectsService.deleteProject;
-      case 'risks': return risksService.deleteRisk;
-      case 'assets': return assetsService.deleteAsset;
-      case 'kras': return krasService.deleteKRA;
-      case 'kpis': return kpisService.deleteKPI;
-      case 'objectives': return objectivesService.deleteObjective;
+      case 'tasks': return tasksService.deleteTask as any;
+      case 'projects': return projectsService.deleteProject as any;
+      case 'risks': return risksService.deleteRisk as any;
+      case 'assets': return assetsService.deleteAsset as any;
+      case 'kras': return krasService.deleteKRA as any;
+      case 'kpis': return kpisService.deleteKPI as any;
+      case 'objectives': return objectivesService.deleteObjective as any;
       default: throw new Error(`Unknown entity type: ${entityType}`);
     }
   }, [entityType]);
@@ -117,7 +133,6 @@ export function useSupabaseData<T extends Identifiable>(
     let fetchError: Error | null = null;
 
     // All entity types now require the user's email for function invocation
-    const account = accounts[0];
     if (!account || !isMsalAccountInfo(account) || !account.username) {
       logger.warn(`[useSupabaseData - fetchData ${entityType}] No MSAL account/username found.`);
       fetchError = new Error('User not authenticated or email missing.');
@@ -165,15 +180,120 @@ export function useSupabaseData<T extends Identifiable>(
       setError(fetchError);
       setLoading(false);
     }
-  }, [entityType, accounts]); // Removed getFetchMethod as it's no longer used here
+  }, [entityType, account?.username]); // Depend on username instead of whole accounts object
+
+  // Fetch data on initial load or when user changes
+  useEffect(() => {
+    if (account?.username) { // Only fetch if user is identified
+      fetchData();
+    } else {
+      // Clear data if user logs out or is not identified
+      setData([]);
+      setLoading(false);
+      setError(null); // Optionally clear error or set specific auth error
+    }
+  }, [fetchData, account?.username]);
+
+  // --- Add Realtime Subscription useEffect ---
+  useEffect(() => {
+    // Only subscribe if we have a valid entity type and user
+    // We base the subscription channel on the user's email to potentially scope it,
+    // although the filtering logic might still happen client-side after receiving events.
+    if (!entityType || !account?.username) {
+      logger.info(`[useSupabaseData Realtime ${entityType}] Subscription skipped (no entityType or user).`);
+      return;
+    }
+
+    const tableName = entityTableMap[entityType];
+    if (!tableName) {
+        logger.error(`[useSupabaseData Realtime ${entityType}] No table mapping found for entity type.`);
+        return;
+    }
+
+    const channelName = `public:${tableName}:${account.username}`; // User-specific channel
+    logger.info(`[useSupabaseData Realtime ${entityType}] Subscribing to channel: ${channelName}`);
+
+    const handlePostgresChanges = (payload: RealtimePostgresChangesPayload<T>) => {
+      logger.info(`[useSupabaseData Realtime ${entityType}] Change received on ${tableName}`, payload);
+
+      if (payload.eventType === 'INSERT') {
+        const newItem = payload.new as T;
+        // Optional: Check if the inserted item's assigned_to_email matches the current user
+        // if (newItem.assigned_to_email === account.username) {
+        setData(currentData => {
+          // Avoid duplicates if the item somehow already exists
+          if (currentData.some(item => item.id === newItem.id)) {
+            return currentData;
+          }
+          return [...currentData, newItem];
+        });
+        // } else { logger.info(`[Realtime INSERT ${entityType}] Ignoring item assigned to different user: ${newItem.assigned_to_email}`); }
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedItem = payload.new as T;
+        // Optional: Check if the updated item still belongs to the user
+        // if (updatedItem.assigned_to_email === account.username) {
+        setData(currentData =>
+          currentData.map(item =>
+            item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+          )
+        );
+        // } else { // Item might have been reassigned away from the user
+        //   setData(currentData => currentData.filter(item => item.id !== updatedItem.id));
+        // }
+      } else if (payload.eventType === 'DELETE') {
+        const oldItemId = (payload.old as T)?.id;
+        if (oldItemId) {
+          setData(currentData => currentData.filter(item => item.id !== oldItemId));
+        }
+      }
+    };
+
+    const channel: RealtimeChannel = supabase
+      .channel(channelName)
+      .on<T>( // Use generic type T here
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: tableName,
+          // Optional: Add server-side filter if possible/needed based on RLS or policies
+          // filter: `assigned_to_email=eq.${account.username}` // Might not work if RLS already handles this
+        },
+        handlePostgresChanges
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info(`[useSupabaseData Realtime ${entityType}] Successfully subscribed to ${tableName}`);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          logger.error(`[useSupabaseData Realtime ${entityType}] Subscription error on ${tableName}: ${status}`, err);
+          toast({
+            title: "Realtime Error",
+            description: `Connection to live updates for ${entityType} failed: ${err?.message || 'Unknown error'}. Data may not update automatically.`,
+            variant: "destructive",
+            duration: 10000
+          });
+          // Optionally trigger a manual refresh on error?
+          // fetchData();
+        } else {
+           logger.info(`[useSupabaseData Realtime ${entityType}] Subscription status on ${tableName}: ${status}`);
+        }
+      });
+
+    // Cleanup function
+    return () => {
+      logger.info(`[useSupabaseData Realtime ${entityType}] Unsubscribing from channel: ${channelName}`);
+      supabase.removeChannel(channel);
+    };
+
+    // Re-subscribe if entityType or user changes
+  }, [entityType, account?.username]); // Add toast? No, keep it clean. fetchData? No.
+
+  // --- End Realtime Subscription useEffect ---
 
   // Add a new item
   const add = useCallback(async (item: Omit<T, 'id'>) => {
-    const account = accounts[0]; // Get the current MSAL account
-    const userEmail = account?.username; // Get the email (username)
-
-    if (!userEmail) { // Check if email exists
-      logger.error('useSupabaseData - add: No MSAL user email found');
+    if (!account?.username) {
+      logger.error('useSupabaseData - add: No MSAL user logged in');
       toast({
         title: "Authentication Error",
         description: "Could not determine user email. Please log in again.",
@@ -189,7 +309,7 @@ export function useSupabaseData<T extends Identifiable>(
       // Prepare the data with the assigned email
       const itemWithEmail = { 
         ...item, 
-        assigned_to_email: userEmail 
+        assigned_to_email: account.username 
       };
       
       logger.info(`[useSupabaseData - add ${entityType}] Item with email:`, itemWithEmail);
@@ -221,11 +341,11 @@ export function useSupabaseData<T extends Identifiable>(
       
       return null;
     }
-  }, [entityType, getAddMethod, accounts]);
+  }, [entityType, getAddMethod, account?.username]); // Use account?.username
 
   // Update an item
   const update = useCallback(async (id: string, updateData: Partial<T>) => {
-    if (accounts.length === 0) {
+    if (!account?.username) {
       logger.error('useSupabaseData - update: No MSAL user logged in');
       toast({
         title: "Error",
@@ -258,13 +378,17 @@ export function useSupabaseData<T extends Identifiable>(
         description: `Failed to update ${entityType.slice(0, -1)}`,
         variant: "destructive"
       });
+      // Log specific DB errors
+      if (err && typeof err === 'object' && 'code' in err) {
+        console.log(`Database error [${(err as any).code}]: ${(err as any).message}`);
+      }
       return null;
     }
-  }, [entityType, getUpdateMethod, accounts]);
+  }, [entityType, getUpdateMethod, account?.username]); // Use account?.username
 
   // Delete an item
   const remove = useCallback(async (id: string) => {
-    if (accounts.length === 0) {
+    if (!account?.username) {
       logger.error('useSupabaseData - remove: No MSAL user logged in');
       toast({
         title: "Error",
@@ -294,46 +418,58 @@ export function useSupabaseData<T extends Identifiable>(
       });
       return false;
     }
-  }, [entityType, getDeleteMethod, accounts]);
+  }, [entityType, getDeleteMethod, account?.username]); // Use account?.username
 
-  // Function to manually trigger a refresh
-  const refresh = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+  // Expose refresh function (which is fetchData)
+  const refresh = fetchData;
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  return {
-    data,
-    loading,
-    error,
-    add,
-    update,
-    remove,
-    refresh
-  };
+  return { data, loading, error, add, update, remove, refresh };
 }
 
-// Convenience hooks for specific entity types
-export function useTasksData(initialData = []) {
-  return useSupabaseData('tasks', initialData);
+// Specific hooks (optional, could just use useSupabaseData directly)
+// Example: Using the generic hook for tasks
+// --- Define types for specific entities if not already defined elsewhere ---
+// Assuming types like Task, Project, Risk, UserAsset, KRA, KPI, Objective exist
+// Example (replace with actual imports or definitions):
+type Task = Identifiable & { name: string; /* ... other task fields */ };
+type Project = Identifiable & { title: string; /* ... other project fields */ };
+type Risk = Identifiable & { description: string; /* ... other risk fields */ };
+// Assuming UserAsset is already defined
+import { UserAsset } from '@/types'; // Corrected import path
+type KRA = Identifiable & { kra_title: string; /* ... */ };
+type KPI = Identifiable & { kpi_metric: string; /* ... */ };
+type Objective = Identifiable & { objective_name: string; /* ... */ };
+
+export function useTasksData(initialData: Task[] = []) {
+  return useSupabaseData<Task>('tasks', initialData); // Specify concrete type
 }
 
-export function useProjectsData(initialData = []) {
-  return useSupabaseData('projects', initialData);
+// Example: Using the generic hook for projects
+export function useProjectsData(initialData: Project[] = []) {
+  return useSupabaseData<Project>('projects', initialData); // Specify concrete type
 }
 
-export function useRisksData(initialData = []) {
-  return useSupabaseData('risks', initialData);
+// Example: Using the generic hook for risks
+export function useRisksData(initialData: Risk[] = []) {
+  return useSupabaseData<Risk>('risks', initialData); // Specify concrete type
 }
 
-export function useAssetsData(initialData = []) {
-  return useSupabaseData('assets', initialData);
+// Example: Using the generic hook for assets
+export function useAssetsData(initialData: UserAsset[] = []) { // Use concrete UserAsset type
+  return useSupabaseData<UserAsset>('assets', initialData); // Specify concrete type
 }
 
-export function useKRAsData(initialData = []) {
-  return useSupabaseData('kras', initialData);
+// Example: Using the generic hook for KRAs
+export function useKRAsData(initialData: KRA[] = []) {
+  return useSupabaseData<KRA>('kras', initialData); // Specify concrete type
+}
+
+// Example: Using the generic hook for KPIs
+export function useKPIsData(initialData: KPI[] = []) {
+    return useSupabaseData<KPI>('kpis', initialData); // Specify concrete type
+}
+
+// Example: Using the generic hook for Objectives
+export function useObjectivesData(initialData: Objective[] = []) {
+    return useSupabaseData<Objective>('objectives', initialData); // Specify concrete type
 } 

@@ -57,7 +57,8 @@ import {
   addDays, 
   subDays, 
   startOfWeek,
-  endOfWeek
+  endOfWeek,
+  eachDayOfInterval
 } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -343,6 +344,14 @@ const AppointmentView: React.FC = () => {
     return filtered;
   }, [appointments, activeAppointmentFilter, searchQuery, viewMode, currentDisplayDate]);
 
+  // --- Week View Specific Logic ---
+  const weekDays = useMemo(() => {
+    const weekStartsOn = 1; // Start week on Monday
+    const start = startOfWeek(currentDisplayDate, { weekStartsOn });
+    const end = endOfWeek(currentDisplayDate, { weekStartsOn });
+    return eachDayOfInterval({ start, end });
+  }, [currentDisplayDate]);
+
   // --- Month View Specific Logic ---
   const monthDays = useMemo(() => {
     const start = startOfMonth(currentDisplayDate);
@@ -400,7 +409,7 @@ const AppointmentView: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      {/* Tabs and View Options Section */}
+      {/* Restore original Tabs and View Options Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
            <div className="overflow-x-auto">
@@ -424,7 +433,7 @@ const AppointmentView: React.FC = () => {
                >
                  Completed
                </button>
-               <button 
+               <button // Restored original class attribute
                  className={cn("px-4 py-2 font-medium whitespace-nowrap", activeAppointmentFilter === 'canceled' ? 'text-primary border-b-2 border-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-b-2 border-transparent')}
                  onClick={() => setActiveAppointmentFilter('canceled')}
                >
@@ -439,7 +448,7 @@ const AppointmentView: React.FC = () => {
                <Input 
                  type="text" 
                  placeholder="Search appointments..." 
-                 className="pl-9 w-full md:w-64 h-9" 
+                 className="pl-9 w-full md:w-64 h-9" // Restored original width
                  value={searchQuery}
                  onChange={(e) => setSearchQuery(e.target.value)}
                />
@@ -447,11 +456,11 @@ const AppointmentView: React.FC = () => {
              {/* View Switcher Buttons */}
              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
                <Button 
-                  variant={viewMode === "day" ? "default" : "ghost"} 
+                  variant={viewMode === "day" ? "default" : "ghost"} // Restored original variant logic
                   size="sm" 
                   onClick={() => setViewMode('day')} 
                   className="rounded-none border-r border-gray-300 dark:border-gray-600">
-                 <CalendarDays className="h-4 w-4" />
+                 <CalendarDays className="h-4 w-4" /> {/* Restored original icon margin */}
                  <span className="ml-1 hidden sm:inline">Day</span>
                </Button>
                {/* Week Button Placeholder */}
@@ -460,22 +469,22 @@ const AppointmentView: React.FC = () => {
                   size="sm" 
                   onClick={() => setViewMode('week')} 
                   className="rounded-none border-r border-gray-300 dark:border-gray-600">
-                 <CalendarRange className="h-4 w-4" />
+                 <CalendarRange className="h-4 w-4" /> {/* Restored original icon margin & removed text */}
                </Button>
                <Button 
                   variant={viewMode === "month" ? "default" : "ghost"} 
                   size="sm" 
                   onClick={() => setViewMode('month')} 
                   className="rounded-none border-r border-gray-300 dark:border-gray-600">
-                 <Calendar className="h-4 w-4" />
+                 <Calendar className="h-4 w-4" /> {/* Restored original icon margin */}
                  <span className="ml-1 hidden sm:inline">Month</span>
                </Button>
                <Button 
                   variant={viewMode === "list" ? "default" : "ghost"} 
                   size="sm" 
                   onClick={() => setViewMode('list')} 
-                  className="rounded-none">
-                 <List className="h-4 w-4" />
+                  className="rounded-none"> {/* Restored original class */}
+                 <List className="h-4 w-4" /> {/* Restored original icon margin & removed text */}
                </Button>
              </div>
              {/* New Appointment Button */}
@@ -491,7 +500,7 @@ const AppointmentView: React.FC = () => {
                <span>New Appointment</span>
              </Button>
              {/* Today button - now primarily for quick jump to Today in Day view */}
-             {viewMode !== 'day' && (
+             {viewMode !== 'day' && ( // Restore original Today button position
                <Button 
                   variant="outline" 
                   size="sm"
@@ -506,20 +515,19 @@ const AppointmentView: React.FC = () => {
 
       {/* Calendar View Section - Container */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-200 dark:border-gray-700">
-        {/* Header for Calendar/Day View */}
+        {/* Header for Calendar/Day View - Restored */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Month Navigation */}
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDisplayDate(viewMode === 'month' ? subMonths(currentDisplayDate, 1) : subDays(currentDisplayDate, viewMode === 'week' ? 7 : 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-lg font-semibold">{format(currentDisplayDate, 'MMMM yyyy')}</h3>
+            <h3 className="text-lg font-semibold">{format(currentDisplayDate, 'MMMM yyyy')}</h3> {/* Restored original format */}
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDisplayDate(viewMode === 'month' ? addMonths(currentDisplayDate, 1) : addDays(currentDisplayDate, viewMode === 'week' ? 7 : 1))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-            {/* Removed Today toggle button from here - moved logic to main header */}
           </div>
-          {/* Action Buttons */} 
+          {/* Action Buttons - Restored original Print/Export */} 
           <div className="flex items-center space-x-2">
             {/* Hide Print/Export in Day view for now */}
             {viewMode !== 'day' && (
@@ -662,12 +670,163 @@ const AppointmentView: React.FC = () => {
           </div> 
         )}
 
+        {/* --- List View Implementation --- */}
         {viewMode === 'list' && (
-           <div className="flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 min-h-[500px] rounded-lg">
-              <h2 className="text-2xl font-semibold text-gray-600 dark:text-gray-400">List View Not Implemented Yet</h2>
-           </div>
+          <div className="space-y-4"> {/* Use space-y for vertical spacing */}
+            {filteredAppointments
+              .sort((a, b) => { // Sort appointments chronologically
+                const dateA = a.dateRange?.from ? new Date(a.dateRange.from).getTime() : 0;
+                const dateB = b.dateRange?.from ? new Date(b.dateRange.from).getTime() : 0;
+                if (dateA !== dateB) return dateA - dateB;
+                // If dates are the same, sort by start time
+                const timeA = a.startTime ? a.startTime.replace(':', '') : '0';
+                const timeB = b.startTime ? b.startTime.replace(':', '') : '0';
+                return parseInt(timeA) - parseInt(timeB);
+              })
+              .map(appt => (
+                 <div 
+                    key={appt.id} 
+                    className={cn(
+                      "appointment-list-item flex flex-col sm:flex-row justify-between items-start gap-4 p-4 border rounded-lg shadow-sm",
+                      appt.status === 'scheduled' && "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800/50",
+                      appt.status === 'completed' && "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800/50",
+                      appt.status === 'canceled' && "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50 opacity-80"
+                    )}
+                 >
+                    <div className="flex-grow space-y-1">
+                       <h4 className={cn(
+                          "font-semibold text-base sm:text-lg",
+                          appt.status === 'scheduled' && "text-blue-800 dark:text-blue-200",
+                          appt.status === 'completed' && "text-green-800 dark:text-green-200",
+                          appt.status === 'canceled' && "text-red-800 dark:text-red-200 line-through"
+                       )}>
+                         {appt.title}
+                       </h4>
+                       <div className="flex items-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 flex-wrap gap-x-3 gap-y-1">
+                         {appt.dateRange?.from && (
+                           <div className="flex items-center">
+                             <CalendarDays className="mr-1 h-3.5 w-3.5" /> 
+                             <span>{format(new Date(appt.dateRange.from), 'EEE, MMM d, yyyy')}</span>
+                           </div>
+                         )}
+                         {(appt.startTime || appt.endTime) && (
+                            <div className="flex items-center">
+                              <Clock className="mr-1 h-3.5 w-3.5" />
+                              <span>
+                                {appt.startTime ? format(new Date(`1970-01-01T${appt.startTime}`), 'h:mm a') : ''}
+                                {appt.startTime && appt.endTime ? ' - ' : ''}
+                                {appt.endTime ? format(new Date(`1970-01-01T${appt.endTime}`), 'h:mm a') : ''}
+                              </span>
+                            </div>
+                         )}
+                         {appt.host && (
+                           <div className="flex items-center">
+                             <User className="mr-1 h-3.5 w-3.5" />
+                             <span>{appt.host}</span>
+                           </div>
+                         )}
+                         {appt.location && (
+                           <div className="flex items-center">
+                             <MapPin className="mr-1 h-3.5 w-3.5" />
+                             <span>{appt.location}</span>
+                           </div>
+                         )}
+                       </div>
+                       {appt.description && (
+                         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 pt-1">{appt.description}</p>
+                       )}
+                       {/* Display attendees if needed */}
+                       {/* {appt.attendees && appt.attendees.length > 0 && (
+                         <div className="flex flex-wrap gap-1 pt-1">
+                           <span className="text-xs text-gray-500">Attendees:</span>
+                           {appt.attendees.map((attendee, i) => (
+                             <Badge key={i} variant="secondary" className="text-xs">{attendee}</Badge>
+                           ))}
+                         </div>
+                       )} */} 
+                    </div>
+                    {/* Action Buttons */} 
+                     <div className="flex space-x-1 flex-shrink-0 self-start sm:self-center">
+                        <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           className="h-7 w-7 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                           onClick={() => handleEditAppointment(appt)} 
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {/* Add more actions like delete or view details if needed */}
+                        {/* <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50">
+                          <Trash2 className="h-4 w-4" />
+                        </Button> */} 
+                      </div>
+                 </div>
+              ))
+            }
+             {/* Optional: Message if no appointments match filters */}
+             {filteredAppointments.length === 0 && (
+                <div className="text-center p-10 text-gray-500 dark:text-gray-400">
+                  No appointments found matching your criteria.
+                </div>
+             )}
+          </div>
         )}
-        {viewMode === 'week' && ( <div className="p-4 text-center text-muted-foreground">Week View Not Implemented Yet</div> )}
+        {/* --- Week View Implementation --- */}
+        {viewMode === 'week' && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            {/* Header for days of the week */}
+            <div className="grid grid-cols-7 bg-gray-50 dark:bg-gray-900 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+              {weekDays.map(day => (
+                <div key={day.toISOString()} className="py-2 border-b border-r border-gray-200 dark:border-gray-700">
+                  <div>{format(day, 'EEE')}</div> {/* Short day name: Mon */} 
+                  <div className={`text-lg font-semibold ${isSameDay(day, new Date()) ? 'text-primary' : 'text-gray-800 dark:text-gray-200'}`}>
+                    {format(day, 'd')} {/* Day number */} 
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Week grid content area */}
+            <div className="grid grid-cols-7 min-h-[500px]"> {/* Ensure minimum height */}
+              {weekDays.map((day, index) => {
+                const isToday = isSameDay(day, new Date());
+                // Filter appointments for THIS specific day within the week
+                const dayAppointments = filteredAppointments.filter(appt => 
+                  appt.dateRange?.from && isSameDay(new Date(appt.dateRange.from), day)
+                );
+
+                return (
+                  <div 
+                    key={day.toISOString()} 
+                    className={`week-day-column p-1 border-r border-gray-200 dark:border-gray-700 ${isToday ? 'bg-red-50 dark:bg-red-900/20' : 'bg-white dark:bg-gray-800'}`}
+                    style={{ minHeight: '100px' }} // Minimum height for each day cell
+                  >
+                    <div className="mt-1 space-y-1 overflow-auto h-full"> {/* Allow scrolling within day */}
+                      {dayAppointments.length > 0 ? (
+                        dayAppointments.map(appt => (
+                          <button 
+                            key={appt.id}
+                            onClick={() => handleEditAppointment(appt)} 
+                            className={cn(
+                              "w-full text-left text-[10px] sm:text-xs p-1 rounded truncate block mb-1",
+                              appt.status === 'scheduled' && "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200",
+                              appt.status === 'completed' && "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200",
+                              appt.status === 'canceled' && "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through opacity-70"
+                            )}
+                            title={`${appt.title} at ${appt.startTime}`}
+                          >
+                            {appt.startTime ? `${format(new Date(`1970-01-01T${appt.startTime}`), 'h:mma')} ` : ''}{appt.title}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-xs text-center text-gray-400 dark:text-gray-500 pt-4"></div> // Empty state for the day
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {/* --- End Conditional Views --- */}
       </div> 
 

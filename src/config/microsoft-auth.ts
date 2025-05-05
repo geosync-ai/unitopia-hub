@@ -18,7 +18,10 @@ const microsoftAuthConfig = {
   redirectUri: typeof window !== 'undefined' ? window.location.origin : 'https://localhost:3000',
   approvedRedirectUris: [
     "https://unitopia-hub.vercel.app/",
-    "https://unitopia-hub.vercel.app"
+    "https://unitopia-hub.vercel.app",
+    "http://localhost:8080/",
+    "https://unitopia-hub.vercel.app/login",
+    "https://lovable.dev/projects/3816f188-bb84-4c3d-963d-5a30c86f087c"
   ],
   authorityUrl: `https://login.microsoftonline.com/b173aac7-6781-4d49-a037-d874bd4a09ab`,
   test_success: true,

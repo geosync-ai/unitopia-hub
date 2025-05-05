@@ -9,7 +9,34 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-console.log("Initializing get-my-assets function");
+console.log("Initializing get-my-assets function v2"); // Increment version for logging
+
+// Helper function to sanitize string values for JSON
+function sanitizeString(str: string | null | undefined): string | null {
+  if (str === null || str === undefined) {
+    return null;
+  }
+  // Replace control characters (like newlines) with spaces, 
+  // escape backslashes, and escape double quotes.
+  // Adjust the replacement logic if needed based on specific data issues.
+  try {
+    // A more robust approach using JSON.stringify on the single string
+    // This handles quotes, backslashes, newlines, tabs, etc. correctly.
+    // We then remove the outer quotes added by stringify.
+    const jsonString = JSON.stringify(str);
+    return jsonString.substring(1, jsonString.length - 1);
+  } catch (e) {
+    console.warn(`[sanitizeString] Failed to sanitize string: ${str.substring(0, 100)}...`, e);
+    // Fallback: Replace common problematic characters if stringify fails
+    return str
+      .replace(/\/g, '\\') // Escape backslashes first
+      .replace(/"/g, '\"')   // Escape double quotes
+      .replace(/
+/g, '\n')   // Escape newlines
+      .replace(//g, '\r')   // Escape carriage returns
+      .replace(/	/g, '\t');  // Escape tabs
+  }
+}
 
 const ADMIN_EMAILS = [
   "admin@scpng.gov.pg",
@@ -66,35 +93,8 @@ serve(async (req) => {
       console.log(`[get-my-assets] Admin user (${user_email}) detected. Fetching all assets.`);
       // Admins see all assets
     } else {
-      console.log(`[get-my-assets] Non-admin user (${user_email}). Fetching unit...`);
-      // Fetch user's unit from staff_members
-      const { data: staffData, error: staffError } = await supabaseAdmin
-        .from("staff_members")
-        .select("unit")
-        .eq("email", user_email)
-        .single();
-
-      if (staffError) {
-        console.error(`[get-my-assets] Error fetching unit for ${user_email}:`, staffError);
-        return new Response(JSON.stringify([]), {
-           headers: { ...corsHeaders, "Content-Type": "application/json" },
-           status: 200,
-         });
-      }
-
-      const userUnit = staffData?.unit;
-
-      if (!userUnit) {
-         console.warn(`[get-my-assets] Unit not found for user ${user_email}. Returning empty assets.`);
-         return new Response(JSON.stringify([]), {
-           headers: { ...corsHeaders, "Content-Type": "application/json" },
-           status: 200,
-         });
-      }
-
-      console.log(`[get-my-assets] User ${user_email} belongs to unit: ${userUnit}. Filtering assets by unit.`);
-      // Filter by unit 
-      query = query.eq("unit", userUnit); 
+      console.log(`[get-my-assets] Non-admin user (${user_email}). Filtering assets by assigned_to_email.`);
+      query = query.eq("assigned_to_email", user_email);
     }
 
     // 4. Execute the query
@@ -108,11 +108,27 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[get-my-assets] Found ${data?.length ?? 0} assets for ${user_email} (Admin: ${isAdmin}).`);
+    console.log(`[get-my-assets] Found ${data?.length ?? 0} assets for ${user_email} (Admin: ${isAdmin}). Sanitizing...`);
 
-    // 5. Return the filtered data
+    // 5. Sanitize string fields before returning
+    const sanitizedData = data?.map(asset => {
+      const sanitizedAsset = { ...asset };
+      // Iterate over asset properties and sanitize strings
+      for (const key in sanitizedAsset) {
+        if (typeof sanitizedAsset[key] === 'string') {
+          sanitizedAsset[key] = sanitizeString(sanitizedAsset[key]);
+        }
+        // Optional: Deep sanitize if you have nested objects with strings
+        // else if (typeof sanitizedAsset[key] === 'object' && sanitizedAsset[key] !== null) {
+        //   // Implement deep sanitization if necessary
+        // }
+      }
+      return sanitizedAsset;
+    }) || [];
+
+    // 6. Return the sanitized data
     return new Response(
-      JSON.stringify(data || []), 
+      JSON.stringify(sanitizedData), // Use the sanitized data
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
 

@@ -10,6 +10,7 @@ interface AssetCardProps {
   asset: UserAsset;
   onEdit: (asset: UserAsset) => void;
   onDelete: (asset: UserAsset) => void;
+  onClick?: (asset: UserAsset) => void;
 }
 
 // Helper to format dates - reuse or import if defined elsewhere
@@ -40,12 +41,21 @@ const getConditionBadgeClass = (condition?: string): string => {
   }
 };
 
-const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
+const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete, onClick }) => {
   // Use snake_case properties as they come from the DB/type definition
   console.log(`[AssetCard] Rendering card for asset: ${asset.name}. Using image_url:`, asset.image_url);
 
+  // Handler to prevent click propagation from buttons
+  const handleActionClick = (e: React.MouseEvent, action: (asset: UserAsset) => void) => {
+      e.stopPropagation(); // Prevent card click when clicking action buttons
+      action(asset);
+  };
+
   return (
-    <Card className="flex flex-col h-full overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
+    <Card 
+      className="flex flex-col h-full overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg cursor-pointer"
+      onClick={() => onClick && onClick(asset)}
+    >
       <CardHeader className="p-0 relative h-48 flex-shrink-0">
         {/* Image or Fallback - Use image_url */}
         {asset.image_url ? (
@@ -63,10 +73,10 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
         )}
         {/* Actions */}
         <div className="absolute top-2 right-2 flex gap-1 bg-background/70 p-1 rounded-md">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(asset)} title="Edit">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleActionClick(e, onEdit)} title="Edit">
             <Edit className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(asset)} title="Delete">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => handleActionClick(e, onDelete)} title="Delete">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -108,7 +118,12 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
             </div>
         </div>
 
-        {/* Optional Notes/Description */}
+        {/* Optional Description */}
+        {asset.description && (
+            <p className="text-xs text-gray-500 mt-1 mb-2 truncate" title={asset.description}>Desc: {asset.description}</p>
+        )}
+
+        {/* Optional Notes */}
         {asset.notes && (
             <p className="text-xs text-gray-500 mt-auto pt-2 border-t border-dashed truncate" title={asset.notes}>Note: {asset.notes}</p>
         )}

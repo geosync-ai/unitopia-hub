@@ -1,19 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, X } from 'lucide-react';
 
 interface FileUploadProps {
   onFileUpload: (base64: string) => void;
   currentImage?: string;
-  label?: string;
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({
   onFileUpload,
   currentImage,
-  label = "Upload Image"
 }) => {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
+
+  useEffect(() => {
+    setPreview(currentImage || null);
+  }, [currentImage]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,11 +54,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-          {label}
-        </label>
-        {preview && (
+      {preview && (
+        <div className="flex justify-end">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -64,8 +64,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
           >
             <X className="h-4 w-4 mr-1" /> Remove
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       
       {preview ? (
         <div className="relative border rounded-md overflow-hidden">

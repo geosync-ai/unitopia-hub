@@ -659,9 +659,31 @@ const ListView: React.FC<{
                     </div>
                   </td>
                   <td className="p-3">
-                    <Badge variant="outline" className={cn("px-1.5 py-0.5 text-xs font-normal border", statusColor)}>
-                      {statusLabel}
-                    </Badge>
+                    {/* Wrap Badge in Dropdown for Status */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("px-1.5 py-0.5 text-xs font-normal border cursor-pointer hover:opacity-80", statusColor)}                          
+                        >
+                          {statusLabel}
+                        </Badge>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {/* Map through possible statuses */}
+                        {(Object.keys(statusLabels) as Array<keyof typeof statusLabels>).map(statusKey => (
+                          <DropdownMenuItem 
+                            key={statusKey} 
+                            onSelect={() => onStatusChange(ticket.id, statusKey)} 
+                            className="text-xs"
+                          >
+                            {statusLabels[statusKey]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                   <td className="p-3">
                     <Badge 
@@ -1657,6 +1679,16 @@ const TicketManager: React.FC = () => {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* Add New Ticket Button */}
+          <Button 
+            onClick={handleCreateTicket}
+            className="bg-primary text-white hover:bg-primary/90 h-8"
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New Ticket
+          </Button>
           
           {/* Reset Filter Button */}
           {activeFilters.length > 0 && (

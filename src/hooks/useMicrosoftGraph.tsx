@@ -996,6 +996,171 @@ export const useMicrosoftGraph = () => {
     }
   }, [msalInstance]);
 
+  // --- SharePoint Upload Function ---
+  const uploadFileToSharePointLibrary = useCallback(
+    async (file: File): Promise<string | null> => {
+      const siteHostname = "scpng1.sharepoint.com"; // Consider making these configurable
+      const sitePath = "/sites/scpngintranet";
+      const libraryName = "Asset Images"; // The target Document Library OR Folder name
+
+      console.log(
+        `uploadFileToSharePointLibrary: Attempting to upload '${file.name}' to site '${sitePath}', library '${libraryName}'...`
+      );
+      setIsLoading(true);
+      setLastError(null);
+
+      if (!checkMsalAuth()) {
+        setIsLoading(false);
+        // Error state set by checkMsalAuth or getAccessToken
+        return null;
+      }
+
+      let client: Client | null = null;
+      let siteId = '';
+      let driveId: string | null = null;
+      let finalFilePath = ''; // Path relative to the drive root used for getting webUrl
+      let uploadSuccessful = false;
+
+      try {
+        client = await getClient();
+        if (!client) throw new Error("Failed to initialize Graph client.");
+
+        // --- 1. Get Site ID ---
+        const siteInfoUrl = `/sites/${siteHostname}:${sitePath}`;
+        console.log(`uploadFileToSharePointLibrary: Getting site ID from ${siteInfoUrl}`);
+        const siteInfoResponse = await client.api(siteInfoUrl).select('id').get();
+        siteId = siteInfoResponse.id;
+        if (!siteId) throw new Error("Could not retrieve SharePoint Site ID.");
+        console.log(`uploadFileToSharePointLibrary: Found Site ID: ${siteId}`);
+
+        // --- 2. Try Primary Path: Get Library's Drive ID ---
+        const driveInfoUrl = `/sites/${siteId}/lists/${encodeURIComponent(libraryName)}/drive`;
+        try {
+          console.log(`uploadFileToSharePointLibrary: Attempting to get Drive ID for library '${libraryName}' from ${driveInfoUrl}`);
+          const driveInfoResponse = await client.api(driveInfoUrl).select('id').get();
+          driveId = driveInfoResponse.id;
+          if (!driveId) {
+             // This case should ideally not happen if the request succeeds but ID is missing
+             console.warn(`uploadFileToSharePointLibrary: Drive ID lookup for library '${libraryName}' succeeded but returned no ID. Proceeding with fallback.`);
+          } else {
+             console.log(`uploadFileToSharePointLibrary: Found Drive ID for library: ${driveId}`);
+          }
+        } catch (driveError: any) {
+           console.warn(`uploadFileToSharePointLibrary: Failed to get Drive ID for library '${libraryName}'. Error: ${driveError.message}. Proceeding with fallback upload to folder.`);
+           // driveId remains null
+        }
+
+        // --- 3. Determine Upload URL and Path for Web URL ---
+        const encodedFileName = encodeURIComponent(file.name);
+        let uploadUrl: string;
+
+        if (driveId) {
+          // Primary: Upload to the root of the specific library's drive
+          uploadUrl = `/sites/${siteId}/drives/${driveId}/root:/${encodedFileName}:/content`;
+          finalFilePath = encodedFileName; // Path relative to drive root
+          console.log(`uploadFileToSharePointLibrary: Using PRIMARY upload URL (Library Drive): ${uploadUrl}`);
+        } else {
+          // Fallback: Upload to a folder named {libraryName} in the site's default drive
+          uploadUrl = `/sites/${siteId}/drive/root:/${encodeURIComponent(libraryName)}/${encodedFileName}:/content`;
+          finalFilePath = `${encodeURIComponent(libraryName)}/${encodedFileName}`; // Path relative to default drive root
+          console.log(`uploadFileToSharePointLibrary: Using FALLBACK upload URL (Default Drive Folder): ${uploadUrl}`);
+        }
+
+        // --- 4. Perform Upload ---
+        console.log(`uploadFileToSharePointLibrary: Uploading ${file.name} via PUT to ${uploadUrl}`);
+        const response = await client!.api(uploadUrl)
+            .header('Content-Type', file.type)
+            // Add conflict behavior if needed: .header('@microsoft.graph.conflictBehavior', 'rename')
+            .put(file); // Directly pass the File object
+
+        // Check response? Graph client throws on non-2xx. If we reach here, it's likely a 200 or 201.
+        console.log(`uploadFileToSharePointLibrary: Upload API call successful for ${file.name}. Response status info (if available):`, response?.status); // Response might be minimal on success
+        uploadSuccessful = true;
+
+        // --- 5. Get Web URL ---
+        if (uploadSuccessful) {
+           console.log(`uploadFileToSharePointLibrary: Upload successful, retrieving Web URL for path: '${finalFilePath}' (relative to ${driveId ? `Drive ${driveId}` : 'Default Drive'})`);
+           const webUrl = await getFileWebUrl(client, siteId, driveId, finalFilePath); // Pass client, siteId, driveId
+
+           if (webUrl) {
+               console.log(`uploadFileToSharePointLibrary: Successfully retrieved Web URL: ${webUrl}`);
+               setIsLoading(false);
+               return webUrl;
+           } else {
+               // Error handled within getFileWebUrl, just return null
+               console.error(`uploadFileToSharePointLibrary: Upload completed but failed to retrieve the direct link.`);
+               setLastError("Upload completed but failed to retrieve the direct link."); // Set error state
+               setIsLoading(false);
+               return null;
+           }
+        } else {
+           // This part should technically not be reached if client.api().put() throws on failure
+           throw new Error("Upload seemed to succeed according to control flow, but 'uploadSuccessful' flag was not set.");
+        }
+
+      } catch (error: any) {
+        const errorMessage = error.message || 'Unknown error during SharePoint upload.';
+        console.error(
+          `uploadFileToSharePointLibrary: Error uploading file '${file.name}': ${errorMessage}`, error?.body || error // Log full error if possible
+        );
+        // Attempt to extract Graph specific error details
+        let graphErrorDetails = '';
+        if (error.statusCode && error.code && error.message) {
+            graphErrorDetails = ` (Code: ${error.code}, Status: ${error.statusCode})`;
+        } else if (error.body && typeof error.body === 'string') {
+            try {
+                const errorBody = JSON.parse(error.body);
+                if (errorBody?.error?.message) {
+                    graphErrorDetails = ` (${errorBody.error.message})`;
+                }
+            } catch { /* Ignore parsing errors */ }
+        }
+        setLastError(`Failed to upload file to SharePoint: ${errorMessage}${graphErrorDetails}`);
+        setIsLoading(false);
+        return null;
+      }
+    },
+    [checkMsalAuth, getClient, setIsLoading, setLastError] // Removed toast dependency unless added back
+  );
+
+  // --- Helper to get Web URL (modified to accept client and ids) ---
+  const getFileWebUrl = useCallback(
+    async (client: Client | null, siteId: string, driveId: string | null, filePath: string): Promise<string | null> => {
+      if (!client || !siteId || !filePath) {
+         console.error("getFileWebUrl: Missing required arguments (client, siteId, or filePath).");
+         // Avoid setting lastError here as the caller function should handle it
+         return null;
+      }
+
+      let metadataUrl: string;
+      if (driveId) {
+          // File is in a specific library drive
+          metadataUrl = `/sites/${siteId}/drives/${driveId}/root:/${filePath}`;
+      } else {
+          // File is in the default site drive (fallback path was used for upload)
+          metadataUrl = `/sites/${siteId}/drive/root:/${filePath}`;
+      }
+      console.log("getFileWebUrl: Fetching metadata from URL:", metadataUrl);
+
+      try {
+          const response = await client.api(metadataUrl).select('webUrl').get();
+          console.log("getFileWebUrl: Metadata Response:", response);
+          if (!response?.webUrl) {
+             console.warn("getFileWebUrl: Metadata retrieved but 'webUrl' property is missing.", response);
+             // Set error state in the calling function if needed
+             return null;
+          }
+          return response.webUrl;
+      } catch (error: any) {
+          const errorMessage = error.message || 'Unknown error retrieving file metadata.';
+          console.error(`getFileWebUrl: Failed to get file metadata from ${metadataUrl}: ${errorMessage}`, error?.body || error);
+          // Let the calling function (uploadFileToSharePointLibrary) handle setting lastError
+          return null;
+      }
+    },
+    [] // No dependencies needed inside this specific helper if client/ids are passed in
+  );
+
   // End of the useMicrosoftGraph hook
   return {
     isLoading,
@@ -1012,7 +1177,8 @@ export const useMicrosoftGraph = () => {
     directFileUpload,
     readCsvFile,
     updateCsvFile,
-    handleLogin
+    handleLogin,
+    uploadFileToSharePointLibrary,
   };
 };
 

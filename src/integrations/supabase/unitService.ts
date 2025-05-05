@@ -547,17 +547,17 @@ export const assetsService = {
     // Convert camelCase properties to snake_case for DB
     const snakeCaseAsset = camelToSnakeCase(asset);
     
-    // Ensure asset has created_at and updated_at
+    // Ensure asset has created_at and last_updated (matching schema)
     const assetWithTimestamps = {
       ...snakeCaseAsset,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      // created_at is handled by DB default
+      last_updated: new Date().toISOString() // Use last_updated
     };
     
     try {
       const { data, error } = await supabase
         .from(TABLES.ASSETS)
-        .insert([assetWithTimestamps])
+        .insert([assetWithTimestamps]) // Send object with last_updated
         .select();
       
       if (error) {
@@ -580,16 +580,16 @@ export const assetsService = {
     // Convert camelCase properties to snake_case for DB
     const snakeCaseAsset = camelToSnakeCase(asset);
     
-    // Add updated_at timestamp
+    // Add last_updated timestamp (matching schema)
     const assetWithTimestamp = {
       ...snakeCaseAsset,
-      updated_at: new Date().toISOString()
+      last_updated: new Date().toISOString() // Use last_updated
     };
     
     try {
       const { data, error } = await supabase
         .from(TABLES.ASSETS)
-        .update(assetWithTimestamp)
+        .update(assetWithTimestamp) // Send object with last_updated
         .eq('id', id)
         .select();
       

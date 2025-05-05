@@ -1,0 +1,255 @@
+/* --- Theme Variables (approximated from screenshot) --- */
+:root {
+    --primary-color: #800020; /* Dark Burgundy/Maroon */
+    /* Sidebar is now external, remove sidebar vars */
+    --header-bg: var(--primary-color);
+    --main-bg: #f8f9fa;       /* Very light grey */
+    --text-color: #212529;     /* Dark Grey/Black */
+    --light-grey: #e9ecef;     /* Borders, inactive tabs */
+    --button-danger-bg: #dc3545; /* Red for buttons like Add */
+    --button-text: #ffffff;
+    --link-color: #0d6efd;     /* Standard blue for links */
+    --tab-active-border: var(--primary-color);
+    --tab-inactive-text: #6c757d; /* Muted grey for inactive tabs */
+
+    --header-height: 60px; /* Height of the external header */
+}
+
+/* Apply basic font and color to the component's container */
+.asset-registry-content {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    color: var(--text-color);
+    flex-grow: 1; 
+    padding: 25px; 
+    overflow-y: auto; 
+    background-color: var(--main-bg);
+    /* Assuming height/layout is managed by the parent component embedding this */
+}
+
+/* --- Page Header (like "My Assets") --- */
+.page-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 20px; 
+    padding-bottom: 15px; 
+    border-bottom: 1px solid var(--light-grey); 
+}
+.page-header h1 { 
+    color: var(--text-color); 
+    font-weight: 500; 
+    font-size: 1.8rem; 
+}
+.page-header .header-actions .add-button { 
+    background-color: var(--button-danger-bg); 
+    color: var(--button-text); 
+    border: none; 
+    padding: 10px 18px; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    font-size: 0.95rem; 
+    display: inline-flex; /* Changed from flex to inline-flex */ 
+    align-items: center; 
+}
+/* Removed icon margin rule as it's handled inline in JSX */
+
+/* --- Tab Navigation Styling --- */
+.content-tabs { 
+    border-bottom: 1px solid var(--light-grey); 
+    margin-bottom: 25px; 
+}
+.content-tabs ul { 
+    list-style: none; 
+    display: flex; 
+    padding-left: 0; 
+    margin-bottom: 0; /* Remove default ul margin */
+}
+.content-tabs ul li { 
+    margin-right: 5px; 
+}
+.content-tabs ul li a { 
+    display: inline-flex; /* Use inline-flex for icon alignment */
+    align-items: center; /* Vertically align icon and text */
+    padding: 12px 20px; 
+    text-decoration: none; 
+    color: var(--tab-inactive-text); 
+    font-size: 0.95rem; 
+    font-weight: 500; 
+    border-bottom: 3px solid transparent; 
+    transition: color 0.2s ease, border-color 0.2s ease; 
+}
+/* Removed icon margin rule as it's handled inline in JSX */
+.content-tabs ul li a:hover { 
+    color: var(--text-color); 
+    border-bottom-color: var(--light-grey); 
+}
+.content-tabs ul li a.active { 
+    color: var(--primary-color); 
+    border-bottom-color: var(--tab-active-border); 
+    font-weight: 600; 
+}
+/* Removed active icon color rule as it inherits from the link */
+
+/* --- View Container Styling --- */
+.tab-view { 
+    display: none; 
+}
+.tab-view.active { 
+    display: block; 
+}
+
+/* --- Dashboard Specific Styles --- */
+.dashboard-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 20px; 
+}
+.dashboard-card { 
+    background-color: #ffffff; 
+    padding: 20px; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
+}
+.dashboard-card h3 { 
+    margin-bottom: 15px; 
+    font-weight: 500; 
+    color: var(--primary-color); 
+    display: flex; 
+    align-items: center;
+} 
+.dashboard-card h3 i { /* If using <i> tags for icons */ 
+    margin-right: 8px; 
+} 
+.alerts-list { 
+    list-style: none; 
+    padding-left: 0;
+}
+.alerts-list li { 
+    padding: 8px 0; 
+    border-bottom: 1px solid var(--light-grey); 
+    display: flex; 
+    align-items: center; 
+}
+.alerts-list li:last-child { 
+    border-bottom: none; 
+}
+.alerts-list i { /* If using <i> tags for icons */
+    margin-right: 10px; 
+    width: 1.2em; 
+    text-align: center; 
+}
+.alert-warning i { 
+    color: #ffc107; 
+}
+.alert-danger i { 
+    color: #dc3545; 
+}
+.chart-placeholder { 
+    background-color: #f0f0f0; 
+    border: 1px dashed #ccc; 
+    min-height: 250px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: #999; 
+    border-radius: 5px; 
+    margin-top: 10px; 
+}
+
+/* --- Generic Table Styles (from original, may be overridden by integrated components) --- */
+/* Keep these for other potential tables within the admin view, but note they might conflict */
+.data-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 20px; 
+    background-color: #ffffff; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+    border-radius: 5px; 
+    overflow: hidden; 
+}
+.data-table thead th { 
+    background-color: var(--light-grey); 
+    padding: 12px 15px; 
+    text-align: left; 
+    font-weight: 600; 
+    font-size: 0.85rem; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+}
+.data-table tbody td { 
+    padding: 12px 15px; 
+    border-bottom: 1px solid var(--light-grey); 
+    font-size: 0.9rem; 
+    vertical-align: middle; 
+}
+.data-table tbody tr:last-child td { 
+    border-bottom: none; 
+}
+.data-table tbody tr:hover { 
+    background-color: #f1f1f1; 
+}
+.data-table .actions a, .data-table .actions button { 
+    color: var(--link-color); 
+    text-decoration: none; 
+    margin-right: 10px; 
+    background: none; 
+    border: none; 
+    cursor: pointer; 
+    padding: 0; 
+    font-size: 1.1rem; 
+}
+.data-table .actions a:hover, .data-table .actions button:hover { 
+    color: var(--primary-color); 
+}
+.data-table .actions .delete-icon { 
+    color: var(--button-danger-bg); 
+}
+.data-table .actions .delete-icon:hover { 
+    color: darkred; 
+}
+.data-table img { 
+    width: 40px; 
+    height: 40px; 
+    object-fit: cover; 
+    border-radius: 4px; 
+    vertical-align: middle; 
+}
+
+/* Styles for the filters/actions above the Asset table in the HTML */
+/* These might conflict if AssetManagement has its own similar controls */
+#assets-view .asset-filters {
+    margin-bottom: 15px; 
+    display: flex; 
+    gap: 10px; 
+    flex-wrap: wrap; 
+    align-items: center;
+}
+#assets-view .asset-filters input[type="text"],
+#assets-view .asset-filters select {
+    padding: 8px; 
+    border-radius: 4px; 
+    border: 1px solid #ccc;
+}
+#assets-view .asset-filters button {
+    padding: 8px 12px; 
+    border-radius: 4px; 
+    border: 1px solid #ccc;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+}
+#assets-view .asset-filters button.quick-actions { 
+    background-color: #6c757d; 
+    color: white;
+    border-color: #6c757d;
+}
+#assets-view .asset-filters button.quick-actions:hover {
+    background-color: #5a6268;
+}
+
+/* Ensure the integrated AssetManagement page takes full width */
+#assets-view > div { /* Assuming AssetManagement renders a div as its root */
+    width: 100%;
+} 
