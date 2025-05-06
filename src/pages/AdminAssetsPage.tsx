@@ -17,7 +17,7 @@ import { AssetDashboard } from '@/components/assets/AssetDashboard';
 import { AssetReportsPage } from '@/components/assets/AssetReportsPage';
 import { InvoicesPage } from '@/components/assets/InvoicesPage';
 import { MaintenancePage } from '@/components/assets/MaintenancePage';
-import AssetManagement from './AssetManagement';
+import AssetManagementNew from './AssetManagementNew';
 import DecommissionedAssets from './DecommissionedAssets';
 
 // Define the tab structure
@@ -49,7 +49,7 @@ const AdminAssetsPage: React.FC = () => {
       case 'dashboard':
         return <AssetDashboard />;
       case 'assets':
-        return <AssetManagement />;
+        return <AssetManagementNew />;
       case 'invoices':
         return <InvoicesPage />;
       case 'maintenance':

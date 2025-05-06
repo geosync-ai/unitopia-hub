@@ -90,7 +90,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
       {renderSidebar && <MainSidebar handleSignOut={handleSignOut} />}
       
       <div className={cn(
-        "px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 animate-fade-in relative",
+        "px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 animate-fade-in relative flex flex-col min-h-screen",
         renderSidebar ? "ml-0 md:ml-20" : "ml-0"
       )}>
         {renderHeader && (
@@ -168,7 +168,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
         )}
         
         <main className={cn(
-          "pb-8"
+          "pb-8 flex-grow"
         )}>
           {children}
         </main>
