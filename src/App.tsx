@@ -28,6 +28,7 @@ import Reports from './pages/Reports';
 import Tickets from './pages/Tickets';
 import AdminAssetsPage from './pages/AdminAssetsPage';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
+import LicensingRegistry from './pages/LicensingRegistry';
 
 // MSAL Imports
 import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
@@ -100,6 +101,7 @@ const AppRoutes = () => {
       <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
+      <Route path="/licensing-registry" element={<ProtectedRoute><LicensingRegistry /></ProtectedRoute>} />
       
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
@@ -142,7 +144,7 @@ const AppContent = () => {
   );
 }
 
-// Top-level App component now uses the custom MsalAuthProvider
+// Top-level App component wrapper to handle MSAL initialization state
 const App = () => (
   <MsalAuthProvider>
      <AppContent />

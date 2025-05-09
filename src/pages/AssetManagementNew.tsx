@@ -483,14 +483,14 @@ const AssetManagement = () => {
                         paginatedAssets.map(asset => (
                           <tr key={asset.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                              {/* Image Cell */}
-                            <td className="px-4 py-2">
+                            <td className="px-4 py-2 cursor-pointer" onClick={() => handleInfoClick(asset)}>
                               <Avatar className="h-9 w-9">
                                 <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
                                 <AvatarFallback>{asset.name?.charAt(0).toUpperCase()}</AvatarFallback>
                               </Avatar>
                             </td>
                              {/* Name Cell (using td, adjust if th is preferred) */}
-                            <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                            <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap dark:text-white cursor-pointer" onClick={() => handleInfoClick(asset)}>
                               <HighlightMatch text={asset.name || 'N/A'} searchTerm={filterText} />
                             </td>
                              {/* Other data cells */}
@@ -659,9 +659,9 @@ const AssetManagement = () => {
                             <TableCell className="py-1 px-2">{asset.depreciated_value != null ? `$${asset.depreciated_value.toFixed(2)}` : 'N/A'}</TableCell>
                             <TableCell className="py-1 px-2">{asset.ytd_usage || 'N/A'}</TableCell>
                             <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.notes || undefined}>{asset.notes || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.last_updated, true)}</TableCell>
+                            <TableCell className="py-1 px-2">{formatDate(asset.last_updated)}</TableCell>
                             <TableCell className="py-1 px-2">{asset.last_updated_by || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.created_at, true)}</TableCell>
+                            <TableCell className="py-1 px-2">{formatDate(asset.created_at)}</TableCell>
                             <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.admin_comments || undefined}>{asset.admin_comments || 'N/A'}</TableCell>
                             <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.invoice_url || undefined}>{asset.invoice_url || 'N/A'}</TableCell>
                             <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.barcode_url || undefined}>{asset.barcode_url || 'N/A'}</TableCell>

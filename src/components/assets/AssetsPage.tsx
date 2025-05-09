@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -13,10 +12,47 @@ import {
 import { AssetsTable } from "@/components/assets/AssetsTable";
 import { fetcher } from "@/lib/api";
 import { Asset } from "@/types/asset";
+import { UserAsset } from "@/types";
 import { Plus, RotateCcw } from "lucide-react";
 import { useDivisionContext } from "@/hooks/useDivisionContext";
 import { AddAssetDialog } from "@/components/assets/AddAssetDialog";
 import { useToast } from "@/hooks/use-toast";
+import AssetInfoModal from "@/components/assets/AssetInfoModal";
+
+// Helper function to adapt Asset to UserAsset for the modal
+const adaptAssetToUserAsset = (asset: Asset): UserAsset => {
+  const nowISO = new Date().toISOString();
+  return {
+    id: String(asset.id), // Ensure string
+    name: String(asset.name || ''), // Ensure string, default to empty
+    type: String(asset.type || asset.category || ''),
+    description: asset.description || undefined,
+    assigned_date: String(asset.assigned_date || asset.assignedDate || nowISO),
+    assigned_to: asset.assigned_to || asset.assignedTo || undefined,
+    assigned_to_email: asset.email || undefined,
+    unit: asset.unit || asset.department || undefined,
+    division: asset.division || undefined,
+    purchase_date: asset.purchase_date || asset.purchased_date || undefined,
+    purchase_cost: typeof asset.value === 'number' ? asset.value : null,
+    depreciated_value: null, // UserAsset expects this, provide default
+    vendor: asset.vendor || undefined,
+    warranty_expiry_date: asset.warranty_expiry || undefined,
+    invoice_url: undefined, // UserAsset expects this
+    expiry_date: undefined, // UserAsset expects this (specific to asset lifetime, not warranty)
+    life_expectancy_years: undefined, // UserAsset expects this
+    condition: String(asset.condition || asset.status || ''),
+    ytd_usage: undefined, // UserAsset expects this
+    specifications: typeof asset.specifications === 'object' && asset.specifications !== null ? asset.specifications : {},
+    notes: asset.notes || undefined,
+    barcode_url: undefined, // UserAsset expects this
+    image_url: asset.image || undefined,
+    admin_comments: undefined, // UserAsset expects this
+    last_updated: asset.last_updated || asset.lastUpdated || undefined,
+    last_updated_by: undefined, // UserAsset expects this
+    created_at: asset.creation_date || undefined,
+    checklist: undefined, // UserAsset expects this, provide default
+  };
+};
 
 export function AssetsPage() {
   const { currentDivisionId } = useDivisionContext();
@@ -30,6 +66,10 @@ export function AssetsPage() {
   const [sortColumn, setSortColumn] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
+
+  // State for View Asset Modal
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedAssetForView, setSelectedAssetForView] = useState<Asset | null>(null);
 
   // Fetch assets
   const { data: assets = [], refetch, isLoading } = useQuery({
@@ -116,6 +156,18 @@ export function AssetsPage() {
       title: "Asset Added",
       description: "The asset has been added successfully.",
     });
+  };
+
+  // Handle opening the view modal
+  const handleViewAsset = (asset: Asset) => {
+    setSelectedAssetForView(asset);
+    setIsViewModalOpen(true);
+  };
+
+  // Handle closing the view modal
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setSelectedAssetForView(null);
   };
 
   return (
@@ -223,6 +275,7 @@ export function AssetsPage() {
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           divisionId={currentDivisionId}
+          onView={handleViewAsset}
         />
       </div>
       
@@ -237,6 +290,15 @@ export function AssetsPage() {
         onAssetAdded={handleAssetAdded}
         divisionId={currentDivisionId}
       />
+
+      {/* View Asset Modal */}
+      {selectedAssetForView && (
+        <AssetInfoModal
+          asset={selectedAssetForView}
+          isOpen={isViewModalOpen}
+          onClose={handleCloseViewModal}
+        />
+      )}
     </div>
   );
 }

@@ -72,14 +72,19 @@ const Index = () => {
   
   return (
     <PageLayout>
-      <WelcomeBanner />
-      
-      <WelcomeCard 
+      <WelcomeBanner 
         name={displayName}
         date={currentDate}
         greeting="Welcome to the SCPNG Intranet Portal"
         location="MRDC House"
       />
+      
+      {/* <WelcomeCard 
+        name={displayName}
+        date={currentDate}
+        greeting="Welcome to the SCPNG Intranet Portal"
+        location="MRDC House"
+      /> */}
       
       <PersonalKPICards />
       

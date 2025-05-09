@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TableRow, TableCell } from "@/components/ui/table";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
@@ -19,9 +18,19 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
   onEdit,
   onDelete
 }) => {
+  const handleViewClick = () => {
+    if (onView) {
+      onView(asset);
+    }
+  };
+
   return (
     <TableRow>
-      <TableCell className="p-2 text-center">
+      <TableCell 
+        className="p-2 text-center hover:bg-muted/50 transition-colors"
+        style={{ cursor: onView ? 'pointer' : 'default' }}
+        onClick={handleViewClick}
+      >
         <TooltipWrapper content={asset.name || "Asset image"}>
           {asset.image ? (
             <img 
@@ -36,7 +45,11 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
           )}
         </TooltipWrapper>
       </TableCell>
-      <TableCell className="whitespace-nowrap">
+      <TableCell 
+        className="whitespace-nowrap hover:bg-muted/50 transition-colors"
+        style={{ cursor: onView ? 'pointer' : 'default' }}
+        onClick={handleViewClick}
+      >
         <TooltipWrapper content={`Asset name: ${asset.name}`}>
           {asset.name}
         </TooltipWrapper>

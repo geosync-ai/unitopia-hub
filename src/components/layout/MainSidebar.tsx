@@ -53,6 +53,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: FileText, path: '/documents', label: 'Documents' },
     { icon: MessageSquare, path: '/ai-hub', label: 'AI Hub' },
     { icon: Ticket, path: '/tickets', label: 'Tickets' },
+    { icon: FileText, path: '/licensing-registry', label: 'Licensing' },
     // --- Temporarily comment out routes needing role/division checks --- 
     // TODO: Re-enable these based on fetched user role/division
     { icon: GalleryHorizontal, path: '/gallery', label: 'Gallery' },
