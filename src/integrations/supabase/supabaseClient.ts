@@ -95,6 +95,36 @@ export const notesService = {
   }
 };
 
+// Service for licenses
+export const licensesService = {
+  addLicense: async (licenseData: any, licenseTypeId: string) => {
+    const supabase = getSupabaseClient();
+    const dataToInsert = {
+      ...licenseData,
+      license_type_id: licenseTypeId,
+      // Ensure date fields are handled correctly, convert if necessary
+      // For example, if your Supabase column is DATE/TIMESTAMP and formData has strings:
+      // issued_date: licenseData.issuedDate ? new Date(licenseData.issuedDate).toISOString() : null,
+      // expiry_date: licenseData.expiryDate ? new Date(licenseData.expiryDate).toISOString() : null,
+    };
+
+    // Remove fields not intended for direct DB insertion if they exist in licenseData
+    // For example, if `selectedLicenseType` object is part of licenseData from the form state
+    // delete dataToInsert.selectedLicenseType; 
+
+    const { data, error } = await supabase
+      .from(supabaseConfig.tables.licenses)
+      .insert([dataToInsert])
+      .select(); // Add .select() to get the inserted data back
+
+    if (error) {
+      console.error('Error adding license:', error);
+      throw error;
+    }
+    return data;
+  },
+};
+
 // Initialize Supabase on import
 initSupabase();
 

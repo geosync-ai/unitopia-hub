@@ -25,7 +25,9 @@ const supabaseConfig = {
     scheduled_reports: "scheduled_reports",
     // AI Chat tables
     ai_chat_messages: "ai_chat_messages",
-    ai_chat_contexts: "ai_chat_contexts"
+    ai_chat_contexts: "ai_chat_contexts",
+    // Licensing table
+    licenses: "licenses"
   }
 };
 

@@ -332,13 +332,13 @@ const AssetManagement = () => {
                 aria-label="View mode"
                 className="border rounded-md p-0.5"
             >
-                <ToggleGroupItem value="table" aria-label="Table view" className="px-2 py-1 h-auto data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                <ToggleGroupItem value="table" aria-label="Table view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
                     <List className="h-4 w-4" />
                 </ToggleGroupItem>
-                <ToggleGroupItem value="card" aria-label="Card view" className="px-2 py-1 h-auto data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                <ToggleGroupItem value="card" aria-label="Card view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
                     <LayoutGrid className="h-4 w-4" />
                 </ToggleGroupItem>
-                 <ToggleGroupItem value="detailed-list" aria-label="Detailed list view" className="px-2 py-1 h-auto data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                 <ToggleGroupItem value="detailed-list" aria-label="Detailed list view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
                     <Rows className="h-4 w-4" />
                 </ToggleGroupItem>
             </ToggleGroup>

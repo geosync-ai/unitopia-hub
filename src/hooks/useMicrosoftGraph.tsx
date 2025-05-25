@@ -1161,6 +1161,83 @@ export const useMicrosoftGraph = () => {
     [] // No dependencies needed inside this specific helper if client/ids are passed in
   );
 
+  // --- Function to upload a binary file to a SharePoint Document Library ---
+  const uploadBinaryFileToSharePoint = useCallback(async (file: File, fileName: string, sitePath: string, libraryName: string, targetFolderPath?: string): Promise<string | null> => {
+    console.log(`[UPLOAD BINARY] Attempting to upload ${fileName} to SharePoint site ${sitePath}, library ${libraryName}, folder ${targetFolderPath || 'root'}`);
+    setIsLoading(true);
+    setLastError(null);
+
+    if (!checkMsalAuth()) {
+      console.error('[UPLOAD BINARY] Auth check failed.');
+      setIsLoading(false);
+      return null;
+    }
+
+    const client = await getClient();
+    if (!client) {
+      console.error('[UPLOAD BINARY] Failed to get Graph client.');
+      setIsLoading(false);
+      return null;
+    }
+
+    try {
+      // Construct the target path for the Graph API
+      // Example: /sites/scpng1.sharepoint.com:/sites/scpngintranet:/drives/b!{drive-id}/root:/{targetFolderPath}/{fileName}:/content
+      // We first need to get the Site ID, then the Drive ID for the library.
+
+      // 1. Get Site ID
+      const site = await client.api(`/sites/scpng1.sharepoint.com:${sitePath}`).get();
+      if (!site || !site.id) {
+        throw new Error(`Site not found at scpng1.sharepoint.com:${sitePath}`);
+      }
+      const siteId = site.id;
+      console.log(`[UPLOAD BINARY] Site ID for ${sitePath}: ${siteId}`);
+
+      // 2. Get Drive ID for the Document Library
+      const drives = await client.api(`/sites/${siteId}/drives`).get();
+      const libraryDrive = drives.value.find((d: any) => d.name === libraryName);
+      if (!libraryDrive || !libraryDrive.id) {
+        throw new Error(`Document library '${libraryName}' not found in site ${sitePath}`);
+      }
+      const driveId = libraryDrive.id;
+      console.log(`[UPLOAD BINARY] Drive ID for library '${libraryName}': ${driveId}`);
+
+      // 3. Construct the final upload path
+      let uploadPath = `/drives/${driveId}/root:`;
+      if (targetFolderPath) {
+        // Ensure targetFolderPath is correctly formatted (e.g., no leading/trailing slashes issues)
+        const cleanFolderPath = targetFolderPath.replace(/^\/+|\/+$/g, '');
+        if (cleanFolderPath) uploadPath += `/${encodeURIComponent(cleanFolderPath)}`;
+      }
+      uploadPath += `/${encodeURIComponent(fileName)}:/content`;
+
+      console.log(`[UPLOAD BINARY] Constructed upload path: ${uploadPath}`);
+
+      // 4. Upload the file
+      // The Graph API can sometimes be slow with large files or create an upload session.
+      // For simplicity, this uses a direct PUT if the file is not too large (Graph handles up to 4MB this way).
+      // For larger files, a multi-part upload session is needed.
+      // const fileBuffer = await file.arrayBuffer(); // No longer convert to ArrayBuffer here
+      const response = await client.api(uploadPath)
+        .header('Content-Type', file.type || 'application/octet-stream')
+        .put(file); // Pass the File object directly
+
+      if (response && response.webUrl) {
+        console.log(`[UPLOAD BINARY] File ${fileName} uploaded successfully. URL: ${response.webUrl}`);
+        setIsLoading(false);
+        return response.webUrl;
+      } else {
+        throw new Error('Upload completed but no webUrl returned.');
+      }
+
+    } catch (error: any) {
+      console.error('[UPLOAD BINARY] Error uploading file to SharePoint:', error);
+      setLastError(error.message || 'Failed to upload file to SharePoint.');
+      setIsLoading(false);
+      return null;
+    }
+  }, [getClient, checkMsalAuth]);
+
   // End of the useMicrosoftGraph hook
   return {
     isLoading,
@@ -1179,6 +1256,7 @@ export const useMicrosoftGraph = () => {
     updateCsvFile,
     handleLogin,
     uploadFileToSharePointLibrary,
+    uploadBinaryFileToSharePoint,
   };
 };
 

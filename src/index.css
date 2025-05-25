@@ -273,3 +273,8 @@
 .asset-info-dialog-content button[aria-label="Close"] {
   display: none;
 }
+
+::selection {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}

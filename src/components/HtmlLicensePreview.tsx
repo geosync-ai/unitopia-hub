@@ -1,6 +1,8 @@
 import React, { useRef, MouseEvent as ReactMouseEvent, FocusEvent, useEffect, useState } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import styles from './HtmlLicensePreview.module.css';
+// Import ElementStyleProperties and AllElementStyles from the shared types file
+import { ElementStyleProperties, AllElementStyles } from '../modules/licensing/types'; 
 
 // Match the FormData interface from LicensingRegistry.tsx
 interface FormData {
@@ -12,40 +14,12 @@ interface FormData {
   legalReference: string;
   signatoryName: string;
   signatoryTitle: string;
-}
-
-// Defined in LicensingRegistry.tsx, duplicating for clarity here or could be imported
-interface ElementPosition {
-  x: number;
-  y: number;
-}
-
-interface AllElementPositions {
-  [key: string]: ElementPosition;
-}
-
-// Updated Interface
-interface ElementStyleProperties {
-  x: number;
-  y: number;
-  fontSize?: number;
-  width?: number;
-  height?: number;
-  fontWeight?: string | number; 
-  letterSpacing?: number;    
-  color?: string;            
-  fontFamily?: string;
-  backgroundColor?: string;
-  borderRadius?: number;
-  borderTopLeftRadius?: number;
-  borderTopRightRadius?: number;
-  borderBottomLeftRadius?: number;
-  borderBottomRightRadius?: number;
-  zIndex?: number;
-}
-
-interface AllElementStyles {
-  [key: string]: ElementStyleProperties;
+  subtitle?: string;
+  licenseNumberDottedLineContent?: string;
+  licenseNumberDottedLine2Content?: string;
+  leftSections?: string;
+  leftAuthorizedActivity?: string;
+  rightSideActivityDisplay?: string;
 }
 
 interface HtmlLicensePreviewProps {
@@ -126,6 +100,8 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
   const expiryLabelTextRef = useRef<HTMLParagraphElement>(null);
   const expiryDateTextRef = useRef<HTMLSpanElement>(null);
   const licenseNumberHeaderTextRef = useRef<HTMLSpanElement>(null);
+  const licenseNumberDottedLineTextRef = useRef<HTMLParagraphElement>(null);
+  const licenseNumberDottedLine2TextRef = useRef<HTMLParagraphElement>(null);
   const capitalMarketActTextRef = useRef<HTMLHeadingElement>(null);
   const actDetailsTextRef = useRef<HTMLParagraphElement>(null);
   const sidebarPara1StaticTextRef = useRef<HTMLSpanElement>(null);
@@ -138,6 +114,7 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
   const mainLicenseTitleTextRef = useRef<HTMLHeadingElement>(null);
   const grantedToLabelTextRef = useRef<HTMLParagraphElement>(null);
   const granteeNameTextRef = useRef<HTMLHeadingElement>(null);
+  const subtitleTextRef = useRef<HTMLHeadingElement>(null);
   const regulatedActivityMainTextRef = useRef<HTMLParagraphElement>(null);
   const legalReferenceMainTextRef = useRef<HTMLParagraphElement>(null);
   const signatureNameTextRef = useRef<HTMLParagraphElement>(null);
@@ -328,7 +305,9 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
         height: baseStyle.height !== undefined ? `${baseStyle.height}px` : undefined,
         fontSize: baseStyle.fontSize !== undefined ? `${baseStyle.fontSize}px` : undefined,
         letterSpacing: baseStyle.letterSpacing !== undefined ? `${baseStyle.letterSpacing}px` : undefined,
+        fontStyle: baseStyle.fontStyle,
         borderRadius: baseStyle.borderRadius !== undefined ? `${baseStyle.borderRadius}px` : undefined,
+        textShadow: baseStyle.textShadow,
         borderTopLeftRadius: baseStyle.borderTopLeftRadius !== undefined ? `${baseStyle.borderTopLeftRadius}px` : undefined,
         borderTopRightRadius: baseStyle.borderTopRightRadius !== undefined ? `${baseStyle.borderTopRightRadius}px` : undefined,
         borderBottomLeftRadius: baseStyle.borderBottomLeftRadius !== undefined ? `${baseStyle.borderBottomLeftRadius}px` : undefined,
@@ -345,6 +324,7 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
 
   // Helper to render resize handles
   const renderResizeHandles = (elementKey: string) => {
+    return null;
     const elementStyle = getStyle(elementKey);
     if (elementStyle.width === undefined || elementStyle.height === undefined) {
       return null; // Only show handles for elements with explicit width/height
@@ -452,16 +432,80 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
       <Draggable nodeRef={expiryDateTextRef} position={getStyle('expiryDateText')} onStart={() => onElementDragStart('expiryDateText')} onStop={(e, data) => onElementDragStop('expiryDateText', data)}>
         <span ref={expiryDateTextRef} title="expiryDateText" onClick={(e) => handleElementClick(e, 'expiryDateText')} onBlur={(e) => handleFormDataTextBlur(e, 'expiryDate')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('expiryDateText') ? styles.selectedElementOutline : ''} style={{...getStyle('expiryDateText') as any, position:'absolute'}}>{formData.expiryDate}</span>
       </Draggable>
-      <Draggable nodeRef={licenseNumberHeaderTextRef} position={{x: getStyle('licenseNumberHeaderText').x, y: getStyle('licenseNumberHeaderText').y}} onStart={() => onElementDragStart('licenseNumberHeaderText')} onStop={(e, data) => onElementDragStop('licenseNumberHeaderText', data)}>
-        <span ref={licenseNumberHeaderTextRef} title="licenseNumberHeaderText" onClick={(e) => handleElementClick(e, 'licenseNumberHeaderText')} onBlur={(e) => handleFormDataTextBlur(e, 'licenseNumber')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('licenseNumberHeaderText') ? styles.selectedElementOutline : ''} style={combineStyles('licenseNumberHeaderText')}>{formData.licenseNumber}</span>
+      <Draggable nodeRef={licenseNumberHeaderTextRef} bounds="parent" position={{ x: getStyle('licenseNumberHeaderText').x, y: getStyle('licenseNumberHeaderText').y }} onStart={() => onElementDragStart('licenseNumberHeaderText')} onStop={(_, data) => onElementDragStop('licenseNumberHeaderText', data)} >
+        <span
+          ref={licenseNumberHeaderTextRef}
+          contentEditable
+          suppressContentEditableWarning
+          className={`${styles.draggableElement} ${selectedElementKeys.includes('licenseNumberHeaderText') ? styles.selected : ''}`}
+          style={combineStyles('licenseNumberHeaderText')}
+          onBlur={(e) => handleFormDataTextBlur(e, 'licenseNumber')}
+          onClick={(e) => handleElementClick(e, 'licenseNumberHeaderText')}
+          onContextMenu={(e) => handleElementContextMenu(e, 'licenseNumberHeaderText')}
+          data-testid="licenseNumberHeaderText"
+        >
+          {formData.licenseNumber}
+          {renderResizeHandles('licenseNumberHeaderText')}
+        </span>
       </Draggable>
+
+      {/* License Number Dotted Line 1 - New */}
+      {formData.licenseNumberDottedLineContent && getStyle('licenseNumberDottedLine') && (
+        <Draggable nodeRef={licenseNumberDottedLineTextRef} bounds="parent" position={{ x: getStyle('licenseNumberDottedLine').x, y: getStyle('licenseNumberDottedLine').y }} onStart={() => onElementDragStart('licenseNumberDottedLine')} onStop={(_, data) => onElementDragStop('licenseNumberDottedLine', data)} >
+          <p
+            ref={licenseNumberDottedLineTextRef}
+            contentEditable
+            suppressContentEditableWarning
+            className={`${styles.draggableElement} ${selectedElementKeys.includes('licenseNumberDottedLine') ? styles.selected : ''}`}
+            style={combineStyles('licenseNumberDottedLine')}
+            onBlur={(e) => onTextChange('licenseNumberDottedLineContent' as any, e.currentTarget.textContent || '')}
+            onClick={(e) => handleElementClick(e, 'licenseNumberDottedLine')}
+            onContextMenu={(e) => handleElementContextMenu(e, 'licenseNumberDottedLine')}
+            data-testid="licenseNumberDottedLine"
+          >
+            {formData.licenseNumberDottedLineContent}
+            {renderResizeHandles('licenseNumberDottedLine')}
+          </p>
+        </Draggable>
+      )}
+
+      {/* License Number Dotted Line 2 - New */}
+      {formData.licenseNumberDottedLine2Content && getStyle('licenseNumberDottedLine2') && (
+         <Draggable nodeRef={licenseNumberDottedLine2TextRef} bounds="parent" position={{ x: getStyle('licenseNumberDottedLine2').x, y: getStyle('licenseNumberDottedLine2').y }} onStart={() => onElementDragStart('licenseNumberDottedLine2')} onStop={(_, data) => onElementDragStop('licenseNumberDottedLine2', data)} >
+          <p
+            ref={licenseNumberDottedLine2TextRef}
+            contentEditable
+            suppressContentEditableWarning
+            className={`${styles.draggableElement} ${selectedElementKeys.includes('licenseNumberDottedLine2') ? styles.selected : ''}`}
+            style={combineStyles('licenseNumberDottedLine2')}
+            onBlur={(e) => onTextChange('licenseNumberDottedLine2Content' as any, e.currentTarget.textContent || '')}
+            onClick={(e) => handleElementClick(e, 'licenseNumberDottedLine2')}
+            onContextMenu={(e) => handleElementContextMenu(e, 'licenseNumberDottedLine2')}
+            data-testid="licenseNumberDottedLine2"
+          >
+            {formData.licenseNumberDottedLine2Content}
+            {renderResizeHandles('licenseNumberDottedLine2')}
+          </p>
+        </Draggable>
+      )}
 
       {/* Sidebar Elements */}
       <Draggable nodeRef={capitalMarketActTextRef} position={getStyle('capitalMarketActText')} onStart={() => onElementDragStart('capitalMarketActText')} onStop={(e, data) => onElementDragStop('capitalMarketActText', data)}>
         <h3 ref={capitalMarketActTextRef} title="capitalMarketActText" onClick={(e) => handleElementClick(e, 'capitalMarketActText')} onBlur={(e) => handleStaticTextBlur(e, 'capitalMarketActText')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('capitalMarketActText') ? styles.selectedElementOutline : ''} style={{...getStyle('capitalMarketActText') as any, position:'absolute'}}>CAPITAL MARKET ACT 2015</h3>
       </Draggable>
       <Draggable nodeRef={actDetailsTextRef} position={getStyle('actDetailsText')} onStart={() => onElementDragStart('actDetailsText')} onStop={(e, data) => onElementDragStop('actDetailsText', data)}>
-        <p ref={actDetailsTextRef} title="actDetailsText" onClick={(e) => handleElementClick(e, 'actDetailsText')} onBlur={(e) => handleStaticTextBlur(e, 'actDetailsText')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('actDetailsText') ? styles.selectedElementOutline : ''} style={{...getStyle('actDetailsText') as any, position:'absolute'}}>Sections 34(1), 37, 44, &amp; Schedule 2(4)</p>
+        <p 
+          ref={actDetailsTextRef} 
+          title="actDetailsText" 
+          onClick={(e) => handleElementClick(e, 'actDetailsText')} 
+          onBlur={(e) => handleFormDataTextBlur(e, 'leftSections' as keyof FormData)} 
+          contentEditable 
+          suppressContentEditableWarning 
+          className={selectedElementKeys.includes('actDetailsText') ? styles.selectedElementOutline : ''} 
+          style={{...getStyle('actDetailsText') as any, position:'absolute'}}
+        >
+          {formData.leftSections}
+        </p>
       </Draggable>
       <Draggable nodeRef={sidebarPara1StaticTextRef} position={getStyle('sidebarPara1StaticText')} onStart={() => onElementDragStart('sidebarPara1StaticText')} onStop={(e, data) => onElementDragStop('sidebarPara1StaticText', data)}>
         <span ref={sidebarPara1StaticTextRef} title="sidebarPara1StaticText" onClick={(e) => handleElementClick(e, 'sidebarPara1StaticText')} onBlur={(e) => handleStaticTextBlur(e, 'sidebarPara1StaticText')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('sidebarPara1StaticText') ? styles.selectedElementOutline : ''} style={{...getStyle('sidebarPara1StaticText') as any, position:'absolute'}}>This Capital Market authorises the licensee to conduct the below stipulated regulated activity: </span>
@@ -473,9 +517,18 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
         <p ref={sidebarPara2TextRef} title="sidebarPara2Text" onClick={(e) => handleElementClick(e, 'sidebarPara2Text')} onBlur={(e) => handleStaticTextBlur(e, 'sidebarPara2Text')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('sidebarPara2Text') ? styles.selectedElementOutline : ''} style={{...getStyle('sidebarPara2Text') as any, position:'absolute', width: getStyle('sidebarPara2Text').width ? `${getStyle('sidebarPara2Text').width}px` : 'auto'}}>The license remains valid, subject to compliance with requirements for approval, grant and renewal stipulated in the Capital Market Act 2015. Issued by authority of the Securities Commission of Papua New Guinea.</p>
       </Draggable>
 
-      {/* QR Code */}
+      {/* QR Code Element */}
       <Draggable nodeRef={qrCodeRef} position={getStyle('qrCode')} onStart={() => onElementDragStart('qrCode')} onStop={(e, data) => onElementDragStop('qrCode', data)}>
-        <img ref={qrCodeRef} src="/images/qr_code_placeholder.png" alt="QR Code" title="qrCode" onClick={(e) => handleElementClick(e, 'qrCode')} className={selectedElementKeys.includes('qrCode') ? styles.selectedElementOutline : ''} style={{...getStyle('qrCode') as any, position:'absolute', border: '1px dashed #ccc' }}/>
+        <img 
+          ref={qrCodeRef} 
+          src="/images/scpng_qr_code.png" 
+          alt="QR Code" 
+          title="qrCode" 
+          onClick={(e) => handleElementClick(e, 'qrCode')} 
+          onContextMenu={(e) => handleElementContextMenu(e, 'qrCode')} 
+          className={selectedElementKeys.includes('qrCode') ? styles.selectedElementOutline : ''} 
+          style={combineStyles('qrCode')}
+        />
       </Draggable>
 
       {/* Vertical Gold Line */}
@@ -494,10 +547,51 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
         <p ref={grantedToLabelTextRef} title="grantedToLabelText" onClick={(e) => handleElementClick(e, 'grantedToLabelText')} onBlur={(e) => handleStaticTextBlur(e, 'grantedToLabelText')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('grantedToLabelText') ? styles.selectedElementOutline : ''} style={{...getStyle('grantedToLabelText') as any, position:'absolute'}}>Granted to</p>
       </Draggable>
       <Draggable nodeRef={granteeNameTextRef} position={getStyle('granteeNameText')} onStart={() => onElementDragStart('granteeNameText')} onStop={(e, data) => onElementDragStop('granteeNameText', data)}>
-        <h1 ref={granteeNameTextRef} title="granteeNameText" onClick={(e) => handleElementClick(e, 'granteeNameText')} onBlur={(e) => handleFormDataTextBlur(e, 'licenseeName')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('granteeNameText') ? styles.selectedElementOutline : ''} style={{...getStyle('granteeNameText') as any, position:'absolute'}}>{formData.licenseeName}</h1>
+        <h1
+          ref={granteeNameTextRef}
+          contentEditable
+          suppressContentEditableWarning
+          onBlur={(e) => handleFormDataTextBlur(e, 'licenseeName')}
+          className={`${styles.draggableElement} ${selectedElementKeys.includes('granteeNameText') ? styles.selected : ''} ${getStyle('granteeNameText').fontFamily ? styles[getStyle('granteeNameText').fontFamily as keyof typeof styles] : ''}`}
+          style={combineStyles('granteeNameText', { textAlign: 'center' })}
+          onClick={(e) => handleElementClick(e, 'granteeNameText')}
+          onContextMenu={(e) => handleElementContextMenu(e, 'granteeNameText')}
+        >
+          {formData.licenseeName}
+        </h1>
+      </Draggable>
+      <Draggable
+        nodeRef={subtitleTextRef}
+        position={{ x: getStyle('subtitleText').x, y: getStyle('subtitleText').y }}
+        onStart={() => onElementDragStart('subtitleText')}
+        onStop={(_, data) => onElementDragStop('subtitleText', data)}
+      >
+        <h2
+          ref={subtitleTextRef}
+          contentEditable
+          suppressContentEditableWarning
+          onBlur={(e) => handleFormDataTextBlur(e, 'subtitle' as keyof FormData) }
+          className={`${styles.draggableElement} ${selectedElementKeys.includes('subtitleText') ? styles.selected : ''} ${getStyle('subtitleText').fontFamily ? styles[getStyle('subtitleText').fontFamily as keyof typeof styles] : ''}`}
+          style={combineStyles('subtitleText')}
+          onClick={(e) => handleElementClick(e, 'subtitleText')}
+          onContextMenu={(e) => handleElementContextMenu(e, 'subtitleText')}
+        >
+          {formData.subtitle}
+        </h2>
       </Draggable>
       <Draggable nodeRef={regulatedActivityMainTextRef} position={getStyle('regulatedActivityMainText')} onStart={() => onElementDragStart('regulatedActivityMainText')} onStop={(e, data) => onElementDragStop('regulatedActivityMainText', data)}>
-        <p ref={regulatedActivityMainTextRef} title="regulatedActivityMainText" onClick={(e) => handleElementClick(e, 'regulatedActivityMainText')} onBlur={(e) => handleFormDataTextBlur(e, 'regulatedActivity')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('regulatedActivityMainText') ? styles.selectedElementOutline : ''} style={{...getStyle('regulatedActivityMainText') as any, position:'absolute', textAlign: 'center'}}>{formData.regulatedActivity.toUpperCase()}</p>
+        <p 
+          ref={regulatedActivityMainTextRef} 
+          title="regulatedActivityMainText" 
+          onClick={(e) => handleElementClick(e, 'regulatedActivityMainText')} 
+          onBlur={(e) => handleFormDataTextBlur(e, 'rightSideActivityDisplay' as keyof FormData)}
+          contentEditable 
+          suppressContentEditableWarning 
+          className={selectedElementKeys.includes('regulatedActivityMainText') ? styles.selectedElementOutline : ''} 
+          style={{...getStyle('regulatedActivityMainText') as any, position:'absolute', textAlign: 'center'}}
+        >
+          {formData.rightSideActivityDisplay}
+        </p>
       </Draggable>
       <Draggable nodeRef={legalReferenceMainTextRef} position={getStyle('legalReferenceMainText')} onStart={() => onElementDragStart('legalReferenceMainText')} onStop={(e, data) => onElementDragStop('legalReferenceMainText', data)}>
         <p ref={legalReferenceMainTextRef} title="legalReferenceMainText" onClick={(e) => handleElementClick(e, 'legalReferenceMainText')} onBlur={(e) => handleFormDataTextBlur(e, 'legalReference')} contentEditable suppressContentEditableWarning className={selectedElementKeys.includes('legalReferenceMainText') ? styles.selectedElementOutline : ''} style={{...getStyle('legalReferenceMainText') as any, position:'absolute', textAlign: 'center'}}>{formData.legalReference}</p>
