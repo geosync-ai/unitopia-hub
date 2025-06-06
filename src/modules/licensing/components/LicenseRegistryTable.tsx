@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -35,6 +35,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"; // Added for dropdown
+import { licensesService } from '@/integrations/supabase/supabaseClient'; // Changed path to use @ alias
+import { differenceInDays, isBefore, parse } from 'date-fns'; // Added for date calculations
 
 const DOTS = '...'; // Ellipsis marker
 
@@ -75,195 +77,123 @@ const getPaginationItems = (currentPage: number, totalPages: number, siblingCoun
   return Array.from({ length: totalPages }, (_, i) => i + 1);
 };
 
-// Mock data structure - adjust as per actual license data
+// Updated LicenseRecord interface to match Supabase schema (snake_case)
 interface LicenseRecord {
   id: string;
-  licenseNumber: string;
-  licenseeName: string;
-  licenseType: string;
-  issuedDate: string;
-  expiryDate: string;
-  status: 'Active' | 'Expiring Soon' | 'Expired';
-  dateGenerated: string; // Assuming a string like 'YYYY-MM-DD HH:mm'
+  created_at: string; // ISO timestamp string
+  issued_date: string; // Format: DD/MM/YYYY
+  expiry_date: string; // Format: DD/MM/YYYY
+  license_number: string;
+  licensee_name: string;
+  regulated_activity: string; // Used as 'licenseType'
+  legal_reference?: string;
+  signatory_name?: string;
+  signatory_title?: string;
+  left_sections?: string;
+  left_authorized_activity?: string;
+  right_side_activity_display?: string;
+  license_image_url?: string;
+  license_type_id: string;
 }
 
-// Mock data - replace with actual data fetching later
-const MOCK_LICENSES: LicenseRecord[] = [
-  {
-    id: '1',
-    licenseNumber: 'CML123456',
-    licenseeName: 'ABC Corporation Ltd.',
-    licenseType: 'Investment Advisor',
-    issuedDate: '2023-01-15',
-    expiryDate: '2024-01-14',
-    status: 'Active',
-    dateGenerated: '2023-01-10 10:30',
-  },
-  {
-    id: '2',
-    licenseNumber: 'CML654321',
-    licenseeName: 'XYZ Ventures Inc.',
-    licenseType: 'Broker-Dealer',
-    issuedDate: '2022-07-01',
-    expiryDate: '2023-06-30',
-    status: 'Expired',
-    dateGenerated: '2022-06-25 14:15',
-  },
-  {
-    id: '3',
-    licenseNumber: 'CML789012',
-    licenseeName: 'Pacific Funds Management',
-    licenseType: 'Fund Manager',
-    issuedDate: '2023-03-01',
-    expiryDate: '2023-12-31', // Example: Expiring soon if current date is late 2023
-    status: 'Expiring Soon',
-    dateGenerated: '2023-02-20 09:00',
-  },
-  // Add more mock data as needed (e.g., 10-15 records for pagination)
-  {
-    id: '4',
-    licenseNumber: 'CML234567',
-    licenseeName: 'Global Trust Co.',
-    licenseType: 'Trustee Services',
-    issuedDate: '2023-05-20',
-    expiryDate: '2024-05-19',
-    status: 'Active',
-    dateGenerated: '2023-05-15 11:00',
-  },
-  {
-    id: '5',
-    licenseNumber: 'CML890123',
-    licenseeName: 'Alpha Investments',
-    licenseType: 'Investment Advisor',
-    issuedDate: '2022-11-01',
-    expiryDate: '2023-10-31',
-    status: 'Expired',
-    dateGenerated: '2022-10-25 16:45',
-  },
-  // Added 5 more mock records for pagination
-  {
-    id: '6',
-    licenseNumber: 'CML345678',
-    licenseeName: 'Beta Finance Group',
-    licenseType: 'Fund Manager',
-    issuedDate: '2023-02-10',
-    expiryDate: '2024-02-09',
-    status: 'Active',
-    dateGenerated: '2023-02-05 09:30',
-  },
-  {
-    id: '7',
-    licenseNumber: 'CML901234',
-    licenseeName: 'Gamma Solutions Ltd.',
-    licenseType: 'Broker-Dealer',
-    issuedDate: '2023-08-01',
-    expiryDate: '2024-07-31',
-    status: 'Active',
-    dateGenerated: '2023-07-25 11:15',
-  },
-  {
-    id: '8',
-    licenseNumber: 'CML456789',
-    licenseeName: 'Delta Consulting',
-    licenseType: 'Investment Advisor',
-    issuedDate: '2022-05-15',
-    expiryDate: '2023-05-14',
-    status: 'Expired',
-    dateGenerated: '2022-05-10 14:00',
-  },
-  {
-    id: '9',
-    licenseNumber: 'CML012345',
-    licenseeName: 'Epsilon Holdings',
-    licenseType: 'Trustee Services',
-    issuedDate: '2023-11-20',
-    expiryDate: '2024-01-15', // Expiring Soon
-    status: 'Expiring Soon',
-    dateGenerated: '2023-11-15 10:00',
-  },
-  {
-    id: '10',
-    licenseNumber: 'CML567890',
-    licenseeName: 'Zeta Capital Partners',
-    licenseType: 'Fund Manager',
-    issuedDate: '2023-06-01',
-    expiryDate: '2024-05-31',
-    status: 'Active',
-    dateGenerated: '2023-05-28 12:30',
-  },
-  // Added 5 more mock records for 3 pages of pagination
-  {
-    id: '11',
-    licenseNumber: 'CML112233',
-    licenseeName: 'Omega Investments PLC',
-    licenseType: 'Investment Advisor',
-    issuedDate: '2023-01-20',
-    expiryDate: '2024-01-19',
-    status: 'Active',
-    dateGenerated: '2023-01-15 09:00',
-  },
-  {
-    id: '12',
-    licenseNumber: 'CML445566',
-    licenseeName: 'Sigma Securities Ltd.',
-    licenseType: 'Broker-Dealer',
-    issuedDate: '2022-09-10',
-    expiryDate: '2023-09-09',
-    status: 'Expired',
-    dateGenerated: '2022-09-05 14:30',
-  },
-  {
-    id: '13',
-    licenseNumber: 'CML778899',
-    licenseeName: 'Theta Asset Management',
-    licenseType: 'Fund Manager',
-    issuedDate: '2023-04-05',
-    expiryDate: '2024-02-28', // Expiring soon
-    status: 'Expiring Soon',
-    dateGenerated: '2023-03-30 11:45',
-  },
-  {
-    id: '14',
-    licenseNumber: 'CML001122',
-    licenseeName: 'Iota Trust Services',
-    licenseType: 'Trustee Services',
-    issuedDate: '2023-07-15',
-    expiryDate: '2024-07-14',
-    status: 'Active',
-    dateGenerated: '2023-07-10 10:15',
-  },
-  {
-    id: '15',
-    licenseNumber: 'CML334455',
-    licenseeName: 'Kappa Advisory Co.',
-    licenseType: 'Investment Advisor',
-    issuedDate: '2022-12-01',
-    expiryDate: '2023-11-30',
-    status: 'Expired',
-    dateGenerated: '2022-11-25 15:00',
-  },
-];
+type LicenseStatus = 'Active' | 'Expiring Soon' | 'Expired' | 'Invalid Date';
+
+// Helper function to parse DD/MM/YYYY dates safely
+const parseDisplayDate = (dateStr: string): Date | null => {
+  if (!dateStr || typeof dateStr !== 'string' || dateStr.toLowerCase() === 'dd/mm/yyyy' || dateStr.trim() === '') {
+    return null;
+  }
+  try {
+    const parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
+    // Check if parsing was successful by ensuring components match, e.g. day exists for the month
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) -1; // month in Date is 0-indexed
+        const year = parseInt(parts[2], 10);
+        if (parsedDate.getFullYear() === year && parsedDate.getMonth() === month && parsedDate.getDate() === day) {
+            return parsedDate;
+        }
+    }
+    console.warn(`Mismatch after parsing date string: ${dateStr}`);
+    return null;
+  } catch (error) {
+    console.error(`Error parsing date string: ${dateStr}`, error);
+    return null;
+  }
+};
+
+const getLicenseStatus = (issuedDateStr: string, expiryDateStr: string): LicenseStatus => {
+  const expiryDate = parseDisplayDate(expiryDateStr);
+  // const issuedDate = parseDisplayDate(issuedDateStr); // issuedDate not strictly needed for current status logic
+
+  if (!expiryDate) return 'Invalid Date';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize today to start of day for accurate comparison
+
+  if (isBefore(expiryDate, today)) {
+    return 'Expired';
+  }
+
+  const expiringSoonThresholdDays = 90; // e.g., 3 months
+  const daysToExpiry = differenceInDays(expiryDate, today);
+
+  if (daysToExpiry >= 0 && daysToExpiry <= expiringSoonThresholdDays) {
+    return 'Expiring Soon';
+  }
+  
+  return 'Active';
+};
 
 const ITEMS_PER_PAGE = 5;
 
 const LicenseRegistryTable: React.FC = () => {
+  const [allLicenses, setAllLicenses] = useState<LicenseRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [licenseTypeFilter, setLicenseTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
+  useEffect(() => {
+    const fetchLicenses = async () => {
+      setIsLoading(true);
+      try {
+        const data = await licensesService.getLicenses();
+        if (data) {
+          // Assuming data from service matches LicenseRecord structure (snake_case)
+          setAllLicenses(data as LicenseRecord[]);
+        } else {
+          setAllLicenses([]); // Ensure it's an array even if data is null/undefined
+        }
+      } catch (error) {
+        console.error("Failed to fetch licenses:", error);
+        setAllLicenses([]); // Set to empty array on error
+        // Optionally, set an error state here to display to the user
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLicenses();
+  }, []);
+
   const filteredLicenses = useMemo(() => {
-    return MOCK_LICENSES.filter((license) => {
+    return allLicenses.filter((license) => {
       const searchTermLower = searchTerm.toLowerCase();
       const matchesSearchTerm =
-        license.licenseNumber.toLowerCase().includes(searchTermLower) ||
-        license.licenseeName.toLowerCase().includes(searchTermLower);
+        (license.license_number && license.license_number.toLowerCase().includes(searchTermLower)) ||
+        (license.licensee_name && license.licensee_name.toLowerCase().includes(searchTermLower));
+      
       const matchesLicenseType =
-        !licenseTypeFilter || license.licenseType === licenseTypeFilter;
-      const matchesStatus = !statusFilter || license.status === statusFilter;
+        !licenseTypeFilter || license.regulated_activity === licenseTypeFilter;
+      
+      const currentStatus = getLicenseStatus(license.issued_date, license.expiry_date);
+      const matchesStatus = !statusFilter || currentStatus === statusFilter;
+      
       return matchesSearchTerm && matchesLicenseType && matchesStatus;
     });
-  }, [searchTerm, licenseTypeFilter, statusFilter]);
+  }, [searchTerm, licenseTypeFilter, statusFilter, allLicenses]);
 
   const totalPages = Math.ceil(filteredLicenses.length / ITEMS_PER_PAGE);
   const paginatedLicenses = useMemo(() => {
@@ -276,25 +206,33 @@ const LicenseRegistryTable: React.FC = () => {
     return getPaginationItems(currentPage, totalPages);
   }, [currentPage, totalPages]);
 
-  const getStatusBadgeVariant = (status: LicenseRecord['status']): 'default' | 'secondary' | 'destructive' | 'outline' => {
+  const getStatusBadgeVariant = (status: LicenseStatus): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
       case 'Active':
-        return 'default'; // Green in many ShadCN themes
+        return 'default';
       case 'Expiring Soon':
-        return 'secondary'; // Orange/Yellow
+        return 'secondary';
       case 'Expired':
-        return 'destructive'; // Red
+        return 'destructive';
+      case 'Invalid Date':
       default:
         return 'outline';
     }
   };
   
-  // Placeholder for unique license types for the filter dropdown
   const uniqueLicenseTypes = useMemo(() => {
-    const types = new Set(MOCK_LICENSES.map(l => l.licenseType));
-    return Array.from(types);
-  }, []);
+    const types = new Set(allLicenses.map(l => l.regulated_activity).filter(Boolean)); // Filter out null/undefined types
+    return Array.from(types) as string[];
+  }, [allLicenses]);
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <p className="text-gray-500 dark:text-gray-400">Loading licenses...</p>
+        {/* Consider adding a spinner component here */}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-100 dark:bg-intranet-dark min-h-screen">
@@ -353,7 +291,7 @@ const LicenseRegistryTable: React.FC = () => {
         </div>
 
         {/* Responsive Table Wrapper */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto mt-6 mb-6">
           <Table className="min-w-full">
             <TableHeader>
               <TableRow>
@@ -363,63 +301,69 @@ const LicenseRegistryTable: React.FC = () => {
                 <TableHead>Issued Date</TableHead>
                 <TableHead>Expiry Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Date Generated</TableHead>
+                <TableHead>Created At</TableHead> {/* Changed from Date Generated */}
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedLicenses.length > 0 ? (
-                paginatedLicenses.map((license) => (
-                  <TableRow key={license.id}>
-                    <TableCell className="font-medium">{license.licenseNumber}</TableCell>
-                    <TableCell>{license.licenseeName}</TableCell>
-                    <TableCell>{license.licenseType}</TableCell>
-                    <TableCell>{license.issuedDate}</TableCell>
-                    <TableCell>{license.expiryDate}</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(license.status)} className="whitespace-nowrap">
-                        {license.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{license.dateGenerated}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        {/* Save Button (formerly Edit) */}
-                        <Button variant="ghost" size="icon" title="Save">
-                          <Edit3 className="h-4 w-4 text-purple-600" /> {/* Icon can be changed later if needed */}
-                        </Button>
-                        
-                        {/* Delete Button */}
-                        <Button variant="ghost" size="icon" title="Delete">
-                          <Trash2 className="h-4 w-4 text-gray-500" />
-                        </Button>
+                paginatedLicenses.map((license) => {
+                  const currentStatus = getLicenseStatus(license.issued_date, license.expiry_date);
+                  const createdAtDate = license.created_at ? parse(license.created_at, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date()) : null;
+                  const formattedCreatedAt = createdAtDate ? `${createdAtDate.toLocaleDateString()} ${createdAtDate.toLocaleTimeString()}` : 'N/A';
 
-                        {/* More Actions Dropdown */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" title="More actions">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => console.log('View action clicked for', license.id)}>
-                              <Eye className="mr-2 h-4 w-4 text-blue-600" />
-                              <span>View</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => console.log('Download PDF action clicked for', license.id)}>
-                              <FileText className="mr-2 h-4 w-4 text-red-600" />
-                              <span>Download PDF</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => console.log('Download JPEG action clicked for', license.id)}>
-                              <FileImage className="mr-2 h-4 w-4 text-yellow-500" />
-                              <span>Download JPEG</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                  return (
+                    <TableRow key={license.id}>
+                      <TableCell className="font-medium">{license.license_number || 'N/A'}</TableCell>
+                      <TableCell>{license.licensee_name || 'N/A'}</TableCell>
+                      <TableCell>{license.regulated_activity || 'N/A'}</TableCell>
+                      <TableCell>{license.issued_date || 'N/A'}</TableCell>
+                      <TableCell>{license.expiry_date || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(currentStatus)} className="whitespace-nowrap">
+                          {currentStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formattedCreatedAt}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center space-x-1">
+                          {/* Save Button (formerly Edit) */}
+                          <Button variant="ghost" size="icon" title="Edit"> {/* Changed title to Edit */}
+                            <Edit3 className="h-4 w-4 text-purple-600" />
+                          </Button>
+                          
+                          {/* Delete Button */}
+                          <Button variant="ghost" size="icon" title="Delete">
+                            <Trash2 className="h-4 w-4 text-gray-500" />
+                          </Button>
+
+                          {/* More Actions Dropdown */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" title="More actions">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end"> {/* Ensure dropdown opens correctly */}
+                              <DropdownMenuItem onClick={() => console.log('View action clicked for', license.id)}>
+                                <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                                <span>View</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => console.log('Download PDF action clicked for', license.id)}>
+                                <FileText className="mr-2 h-4 w-4 text-red-600" />
+                                <span>Download PDF</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => console.log('Download JPEG action clicked for', license.id)}>
+                                <FileImage className="mr-2 h-4 w-4 text-yellow-500" />
+                                <span>Download JPEG</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-10 text-gray-500 dark:text-gray-400">

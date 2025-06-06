@@ -1239,7 +1239,7 @@ export const useMicrosoftGraph = () => {
   }, [getClient, checkMsalAuth]);
 
   // End of the useMicrosoftGraph hook
-  return {
+  const hookReturn = { // <--- NEW: Create an object to log before returning
     isLoading,
     lastError,
     getAuthStatus,
@@ -1256,8 +1256,20 @@ export const useMicrosoftGraph = () => {
     updateCsvFile,
     handleLogin,
     uploadFileToSharePointLibrary,
-    uploadBinaryFileToSharePoint,
+    uploadBinaryFileToSharePoint, // The function in question
   };
+
+  // --- NEW LOGS START HERE ---
+  console.log('[useMicrosoftGraph] Hook is returning:', hookReturn);
+  console.log('[useMicrosoftGraph] Type of uploadBinaryFileToSharePoint in hook return:', typeof hookReturn.uploadBinaryFileToSharePoint);
+  if (hookReturn.uploadBinaryFileToSharePoint) {
+      console.log('[useMicrosoftGraph] uploadBinaryFileToSharePoint function reference available');
+  } else {
+      console.error('[useMicrosoftGraph] CRITICAL: uploadBinaryFileToSharePoint is UNDEFINED before hook return.');
+  }
+  // --- NEW LOGS END HERE ---
+
+  return hookReturn; // <--- NEW: Return the logged object
 };
 
-export default useMicrosoftGraph;
+export type GraphContextType = ReturnType<typeof useMicrosoftGraph>;

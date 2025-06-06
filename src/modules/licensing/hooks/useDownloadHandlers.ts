@@ -7,6 +7,8 @@ const styleOverrides: { [key: string]: Partial<ElementStyleProperties> } = {
   licenseNumberHeaderText: { y: 40 },
   licenseNumberDottedLine: { y: 33 },
   licenseNumberDottedLine2: { y: 38 },
+  subtitleText2: { y: 28 },
+  subtitleText3: { y: 33 },
   // qrCode: { y: 359 }, // Commented out as per user request to use original values
   verticalGoldLine: { y: 163 },
   mainTitleBanner: { x: 349, y: 163 },
@@ -46,12 +48,14 @@ export const useDownloadHandlers = (
 ) => {
   const applyOverrides = () => {
     const originalStyles: { [key: string]: Partial<ElementStyleProperties> } = {};
+    // Capture original styles for all keys that will be overridden
     Object.keys(styleOverrides).forEach(key => {
       if (elementStyles[key]) {
         originalStyles[key] = { x: elementStyles[key].x, y: elementStyles[key].y };
       }
     });
-    handleBulkStyleChange(styleOverrides);
+
+    handleBulkStyleChange(styleOverrides); // Apply the static overrides directly
     return originalStyles;
   };
 
@@ -134,5 +138,7 @@ export const useDownloadHandlers = (
     handleDownloadPdf,
     handleDownloadJpeg,
     handlePrint,
+    applyOverrides,
+    revertOverrides,
   };
 }; 

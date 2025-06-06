@@ -173,48 +173,6 @@ export const initialElementStyles: AllElementStyles = {
       "width": 163,
       "height": 25
     },
-    "licenseNumberDottedLine": {
-      "x": 298,
-      "y": 38,
-      "fontSize": 48,
-      "color": "#000000",
-      "letterSpacing": 2.6,
-      "fontFamily": "Montserrat",
-      "fontStyle": "normal",
-      "zIndex": 12,
-      "content": "..........."
-    },
-    "licenseNumberDottedLine2": {
-      "x": 298,
-      "y": 43,
-      "fontSize": 48,
-      "color": "#d1cccc",
-      "letterSpacing": 2.6,
-      "fontFamily": "Montserrat",
-      "fontStyle": "normal",
-      "zIndex": 12,
-      "content": "..........."
-    },
-    "topDotRowText": {
-      "x": 320,
-      "y": 77,
-      "fontSize": 8,
-      "color": "#D32F2F",
-      "letterSpacing": 8,
-      "fontFamily": "Montserrat",
-      "zIndex": 12,
-      "content": "...................................................."
-    },
-    "bottomDotRowText": {
-      "x": 320,
-      "y": 90,
-      "fontSize": 8,
-      "color": "#888888",
-      "letterSpacing": 8,
-      "fontFamily": "Montserrat",
-      "zIndex": 12,
-      "content": "......................................................."
-    },
     "capitalMarketActText": {
       "x": 50,
       "y": 160,
@@ -361,6 +319,32 @@ export const initialElementStyles: AllElementStyles = {
       "zIndex": 1,
       "width": 350,
       "height": 30
+    },
+    "subtitleText2": {
+      "x": 296,
+      "y": 33,
+      "fontSize": 56,
+      "fontWeight": "normal",
+      "color": "#000000",
+      "letterSpacing": 1.5,
+      "fontFamily": "Montserrat",
+      "fontStyle": "normal",
+      "zIndex": 1,
+      "width": 189,
+      "height": 14
+    },
+    "subtitleText3": {
+      "x": 296,
+      "y": 38,
+      "fontSize": 56,
+      "fontWeight": "normal",
+      "color": "#d6d6d6",
+      "letterSpacing": 1.5,
+      "fontFamily": "Montserrat",
+      "fontStyle": "normal",
+      "zIndex": 1,
+      "width": 189,
+      "height": 14
     },
     "regulatedActivityMainText": {
       "x": 363,

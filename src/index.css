@@ -278,3 +278,19 @@
   background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
+
+/* AI Chat Typing Animation */
+.ai-cursor {
+  display: inline-block;
+  background-color: currentColor; /* Or a specific color e.g., #333 */
+  width: 8px;
+  height: 1em; /* Adjust to match your text's line-height */
+  margin-left: 2px;
+  vertical-align: text-bottom; /* Adjust as needed: baseline, middle, etc. */
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

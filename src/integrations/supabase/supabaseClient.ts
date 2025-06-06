@@ -123,6 +123,23 @@ export const licensesService = {
     }
     return data;
   },
+
+  // Get all licenses
+  getLicenses: async () => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from(supabaseConfig.tables.licenses)
+      .select('*')
+      .order('created_at', { ascending: false }); // Optional: order by creation date
+
+    if (error) {
+      console.error('Error fetching licenses:', error);
+      // It might be better to throw the error to let the calling component handle UI updates (e.g., show error message)
+      // For now, returning empty array to prevent crashes, but consider error propagation.
+      return []; 
+    }
+    return data || [];
+  },
 };
 
 // Initialize Supabase on import

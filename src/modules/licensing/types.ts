@@ -8,6 +8,8 @@ export interface FormData {
   signatoryName: string;
   signatoryTitle: string;
   subtitle?: string;
+  subtitle2?: string;
+  subtitle3?: string;
   licenseNumberDottedLineContent?: string;
   licenseNumberDottedLine2Content?: string;
   // New fields for dynamic content

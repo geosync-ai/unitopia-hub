@@ -29,6 +29,7 @@ import Tickets from './pages/Tickets';
 import AdminAssetsPage from './pages/AdminAssetsPage';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 import LicensingRegistry from './pages/LicensingRegistry';
+import EmailToTaskTracker from "./pages/EmailToTaskTracker";
 
 // MSAL Imports
 import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
@@ -102,6 +103,7 @@ const AppRoutes = () => {
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
       <Route path="/licensing-registry" element={<ProtectedRoute><LicensingRegistry /></ProtectedRoute>} />
+      <Route path="/email-to-task-tracker" element={<ProtectedRoute><EmailToTaskTracker /></ProtectedRoute>} />
       
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
@@ -134,9 +136,7 @@ const AppContent = () => {
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <SupabaseAuthProvider>
-                <AppRoutes />
-              </SupabaseAuthProvider>
+              <AppRoutes />
             </BrowserRouter>
           </TooltipProvider>
         </ThemeProvider>
@@ -146,9 +146,11 @@ const AppContent = () => {
 
 // Top-level App component wrapper to handle MSAL initialization state
 const App = () => (
-  <MsalAuthProvider>
+  <SupabaseAuthProvider>
+    <MsalAuthProvider>
      <AppContent />
-  </MsalAuthProvider>
+    </MsalAuthProvider>
+  </SupabaseAuthProvider>
 );
 
 export default App;

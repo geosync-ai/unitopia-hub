@@ -13,7 +13,7 @@ import { useSupabaseAuth } from '@/hooks/useSupabaseAuth.tsx';
 import { toast } from 'sonner';
 import { getUserProfile, setMsalInstance, getAccount } from './msalService';
 import microsoftAuthConfig from '@/config/microsoft-auth';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient'; // Keep for invoking edge function if needed here
 import { Loader2 } from 'lucide-react';
 
 // Define admin emails that match the ones in useAuth.tsx
@@ -38,29 +38,38 @@ export const MsalContext = createContext<MsalContextValue>({
 export const useMsalContext = () => useContext(MsalContext);
 
 // Component to wrap the application with the MSAL provider
-// This component will initialize MSAL with the configuration from useAuth
 export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // Attempt to call useSupabaseAuth hook very early, after state hooks if any that affect its call.
+  // For now, to be safe, let's place it before useState hooks if its call isn't dependent on them,
+  // or immediately after if it is. Given it provides a context, it should be high up.
+
+  let supabaseAuthContextData = null;
+  let setUserFunction: ((user: any | null) => void) | undefined = undefined; // Renamed to avoid conflict if setUser was a prop
+  try {
+    supabaseAuthContextData = useSupabaseAuth();
+    if (supabaseAuthContextData) {
+      setUserFunction = supabaseAuthContextData.setUser; 
+      console.log('[MsalAuthProvider] Successfully accessed SupabaseAuthContext very early.');
+    } else {
+      console.warn('[MsalAuthProvider] useSupabaseAuth() returned undefined very early, but did not throw.');
+    }
+  } catch (error: any) {
+    console.error('[MsalAuthProvider] Error calling useSupabaseAuth() very early:', error.message);
+  }
+
   const [msalInstance, setMsalInstanceState] = useState<PublicClientApplication | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [authError, setAuthError] = useState<Error | null>(null);
   const [forceSignIn, setForceSignIn] = useState(false);
-  // Add state to hold account info after MSAL login
   const [pendingMsalAccount, setPendingMsalAccount] = useState<AccountInfo | null>(null);
   
-  // Get setUser from Supabase Auth context
-  let setUser: ((user: any | null) => void) | undefined = undefined;
-  try {
-    // Destructure only setUser from the context
-    const supabaseAuth = useSupabaseAuth();
-    setUser = supabaseAuth.setUser; // Assuming setUser exists in the context - CHECK useSupabaseAuth.tsx if this fails
-  } catch (error) {
-    // This catch block might indicate MsalAuthProvider is rendered outside SupabaseAuthProvider
-    // which could be a structural issue in App.tsx or similar.
-    console.warn('SupabaseAuth context not available in MsalAuthProvider. setUser functionality will be limited.');
-  }
+  // The original location of useSupabaseAuth call is now removed.
+  // console.log('[MsalAuthProvider] No longer directly accessing SupabaseAuthContext here.');
   
   useEffect(() => {
+    // If setUserFunction is needed here, it can be accessed from the outer scope.
+    // Example: if (setUserFunction) { /* use it */ }
     const initializeMsal = async () => {
       if (isInitializing || isInitialized) return;
       
@@ -69,322 +78,75 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
         
         // Clear any stale MSAL state on initialization
         if (typeof window !== 'undefined') {
-          // Try to clean session storage
           try {
-            // Clear any MSAL-related entries
             Object.keys(sessionStorage)
               .filter(key => key.startsWith('msal.'))
               .forEach(key => sessionStorage.removeItem(key));
-              
-            // Clear interaction state specifically
             sessionStorage.removeItem('msal.interaction.status');
             sessionStorage.removeItem('msal.interaction.error');
           } catch (e) {
             console.warn('Unable to clean session storage:', e);
           }
-          
-          // Clean local storage
           localStorage.removeItem('msalLoginAttempts');
         }
         
-        // Use microsoftAuthConfig directly for MSAL config
-        const configToUse = updateMsalConfig({
-          ...microsoftAuthConfig
-        });
-        
+        const configToUse = updateMsalConfig({ ...microsoftAuthConfig });
         console.log('Initializing MSAL with config:', configToUse);
         const instance = new PublicClientApplication(configToUse);
         
-        // Register event callbacks
         instance.addEventCallback((event: EventMessage) => {
           if (event.eventType === EventType.LOGIN_SUCCESS) {
-            console.log('[MsalAuthProvider] Login success event detected');
+            console.log('[MsalAuthProvider] MSAL Login success event detected');
             const result = event.payload as AuthenticationResult;
             if (result && result.account) {
               instance.setActiveAccount(result.account);
+              // The Login.tsx component should handle invoking the Supabase Edge Function
+              // after this MSAL login success.
             }
           } else if (event.eventType === EventType.LOGIN_FAILURE) {
-            console.error('Login failure event detected:', event.error);
+            console.error('[MsalAuthProvider] MSAL Login failure event detected:', event.error);
           } else if (event.eventType === EventType.HANDLE_REDIRECT_START) {
-            console.log('Starting redirect handling...');
+            console.log('[MsalAuthProvider] MSAL Starting redirect handling...');
           } else if (event.eventType === EventType.HANDLE_REDIRECT_END) {
-            console.log('Finished redirect handling');
+            console.log('[MsalAuthProvider] MSAL Finished redirect handling');
           }
         });
         
-        // Initialize MSAL
-        try {
-          await instance.initialize();
-          console.log('MSAL initialized successfully');
-        } catch (initError) {
-          console.error('MSAL initialization error:', initError);
-        }
+        await instance.initialize();
+        console.log('[MsalAuthProvider] MSAL initialized successfully');
         
         setMsalInstanceState(instance);
-        setMsalInstance(instance);
+        setMsalInstance(instance); // For msalService
         setIsInitialized(true);
+        if (typeof window !== 'undefined') { (window as any).msalInstance = instance; }
 
-        if (typeof window !== 'undefined') {
-          (window as any).msalInstance = instance;
-        }
-        
-        // Check for redirect response to handle sign-in
+        // Simplified redirect handling: MSAL handles its state.
+        // The crucial part is that after MSAL login, the app (e.g., Login.tsx or a callback)
+        // should trigger the Supabase session creation (e.g., via your Edge Function).
         try {
-          console.log('Attempting to handle redirect promise...');
-          
-          // ENHANCEMENT: Check for URL hash parameters that might indicate an auth response
-          if (typeof window !== 'undefined') {
-            const hasAuthParams = window.location.hash && 
-              (window.location.hash.includes('access_token') || 
-              window.location.hash.includes('error') || 
-              window.location.hash.includes('code'));
-              
-            console.log('URL contains auth parameters:', hasAuthParams);
-            console.log('Current URL hash:', window.location.hash ? '[PRESENT]' : '[EMPTY]');
-          }
-          
-          // Check for cached data in browser storage to determine if we're mid-auth
-          const isAuthInProgress = (typeof window !== 'undefined') && 
-                                  (sessionStorage.getItem('msal.interaction.status') === 'handling_redirect' ||
-                                   localStorage.getItem('msalLoginAttempts'));
-          
-          console.log('Auth in progress status:', isAuthInProgress);
-                                  
-          // First, immediately try to handle the redirect without any delay
-          try {
-            console.log('Calling handleRedirectPromise() to process auth response...');
-            const response = await instance.handleRedirectPromise();
-            console.log('handleRedirectPromise result:', response ? 'Response received' : 'No response');
-            
-            if (response) {
-              console.log('Successfully processed redirect response:', response);
-              // Handle the successful login
-              if (response.account) {
-                instance.setActiveAccount(response.account);
-              }
+          console.log('[MsalAuthProvider] Attempting to handle redirect promise...');
+          const response = await instance.handleRedirectPromise();
+          if (response && response.account) {
+            console.log('[MsalAuthProvider] MSAL Redirect response processed, account set active.', response.account.username);
+            instance.setActiveAccount(response.account);
+            // Again, the bridge to Supabase session should happen elsewhere (e.g. Login.tsx)
+          } else {
+            const accounts = instance.getAllAccounts();
+            if (accounts.length > 0) {
+              console.log('[MsalAuthProvider] MSAL Existing accounts found, setting active account:', accounts[0].username);
+              instance.setActiveAccount(accounts[0]);
             } else {
-              console.log('No redirect response found during initial check');
-              
-              // ENHANCEMENT: If we don't have a response but accounts exist, then user is already logged in
-              const accounts = instance.getAllAccounts();
-              if (accounts.length > 0) {
-                console.log('Found existing accounts, setting active account:', accounts[0].username);
-                instance.setActiveAccount(accounts[0]);
-              } else {
-                console.log('No accounts found, user may need to login');
-                
-                // DISABLE automatic login to prevent loops
-                const shouldAttemptLogin = false;
-                
-                if (shouldAttemptLogin) {
-                  console.log('Attempting initial login...');
-                  localStorage.setItem('loginAttempted', 'true');
-                  
-                  // Set small timeout to ensure browser is ready
-                  setTimeout(async () => {
-                    try {
-                      await instance.loginRedirect({
-                        scopes: microsoftAuthConfig.permissions || [],
-                        redirectUri: microsoftAuthConfig.redirectUri,
-                        prompt: 'select_account'
-                      });
-                    } catch (loginError) {
-                      console.error('Error initiating login:', loginError);
-                    }
-                  }, 1000);
-                }
-              }
+              console.log('[MsalAuthProvider] MSAL No redirect response and no existing accounts.');
             }
-          } catch (redirectError) {
-            console.error('Error during initial redirect handling:', redirectError);
           }
-          
-          // Add a bit of timeout as a fallback to ensure browser has fully loaded
-          setTimeout(async () => {
-            try {
-              // Get URL parameters again in case they've changed
-              if (typeof window !== 'undefined') {
-                const hasAuthParams = window.location.hash && 
-                  (window.location.hash.includes('access_token') || 
-                  window.location.hash.includes('error') || 
-                  window.location.hash.includes('code'));
-                  
-                console.log('TIMEOUT CHECK - URL contains auth parameters:', hasAuthParams);
-                console.log('TIMEOUT CHECK - Current URL hash:', window.location.hash ? '[PRESENT]' : '[EMPTY]');
-              }
-                
-              // Force clear any stale interaction status
-              if (typeof window !== 'undefined') {
-                // More thorough cleaning of MSAL cache to prevent redirect issues
-                if (sessionStorage.getItem('msal.interaction.status')) {
-                  console.log('Clearing interaction status');
-                  sessionStorage.removeItem('msal.interaction.status');
-                }
-                // Clear any interaction errors that might be preventing completion
-                sessionStorage.removeItem('msal.interaction.error');
-                // Clean up other potential stale MSAL entries
-                const msalKeys = Object.keys(sessionStorage).filter(key => key.startsWith('msal.'));
-                if (msalKeys.length > 0) {
-                  console.log('Cleaning stale MSAL session entries:', msalKeys);
-                  msalKeys.forEach(key => sessionStorage.removeItem(key));
-                }
-              }
-              
-              // Try again after cleaning up the session
-              console.log('Checking for redirect response after cleanup...');
-              console.log('Making second handleRedirectPromise() call...');
-              const secondResponse = await instance.handleRedirectPromise().catch(err => {
-                console.error('Error handling redirect after cleanup:', err);
-                return null;
-              });
-              
-              console.log('Second handleRedirectPromise result:', secondResponse ? 'Response received' : 'No response');
-              
-              if (secondResponse) {
-                console.log('Redirect response detected:', secondResponse);
-                if (secondResponse.account) {
-                  // Set active account if available
-                  instance.setActiveAccount(secondResponse.account);
-                  
-                  // Fetch user profile
-                  const userProfile = await getUserProfile(instance);
-                  if (userProfile) {
-                    const userEmail = userProfile.mail || userProfile.userPrincipalName || secondResponse.account.username;
-                    
-                    // Create a properly typed user object
-                    const userData = {
-                      id: secondResponse.account.localAccountId,
-                      name: secondResponse.account.name || 'Unknown',
-                      email: userEmail,
-                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                      isAdmin: ADMIN_EMAILS.includes(userEmail),
-                    };
-                    
-                    // For localStorage, we can use a simplified version
-                    localStorage.setItem('user', JSON.stringify(userData));
-                    console.log('User profile fetched and stored in localStorage');
-                    
-                    // Only call setUser if it's available (auth context exists)
-                    if (setUser) {
-                      setUser(userData);
-                      console.log('User profile set in auth context');
-                    } else {
-                      console.log('Auth context not available, user is stored in localStorage only');
-                    }
-
-                    // Force navigation to home page after successful auth
-                    if (typeof window !== 'undefined') {
-                      window.location.href = '/';
-                    }
-                  }
-                }
-              } else {
-                console.log('No redirect response detected');
-                
-                // Try to check for existing account
-                const accounts = instance.getAllAccounts();
-                if (accounts.length > 0) {
-                  const account = accounts[0];
-                  instance.setActiveAccount(account);
-                  
-                  const userProfile = await getUserProfile(instance);
-                  if (userProfile) {
-                    const userEmail = userProfile.mail || userProfile.userPrincipalName || account.username;
-                    
-                    // Create a properly typed user object
-                    const userData = {
-                      id: account.localAccountId,
-                      name: account.name || 'Unknown',
-                      email: userEmail,
-                      role: ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'user',
-                      isAdmin: ADMIN_EMAILS.includes(userEmail),
-                    };
-                    
-                    // For localStorage, we can use the same format
-                    localStorage.setItem('user', JSON.stringify(userData));
-                    
-                    // Only call setUser if it's available (auth context exists)
-                    if (setUser) {
-                      setUser(userData);
-                      console.log('Existing user account set in auth context');
-                    } else {
-                      console.log('Auth context not available, existing user is stored in localStorage only');
-                    }
-                  }
-                } else if (isAuthInProgress) {
-                  // We think we should be logged in but have no accounts
-                  console.log('Auth appears to be in progress but no accounts found. Attempting to force login...');
-                  
-                  // Clean up any remnant status
-                  if (typeof window !== 'undefined') {
-                    localStorage.removeItem('msalLoginAttempts');
-                    sessionStorage.removeItem('msal.interaction.status');
-                  }
-                  
-                  // Check if we have a stored user despite no active account
-                  const storedUser = localStorage.getItem('user');
-                  if (storedUser) {
-                    console.log('Found stored user, attempting to restore session');
-                    if (setUser) {
-                      setUser(JSON.parse(storedUser));
-                      console.log('User restored from localStorage');
-                    }
-                    
-                    // Give the UI a moment to update, then redirect
-                    setTimeout(() => {
-                      if (typeof window !== 'undefined') {
-                        window.location.href = '/';
-                      }
-                    }, 500);
-                  } else {
-                    // As a last resort, try to initiate a login again
-                    console.log('No stored user found, attempting to initiate login again');
-                    try {
-                      await instance.loginRedirect(loginRequest);
-                    } catch (loginError) {
-                      console.error('Failed to initiate login redirect:', loginError);
-                    }
-                  }
-                }
-              }
-            } catch (timeoutError) {
-              console.error('Error in setTimeout handler:', timeoutError);
-            }
-          }, 500); // Small delay to ensure browser is ready
-        } catch (redirectError) {
-          console.error('Error handling redirect:', redirectError);
-          setAuthError(redirectError instanceof Error ? redirectError : new Error(String(redirectError)));
-          
-          // Add more detailed logging for redirect errors
-          console.error('Detailed redirect error:', {
-            message: redirectError.message,
-            name: redirectError.name,
-            stack: redirectError.stack,
-            timestamp: new Date().toISOString()
-          });
-          
-          // Set a flag to display the manual login option
-          setForceSignIn(true);
-          
-          // Check if user exists in localStorage as a fallback
-          try {
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-              console.log('Found stored user despite redirect error, restoring session');
-              
-              // Only call setUser if it's available (auth context exists)
-              if (setUser) {
-                setUser(JSON.parse(storedUser));
-              } else {
-                console.log('Auth context not available, cannot restore user from localStorage to context');
-              }
-            }
-          } catch (e) {
-            console.error('Error checking localStorage for user:', e);
-          }
+        } catch (redirectError: any) {
+            console.error('[MsalAuthProvider] MSAL Error during handleRedirectPromise:', redirectError.message);
+            setAuthError(redirectError instanceof Error ? redirectError : new Error(String(redirectError)));
+            setForceSignIn(true);
         }
-      } catch (err) {
-        console.error('Error initializing MSAL:', err);
+
+      } catch (err: any) {
+        console.error('[MsalAuthProvider] Error initializing MSAL:', err.message);
         setAuthError(err instanceof Error ? err : new Error(String(err)));
         toast.error('Failed to initialize Microsoft authentication.');
       } finally {
@@ -395,9 +157,10 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     if (!isInitialized && !isInitializing) {
       initializeMsal();
     }
-  }, [isInitialized, isInitializing, setUser, msalInstance]);
+  // Removed setUser from dependency array as it's no longer used directly here
+  // The msalInstance dependency might cause re-runs if its reference changes, which is fine.
+  }, [isInitialized, isInitializing, msalInstance]); 
 
-  // Provide context value for consumers
   const contextValue = {
     msalInstance,
     isInitialized,
@@ -405,19 +168,15 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
     authError
   };
 
-  // Conditionally render based on initialization status
   if (isInitializing || !isInitialized || !msalInstance) {
-    // Show loading indicator or return null while MSAL is initializing
-    // You can customize this loading state
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-gray-600\">Initializing Authentication Library...</span>
+        <span className="ml-2 text-gray-600">Initializing Authentication Library...</span>
       </div>
     ); 
   }
 
-  // Add fallback UI for when authentication fails
   const renderFallbackContent = () => {
     if (authError || forceSignIn) {
       return (
@@ -429,25 +188,25 @@ export const MsalAuthProvider = ({ children }: { children: React.ReactNode }) =>
             </p>
             <button
               onClick={() => {
-                // Clear any existing data
                 if (typeof window !== 'undefined') {
-                  // Clear MSAL data
                   Object.keys(sessionStorage)
                     .filter(key => key.startsWith('msal.'))
                     .forEach(key => sessionStorage.removeItem(key));
-                    
                   localStorage.removeItem('msalLoginAttempts');
                 }
-                
-                // Force a clean login
                 try {
-                  msalInstance.loginRedirect({
-                    scopes: microsoftAuthConfig.permissions || [],
-                    redirectUri: microsoftAuthConfig.redirectUri,
-                    prompt: 'select_account' // Force a fresh login experience
-                  });
+                  if (msalInstance) {
+                    msalInstance.loginRedirect({
+                      scopes: microsoftAuthConfig.permissions || [],
+                      redirectUri: microsoftAuthConfig.redirectUri,
+                      prompt: 'select_account' 
+                    });
+                  } else {
+                     console.error('[MsalAuthProvider] msalInstance is null, cannot loginRedirect.');
+                     toast.error("Authentication library not ready. Please refresh.");
+                  }
                 } catch (error) {
-                  console.error('Manual login redirect failed:', error);
+                  console.error('[MsalAuthProvider] Manual login redirect failed:', error);
                   alert('Login failed. Please refresh the page and try again.');
                 }
               }}

@@ -15,6 +15,8 @@ interface FormData {
   signatoryName: string;
   signatoryTitle: string;
   subtitle?: string;
+  subtitle2?: string;
+  subtitle3?: string;
   licenseNumberDottedLineContent?: string;
   licenseNumberDottedLine2Content?: string;
   leftSections?: string;
@@ -115,6 +117,8 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
   const grantedToLabelTextRef = useRef<HTMLParagraphElement>(null);
   const granteeNameTextRef = useRef<HTMLHeadingElement>(null);
   const subtitleTextRef = useRef<HTMLHeadingElement>(null);
+  const subtitleText2Ref = useRef<HTMLHeadingElement>(null);
+  const subtitleText3Ref = useRef<HTMLHeadingElement>(null);
   const regulatedActivityMainTextRef = useRef<HTMLParagraphElement>(null);
   const legalReferenceMainTextRef = useRef<HTMLParagraphElement>(null);
   const signatureNameTextRef = useRef<HTMLParagraphElement>(null);
@@ -577,6 +581,44 @@ const HtmlLicensePreview = React.forwardRef<HTMLDivElement, HtmlLicensePreviewPr
           onContextMenu={(e) => handleElementContextMenu(e, 'subtitleText')}
         >
           {formData.subtitle}
+        </h2>
+      </Draggable>
+      <Draggable
+        nodeRef={subtitleText2Ref}
+        position={{ x: getStyle('subtitleText2').x, y: getStyle('subtitleText2').y }}
+        onStart={() => onElementDragStart('subtitleText2')}
+        onStop={(_, data) => onElementDragStop('subtitleText2', data)}
+      >
+        <h2
+          ref={subtitleText2Ref}
+          contentEditable
+          suppressContentEditableWarning
+          onBlur={(e) => handleFormDataTextBlur(e, 'subtitle2' as keyof FormData) }
+          className={`${styles.draggableElement} ${selectedElementKeys.includes('subtitleText2') ? styles.selected : ''} ${getStyle('subtitleText2').fontFamily ? styles[getStyle('subtitleText2').fontFamily as keyof typeof styles] : ''}`}
+          style={combineStyles('subtitleText2')}
+          onClick={(e) => handleElementClick(e, 'subtitleText2')}
+          onContextMenu={(e) => handleElementContextMenu(e, 'subtitleText2')}
+        >
+          {formData.subtitle2}
+        </h2>
+      </Draggable>
+      <Draggable
+        nodeRef={subtitleText3Ref}
+        position={{ x: getStyle('subtitleText3').x, y: getStyle('subtitleText3').y }}
+        onStart={() => onElementDragStart('subtitleText3')}
+        onStop={(_, data) => onElementDragStop('subtitleText3', data)}
+      >
+        <h2
+          ref={subtitleText3Ref}
+          contentEditable
+          suppressContentEditableWarning
+          onBlur={(e) => handleFormDataTextBlur(e, 'subtitle3' as keyof FormData) }
+          className={`${styles.draggableElement} ${selectedElementKeys.includes('subtitleText3') ? styles.selected : ''} ${getStyle('subtitleText3').fontFamily ? styles[getStyle('subtitleText3').fontFamily as keyof typeof styles] : ''}`}
+          style={combineStyles('subtitleText3')}
+          onClick={(e) => handleElementClick(e, 'subtitleText3')}
+          onContextMenu={(e) => handleElementContextMenu(e, 'subtitleText3')}
+        >
+          {formData.subtitle3}
         </h2>
       </Draggable>
       <Draggable nodeRef={regulatedActivityMainTextRef} position={getStyle('regulatedActivityMainText')} onStart={() => onElementDragStart('regulatedActivityMainText')} onStop={(e, data) => onElementDragStop('regulatedActivityMainText', data)}>

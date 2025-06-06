@@ -8,6 +8,11 @@ import { TooltipWrapper } from '@/components/ui/tooltip-wrapper';
 interface LicensingHeaderProps {
   activeMainView: MainView;
   setActiveMainView: (view: MainView) => void;
+  onPrint?: () => Promise<void>;
+  onDownloadPdf?: () => Promise<void>;
+  onDownloadJpeg?: () => Promise<void>;
+  onSaveToDatabase?: () => Promise<void>;
+  isCreateView?: boolean;
 }
 
 const mainViewOptions: { id: MainView; label: string; icon: React.ElementType }[] = [

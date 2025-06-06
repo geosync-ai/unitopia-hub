@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 
 interface PageLayoutProps {
   children: React.ReactNode;
+  hideNavAndFooter?: boolean;
 }
 
 const useAuth = () => {
@@ -29,7 +30,7 @@ const useAuth = () => {
   return { isAdmin };
 };
 
-const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
+const PageLayout: React.FC<PageLayoutProps> = ({ children, hideNavAndFooter = false }) => {
   const { toast } = useToast();
   const { instance, accounts, inProgress } = useMsal();
   const account = accounts[0];
@@ -40,7 +41,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { isAdmin } = useAuth();
 
-  const isFullPage = location.pathname === '/asset-management' && isAdmin;
+  const isFullPageAssetManagement = location.pathname === '/asset-management' && isAdmin;
 
   useEffect(() => {
     if (!isMobile) {
@@ -82,20 +83,24 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
     return 'U';
   };
 
-  const renderSidebar = !isMobile && !isFullPage;
-  const renderHeader = !isFullPage;
+  const renderSidebar = !isMobile && !isFullPageAssetManagement && !hideNavAndFooter;
+  const renderHeader = !isFullPageAssetManagement && !hideNavAndFooter;
 
   return (
-    <div className="min-h-screen bg-background dark:bg-intranet-dark relative">
+    <div className={cn(
+        "min-h-screen bg-background dark:bg-intranet-dark relative",
+        hideNavAndFooter && "p-0 m-0"
+    )}>
       {renderSidebar && <MainSidebar handleSignOut={handleSignOut} />}
       
       <div className={cn(
-        "px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 animate-fade-in relative flex flex-col min-h-screen",
-        renderSidebar ? "ml-0 md:ml-20" : "ml-0"
+        "animate-fade-in relative flex flex-col min-h-screen",
+        renderSidebar ? "ml-0 md:ml-20" : "ml-0",
+        !hideNavAndFooter && "px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8"
       )}>
         {renderHeader && (
           <header className="flex items-center justify-between mb-6 bg-gradient-to-r from-intranet-primary to-intranet-secondary p-3 rounded-3xl shadow-md">
-            {isMobile && (
+            {isMobile && !hideNavAndFooter && (
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -168,7 +173,8 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
         )}
         
         <main className={cn(
-          "pb-8 flex-grow"
+          "flex-grow", 
+          !hideNavAndFooter && "pb-8"
         )}>
           {children}
         </main>

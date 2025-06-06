@@ -56,6 +56,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           console.log('[SupabaseAuthProvider] Auth event:', event);
           setSession(session);
           setUser(session?.user || null);
+          console.log('[SupabaseAuthProvider] User state updated by auth listener. New user:', session?.user, 'Event:', event);
           
           // Handle different auth events
           switch (event) {

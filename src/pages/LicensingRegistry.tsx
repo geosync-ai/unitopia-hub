@@ -19,6 +19,9 @@ import { format } from 'date-fns';
 import { licensesService } from '../integrations/supabase/supabaseClient';
 import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph.tsx';
 import html2canvas from 'html2canvas';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
 // Manually define the expected type for the hook's return
 // This should align with the actual return object of useMicrosoftGraph.tsx
@@ -47,6 +50,12 @@ const SHAREPOINT_SITEPATH = "/sites/scpngintranet";
 const SHAREPOINT_LIBRARY_NAME = "Capital Market Licenses";
 const SHAREPOINT_TARGET_FOLDER = "GeneratedLicenses"; // Optional: Define a subfolder
 
+interface ModalContent {
+  title: string;
+  message: string;
+  type: 'success' | 'error';
+}
+
 const LicensingRegistry: React.FC = () => {
   const initialFormData: FormData = {
     "issuedDate": "DD/MM/YYYY",
@@ -59,7 +68,10 @@ const LicensingRegistry: React.FC = () => {
     "signatoryTitle": "Acting Chief Executive Officer",
     "leftSections": "",
     "leftAuthorizedActivity": "",
-    "rightSideActivityDisplay": ""
+    "rightSideActivityDisplay": "",
+    "subtitle": "..........................................................",
+    "subtitle2": ".............",
+    "subtitle3": "............."
   };
 
   const {
@@ -127,8 +139,17 @@ const LicensingRegistry: React.FC = () => {
 
   const licensePreviewRef = useRef<HTMLDivElement>(null);
   const [isUploadingToSharePoint, setIsUploadingToSharePoint] = useState(false);
+  const [isSavingLicense, setIsSavingLicense] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [modalContent, setModalContent] = useState<ModalContent>({ title: '', message: '', type: 'success' });
 
-  const { handlePrint, handleDownloadPdf, handleDownloadJpeg } = useDownloadHandlers(
+  const { 
+    handlePrint, 
+    handleDownloadPdf, 
+    handleDownloadJpeg,
+    applyOverrides,
+    revertOverrides
+  } = useDownloadHandlers(
     licensePreviewRef,
     elementStyles,
     setElementStyles,
@@ -173,10 +194,14 @@ const LicensingRegistry: React.FC = () => {
 
   // Function to save to database
   const handleSaveToDatabase = async () => {
-    setIsUploadingToSharePoint(true);
+    setIsSavingLicense(true);
     let sharepointImageUrl = "";
+    let originalStyles = {}; // To store original styles before overriding
 
     try {
+      originalStyles = applyOverrides(); // Apply overrides before generating JPEG
+      await new Promise(resolve => setTimeout(resolve, 100)); // Wait for styles to apply
+
       const jpegFile = await generateLicenseJpegFile();
 
       if (jpegFile && graphContext.uploadBinaryFileToSharePoint) {
@@ -225,12 +250,23 @@ const LicensingRegistry: React.FC = () => {
 
       const result = await licensesService.addLicense(dataToSave, selectedLicenseType.id);
       console.log('License saved successfully:', result);
-      alert('License saved successfully! Image URL: ' + (sharepointImageUrl || "Not uploaded."));
+      setModalContent({
+        title: 'Success!',
+        message: `License saved successfully! Image URL: ${sharepointImageUrl || "Not uploaded."}`,
+        type: 'success'
+      });
+      setShowStatusModal(true);
     } catch (error) {
       console.error('Failed to save license or upload image:', error);
-      alert('Operation failed. See console for details.');
+      setModalContent({
+        title: 'Operation Failed',
+        message: `Failed to save license or upload image. ${error instanceof Error ? error.message : 'Please check console for details.'}`,
+        type: 'error'
+      });
+      setShowStatusModal(true);
     } finally {
-      setIsUploadingToSharePoint(false);
+      revertOverrides(originalStyles); // Revert styles in the finally block
+      setIsSavingLicense(false);
     }
   };
 
@@ -348,64 +384,111 @@ const LicensingRegistry: React.FC = () => {
   `;
 
   return (
-    <div>
+    <div className="flex flex-col min-h-screen bg-gray-100 dark:bg-intranet-dark">
       <style>{pageStyles}</style>
 
-      <LicensingHeader activeMainView={activeMainView} setActiveMainView={setActiveMainView} />
+      <LicensingHeader
+        activeMainView={activeMainView}
+        setActiveMainView={setActiveMainView}
+        onPrint={handlePrint}
+        onDownloadPdf={handleDownloadPdf}
+        onDownloadJpeg={handleDownloadJpeg}
+        onSaveToDatabase={handleSaveToDatabase} 
+        isCreateView={activeMainView === 'create'}
+      />
+
+      {isSavingLicense && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center z-50">
+          <Loader2 className="h-16 w-16 text-white animate-spin mb-4" />
+          <p className="text-white text-xl">Saving license, please wait...</p>
+        </div>
+      )}
+
+      <Dialog open={showStatusModal} onOpenChange={setShowStatusModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader 
+            className={`pt-6 ${modalContent.type === 'success' ? 'flex flex-col items-center text-center' : ''}`}
+          >
+            {modalContent.type === 'success' && (
+              <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+            )}
+            <DialogTitle 
+              className={`text-2xl font-semibold ${modalContent.type === 'error' ? 'text-red-600' : 'text-green-600'}`}
+            >
+              {modalContent.title}
+            </DialogTitle>
+            <DialogDescription className="mt-2 text-sm text-gray-600 dark:text-gray-400 px-2 break-words">
+              {modalContent.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-6 sm:justify-center">
+            <Button onClick={() => setShowStatusModal(false)} className="w-full sm:w-auto">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {activeMainView === 'create' && (
-        <div className="flex flex-row flex-1 w-full min-h-screen p-4 gap-4 items-start">
-          <div className="w-3/5 flex flex-col items-center justify-start py-4 px-2 overflow-y-auto">
-            <div id="htmlLicensePreviewPrintContainer" className={`w-full max-w-5xl no-print flex justify-center h-full`}>
-              <HtmlLicensePreview
-                ref={licensePreviewRef}
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-row flex-1 w-full min-h-screen p-4 gap-4 items-start">
+            <div className="w-3/5 flex flex-col items-center justify-start py-4 px-2 overflow-y-auto">
+              <div id="htmlLicensePreviewPrintContainer" className={`w-full max-w-5xl no-print flex justify-center h-full`}>
+                <HtmlLicensePreview
+                  ref={licensePreviewRef}
+                  formData={formData}
+                  elementStyles={elementStyles}
+                  onElementStyleChange={handleElementStyleChange}
+                  previewWidth={previewWidth}
+                  previewHeight={previewHeight}
+                  selectedElementKeys={selectedElementKeysForPanel}
+                  onElementSelect={handleElementSelectInPreview}
+                  onElementDragStart={handleElementDragStart}
+                  onElementDragStop={handleElementDragStop}
+                  onTextChange={handlePreviewTextUpdate}
+                />
+              </div>
+            </div>
+
+            <div 
+              className="w-2/5 flex flex-col no-print overflow-y-auto bg-white shadow-lg rounded-lg border border-gray-200 mt-10"
+              style={{ height: `${previewHeight}px` }}
+            >
+              <CreateViewForm 
                 formData={formData}
-                elementStyles={elementStyles}
-                onElementStyleChange={handleElementStyleChange}
-                previewWidth={previewWidth}
-                previewHeight={previewHeight}
-                selectedElementKeys={selectedElementKeysForPanel}
-                onElementSelect={handleElementSelectInPreview}
-                onElementDragStart={handleElementDragStart}
-                onElementDragStop={handleElementDragStop}
-                onTextChange={handlePreviewTextUpdate}
+                selectedLicenseType={selectedLicenseType}
+                licenseOptions={allLicenseOptions}
+                onFormInputChange={handleFormInputChange}
+                onDateChange={handleDateChange}
+                onPrint={handlePrint}
+                onDownloadPdf={handleDownloadPdf}
+                onDownloadJpeg={handleDownloadJpeg}
+                onSaveToDatabase={handleSaveToDatabase}
               />
             </div>
+
+            {isConfigPanelOpen && (
+              <ConfigurationPanel
+                isOpen={isConfigPanelOpen}
+                panelPosition={panelPosition}
+                setPanelPosition={setPanelPosition}
+                formData={formData}
+                elementStyles={elementStyles}
+                previewSizePreset={previewSizePreset}
+                previewWidth={previewWidth}
+                previewHeight={previewHeight}
+                selectedElementKeysForPanel={selectedElementKeysForPanel}
+                configCardRefs={configCardRefs}
+                onElementStyleChange={handleElementStyleChange}
+                onPreviewSizeChange={handlePreviewSizeChange}
+                onAlignment={handleAlignment}
+                onDistribution={handleDistribution}
+              />
+            )}
           </div>
 
-          <div 
-            className="w-2/5 flex flex-col no-print overflow-y-auto bg-white shadow-lg rounded-lg border border-gray-200 mt-10"
-            style={{ height: `${previewHeight}px` }}
-          >
-            <CreateViewForm 
-              formData={formData}
-              selectedLicenseType={selectedLicenseType}
-              licenseOptions={allLicenseOptions}
-              onFormInputChange={handleFormInputChange}
-              onDateChange={handleDateChange}
-              onPrint={handlePrint}
-              onDownloadPdf={handleDownloadPdf}
-              onDownloadJpeg={handleDownloadJpeg}
-              onSaveToDatabase={handleSaveToDatabase}
-            />
-          </div>
-
-          {isConfigPanelOpen && (
-            <ConfigurationPanel
+          {activeMainView === 'create' && (
+            <FloatingActionButton
+                onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)}
               isOpen={isConfigPanelOpen}
-              panelPosition={panelPosition}
-              setPanelPosition={setPanelPosition}
-              formData={formData}
-              elementStyles={elementStyles}
-              previewSizePreset={previewSizePreset}
-              previewWidth={previewWidth}
-              previewHeight={previewHeight}
-              selectedElementKeysForPanel={selectedElementKeysForPanel}
-              configCardRefs={configCardRefs}
-              onElementStyleChange={handleElementStyleChange}
-              onPreviewSizeChange={handlePreviewSizeChange}
-              onAlignment={handleAlignment}
-              onDistribution={handleDistribution}
             />
           )}
         </div>
@@ -429,13 +512,6 @@ const LicensingRegistry: React.FC = () => {
              <PlaceholderView viewName="Admin" />
            )}
        </div>
-      )}
-
-      {activeMainView === 'create' && (
-        <FloatingActionButton
-            onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)}
-          isOpen={isConfigPanelOpen}
-        />
       )}
     </div>
   );
