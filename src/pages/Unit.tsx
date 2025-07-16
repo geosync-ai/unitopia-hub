@@ -63,7 +63,7 @@ import {
 import { OrganizationUnit } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
-import { Objective, Kra, Kpi } from '@/types/kpi';
+import { Objective, Kra, Kpi } from '@/types';
 import { objectivesService } from '@/integrations/supabase/unitService';
 import DivisionStaffMap from '@/utils/divisionStaffMap';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';

@@ -32,6 +32,12 @@ export interface KPI {
   notes: string;
   checklist?: ChecklistItem[];
   unit_id?: string;
+  kra_id?: string | number | null;
+  assignees?: User[];
+  metric?: string;
+  unit?: string;
+  progress?: number;
+  costAssociated?: number;
 }
 
 export interface KRA {
@@ -50,6 +56,15 @@ export interface KRA {
   updatedAt: string;
   checklist?: ChecklistItem[];
   unit_id?: string;
+  title: string;
+  objective_id?: string | number | null;
+  unit?: string | null;
+  unitId?: string | number | null;
+  targetDate?: string;
+  unitKpis?: Kpi[];
+  owner?: User | null;
+  ownerId?: string | number | null;
+  unitObjectives?: { title: string } | null;
 }
 
 export interface Task {
@@ -217,4 +232,60 @@ export type AssetFilterState = FilterState & {
   status: string;
   department: string;
   assignedTo: string;
-}; 
+};
+
+export interface User {
+  id: string | number;
+  name: string;
+  email?: string;
+  avatarUrl?: string;
+  initials?: string;
+}
+
+export interface Objective {
+  id:string | number;
+  title: string;
+  description?: string;
+}
+
+export type KraStatus = 'on-track' | 'at-risk' | 'off-track' | 'completed' | 'pending';
+export interface Kpi {
+  tempId?: string;
+  id: string | number;
+  kra_id?: string | number | null;
+  name: string;
+  description?: string;
+  target: number;
+  actual?: number;
+  startDate?: string;
+  start_date?: string;
+  targetDate?: string;
+  target_date?: string;
+  status: 'not-started' | 'in-progress' | 'completed' | 'on-hold' | 'at-risk' | 'on-track' | 'behind';
+  comments?: string;
+  assignees?: User[];
+  metric?: string;
+  unit?: string;
+  progress?: number;
+  costAssociated?: number;
+}
+export interface Kra {
+  id: string | number;
+  title: string;
+  objective_id?: string | number | null;
+  unit?: string | null;
+  unitId?: string | number | null;
+  startDate?: string;
+  start_date?: string;
+  targetDate?: string;
+  target_date?: string;
+  unitKpis?: Kpi[];
+  description?: string | null;
+  department?: string | null;
+  status?: KraStatus;
+  owner?: User | null;
+  ownerId?: string | number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  unitObjectives?: { title: string } | null;
+}
