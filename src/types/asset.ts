@@ -3,6 +3,7 @@ export interface Asset {
   id: string;
   name: string;
   type: string;
+  brand?: string;
   description?: string;
   condition: string;
   serial_number?: string;

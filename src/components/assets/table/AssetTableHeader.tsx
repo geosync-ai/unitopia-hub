@@ -27,6 +27,30 @@ export const AssetTableHeader: React.FC<AssetTableHeaderProps> = ({
           sortColumn={sortColumn} 
           sortDirection={sortDirection}
         />
+        <SortableTableHeader
+          label="Brand"
+          column="brand"
+          tooltip="Click to sort by brand"
+          onSort={onSort}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+        />
+        <SortableTableHeader
+          label="Model"
+          column="model"
+          tooltip="Click to sort by model"
+          onSort={onSort}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+        />
+        <SortableTableHeader
+          label="Serial Number"
+          column="serial_number"
+          tooltip="Click to sort by serial number"
+          onSort={onSort}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+        />
         <SortableTableHeader 
           label="ID" 
           column="id" 

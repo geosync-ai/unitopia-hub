@@ -82,7 +82,10 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
   // Initialize state based on UserAsset type (excluding fields set by parent)
   const [newAsset, setNewAsset] = useState<Partial<Omit<UserAsset, 'id' | 'created_at' | 'last_updated'>>>({ 
     name: '',
-    type: '', 
+    type: '',
+    brand: '',
+    model: '',
+    serial_number: '',
     assigned_to: '',
     assigned_to_email: '',
     description: '',
@@ -384,6 +387,22 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
                    </Command>
                  </PopoverContent>
                </Popover>
+            </div>
+          </div>
+
+          {/* Row: Brand, Model, Serial Number */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="asset-brand">Brand</Label>
+              <Input id="asset-brand" placeholder="e.g., Dell, Apple" value={newAsset.brand || ''} onChange={(e) => handleChange('brand', e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="asset-model">Model</Label>
+              <Input id="asset-model" placeholder="e.g., Latitude 7490, MacBook Pro" value={newAsset.model || ''} onChange={(e) => handleChange('model', e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="asset-serial-number">Serial Number</Label>
+              <Input id="asset-serial-number" placeholder="e.g., ABC12345" value={newAsset.serial_number || ''} onChange={(e) => handleChange('serial_number', e.target.value)} />
             </div>
           </div>
 

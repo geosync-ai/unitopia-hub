@@ -101,6 +101,15 @@ const AssetInfoModal: React.FC<AssetInfoModalProps> = ({ asset, isOpen, onClose 
     
                 <span className="text-muted-foreground">Vendor:</span>
                 <span>{asset.vendor || 'N/A'}</span>
+
+                <span className="text-muted-foreground">Brand:</span>
+                <span>{asset.brand || 'N/A'}</span>
+
+                <span className="text-muted-foreground">Model:</span>
+                <span>{asset.model || 'N/A'}</span>
+
+                <span className="text-muted-foreground">Serial Number:</span>
+                <span>{asset.serial_number || 'N/A'}</span>
                 
                 <span className="text-muted-foreground">Purchase Date:</span>
                 <span>{formatDate(asset.purchase_date)}</span>

@@ -65,6 +65,21 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
         </TooltipWrapper>
       </TableCell>
       <TableCell className="whitespace-nowrap">
+        <TooltipWrapper content={`Brand: ${asset.brand || 'N/A'}`}>
+          {asset.brand}
+        </TooltipWrapper>
+      </TableCell>
+      <TableCell className="whitespace-nowrap">
+        <TooltipWrapper content={`Model: ${asset.model || 'N/A'}`}>
+          {asset.model}
+        </TooltipWrapper>
+      </TableCell>
+      <TableCell className="whitespace-nowrap">
+        <TooltipWrapper content={`Serial Number: ${asset.serial_number || 'N/A'}`}>
+          {asset.serial_number}
+        </TooltipWrapper>
+      </TableCell>
+      <TableCell className="whitespace-nowrap">
         <TooltipWrapper content={`Asset condition: ${asset.condition}`}>
           {asset.condition}
         </TooltipWrapper>
