@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { 
     MessageSquare, Bot, Lightbulb, FileText, Search, Send, Upload, Loader2, Settings, Maximize, Minimize, 
-    ClipboardCopy, Check, Trash2, Link as LinkIcon 
+    ClipboardCopy, Check, Trash2, Link as LinkIcon, ExternalLink 
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,7 +19,6 @@ import { useMicrosoftGraph, type GraphContextType } from '@/hooks/useMicrosoftGr
 import { v4 as uuidv4 } from 'uuid';
 import scpngLawyerAiPromptText from '@/prompts/scpngLawyerAiPrompt.txt';
 import scpngDocAnalystPromptText from '@/prompts/scpngDocAnalystPrompt.txt';
-import { ExternalLink } from 'lucide-react';
 
 const GLOBAL_SETTINGS_ID = 1;
 
@@ -916,6 +915,26 @@ const AIHub = () => {
                   {question}
                 </Button>
               ))}
+            </div>
+
+            {/* Featured Document Section */}
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-3">Featured Document</h2>
+              <a 
+                href="https://scpng1.sharepoint.com/:b:/r/sites/scpngintranet/SCPNG%20Docuements/KnowledgeBaseDocuments/6a38191c-0c2b-4ca9-88de-3c2b39c8553e-CentralDepositoriesAct2015.pdf?csf=1&web=1&e=wwDINH" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center p-3 bg-card hover:bg-accent rounded-lg shadow-sm transition-colors border border-border group"
+              >
+                <FileText className="h-5 w-5 mr-3 text-intranet-primary flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-intranet-primary">Central Depositories Act 2015</p>
+                  <p className="text-xs text-muted-foreground">
+                    Key legal framework document.
+                  </p>
+                </div>
+                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-intranet-primary ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+              </a>
             </div>
 
             {/* Section for Uploaded SharePoint Files */}

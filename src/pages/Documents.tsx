@@ -37,7 +37,7 @@ interface PathItem {
 
 // New Primary Tab Structure
 const primaryTabsConfig = [
-  { id: 'my-documents', label: 'My Documents', icon: <User className="mr-2 h-4 w-4" />, defaultSecondary: 'my-all' },
+  { id: 'my-documents', label: 'My Documents', icon: <User className="mr-2 h-4 w-4" /> },
   { id: 'company-wide', label: 'Organizational Shared Documents', icon: <Building className="mr-2 h-4 w-4" />, defaultSecondary: 'all-company' },
   { id: 'team-unit', label: 'Team / Unit Documents', icon: <Users className="mr-2 h-4 w-4" />, defaultSecondary: 'team-all' },
   { id: 'external-shared', label: 'External Shared Documents', icon: <Globe className="mr-2 h-4 w-4" />, defaultSecondary: 'all-external' },
@@ -150,12 +150,7 @@ const newIdToOldLabelMap: Record<string, string> = Object.fromEntries(
 // Define secondary navigation items based on primary tab
 // Note: companyWideSubCategories is now the source for 'company-wide'
 const secondaryNavConfig: Record<string, { id: string; label: string; sourceCategory?: string; children?: any[] }[]> = {
-  'my-documents': [
-    { id: 'my-all', label: 'All My Documents' },
-    { id: 'my-personal', label: 'Personal Files' }, 
-    { id: 'my-drafts', label: 'Drafts' },         
-    { id: 'my-archive', label: 'Archived' },       
-  ],
+  'my-documents': [],
   'company-wide': companyWideSubCategories, // Use the new hierarchical structure
   'team-unit': [
     { id: 'team-all', label: 'All Team/Unit Documents' },
@@ -273,12 +268,7 @@ export default function Documents() {
     setIsLoading(true);
 
     if (activePrimaryTab === 'my-documents') {
-      if (['my-all', 'my-personal', 'my-drafts', 'my-archive'].includes(activeSecondaryNav)) {
-        await fetchPersonalDocumentsRoot();
-      } else {
-        console.warn(`Secondary nav \'${activeSecondaryNav}\' not implemented for \'My Documents\'.`);
-        setDocuments([]);
-      }
+      await fetchPersonalDocumentsRoot();
     } else if (activePrimaryTab === 'company-wide') {
       try {
         let query = supabase
@@ -630,35 +620,37 @@ export default function Documents() {
       </nav>
 
       <div className="flex flex-col md:flex-row gap-6">
-        <aside className="w-full md:w-72 flex-shrink-0 bg-background md:border-r md:border-gray-200 md:pr-4"> {/* Increased width slightly */}
-          <nav className="space-y-1">
-            {activePrimaryTab === 'company-wide' ? (
-              renderCompanyWideNav(companyWideSubCategories)
-            ) : (
-              (secondaryNavConfig[activePrimaryTab] || []).map(navItem => (
-                <TooltipProvider key={navItem.id} delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => handleSecondaryNavChange(navItem.id)}
-                        disabled={isLoading || isUploading}
-                        className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors
-                                    ${activeSecondaryNav === navItem.id 
-                                        ? 'bg-primary text-primary-foreground' 
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-                      >
-                        <span className="truncate flex-1 text-left">{navItem.label}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" align="start">
-                      <p>{navItem.label}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ))
-            )}
-          </nav>
-        </aside>
+        {(secondaryNavConfig[activePrimaryTab] || []).length > 0 && (
+          <aside className="w-full md:w-72 flex-shrink-0 bg-background md:border-r md:border-gray-200 md:pr-4"> {/* Increased width slightly */}
+            <nav className="space-y-1">
+              {activePrimaryTab === 'company-wide' ? (
+                renderCompanyWideNav(companyWideSubCategories)
+              ) : (
+                (secondaryNavConfig[activePrimaryTab] || []).map(navItem => (
+                  <TooltipProvider key={navItem.id} delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleSecondaryNavChange(navItem.id)}
+                          disabled={isLoading || isUploading}
+                          className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors
+                                      ${activeSecondaryNav === navItem.id 
+                                          ? 'bg-primary text-primary-foreground' 
+                                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                        >
+                          <span className="truncate flex-1 text-left">{navItem.label}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" align="start">
+                        <p>{navItem.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))
+              )}
+            </nav>
+          </aside>
+        )}
 
         <div className="flex-grow min-w-0">
           {isLoading && (
@@ -748,25 +740,27 @@ export default function Documents() {
              <div className="col-span-full text-center py-10 text-gray-500">
               <p className="text-lg mb-2"> {searchQuery ? 'No documents match your search.' : 'No documents found.'} </p>
               <p className="text-sm">
-                {searchQuery ? 
-                    `Try broadening your search terms for ${findCategoryById(activeSecondaryNav, companyWideSubCategories)?.label || currentPrimaryTabConfig?.label || 'this section'}.` :
-                    `There are currently no documents in ${findCategoryById(activeSecondaryNav, companyWideSubCategories)?.label || currentPrimaryTabConfig?.label || 'this section'}.`
-                } </p> </div>
+                {searchQuery ? 'Try a different search term.' : 
+                    (activePrimaryTab === 'my-documents' ? 'You have no documents in this OneDrive folder.' : 
+                     activePrimaryTab === 'company-wide' ? 'No company documents found in this category.' :
+                     activePrimaryTab === 'team-unit' ? 'No documents found for your team/unit.' :
+                     'Check back later for new documents.')}
+              </p>
+            </div>
           ))}
+
         </div>
       </div>
 
-      <AddDocumentModal
+      <AddDocumentModal 
         isOpen={isAddDocumentModalOpen}
-        onOpenChange={(isOpen) => { if (!isUploading) setIsAddDocumentModalOpen(isOpen); }}
+        onClose={() => setIsAddDocumentModalOpen(false)}
         onShare={handleShareDocument}
-        initialCategory={
-            activePrimaryTab === 'company-wide' ? 'SCPNG Shared Documents' :
-            activePrimaryTab === 'team-unit' ? 
-                'Unit Shared' : '' // Simplified: if on team-unit tab, default to 'Unit Shared' for the modal
-        }
-        availableCategories={currentSharePointCategoriesForModal}
-        availableSubCategories={currentSubCategoriesForModal}
+        isUploading={isUploading}
+        shareableCategories={currentSharePointCategoriesForModal}
+        subCategories={currentSubCategoriesForModal}
+        initialCategory={currentSharePointCategoriesForModal[0]}
+        initialSubCategory={newIdToOldLabelMap[activeSecondaryNav]}
       />
     </PageLayout>
   );

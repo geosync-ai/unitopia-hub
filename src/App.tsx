@@ -103,7 +103,6 @@ const AppRoutes = () => {
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
       <Route path="/licensing-registry" element={<ProtectedRoute><LicensingRegistry /></ProtectedRoute>} />
-      <Route path="/email-to-task-tracker" element={<ProtectedRoute><EmailToTaskTracker /></ProtectedRoute>} />
       
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />

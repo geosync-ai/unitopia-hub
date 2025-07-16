@@ -41,8 +41,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
   onOpenChange,
   onShare,
   initialCategory,
-  availableCategories,
-  availableSubCategories,
+  availableCategories = [],
+  availableSubCategories = [],
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
