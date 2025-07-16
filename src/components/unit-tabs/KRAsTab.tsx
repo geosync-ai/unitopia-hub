@@ -35,7 +35,7 @@ import StatusBadge from '@/components/common/StatusBadge';
 import KRATimelineTab from '@/components/KRATimelineTab';
 import KRAInsightsTab from '@/components/KRAInsightsTab';
 import KpiModal from '@/components/kpi/KpiModal';
-import { Kra, Kpi, User, Objective } from '@/types/kpi';
+import { Kra, Kpi, User, Objective } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';

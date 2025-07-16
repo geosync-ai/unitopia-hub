@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Calendar, Download, FileText, Mail, PenSquare, Plus, Printer, Save, Settings, Share } from "lucide-react";
 import { Task, Project, Risk } from '@/types';
-import { Kra, Kpi, Objective } from '@/types/kpi';
+import { Kra, Kpi, Objective } from '@/types';
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";

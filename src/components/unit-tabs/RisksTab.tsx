@@ -16,7 +16,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { StaffMember } from '@/types/staff';
-import { Objective } from '@/types/kpi';
+import { Objective } from '@/types';
 import { toast } from '@/components/ui/use-toast';
 
 interface RisksTabProps {
