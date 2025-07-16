@@ -61,6 +61,7 @@
     "font-awesome": "^4.7.0",
     "framer-motion": "^12.10.0",
     "geist": "^1.2.2",
+    "groq-sdk": "^0.27.0",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.2.4",
     "jspdf": "^2.5.1",
