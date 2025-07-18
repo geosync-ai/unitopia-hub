@@ -51,11 +51,10 @@ const camelToSnakeCase = (obj: any): any => {
       if (value instanceof Date) {
         // Convert Date objects to ISO strings for PostgreSQL
         value = value.toISOString();
-      } else if (key === 'startDate' || key === 'dueDate' || key === 'endDate' || 
-                key === 'purchaseDate' || key === 'warrantyExpiry' || key === 'warrantyExpiryDate' ||
-                key === 'assignedDate' || key === 'expiryDate' ||
-                key === 'identificationDate' || key === 'createdAt' || key === 'updatedAt') {
-        // For date fields that might be objects or already strings
+      } else if (key.includes('Date') || key.includes('date') || key.endsWith('_date') || 
+                key === 'createdAt' || key === 'updatedAt' || key === 'created_at' || key === 'updated_at' ||
+                key === 'last_updated') {
+        // For any field that contains "date" or is a known timestamp field
         if (value && typeof value === 'object' && !(value instanceof Date)) {
           // Handle complex objects that should be dates
           if ('toISOString' in value && typeof value.toISOString === 'function') {
@@ -64,8 +63,8 @@ const camelToSnakeCase = (obj: any): any => {
             // If it's an object but not a valid date, convert to null
             value = null;
           }
-        } else if (value === '') {
-          // Empty strings should be null for date fields
+        } else if (value === '' || value === null || value === undefined) {
+          // Empty strings, null, or undefined should be null for date fields
           value = null;
         }
         // Strings that are valid ISO dates can be passed through
