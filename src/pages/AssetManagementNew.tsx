@@ -218,11 +218,13 @@ const AssetManagement = () => {
   };
 
   const handleEditClick = (asset: UserAsset) => {
+    console.log('Edit clicked for asset:', asset.name);
     setSelectedAsset(asset);
     setIsEditModalOpen(true);
   };
 
   const handleDeleteClick = (asset: UserAsset) => {
+    console.log('Delete clicked for asset:', asset.name);
     setSelectedAsset(asset);
     setIsDeleteModalOpen(true);
   };
@@ -240,6 +242,7 @@ const AssetManagement = () => {
 
   // [Cursor] Handler to open the QUICK info modal
   const handleInfoClick = (asset: UserAsset) => {
+    console.log('Info clicked for asset:', asset.name);
     setSelectedAssetForInfo(asset);
     setIsQuickInfoModalOpen(true);
   };
@@ -748,17 +751,15 @@ const AssetManagement = () => {
                               </TooltipWrapper>
                             </td>
                             {/* Actions Cell - sticky right */}
-                            <td className="sticky right-0 px-4 py-3 bg-white dark:bg-gray-800 text-right z-10 shadow-lg"> {/* Enhanced background and shadow */}
+                            <td className="sticky right-0 px-4 py-3 bg-white dark:bg-gray-800 text-right z-20 shadow-lg"> {/* Enhanced background and shadow */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <TooltipWrapper content="Asset actions menu">
-                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Open menu</span>
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipWrapper>
+                                  <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" className="z-50">
                                   <DropdownMenuItem onClick={() => handleInfoClick(asset)}>
                                     <Info className="mr-2 h-4 w-4" />
                                     View Details
@@ -1220,17 +1221,15 @@ const AssetManagement = () => {
                                 </TooltipWrapper>
                             </TableCell>
                             {/* Actions Cell */}
-                            <TableCell className="sticky right-0 bg-background z-10 text-right py-2 px-2 shadow-lg">
+                            <TableCell className="sticky right-0 bg-background z-20 text-right py-2 px-2 shadow-lg">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <TooltipWrapper content="Asset actions menu">
-                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Open menu</span>
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipWrapper>
+                                  <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" className="z-50">
                                    <DropdownMenuItem onClick={() => handleInfoClick(asset)}>
                                      <Info className="mr-2 h-4 w-4" />
                                      View Details
