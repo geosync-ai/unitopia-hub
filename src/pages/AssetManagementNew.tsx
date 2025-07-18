@@ -1245,7 +1245,7 @@ const AssetManagement = () => {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </td>
+                            </TableCell>
                           </tr>
                         ))
                       )}
