@@ -29,7 +29,7 @@ export const getStaffMemberByEmail = async (email: string): Promise<StaffMember 
         name: data.name,
         email: data.email,
         jobTitle: data.job_title,
-        department: data.department,
+        department: data.unit || 'N/A', // Database field is 'unit' not 'department'
         mobile: data.mobile || 'N/A',
         businessPhone: data.business_phone || 'N/A',
         officeLocation: data.office_location || 'N/A',
@@ -86,17 +86,20 @@ export function useStaffMembers(divisionId?: string): UseStaffMembersReturn {
         
         if (data && data.length > 0) {
           // Map the data to match our StaffMember interface
+          // Using the exact database schema fields: unit, job_title, mobile, business_phone, office_location, division_id
+          console.log('[useStaffMembers] Raw database data sample:', data[0]);
           const formattedData: StaffMember[] = data.map(staff => ({
             id: staff.id.toString(),
             name: staff.name,
             email: staff.email,
             jobTitle: staff.job_title,
-            department: staff.department,
-            mobile: staff.mobile,
-            businessPhone: staff.business_phone,
-            officeLocation: staff.office_location,
+            department: staff.unit, // Database field is 'unit' not 'department'
+            mobile: staff.mobile || 'N/A',
+            businessPhone: staff.business_phone || 'N/A',
+            officeLocation: staff.office_location || 'N/A',
             divisionId: staff.division_id
           }));
+          console.log('[useStaffMembers] Formatted data sample:', formattedData[0]);
           
           setStaffMembers(formattedData);
         } else {
@@ -118,17 +121,20 @@ export function useStaffMembers(divisionId?: string): UseStaffMembersReturn {
         
         if (data && data.length > 0) {
           // Map the data to match our StaffMember interface
+          // Using the exact database schema fields: unit, job_title, mobile, business_phone, office_location, division_id
+          console.log('[useStaffMembers] Raw database data sample (all staff):', data[0]);
           const formattedData: StaffMember[] = data.map(staff => ({
             id: staff.id.toString(),
             name: staff.name,
             email: staff.email,
             jobTitle: staff.job_title,
-            department: staff.department,
-            mobile: staff.mobile,
-            businessPhone: staff.business_phone,
-            officeLocation: staff.office_location,
+            department: staff.unit, // Database field is 'unit' not 'department'
+            mobile: staff.mobile || 'N/A',
+            businessPhone: staff.business_phone || 'N/A',
+            officeLocation: staff.office_location || 'N/A',
             divisionId: staff.division_id
           }));
+          console.log('[useStaffMembers] Formatted data sample (all staff):', formattedData[0]);
           
           setStaffMembers(formattedData);
         } else {

@@ -35,7 +35,19 @@ const useStaffByDivision = (options: UseStaffByDivisionOptions = {}) => {
         let staffData: StaffMember[] = [];
         
         if (data && data.length > 0) {
-          staffData = data as StaffMember[];
+          // Map the data to match our StaffMember interface
+          // Database has 'unit' field, interface expects 'department'
+          staffData = data.map(staff => ({
+            id: staff.id.toString(),
+            name: staff.name,
+            email: staff.email,
+            job_title: staff.job_title,
+            department: staff.unit || 'N/A', // Database field is 'unit' not 'department'
+            mobile: staff.mobile || 'N/A',
+            business_phone: staff.business_phone || 'N/A',
+            office_location: staff.office_location || 'N/A',
+            division_id: staff.division_id
+          }));
         } else {
           // Fallback to static data if no results or specified division
           if (divisionId) {
