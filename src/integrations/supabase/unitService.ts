@@ -1,6 +1,6 @@
 import { getSupabaseClient } from './supabaseClient';
 import supabaseConfig from '@/config/supabase';
-import { Objective } from '@/types/kpi'; // Import Objective type
+import { Objective } from '@/types'; // Import Objective type
 
 // Define Supabase table names
 const TABLES = {
@@ -52,7 +52,8 @@ const camelToSnakeCase = (obj: any): any => {
         // Convert Date objects to ISO strings for PostgreSQL
         value = value.toISOString();
       } else if (key === 'startDate' || key === 'dueDate' || key === 'endDate' || 
-                key === 'purchaseDate' || key === 'warrantyExpiry' || 
+                key === 'purchaseDate' || key === 'warrantyExpiry' || key === 'warrantyExpiryDate' ||
+                key === 'assignedDate' || key === 'expiryDate' ||
                 key === 'identificationDate' || key === 'createdAt' || key === 'updatedAt') {
         // For date fields that might be objects or already strings
         if (value && typeof value === 'object' && !(value instanceof Date)) {
