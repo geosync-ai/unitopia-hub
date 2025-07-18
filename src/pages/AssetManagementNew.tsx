@@ -816,24 +816,25 @@ const AssetManagement = () => {
                 
                 {/* Detailed List View - Enhanced with sticky headers and comprehensive tooltips */} 
                  {viewMode === 'detailed-list' && (
-                  <Table className="min-w-max text-xs"> 
-                    <TableHeader className="sticky top-0 z-20 bg-background shadow-md">
-                      <TableRow>
-                         <TableHead className="sticky left-0 bg-background z-10 w-[50px] h-auto py-2 px-2 border-r border-border">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left text-gray-500 dark:text-gray-400 min-w-max"> 
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400 sticky top-0 z-20 shadow-md sticky-table-header">
+                        <tr>
+                         <th scope="col" className="sticky left-0 bg-gray-100 dark:bg-gray-700 z-10 w-[50px] h-auto py-2 px-2 border-r border-gray-200 dark:border-gray-600">
                            <TooltipWrapper content="Asset image - Click asset row to view full details">
                              <div className="flex items-center justify-center">
                                <span>Img</span>
                              </div>
                            </TooltipWrapper>
-                         </TableHead>
-                        <TableHead className="sticky left-[50px] bg-background z-10 min-w-[150px] h-auto py-2 px-2 border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('name')}>
+                         </th>
+                        <th scope="col" className="sticky left-[50px] bg-gray-100 dark:bg-gray-700 z-10 min-w-[150px] h-auto py-2 px-2 border-r border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" onClick={() => handleSort('name')}>
                           <TooltipWrapper content="Asset name - Click to sort alphabetically">
                             <div className="flex items-center">
                               <span>Name</span>
                               <SortIndicator column="name" />
                             </div>
                           </TooltipWrapper>
-                        </TableHead>
+                        </th>
                         <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('id')}>
                           <TooltipWrapper content="Unique asset identifier - Click to sort by ID">
                             <div className="flex items-center">
@@ -1018,44 +1019,44 @@ const AssetManagement = () => {
                             </div>
                           </TooltipWrapper>
                         </TableHead>
-                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('barcode_url')}>
+                        <th scope="col" className="sticky top-0 h-auto py-2 px-2 bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" onClick={() => handleSort('barcode_url')}>
                           <TooltipWrapper content="Barcode document URL - Click to sort by barcode URL">
                             <div className="flex items-center">
                               <span>Barcode URL</span>
                               <SortIndicator column="barcode_url" />
                             </div>
                           </TooltipWrapper>
-                        </TableHead>
-                        <TableHead className="sticky right-0 bg-background z-30 text-right min-w-[100px] h-auto py-2 px-2 shadow-lg">
+                        </th>
+                        <th scope="col" className="sticky right-0 bg-gray-100 dark:bg-gray-700 z-30 text-right min-w-[100px] h-auto py-2 px-2 shadow-lg">
                           <TooltipWrapper content="Available actions for this asset">
                             <div className="flex items-center justify-end">
                               <span>Actions</span>
                             </div>
                           </TooltipWrapper>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
                        {paginatedAssets.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={27} className="h-16 text-center text-muted-foreground py-1 px-2">
+                        <tr>
+                          <td colSpan={27} className="h-16 text-center text-muted-foreground py-1 px-2">
                              {filterText || filterType !== 'all' || filterCondition !== 'all' || filterUnit !== 'all' || filterDivision !== 'all' || filterVendor !== 'all'
                               ? `No assets found matching the current filters.`
                               : "No assets were found."}
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedAssets.map((asset) => (
-                          <TableRow key={asset.id} className="h-auto hover:bg-muted/50 transition-colors">
+                          <tr key={asset.id} className="h-auto hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors bg-white dark:bg-gray-800 border-b dark:border-gray-700">
                             {/* Image Cell */}
-                            <TableCell className="sticky left-0 bg-background z-10 py-2 px-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleInfoClick(asset)}>
+                            <td className="sticky left-0 bg-white dark:bg-gray-800 z-10 py-2 px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" onClick={() => handleInfoClick(asset)}>
                               <TooltipWrapper content={`${asset.name || 'Unknown Asset'} - Click to view full details`}>
                                 <Avatar className="h-8 w-8">
                                   <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
                                   <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                                 </Avatar>
                               </TooltipWrapper>
-                            </TableCell>
+                            </td>
                             {/* Name Cell */}
                             <TableCell className="sticky left-[50px] bg-background z-10 font-medium py-2 px-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleInfoClick(asset)}>
                                 <TooltipWrapper content={`Asset: ${asset.name || 'N/A'} - Click to view full details`}>
@@ -1244,12 +1245,13 @@ const AssetManagement = () => {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
+                            </td>
+                          </tr>
                         ))
                       )}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
+                </div>
                 )}
                 {/* End Detailed List View */} 
               </> /* Closing Fragment for !loading && !error */
