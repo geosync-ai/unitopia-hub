@@ -21,7 +21,7 @@ import { InteractionStatus } from '@azure/msal-browser'; // Import InteractionSt
 import { UserAsset } from '@/types';
 import { divisions } from '@/data/divisions'; // Import divisions data
 import { units } from '@/data/units'; // Import units data
-import { staffMembers } from '@/data/divisions'; // Import staffMembers data
+import { useStaffMembers } from '@/hooks/useStaffMembers'; // Import staff members hook
 import { formatDate } from '@/lib/utils'; // Import formatDate from utils
 import { cn } from '@/lib/utils'; // Import cn utility
 
@@ -65,6 +65,15 @@ const AssetManagement = () => {
     update: editAsset, 
     remove: deleteAsset, 
   } = useAssetsData();
+
+  // Use the staff members hook to get data from database
+  // NOTE: This now uses the online 'staff_members' table instead of static data
+  const { 
+    staffMembers, 
+    loading: staffLoading, 
+    error: staffError,
+    refreshStaffMembers 
+  } = useStaffMembers();
 
   // State for managing modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -115,6 +124,7 @@ const AssetManagement = () => {
   console.log('[AssetManagement] MSAL Account object:', account);
   console.log('[AssetManagement] User Name (for display/add):', userNameForFiltering); 
   console.log('[AssetManagement] Assets array (already filtered by hook):', assets);
+  console.log('[AssetManagement] Staff Members from database (online):', staffMembers, 'Loading:', staffLoading, 'Error:', staffError);
 
   // --- Filtering Logic (Client-side) --- 
   // [Cursor] Updated filtering logic to include all filters
@@ -260,6 +270,17 @@ const AssetManagement = () => {
     setSortDirection('asc');
   };
 
+  // Handler to refresh staff members from database
+  const handleRefreshStaffMembers = async () => {
+    try {
+      await refreshStaffMembers();
+      toast({ title: "Success", description: "Staff members refreshed successfully." });
+    } catch (error) {
+      console.error('Error refreshing staff members:', error);
+      toast({ title: "Error", description: "Failed to refresh staff members.", variant: "destructive" });
+    }
+  };
+
   // --- Sorting Handler ---
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -342,6 +363,25 @@ const AssetManagement = () => {
             </div>
         </PageLayout>
     );
+  }
+
+  // Show loading state while staff data is being fetched
+  if (staffLoading) {
+    return (
+        <PageLayout>
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading staff members...</span>
+            </div>
+        </PageLayout>
+    );
+  }
+
+  // Handle staff loading error (but don't block the UI, just show a warning)
+  if (staffError) {
+    console.warn('Staff loading error:', staffError);
+    // Optionally show a toast notification
+    // toast({ title: "Warning", description: "Failed to load staff members from database. Using fallback data.", variant: "destructive" });
   }
 
   // Handle case where MSAL account is not available after loading
