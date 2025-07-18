@@ -754,13 +754,11 @@ export default function Documents() {
 
       <AddDocumentModal 
         isOpen={isAddDocumentModalOpen}
-        onClose={() => setIsAddDocumentModalOpen(false)}
+        onOpenChange={setIsAddDocumentModalOpen}
         onShare={handleShareDocument}
-        isUploading={isUploading}
-        shareableCategories={currentSharePointCategoriesForModal}
-        subCategories={currentSubCategoriesForModal}
+        availableCategories={currentSharePointCategoriesForModal}
+        availableSubCategories={currentSubCategoriesForModal}
         initialCategory={currentSharePointCategoriesForModal[0]}
-        initialSubCategory={newIdToOldLabelMap[activeSecondaryNav]}
       />
     </PageLayout>
   );

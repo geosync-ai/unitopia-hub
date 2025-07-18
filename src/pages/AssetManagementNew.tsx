@@ -384,29 +384,39 @@ const AssetManagement = () => {
           {/* Action Buttons Container */}
           <div className="flex items-center gap-2 flex-shrink-0"> {/* Added flex-shrink-0 */} 
             {/* View Mode Toggle */}
-            <ToggleGroup 
-                type="single" 
-                value={viewMode} 
-                onValueChange={(value) => value && setViewMode(value as 'table' | 'card' | 'detailed-list')} 
-                aria-label="View mode"
-                className="border rounded-md p-0.5"
-            >
-                <ToggleGroupItem value="table" aria-label="Table view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
-                    <List className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="card" aria-label="Card view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
-                    <LayoutGrid className="h-4 w-4" />
-                </ToggleGroupItem>
-                 <ToggleGroupItem value="detailed-list" aria-label="Detailed list view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
-                    <Rows className="h-4 w-4" />
-                </ToggleGroupItem>
-            </ToggleGroup>
+            <TooltipWrapper content="Switch between different view modes">
+              <ToggleGroup 
+                  type="single" 
+                  value={viewMode} 
+                  onValueChange={(value) => value && setViewMode(value as 'table' | 'card' | 'detailed-list')} 
+                  aria-label="View mode"
+                  className="border rounded-md p-0.5"
+              >
+                  <TooltipWrapper content="Table view - Display assets in a detailed table format">
+                    <ToggleGroupItem value="table" aria-label="Table view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
+                        <List className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </TooltipWrapper>
+                  <TooltipWrapper content="Card view - Display assets as individual cards">
+                    <ToggleGroupItem value="card" aria-label="Card view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
+                        <LayoutGrid className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </TooltipWrapper>
+                  <TooltipWrapper content="Detailed list view - Show all asset information in an expanded format">
+                    <ToggleGroupItem value="detailed-list" aria-label="Detailed list view" className="px-2 py-1 h-auto data-[state=on]:bg-intranet-primary data-[state=on]:text-primary-foreground">
+                        <Rows className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </TooltipWrapper>
+              </ToggleGroup>
+            </TooltipWrapper>
             {/* Add Asset Button */}
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleAddClick}>
-                  <Plus className="mr-2 h-4 w-4" /> Add Asset
-                </Button>
+                <TooltipWrapper content="Add a new asset to the system">
+                  <Button onClick={handleAddClick}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Asset
+                  </Button>
+                </TooltipWrapper>
               </DialogTrigger>
               {isAddModalOpen && (
                 <AddAssetModal 
@@ -425,9 +435,11 @@ const AssetManagement = () => {
              {/* More Options Dropdown */}
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+                <TooltipWrapper content="More options - Export data and additional actions">
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </TooltipWrapper>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
