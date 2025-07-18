@@ -502,14 +502,16 @@ const AssetManagement = () => {
           </Select>
 
           {/* Reset Button - Positioned at the end */}
-          <Button 
-            variant="ghost" 
-            onClick={handleResetFilters} 
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground justify-self-start xl:justify-self-end"
-            > 
-             <RotateCcw className="h-4 w-4" />
-             Reset
-          </Button>
+          <TooltipWrapper content="Reset all filters and sorting to default values">
+            <Button 
+              variant="ghost" 
+              onClick={handleResetFilters} 
+              className="flex items-center gap-1 text-muted-foreground hover:text-foreground justify-self-start xl:justify-self-end"
+              > 
+               <RotateCcw className="h-4 w-4" />
+               Reset
+            </Button>
+          </TooltipWrapper>
         </div>
 
         {/* Main Content Area */}
@@ -812,38 +814,225 @@ const AssetManagement = () => {
                 )}
                 {/* End Card View */} 
                 
-                {/* Detailed List View */} 
+                {/* Detailed List View - Enhanced with sticky headers and comprehensive tooltips */} 
                  {viewMode === 'detailed-list' && (
                   <Table className="min-w-max text-xs"> 
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-20 bg-background shadow-md">
                       <TableRow>
-                         <TableHead className="sticky left-0 bg-background z-10 w-[50px] h-auto py-1 px-2">Img</TableHead>
-                        <TableHead className="sticky left-[50px] bg-background z-10 min-w-[150px] h-auto py-1 px-2">Name</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">ID</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Type</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Condition</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Assigned To</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Email</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Unit</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Division</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Description</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Assigned Date</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Purchase Date</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Purchase Cost</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Vendor</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Warranty Expiry</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Expiry Date</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Life Exp (Yrs)</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Depreciated Value</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">YTD Usage</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Notes</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Last Updated</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Updated By</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Created At</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Admin Comments</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Invoice URL</TableHead>
-                        <TableHead className="sticky top-0 h-auto py-1 px-2 bg-background">Barcode URL</TableHead>
-                        <TableHead className="sticky right-0 bg-background z-30 text-right min-w-[100px] h-auto py-1 px-2">Actions</TableHead>
+                         <TableHead className="sticky left-0 bg-background z-10 w-[50px] h-auto py-2 px-2 border-r border-border">
+                           <TooltipWrapper content="Asset image - Click asset row to view full details">
+                             <div className="flex items-center justify-center">
+                               <span>Img</span>
+                             </div>
+                           </TooltipWrapper>
+                         </TableHead>
+                        <TableHead className="sticky left-[50px] bg-background z-10 min-w-[150px] h-auto py-2 px-2 border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('name')}>
+                          <TooltipWrapper content="Asset name - Click to sort alphabetically">
+                            <div className="flex items-center">
+                              <span>Name</span>
+                              <SortIndicator column="name" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('id')}>
+                          <TooltipWrapper content="Unique asset identifier - Click to sort by ID">
+                            <div className="flex items-center">
+                              <span>ID</span>
+                              <SortIndicator column="id" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('type')}>
+                          <TooltipWrapper content="Asset category/type - Click to sort by type">
+                            <div className="flex items-center">
+                              <span>Type</span>
+                              <SortIndicator column="type" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('condition')}>
+                          <TooltipWrapper content="Current asset condition - Click to sort by condition">
+                            <div className="flex items-center">
+                              <span>Condition</span>
+                              <SortIndicator column="condition" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('assigned_to')}>
+                          <TooltipWrapper content="Person currently assigned this asset - Click to sort by assignee">
+                            <div className="flex items-center">
+                              <span>Assigned To</span>
+                              <SortIndicator column="assigned_to" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('assigned_to_email')}>
+                          <TooltipWrapper content="Email of assigned person - Click to sort by email">
+                            <div className="flex items-center">
+                              <span>Email</span>
+                              <SortIndicator column="assigned_to_email" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('unit')}>
+                          <TooltipWrapper content="Organizational unit - Click to sort by unit">
+                            <div className="flex items-center">
+                              <span>Unit</span>
+                              <SortIndicator column="unit" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('division')}>
+                          <TooltipWrapper content="Division within organization - Click to sort by division">
+                            <div className="flex items-center">
+                              <span>Division</span>
+                              <SortIndicator column="division" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('description')}>
+                          <TooltipWrapper content="Asset description - Click to sort by description">
+                            <div className="flex items-center">
+                              <span>Description</span>
+                              <SortIndicator column="description" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('assigned_date')}>
+                          <TooltipWrapper content="Date asset was assigned - Click to sort by assigned date">
+                            <div className="flex items-center">
+                              <span>Assigned Date</span>
+                              <SortIndicator column="assigned_date" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('purchase_date')}>
+                          <TooltipWrapper content="Date asset was purchased - Click to sort by purchase date">
+                            <div className="flex items-center">
+                              <span>Purchase Date</span>
+                              <SortIndicator column="purchase_date" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('purchase_cost')}>
+                          <TooltipWrapper content="Cost of asset purchase - Click to sort by purchase cost">
+                            <div className="flex items-center">
+                              <span>Purchase Cost</span>
+                              <SortIndicator column="purchase_cost" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('vendor')}>
+                          <TooltipWrapper content="Asset vendor/supplier - Click to sort by vendor">
+                            <div className="flex items-center">
+                              <span>Vendor</span>
+                              <SortIndicator column="vendor" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('warranty_expiry_date')}>
+                          <TooltipWrapper content="Warranty expiration date - Click to sort by warranty expiry">
+                            <div className="flex items-center">
+                              <span>Warranty Expiry</span>
+                              <SortIndicator column="warranty_expiry_date" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('expiry_date')}>
+                          <TooltipWrapper content="Asset expiration date - Click to sort by expiry date">
+                            <div className="flex items-center">
+                              <span>Expiry Date</span>
+                              <SortIndicator column="expiry_date" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('life_expectancy_years')}>
+                          <TooltipWrapper content="Expected asset lifespan in years - Click to sort by life expectancy">
+                            <div className="flex items-center">
+                              <span>Life Exp (Yrs)</span>
+                              <SortIndicator column="life_expectancy_years" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('depreciated_value')}>
+                          <TooltipWrapper content="Current depreciated value - Click to sort by depreciated value">
+                            <div className="flex items-center">
+                              <span>Depreciated Value</span>
+                              <SortIndicator column="depreciated_value" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('ytd_usage')}>
+                          <TooltipWrapper content="Year-to-date usage information - Click to sort by YTD usage">
+                            <div className="flex items-center">
+                              <span>YTD Usage</span>
+                              <SortIndicator column="ytd_usage" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('notes')}>
+                          <TooltipWrapper content="Additional notes about the asset - Click to sort by notes">
+                            <div className="flex items-center">
+                              <span>Notes</span>
+                              <SortIndicator column="notes" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('last_updated')}>
+                          <TooltipWrapper content="Last modification date - Click to sort by last updated">
+                            <div className="flex items-center">
+                              <span>Last Updated</span>
+                              <SortIndicator column="last_updated" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('last_updated_by')}>
+                          <TooltipWrapper content="Person who last updated this asset - Click to sort by updated by">
+                            <div className="flex items-center">
+                              <span>Updated By</span>
+                              <SortIndicator column="last_updated_by" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('created_at')}>
+                          <TooltipWrapper content="Asset creation date - Click to sort by created at">
+                            <div className="flex items-center">
+                              <span>Created At</span>
+                              <SortIndicator column="created_at" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('admin_comments')}>
+                          <TooltipWrapper content="Administrative comments - Click to sort by admin comments">
+                            <div className="flex items-center">
+                              <span>Admin Comments</span>
+                              <SortIndicator column="admin_comments" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('invoice_url')}>
+                          <TooltipWrapper content="Invoice document URL - Click to sort by invoice URL">
+                            <div className="flex items-center">
+                              <span>Invoice URL</span>
+                              <SortIndicator column="invoice_url" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('barcode_url')}>
+                          <TooltipWrapper content="Barcode document URL - Click to sort by barcode URL">
+                            <div className="flex items-center">
+                              <span>Barcode URL</span>
+                              <SortIndicator column="barcode_url" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky right-0 bg-background z-30 text-right min-w-[100px] h-auto py-2 px-2 shadow-lg">
+                          <TooltipWrapper content="Available actions for this asset">
+                            <div className="flex items-center justify-end">
+                              <span>Actions</span>
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -857,63 +1046,188 @@ const AssetManagement = () => {
                         </TableRow>
                       ) : (
                         paginatedAssets.map((asset) => (
-                          <TableRow key={asset.id} className="h-auto">
-                            <TableCell className="sticky left-0 bg-background z-10 py-1 px-2 cursor-pointer" onClick={() => handleInfoClick(asset)}>
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
-                                <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
-                              </Avatar>
+                          <TableRow key={asset.id} className="h-auto hover:bg-muted/50 transition-colors">
+                            {/* Image Cell */}
+                            <TableCell className="sticky left-0 bg-background z-10 py-2 px-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleInfoClick(asset)}>
+                              <TooltipWrapper content={`${asset.name || 'Unknown Asset'} - Click to view full details`}>
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={asset.image_url || undefined} alt={asset.name} />
+                                  <AvatarFallback>{asset.name?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
+                                </Avatar>
+                              </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="sticky left-[50px] bg-background z-10 font-medium py-1 px-2 cursor-pointer" onClick={() => handleInfoClick(asset)}>
-                                <HighlightMatch text={asset.name} searchTerm={filterText} />
+                            {/* Name Cell */}
+                            <TableCell className="sticky left-[50px] bg-background z-10 font-medium py-2 px-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleInfoClick(asset)}>
+                                <TooltipWrapper content={`Asset: ${asset.name || 'N/A'} - Click to view full details`}>
+                                  <HighlightMatch text={asset.name} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.id} searchTerm={filterText} />
+                            {/* ID Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Asset ID: ${asset.id || 'N/A'}`}>
+                                  <HighlightMatch text={asset.id} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.type} searchTerm={filterText} />
+                            {/* Type Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Asset Type: ${asset.type || 'N/A'}`}>
+                                  <HighlightMatch text={asset.type} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.condition} searchTerm={filterText} />
+                            {/* Condition Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Current Condition: ${asset.condition || 'N/A'}`}>
+                                  <span className={cn(
+                                    "px-2 py-1 rounded-full text-xs font-medium",
+                                    asset.condition === 'Good' ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+                                    asset.condition === 'Fair' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100' :
+                                    asset.condition === 'Poor' ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100'
+                                  )}>
+                                    <HighlightMatch text={asset.condition} searchTerm={filterText} />
+                                  </span>
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.assigned_to} searchTerm={filterText} />
+                            {/* Assigned To Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Assigned To: ${asset.assigned_to || 'N/A'}`}>
+                                  <HighlightMatch text={asset.assigned_to} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">{asset.assigned_to_email || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.unit} searchTerm={filterText} />
+                            {/* Email Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Email: ${asset.assigned_to_email || 'N/A'}`}>
+                                  <span className="text-sm">{asset.assigned_to_email || 'N/A'}</span>
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.division} searchTerm={filterText} />
+                            {/* Unit Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Unit: ${asset.unit || 'N/A'}`}>
+                                  <HighlightMatch text={asset.unit} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.description || undefined}>
-                                <HighlightMatch text={asset.description || 'N/A'} searchTerm={filterText} />
+                            {/* Division Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Division: ${asset.division || 'N/A'}`}>
+                                  <HighlightMatch text={asset.division} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.assigned_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.purchase_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.purchase_cost != null ? `$${asset.purchase_cost.toFixed(2)}` : 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">
-                                <HighlightMatch text={asset.vendor} searchTerm={filterText} />
+                            {/* Description Cell */}
+                            <TableCell className="py-2 px-2 max-w-[150px] truncate">
+                                <TooltipWrapper content={`Description: ${asset.description || 'No description available'}`}>
+                                  <HighlightMatch text={asset.description || 'N/A'} searchTerm={filterText} />
+                                </TooltipWrapper>
                             </TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.warranty_expiry_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.expiry_date)}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.life_expectancy_years ?? 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.depreciated_value != null ? `$${asset.depreciated_value.toFixed(2)}` : 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.ytd_usage || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.notes || undefined}>{asset.notes || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.last_updated)}</TableCell>
-                            <TableCell className="py-1 px-2">{asset.last_updated_by || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2">{formatDate(asset.created_at)}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.admin_comments || undefined}>{asset.admin_comments || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.invoice_url || undefined}>{asset.invoice_url || 'N/A'}</TableCell>
-                            <TableCell className="py-1 px-2 max-w-[150px] truncate" title={asset.barcode_url || undefined}>{asset.barcode_url || 'N/A'}</TableCell>
-                            <TableCell className="sticky right-0 bg-background z-10 text-right py-1 px-2">
+                            {/* Assigned Date Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Assigned Date: ${formatDate(asset.assigned_date) || 'N/A'}`}>
+                                  <span className="text-sm text-muted-foreground">{formatDate(asset.assigned_date) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Purchase Date Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Purchase Date: ${formatDate(asset.purchase_date) || 'N/A'}`}>
+                                  <span className="text-sm text-muted-foreground">{formatDate(asset.purchase_date) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Purchase Cost Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Purchase Cost: ${asset.purchase_cost != null ? `$${asset.purchase_cost.toFixed(2)}` : 'N/A'}`}>
+                                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                    {asset.purchase_cost != null ? `$${asset.purchase_cost.toFixed(2)}` : 'N/A'}
+                                  </span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Vendor Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Vendor: ${asset.vendor || 'N/A'}`}>
+                                  <HighlightMatch text={asset.vendor} searchTerm={filterText} />
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Warranty Expiry Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Warranty Expiry: ${formatDate(asset.warranty_expiry_date) || 'N/A'}`}>
+                                  <span className="text-sm text-muted-foreground">{formatDate(asset.warranty_expiry_date) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Expiry Date Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Expiry Date: ${formatDate(asset.expiry_date) || 'N/A'}`}>
+                                  <span className="text-sm text-muted-foreground">{formatDate(asset.expiry_date) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Life Expectancy Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Life Expectancy: ${asset.life_expectancy_years ?? 'N/A'} years`}>
+                                  <span className="text-sm">{asset.life_expectancy_years ?? 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Depreciated Value Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Depreciated Value: ${asset.depreciated_value != null ? `$${asset.depreciated_value.toFixed(2)}` : 'N/A'}`}>
+                                  <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                                    {asset.depreciated_value != null ? `$${asset.depreciated_value.toFixed(2)}` : 'N/A'}
+                                  </span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* YTD Usage Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`YTD Usage: ${asset.ytd_usage || 'N/A'}`}>
+                                  <span className="text-sm">{asset.ytd_usage || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Notes Cell */}
+                            <TableCell className="py-2 px-2 max-w-[150px] truncate">
+                                <TooltipWrapper content={`Notes: ${asset.notes || 'No notes available'}`}>
+                                  <span className="text-sm text-muted-foreground">{asset.notes || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Last Updated Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Last Updated: ${formatDate(asset.last_updated) || 'N/A'}`}>
+                                  <span className="text-sm text-muted-foreground">{formatDate(asset.last_updated) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Updated By Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Updated By: ${asset.last_updated_by || 'N/A'}`}>
+                                  <span className="text-sm">{asset.last_updated_by || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Created At Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Created At: ${formatDate(asset.created_at) || 'N/A'}`}>
+                                  <span className="text-sm text-muted-foreground">{formatDate(asset.created_at) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Admin Comments Cell */}
+                            <TableCell className="py-2 px-2 max-w-[150px] truncate">
+                                <TooltipWrapper content={`Admin Comments: ${asset.admin_comments || 'No admin comments'}`}>
+                                  <span className="text-sm text-muted-foreground">{asset.admin_comments || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Invoice URL Cell */}
+                            <TableCell className="py-2 px-2 max-w-[150px] truncate">
+                                <TooltipWrapper content={`Invoice URL: ${asset.invoice_url || 'No invoice URL'}`}>
+                                  <span className="text-sm text-blue-600 dark:text-blue-400">{asset.invoice_url || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Barcode URL Cell */}
+                            <TableCell className="py-2 px-2 max-w-[150px] truncate">
+                                <TooltipWrapper content={`Barcode URL: ${asset.barcode_url || 'No barcode URL'}`}>
+                                  <span className="text-sm text-blue-600 dark:text-blue-400">{asset.barcode_url || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Actions Cell */}
+                            <TableCell className="sticky right-0 bg-background z-10 text-right py-2 px-2 shadow-lg">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
+                                  <TooltipWrapper content="Asset actions menu">
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                      <span className="sr-only">Open menu</span>
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipWrapper>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                    <DropdownMenuItem onClick={() => handleInfoClick(asset)}>
