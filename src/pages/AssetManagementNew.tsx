@@ -857,9 +857,8 @@ const AssetManagement = () => {
                 
                 {/* Detailed List View - Enhanced with sticky headers and comprehensive tooltips */} 
                  {viewMode === 'detailed-list' && (
-                  <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left text-gray-500 dark:text-gray-400 min-w-max"> 
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400 sticky top-0 z-20 shadow-md sticky-table-header">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400 sticky top-0 z-20 shadow-md">
                         <tr>
                          <th scope="col" className="sticky left-0 bg-gray-100 dark:bg-gray-700 z-10 w-[50px] h-auto py-2 px-2 border-r border-gray-200 dark:border-gray-600">
                            <TooltipWrapper content="Asset image - Click asset row to view full details">
@@ -1290,7 +1289,6 @@ const AssetManagement = () => {
                       )}
                     </tbody>
                   </table>
-                </div>
                 )}
                 {/* End Detailed List View */} 
               </> /* Closing Fragment for !loading && !error */
