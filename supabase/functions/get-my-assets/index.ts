@@ -85,15 +85,16 @@ serve(async (req) => {
     console.log("[get-my-assets] Supabase Admin client created");
 
     // 3. Build the query based on user role
-    let query = supabaseAdmin.from("assets").select("*"); // Target table is 'assets'
-
     const isAdmin = ADMIN_EMAILS.includes(user_email.toLowerCase());
+    
+    // Use active_assets view to automatically exclude deleted assets
+    let query = supabaseAdmin.from("active_assets").select("*");
 
     if (isAdmin) {
-      console.log(`[get-my-assets] Admin user (${user_email}) detected. Fetching all assets.`);
-      // Admins see all assets
+      console.log(`[get-my-assets] Admin user (${user_email}) detected. Fetching all active assets.`);
+      // Admins see all active assets (deleted assets are already filtered out by the view)
     } else {
-      console.log(`[get-my-assets] Non-admin user (${user_email}). Filtering assets by assigned_to_email.`);
+      console.log(`[get-my-assets] Non-admin user (${user_email}). Filtering active assets by assigned_to_email.`);
       query = query.eq("assigned_to_email", user_email);
     }
 

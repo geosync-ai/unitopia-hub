@@ -30,7 +30,7 @@ import { toast } from "@/components/ui/use-toast";
 import DatePicker from '@/components/DatePicker';
 import { Upload, Check, ChevronsUpDown, Loader2, Paperclip, X } from 'lucide-react';
 import { Division as TypeDivision } from '@/types';
-import { StaffMember, staffMembers as staffData, divisions as divisionData } from '@/data/divisions';
+import { StaffMember } from '@/types/staff';
 import { Unit } from '@/data/units';
 import { cn } from '@/lib/utils';
 import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph.tsx';
@@ -132,6 +132,18 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
       setNewAsset(prev => ({ ...prev, image_url: '' })); // Clear potential previous URL
     }
   }, [graphLastError, isUploading, toast]);
+
+  // Debug: Log staff members when modal opens
+  useEffect(() => {
+    if (isOpen && staffMembers.length > 0) {
+      console.log('[AddAssetModal] Staff members loaded from Supabase:');
+      console.log('📊 Total staff members:', staffMembers.length);
+      console.log('📋 Sample staff member:', staffMembers[0]);
+      console.log('📧 Staff for dropdown:', staffMembers.slice(0, 3).map(s => `${s.name} (${s.email})`));
+    } else if (isOpen && staffMembers.length === 0) {
+      console.warn('[AddAssetModal] No staff members available for dropdown');
+    }
+  }, [isOpen, staffMembers]);
 
   const handleAddAsset = () => {
     // Basic validation (add more as needed)

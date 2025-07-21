@@ -891,6 +891,38 @@ const AssetManagement = () => {
                             </div>
                           </TooltipWrapper>
                         </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('brand')}>
+                          <TooltipWrapper content="Asset brand/manufacturer - Click to sort by brand">
+                            <div className="flex items-center">
+                              <span>Brand</span>
+                              <SortIndicator column="brand" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('model')}>
+                          <TooltipWrapper content="Asset model - Click to sort by model">
+                            <div className="flex items-center">
+                              <span>Model</span>
+                              <SortIndicator column="model" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('serial_number')}>
+                          <TooltipWrapper content="Asset serial number - Click to sort by serial number">
+                            <div className="flex items-center">
+                              <span>Serial Number</span>
+                              <SortIndicator column="serial_number" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('asset_id')}>
+                          <TooltipWrapper content="Asset ID - Click to sort by asset ID">
+                            <div className="flex items-center">
+                              <span>Asset ID</span>
+                              <SortIndicator column="asset_id" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
                         <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('condition')}>
                           <TooltipWrapper content="Current asset condition - Click to sort by condition">
                             <div className="flex items-center">
@@ -1043,6 +1075,14 @@ const AssetManagement = () => {
                             </div>
                           </TooltipWrapper>
                         </TableHead>
+                        <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('created_by')}>
+                          <TooltipWrapper content="Person who created/uploaded this asset - Click to sort by created by">
+                            <div className="flex items-center">
+                              <span>Created By</span>
+                              <SortIndicator column="created_by" />
+                            </div>
+                          </TooltipWrapper>
+                        </TableHead>
                         <TableHead className="sticky top-0 h-auto py-2 px-2 bg-background border-r border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('admin_comments')}>
                           <TooltipWrapper content="Administrative comments - Click to sort by admin comments">
                             <div className="flex items-center">
@@ -1079,7 +1119,7 @@ const AssetManagement = () => {
                     <tbody>
                        {paginatedAssets.length === 0 ? (
                         <tr>
-                          <td colSpan={27} className="h-16 text-center text-muted-foreground py-1 px-2">
+                          <td colSpan={32} className="h-16 text-center text-muted-foreground py-1 px-2">
                              {filterText || filterType !== 'all' || filterCondition !== 'all' || filterUnit !== 'all' || filterDivision !== 'all' || filterVendor !== 'all'
                               ? `No assets found matching the current filters.`
                               : "No assets were found."}
@@ -1113,6 +1153,30 @@ const AssetManagement = () => {
                             <TableCell className="py-2 px-2">
                                 <TooltipWrapper content={`Asset Type: ${asset.type || 'N/A'}`}>
                                   <HighlightMatch text={asset.type} searchTerm={filterText} />
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Brand Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Brand: ${asset.brand || 'N/A'}`}>
+                                  <HighlightMatch text={asset.brand || 'N/A'} searchTerm={filterText} />
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Model Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Model: ${asset.model || 'N/A'}`}>
+                                  <HighlightMatch text={asset.model || 'N/A'} searchTerm={filterText} />
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Serial Number Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Serial Number: ${asset.serial_number || 'N/A'}`}>
+                                  <HighlightMatch text={asset.serial_number || 'N/A'} searchTerm={filterText} />
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Asset ID Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Asset ID: ${asset.asset_id || 'N/A'}`}>
+                                  <HighlightMatch text={asset.asset_id || 'N/A'} searchTerm={filterText} />
                                 </TooltipWrapper>
                             </TableCell>
                             {/* Condition Cell */}
@@ -1239,6 +1303,12 @@ const AssetManagement = () => {
                             <TableCell className="py-2 px-2">
                                 <TooltipWrapper content={`Created At: ${formatDate(asset.created_at) || 'N/A'}`}>
                                   <span className="text-sm text-muted-foreground">{formatDate(asset.created_at) || 'N/A'}</span>
+                                </TooltipWrapper>
+                            </TableCell>
+                            {/* Created By Cell */}
+                            <TableCell className="py-2 px-2">
+                                <TooltipWrapper content={`Created By: ${asset.created_by || 'N/A'}`}>
+                                  <span className="text-sm">{asset.created_by || 'N/A'}</span>
                                 </TooltipWrapper>
                             </TableCell>
                             {/* Admin Comments Cell */}

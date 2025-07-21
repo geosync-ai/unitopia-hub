@@ -8,6 +8,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { supabase, logger } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
+import { useRoleBasedAuth } from '@/hooks/useRoleBasedAuth';
+import RoleProtectedRoute from '@/components/auth/RoleProtectedRoute';
 import Index from "./pages/Index";
 import News from "./pages/News";
 import AIHub from "./pages/AIHub";
@@ -29,7 +31,6 @@ import Tickets from './pages/Tickets';
 import AdminAssetsPage from './pages/AdminAssetsPage';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 import LicensingRegistry from './pages/LicensingRegistry';
-import EmailToTaskTracker from "./pages/EmailToTaskTracker";
 
 // MSAL Imports
 import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
@@ -38,15 +39,7 @@ import { MsalAuthProvider } from '@/integrations/microsoft/MsalProvider';
 
 const queryClient = new QueryClient();
 
-// Placeholder for your actual authentication/role hook
-// Replace this with your real implementation
-const useAuth = () => {
-  // TODO: Implement your actual logic to get user role
-  // This might involve checking MSAL account info, claims, or calling an API
-  console.warn('[App.tsx] Using placeholder useAuth. Replace with actual implementation.');
-  const isAdmin = true; // <-- Placeholder: Assume admin for now
-  return { isAdmin }; 
-};
+// Role-based authentication hook - now properly implemented
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Use MSAL hooks for authentication status
@@ -76,14 +69,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// New wrapper component for asset page routing based on role
+// Role-based asset page routing component
 const AssetsPageRoute = () => {
-  const { isAdmin } = useAuth(); // Use the placeholder auth hook
-  // You might want a loading state here if checking the role is async
+  const { isAdmin, hasPermission, loading } = useRoleBasedAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-gray-600">Loading...</span>
+      </div>
+    );
+  }
 
-  logger.info(`[AssetsPageRoute] Rendering assets page. isAdmin: ${isAdmin}`);
+  // Admin users or users with admin asset permissions see AdminAssetsPage
+  const canAccessAdminAssets = isAdmin || hasPermission('assets', 'admin');
+  
+  logger.info(`[AssetsPageRoute] Rendering assets page. isAdmin: ${isAdmin}, canAccessAdminAssets: ${canAccessAdminAssets}`);
 
-  return isAdmin ? <AdminAssetsPage /> : <AssetManagementNew />;
+  return canAccessAdminAssets ? <AdminAssetsPage /> : <AssetManagementNew />;
 };
 
 const AppRoutes = () => {
@@ -92,23 +96,78 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       
+      {/* Basic authenticated routes */}
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/news" element={<ProtectedRoute><News /></ProtectedRoute>} />
-      <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
       <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
-      <Route path="/ai-hub" element={<ProtectedRoute><AIHub /></ProtectedRoute>} />
-      <Route path="/unit" element={<ProtectedRoute><Unit /></ProtectedRoute>} />
-      <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
-      <Route path="/licensing-registry" element={<ProtectedRoute><LicensingRegistry /></ProtectedRoute>} />
       
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      {/* Role-based protected routes */}
+      <Route path="/documents" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'documents', action: 'read' }]}>
+          <Documents />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/ai-hub" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'ai', action: 'access' }]}>
+          <AIHub />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/unit" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'units', action: 'read' }]}>
+          <Unit />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/organization" element={
+        <RoleProtectedRoute allowedRoles={['super_admin', 'division_manager']}>
+          <Organization />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/reports" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'reports', action: 'read' }]}>
+          <Reports />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/tickets" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'tickets', action: 'read' }]}>
+          <Tickets />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/licensing-registry" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'licenses', action: 'read' }]}>
+          <LicensingRegistry />
+        </RoleProtectedRoute>
+      } />
+      
+      {/* Admin-only routes */}
+      <Route path="/admin/*" element={
+        <RoleProtectedRoute requiredRole="super_admin">
+          <Admin />
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/settings" element={
+        <RoleProtectedRoute allowedRoles={['super_admin', 'division_manager']}>
+          <Settings />
+        </RoleProtectedRoute>
+      } />
+      
+      {/* Asset management with role-based access */}
+      <Route path="/asset-management" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'assets', action: 'read' }]}>
+          <AssetsPageRoute />
+        </RoleProtectedRoute>
+      } />
+      
+      {/* Available to all authenticated users */}
       <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
-      <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      
-      <Route path="/asset-management" element={<ProtectedRoute><AssetsPageRoute /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

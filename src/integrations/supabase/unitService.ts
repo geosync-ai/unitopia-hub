@@ -541,23 +541,34 @@ export const assetsService = {
   },
   
   // Add a new asset
-  addAsset: async (asset: any) => {
+  addAsset: async (asset: any, userEmail?: string) => {
     const supabase = getSupabaseClient();
     
     // Convert camelCase properties to snake_case for DB
     const snakeCaseAsset = camelToSnakeCase(asset);
     
-    // Ensure asset has created_at and last_updated (matching schema)
-    const assetWithTimestamps = {
+    // Get current timestamp
+    const now = new Date().toISOString();
+    
+    // Ensure asset has audit trail fields
+    const assetWithAudit = {
       ...snakeCaseAsset,
-      // created_at is handled by DB default
-      last_updated: new Date().toISOString() // Use last_updated
+      created_at: now,              // Explicitly set creation timestamp
+      created_by: userEmail || snakeCaseAsset.created_by,
+      last_updated_by: userEmail || snakeCaseAsset.last_updated_by,
+      last_updated: now,
+      is_deleted: false // Ensure new assets are not marked as deleted
     };
+    
+    console.log('[assetsService.addAsset] Creating asset with audit trail:', { 
+      created_by: assetWithAudit.created_by, 
+      name: assetWithAudit.name 
+    });
     
     try {
       const { data, error } = await supabase
         .from(TABLES.ASSETS)
-        .insert([assetWithTimestamps]) // Send object with last_updated
+        .insert([assetWithAudit])
         .select();
       
       if (error) {
@@ -565,7 +576,7 @@ export const assetsService = {
         throw error;
       }
       
-      // Return raw data from insert
+      console.log('[assetsService.addAsset] Asset created successfully:', data?.[0]?.id);
       return data?.[0] || null;
     } catch (error) {
       console.error('Error adding asset:', error);
@@ -574,23 +585,34 @@ export const assetsService = {
   },
   
   // Update an asset
-  updateAsset: async (id: string, asset: any) => {
+  updateAsset: async (id: string, asset: any, userEmail?: string) => {
     const supabase = getSupabaseClient();
     
     // Convert camelCase properties to snake_case for DB
     const snakeCaseAsset = camelToSnakeCase(asset);
     
-    // Add last_updated timestamp (matching schema)
-    const assetWithTimestamp = {
+    // Get current timestamp
+    const now = new Date().toISOString();
+    
+    // Add audit trail fields for update
+    const assetWithAudit = {
       ...snakeCaseAsset,
-      last_updated: new Date().toISOString() // Use last_updated
+      last_updated_by: userEmail || snakeCaseAsset.last_updated_by,
+      last_updated: now
+      // Note: Don't update created_by or created_at during updates
     };
+    
+    console.log('[assetsService.updateAsset] Updating asset with audit trail:', { 
+      id, 
+      last_updated_by: assetWithAudit.last_updated_by 
+    });
     
     try {
       const { data, error } = await supabase
         .from(TABLES.ASSETS)
-        .update(assetWithTimestamp) // Send object with last_updated
+        .update(assetWithAudit)
         .eq('id', id)
+        .eq('is_deleted', false) // Only update non-deleted assets
         .select();
       
       if (error) {
@@ -598,28 +620,124 @@ export const assetsService = {
         throw error;
       }
       
-      // Return raw data from update
-      return data?.[0] || null;
+      if (!data || data.length === 0) {
+        console.warn('[assetsService.updateAsset] No asset found with id:', id);
+        throw new Error('Asset not found or has been deleted');
+      }
+      
+      console.log('[assetsService.updateAsset] Asset updated successfully:', id);
+      return data[0];
     } catch (error) {
       console.error('Error updating asset:', error);
       throw error;
     }
   },
   
-  // Delete an asset
-  deleteAsset: async (id: string) => {
+  // Delete an asset (soft delete)
+  deleteAsset: async (id: string, userEmail?: string) => {
     const supabase = getSupabaseClient();
+    
+    const now = new Date().toISOString();
+    
+    console.log('[assetsService.deleteAsset] Soft deleting asset:', { 
+      id, 
+      deleted_by: userEmail 
+    });
+    
+    try {
+      // Soft delete by setting is_deleted flag and audit fields
+      const { data, error } = await supabase
+        .from(TABLES.ASSETS)
+        .update({
+          is_deleted: true,
+          deleted_at: now,
+          deleted_by: userEmail,
+          last_updated: now,
+          last_updated_by: userEmail
+        })
+        .eq('id', id)
+        .eq('is_deleted', false) // Only delete assets that aren't already deleted
+        .select();
+      
+      if (error) {
+        console.error('Error soft deleting asset:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn('[assetsService.deleteAsset] No asset found with id:', id);
+        throw new Error('Asset not found or already deleted');
+      }
+      
+      console.log('[assetsService.deleteAsset] Asset soft deleted successfully:', id);
+      return true;
+    } catch (error) {
+      console.error('Error deleting asset:', error);
+      throw error;
+    }
+  },
+
+  // Hard delete an asset (for admin use only)
+  hardDeleteAsset: async (id: string) => {
+    const supabase = getSupabaseClient();
+    
+    console.log('[assetsService.hardDeleteAsset] Permanently deleting asset:', id);
+    
     const { error } = await supabase
       .from(TABLES.ASSETS)
       .delete()
       .eq('id', id);
     
     if (error) {
-      console.error('Error deleting asset:', error);
+      console.error('Error hard deleting asset:', error);
       throw error;
     }
     
+    console.log('[assetsService.hardDeleteAsset] Asset permanently deleted:', id);
     return true;
+  },
+
+  // Restore a soft deleted asset
+  restoreAsset: async (id: string, userEmail?: string) => {
+    const supabase = getSupabaseClient();
+    
+    const now = new Date().toISOString();
+    
+    console.log('[assetsService.restoreAsset] Restoring asset:', { 
+      id, 
+      restored_by: userEmail 
+    });
+    
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.ASSETS)
+        .update({
+          is_deleted: false,
+          deleted_at: null,
+          deleted_by: null,
+          last_updated: now,
+          last_updated_by: userEmail
+        })
+        .eq('id', id)
+        .eq('is_deleted', true) // Only restore deleted assets
+        .select();
+      
+      if (error) {
+        console.error('Error restoring asset:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn('[assetsService.restoreAsset] No deleted asset found with id:', id);
+        throw new Error('Deleted asset not found');
+      }
+      
+      console.log('[assetsService.restoreAsset] Asset restored successfully:', id);
+      return data[0];
+    } catch (error) {
+      console.error('Error restoring asset:', error);
+      throw error;
+    }
   }
 };
 

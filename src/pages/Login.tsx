@@ -35,23 +35,10 @@ export default function Login() {
         const account = msalResponse.account;
         toast.success("Signed in successfully via Microsoft");
         
-        // --- Invoke Edge Function --- 
+        // --- Simple Login Confirmation (Edge Function disabled for efficiency) --- 
         if (account.username) {
-          console.log(`[Login Page] Invoking Edge Function with email: ${account.username}`);
-          supabase.functions.invoke('log-msal-login', { 
-            body: { 
-              // user_id: account.localAccountId, // Don't send MSAL ID
-              user_email: account.username 
-            }
-          }).then(({ data, error: functionError }) => {
-            if (functionError) {
-              console.error('[Login Page] Error invoking log-msal-login function:', functionError);
-            } else {
-              console.log('[Login Page] Successfully invoked log-msal-login function.', data);
-            }
-          }).catch(invokeError => {
-            console.error('[Login Page] Caught exception invoking function:', invokeError);
-          });
+          console.log(`[Login Page] ✅ MSAL login successful for: ${account.username}`);
+          // Edge Function disabled - role-based auth handles all logging and RBAC
         } else {
           console.warn('[Login Page] MSAL username missing, cannot invoke log function.');
         }

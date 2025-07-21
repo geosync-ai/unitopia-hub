@@ -18,17 +18,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useRoleBasedAuth } from '@/hooks/useRoleBasedAuth';
 
 interface PageLayoutProps {
   children: React.ReactNode;
   hideNavAndFooter?: boolean;
 }
-
-const useAuth = () => {
-  console.warn('[PageLayout.tsx] Using placeholder useAuth. Replace with actual implementation.');
-  const isAdmin = true;
-  return { isAdmin };
-};
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children, hideNavAndFooter = false }) => {
   const { toast } = useToast();
@@ -39,7 +34,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, hideNavAndFooter = fa
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: roleUser, loading: roleLoading } = useRoleBasedAuth();
 
   const isFullPageAssetManagement = location.pathname === '/asset-management' && isAdmin;
 

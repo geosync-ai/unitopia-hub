@@ -2,10 +2,10 @@ export interface StaffMember {
   id: string;
   name: string;
   email: string;
-  job_title: string;
-  department: string;
+  jobTitle: string;        // camelCase to match hook output
+  department: string;      // mapped from database 'unit' field
   mobile: string;
-  business_phone: string;
-  office_location: string;
-  division_id: string;
+  businessPhone: string;   // camelCase to match hook output  
+  officeLocation: string;  // camelCase to match hook output
+  divisionId: string;      // camelCase to match hook output
 } 

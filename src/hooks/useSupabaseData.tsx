@@ -25,9 +25,9 @@ interface Identifiable {
 // Define more specific function types
 type FetchFunction<T> = () => Promise<T[]>; // Standard fetch (now less used)
 type FetchWithEmailFunction = (userEmail: string) => Promise<any[]>; // Function-based fetch
-type AddFunction<T> = (item: T) => Promise<T>;
-type UpdateFunction<T> = (id: string, item: Partial<T>) => Promise<T>;
-type DeleteFunction = (id: string) => Promise<boolean>;
+type AddFunction<T> = (item: T, userEmail?: string) => Promise<T>;
+type UpdateFunction<T> = (id: string, item: Partial<T>, userEmail?: string) => Promise<T>;
+type DeleteFunction = (id: string, userEmail?: string) => Promise<boolean>;
 
 // Type guard for MSAL account info
 interface MsalAccountInfo {
@@ -314,8 +314,8 @@ export function useSupabaseData<T extends Identifiable>(
       
       logger.info(`[useSupabaseData - add ${entityType}] Item with email:`, itemWithEmail);
 
-      // Pass the modified item to the specific add method with type assertion
-      const newItem = await addMethod(itemWithEmail as T);
+      // Pass the modified item to the specific add method with user email for audit trail
+      const newItem = await addMethod(itemWithEmail as T, account.username);
       
       if (newItem) {
         setData(prev => [...prev, newItem as unknown as T]);
@@ -357,8 +357,8 @@ export function useSupabaseData<T extends Identifiable>(
     
     try {
       const updateMethod = getUpdateMethod();
-      // Add user info if needed, e.g., updateData.updated_by = user.id
-      const updatedItem = await updateMethod(id, updateData);
+      // Pass user email for audit trail
+      const updatedItem = await updateMethod(id, updateData, account.username);
       
       if (updatedItem) {
         setData(prev => prev.map(item => 
@@ -400,7 +400,7 @@ export function useSupabaseData<T extends Identifiable>(
     
     try {
       const deleteMethod = getDeleteMethod();
-      await deleteMethod(id);
+      await deleteMethod(id, account.username);
       
       setData(prev => prev.filter(item => item.id !== id));
       toast({

@@ -105,6 +105,10 @@ export interface UserAsset {
   id: string;
   name: string;
   type?: string;
+  brand?: string;
+  model?: string;
+  serial_number?: string;
+  asset_id?: string;
   description?: string;
   assigned_date: string;
   assigned_to?: string;
@@ -129,6 +133,10 @@ export interface UserAsset {
   last_updated?: string;
   last_updated_by?: string;
   created_at?: string;
+  created_by?: string;
+  deleted_at?: string;
+  deleted_by?: string;
+  is_deleted?: boolean;
   checklist?: ChecklistItem[];
 }
 
