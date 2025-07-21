@@ -16,7 +16,8 @@ import {
   Package,
   BarChart,
   Ticket,
-  ListChecks
+  ListChecks,
+  FormInput
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +53,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ closeMobileSidebar, handleSig
     { icon: Home, path: '/', label: 'Home' },
     { icon: Bell, path: '/news', label: 'News' },
     { icon: FileText, path: '/documents', label: 'Documents' },
+    { icon: FormInput, path: '/forms', label: 'Forms' },
     { icon: MessageSquare, path: '/ai-hub', label: 'AI Hub' },
     { icon: Ticket, path: '/tickets', label: 'Tickets' },
     { icon: FileText, path: '/licensing-registry', label: 'Licensing' },

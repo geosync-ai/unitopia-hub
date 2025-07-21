@@ -441,7 +441,9 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
                   <CommandList>
                     <CommandEmpty>No staff member found.</CommandEmpty>
                     <CommandGroup>
-                      {staffMembers.map((staff) => (
+                      {staffMembers
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((staff) => (
                         <CommandItem
                           key={staff.id}
                           value={staff.name}
