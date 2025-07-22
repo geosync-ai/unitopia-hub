@@ -8,6 +8,7 @@ import {
     ClipboardCopy, Check, Trash2, Link as LinkIcon, ExternalLink 
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import KnowledgeUploadModal from '@/components/ai/KnowledgeUploadModal';
 import { useUIRoles } from '@/hooks/useUIRoles';
@@ -17,8 +18,13 @@ import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useMsal } from '@azure/msal-react';
 import { useMicrosoftGraph, type GraphContextType } from '@/hooks/useMicrosoftGraph';
 import { v4 as uuidv4 } from 'uuid';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import scpngLawyerAiPromptText from '@/prompts/scpngLawyerAiPrompt.txt';
 import scpngDocAnalystPromptText from '@/prompts/scpngDocAnalystPrompt.txt';
+import cma2015PromptText from '/files/CMA2015.txt?raw';
+import cda2015PromptText from '/files/CDA2015.txt?raw';
+import sa1997PromptText from '/files/SA1997.txt?raw';
 
 const GLOBAL_SETTINGS_ID = 1;
 
@@ -26,8 +32,8 @@ const KB_SHAREPOINT_SITEPATH = "/sites/scpngintranet";
 const KB_SHAREPOINT_LIBRARY_NAME = "SCPNG Docuements";
 const KB_SHAREPOINT_TARGET_FOLDER = "KnowledgeBaseDocuments";
 
-// Define AI Modes
-const aiModes = [
+// Define AI Modes based on a toggle
+const getAiModes = (useKnowledgeBase: boolean) => [
   {
     id: 'general',
     title: 'General Purpose AI',
@@ -42,6 +48,34 @@ const aiModes = [
     id: 'lawyer_ai',
     title: 'SCPNG Lawyer AI',
     prompt: scpngLawyerAiPromptText
+  },
+  {
+    id: 'cma_2015_expert',
+    title: 'CMA 2015 Expert',
+    prompt: useKnowledgeBase 
+      ? `You are an expert on the Capital Market Act 2015. Your primary goal is to answer questions and provide information based on the text of the Act provided below. You should base your answers on the provided text, but you can elaborate on the concepts and definitions found within the text to provide a clearer understanding. Do not use any external knowledge for facts not present in the text. If the answer cannot be found in the text, state that clearly. Here is the text of the Capital Market Act 2015:\n\n${cma2015PromptText}`
+      : `You are an expert on the Capital Market Act 2015. Please answer questions based on your general knowledge of the Act, as the specific knowledge base is currently disabled.`
+  },
+  {
+    id: 'cda_2015_expert',
+    title: 'CDA 2015 Expert',
+    prompt: useKnowledgeBase
+      ? `You are an expert on the Central Depositories Act 2015. Your primary goal is to answer questions and provide information based on the text of the Act provided below. You should base your answers on the provided text, but you can elaborate on the concepts and definitions found within the text to provide a clearer understanding. Do not use any external knowledge for facts not present in the text. If the answer cannot be found in the text, state that clearly. Here is the text of the Central Depositories Act 2015:\n\n${cda2015PromptText}`
+      : `You are an expert on the Central Depositories Act 2015. Please answer questions based on your general knowledge of the Act, as the specific knowledge base is currently disabled.`
+  },
+  {
+    id: 'sa_1997_expert',
+    title: 'SA 1997 Expert',
+    prompt: useKnowledgeBase
+      ? `You are an expert on the Securities Act 1997. Your primary goal is to answer questions and provide information based on the text of the Act provided below. You should base your answers on the provided text, but you can elaborate on the concepts and definitions found within the text to provide a clearer understanding. Do not use any external knowledge for facts not present in the text. If the answer cannot be found in the text, state that clearly. Here is the text of the Securities Act 1997:\n\n${sa1997PromptText}`
+      : `You are an expert on the Securities Act 1997. Please answer questions based on your general knowledge of the Act, as the specific knowledge base is currently disabled.`
+  },
+  {
+    id: 'merged_acts_expert',
+    title: 'All Acts Expert',
+    prompt: useKnowledgeBase
+      ? `You are an expert on the Capital Market Act 2015, the Central Depositories Act 2015, and the Securities Act 1997. Your primary goal is to answer questions and provide information based on the text of these Acts provided below. You should base your answers on the provided texts, but you can elaborate on the concepts and definitions found within them to provide a clearer understanding. You can also compare and contrast the provisions of the different Acts. Do not use any external knowledge for facts not present in the texts. If the answer cannot be found in the texts, state that clearly. Here are the texts of the Acts:\n\nCapital Market Act 2015:\n${cma2015PromptText}\n\nCentral Depositories Act 2015:\n${cda2015PromptText}\n\nSecurities Act 1997:\n${sa1997PromptText}`
+      : `You are an expert on the Capital Market Act 2015, the Central Depositories Act 2015, and the Securities Act 1997. Please answer questions based on your general knowledge of these Acts, as the specific knowledge base is currently disabled.`
   }
 ];
 
@@ -74,11 +108,12 @@ const AIHub = () => {
       timestamp: new Date(),
     }
   ]);
-  const [chatInput, setChatInput] = useState('');
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedKnowledgeArea, setSelectedKnowledgeArea] = useState<string | null>(null);
-  const [currentAiModeId, setCurrentAiModeId] = useState<string>(aiModes[0].id); // State for current AI mode
+  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
+  const aiModes = getAiModes(useKnowledgeBase);
+  const [currentAiModeId, setCurrentAiModeId] = useState<string>('cma_2015_expert'); // State for current AI mode
   const [isChatFullScreen, setIsChatFullScreen] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // For copy feedback
 
@@ -273,59 +308,7 @@ const AIHub = () => {
           throw new Error(`API request failed with status ${response.status}: ${errorDetail}`);
         }
         if (responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
-          let aiResponse = responseData.candidates[0].content.parts[0].text;
-          // Clean asterisks more carefully, in order
-          // 1. Handle list items that are also bolded, e.g. * **Bold Item:** Suffix
-          aiResponse = aiResponse.replace(/^(\s*)\*\s+\*\*(.*?)\*\*(.*)/gm, '$1  $2$3');
-          // 2. Handle any remaining general bolding, e.g. **Bold Heading**
-          aiResponse = aiResponse.replace(/\*\*(.*?)\*\*/g, '$1');
-          // 3. Handle general list items, e.g. * Item text
-          aiResponse = aiResponse.replace(/^(\s*)\*\s+(.*)/gm, '$1  $2');
-
-          // 4. Indent lines following a line ending with a colon (if they are not blank)
-          aiResponse = aiResponse.replace(/^(.*\S.*:)\n((?:^[ \t]*\S.*(?:$))+)/gm, (match, introLine, contentLines) => {
-              const lines = contentLines.split('\n');
-              let resultLines = [];
-              let stopAutoIndentingThisAndFutureLines = false; // Renamed for clarity
-
-              for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  const trimmedLine = line.trim();
-
-                  if (stopAutoIndentingThisAndFutureLines) {
-                      resultLines.push(line); // Preserve original line
-                      continue;
-                  }
-
-                  // Check if this line signals the end of the auto-indent block
-                  if (i > 0) {
-                      const prevLineTrimmed = lines[i-1].trim();
-                      // Corrected regex for "Term: "
-                      const termDefRegex = /^[A-Z].*:\\s+/; 
-                      const prevWasTermDef = termDefRegex.test(prevLineTrimmed);
-                      const currentIsNotTermDef = !termDefRegex.test(trimmedLine);
-                      const currentStartsWithCaps = /^[A-Z]/.test(trimmedLine);
-
-                      // If prev was a "Term:", and current is not a "Term:" but a new capitalized sentence,
-                      // then this current line, and subsequent lines, should not be auto-indented.
-                      if (prevWasTermDef && currentIsNotTermDef && currentStartsWithCaps) {
-                          stopAutoIndentingThisAndFutureLines = true;
-                          resultLines.push(line); // Preserve this line as is
-                          continue; 
-                      }
-                  }
-
-                  // If we are still auto-indenting:
-                  // Add "  " prefix only if the line isn't already indented by the AI.
-                  if (/^\\s/.test(line)) { // If line already starts with some whitespace
-                      resultLines.push(line); // Use AI's existing indent
-                  } else {
-                      resultLines.push('  ' + line); // Add indent because AI didn't provide any
-                  }
-              }
-              return introLine + '\n' + resultLines.join('\n');
-          });
-
+          const aiResponse = responseData.candidates[0].content.parts[0].text;
           setTestMessage(`Connection successful! AI says: "${aiResponse}"`);
           setTestMessageType('success');
           logger.info('[AIHub] Gemini API test successful.', { response: aiResponse });
@@ -378,9 +361,24 @@ const AIHub = () => {
 
     if (apiEndpoint.includes('generativelanguage.googleapis.com')) {
       const fullGeminiEndpoint = `${apiEndpoint}?key=${apiKey}`;
+      
+      const conversationHistory = chatMessages
+        .filter((msg, index) => index !== 0) 
+        .filter(msg => msg.sender === 'user' || (msg.sender === 'ai' && !msg.isTyping))
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.fullText || msg.text }],
+        }));
+
+      conversationHistory.push({
+        role: 'user',
+        parts: [{ text: messageToSend }],
+      });
+
       const requestBody: any = {
-        contents: [{ role: 'user', parts: [{ text: messageToSend }] }],
+        contents: conversationHistory,
       };
+
       if (systemInstruction) {
         requestBody.system_instruction = systemInstruction;
       }
@@ -400,64 +398,13 @@ const AIHub = () => {
         }
 
         if (responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
-          let aiResponseText = responseData.candidates[0].content.parts[0].text;
-          // Clean asterisks more carefully, in order
-          // 1. Handle list items that are also bolded, e.g. * **Bold Item:** Suffix
-          aiResponseText = aiResponseText.replace(/^(\s*)\*\s+\*\*(.*?)\*\*(.*)/gm, '$1  $2$3');
-          // 2. Handle any remaining general bolding, e.g. **Bold Heading**
-          aiResponseText = aiResponseText.replace(/\*\*(.*?)\*\*/g, '$1');
-          // 3. Handle general list items, e.g. * Item text
-          aiResponseText = aiResponseText.replace(/^(\s*)\*\s+(.*)/gm, '$1  $2');
-          
-          // 4. Indent lines following a line ending with a colon (if they are not blank)
-          aiResponseText = aiResponseText.replace(/^(.*\S.*:)\n((?:^[ \t]*\S.*(?:$))+)/gm, (match, introLine, contentLines) => {
-              const lines = contentLines.split('\n');
-              let resultLines = [];
-              let stopAutoIndentingThisAndFutureLines = false; // Renamed for clarity
-
-              for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  const trimmedLine = line.trim();
-
-                  if (stopAutoIndentingThisAndFutureLines) {
-                      resultLines.push(line); // Preserve original line
-                      continue;
-                  }
-
-                  // Check if this line signals the end of the auto-indent block
-                  if (i > 0) {
-                      const prevLineTrimmed = lines[i-1].trim();
-                      // Corrected regex for "Term: "
-                      const termDefRegex = /^[A-Z].*:\\s+/; 
-                      const prevWasTermDef = termDefRegex.test(prevLineTrimmed);
-                      const currentIsNotTermDef = !termDefRegex.test(trimmedLine);
-                      const currentStartsWithCaps = /^[A-Z]/.test(trimmedLine);
-
-                      // If prev was a "Term:", and current is not a "Term:" but a new capitalized sentence,
-                      // then this current line, and subsequent lines, should not be auto-indented.
-                      if (prevWasTermDef && currentIsNotTermDef && currentStartsWithCaps) {
-                          stopAutoIndentingThisAndFutureLines = true;
-                          resultLines.push(line); // Preserve this line as is
-                          continue; 
-                      }
-                  }
-
-                  // If we are still auto-indenting:
-                  // Add "  " prefix only if the line isn't already indented by the AI.
-                  if (/^\\s/.test(line)) { // If line already starts with some whitespace
-                      resultLines.push(line); // Use AI's existing indent
-                  } else {
-                      resultLines.push('  ' + line); // Add indent because AI didn't provide any
-                  }
-              }
-              return introLine + '\n' + resultLines.join('\n');
-          });
+          const aiResponseText = responseData.candidates[0].content.parts[0].text;
           
           const newAiMessage: ChatMessage = {
             id: uuidv4(),
             sender: 'ai',
             text: '', 
-            fullText: aiResponseText, // Use the cleaned text
+            fullText: aiResponseText,
             isTyping: true, 
             timestamp: new Date(),
           };
@@ -645,6 +592,51 @@ const AIHub = () => {
     },
   ];
 
+  const popularQuestionsByMode: Record<string, string[]> = {
+    general: [
+      "Summarize the main points of the attached document.",
+      "Explain the concept of 'due diligence' in simple terms.",
+      "What are the key differences between a stock and a bond?",
+      "Draft an email to the team about the upcoming project deadline."
+    ],
+    doc_analyst: [
+      "Analyze the attached financial report for Q3.",
+      "What are the main risks identified in this compliance document?",
+      "Extract all the key dates and deadlines from this project plan.",
+      "Compare the attached two versions of the contract and highlight the differences."
+    ],
+    lawyer_ai: [
+      "What are the legal implications of the new data privacy law?",
+      "Review this contract clause for potential risks.",
+      "Does the attached document comply with SCPNG's internal policies?",
+      "Explain the term 'indemnity' in a legal context."
+    ],
+    cma_2015_expert: [
+      "What constitutes 'insider trading' under the Capital Market Act 2015?",
+      "Explain the licensing requirements for a fund manager.",
+      "What are the powers of the Securities Commission under the Act?",
+      "Summarize the regulations regarding public offerings."
+    ],
+    cda_2015_expert: [
+      "What is the role of a central depository?",
+      "Explain the process of securities transfer under the CDA 2015.",
+      "What are the requirements for a depository participant?",
+      "Describe the provisions related to the protection of securities."
+    ],
+    sa_1997_expert: [
+      "What are the functions of the Securities Commission under the SA 1997?",
+      "Explain the concept of 'material information' as defined in the Act.",
+      "What are the penalties for insider trading according to the SA 1997?",
+      "Describe the requirements for a prospectus under the Securities Act 1997."
+    ],
+    merged_acts_expert: [
+      "Compare the definitions of 'securities' across the CMA 2015, CDA 2015, and SA 1997.",
+      "What are the key differences in the powers of the Securities Commission under the CMA 2015 and the SA 1997?",
+      "How do the provisions for depositories in the CDA 2015 relate to the broader market regulations in the CMA 2015?",
+      "Provide a summary of the penalties for market misconduct across all three Acts."
+    ]
+  };
+
   const uiIsActuallyLoading = isAuthLoading || msalInProgress !== 'none' || isConfigLoading;
   const canEditSettings = !uiIsActuallyLoading && isSystemAdmin;
 
@@ -745,6 +737,17 @@ const AIHub = () => {
               <Button variant="ghost" size="icon" onClick={handleClearChat} className="h-8 w-8" title="Clear chat">
                 <Trash2 size={16} />
               </Button>
+              {(currentAiModeId === 'cma_2015_expert' || currentAiModeId === 'cda_2015_expert') && (
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="knowledge-base-toggle"
+                    checked={useKnowledgeBase}
+                    onCheckedChange={setUseKnowledgeBase}
+                    disabled={isFullScreenInstance}
+                  />
+                  <Label htmlFor="knowledge-base-toggle" className="text-xs">Use KB</Label>
+                </div>
+              )}
               <Select value={currentAiModeId} onValueChange={setCurrentAiModeId} disabled={isFullScreenInstance}>
                 <SelectTrigger className="w-[180px] sm:w-[200px] text-xs h-8">
                   <Settings className="mr-1 h-3 w-3" /> <SelectValue placeholder="Select Mode" />
@@ -801,9 +804,24 @@ const AIHub = () => {
                         ? 'bg-intranet-primary text-white' 
                         : isFullScreenInstance ? 'bg-gray-100 dark:bg-gray-700' : 'bg-white border border-gray-200'
                     }`}
-                    style={{ whiteSpace: 'pre-wrap' }}
                   >
-                    {message.text}
+                    {message.sender === 'ai' ? (
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal list-inside" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc list-inside" {...props} />,
+                            li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                          }}
+                        >
+                          {message.text}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      message.text
+                    )}
                     {message.sender === 'ai' && message.isTyping && (
                       <span className="ai-cursor"></span>
                     )}
@@ -878,12 +896,7 @@ const AIHub = () => {
 
             <h2 className="text-xl font-semibold my-4">Popular Questions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                "What are our current IT security protocols?",
-                "How do I submit a vacation request?",
-                "When is the next company-wide meeting?",
-                "Where can I find the latest project templates?"
-              ].map((question, i) => (
+              {(popularQuestionsByMode[currentAiModeId] || []).map((question, i) => (
                 <Button 
                   key={i} 
                   variant="outline" 

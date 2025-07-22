@@ -105,7 +105,7 @@ const NoticeBoard = () => {
   };
 
   return (
-    <Card className="bg-white rounded-xl shadow-sm animate-fade-in">
+    <Card className="bg-white rounded-xl shadow-sm animate-fade-in flex-grow">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Bell className="h-5 w-5 text-intranet-primary" />

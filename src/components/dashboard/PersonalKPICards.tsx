@@ -59,7 +59,7 @@ const PersonalKPICards: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
       {personalKPIs.map((kpi, index) => (
         <MetricCard key={index} {...kpi} />
       ))}

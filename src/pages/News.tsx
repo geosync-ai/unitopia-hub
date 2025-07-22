@@ -26,6 +26,7 @@ const mockNewsData = [
     important: false,
     sourceName: 'HR Department',
     sourceUrl: '#',
+    urlToImage: 'https://picsum.photos/seed/hr-policy/800/400',
   },
   {
     id: 'mock-3',
@@ -36,6 +37,7 @@ const mockNewsData = [
     important: true,
     sourceName: 'IT Department',
     sourceUrl: '#',
+    urlToImage: 'https://picsum.photos/seed/it-maintenance/800/400',
   },
   {
     id: 'mock-4', // Corrected ID
@@ -46,6 +48,7 @@ const mockNewsData = [
     important: false,
     sourceName: 'Community Outreach',
     sourceUrl: '#',
+    urlToImage: 'https://picsum.photos/seed/community-event/800/400',
   }
 ];
 
@@ -85,7 +88,7 @@ const aiDrivenCategories = [] as string[];
 // Define ArticleCardComponent locally within News.tsx
 const ArticleCardComponent: React.FC<{ article: PageNewsArticle; handleReadMoreClick: (article: PageNewsArticle) => void }> = ({ article, handleReadMoreClick }) => {
   return (
-    <Card key={article.id} className={`overflow-hidden flex flex-col justify-between ${article.important ? 'border-l-4 border-l-intranet-accent' : ''}`}>
+    <Card key={article.id} className={`overflow-hidden flex flex-col justify-between`}>
       {article.urlToImage && (
         <img
           src={article.urlToImage}
@@ -250,6 +253,18 @@ const News = () => {
         };
       });
 
+      // --- START: Randomize "All News" articles ---
+      const shuffleArray = (array: PageNewsArticle[]) => {
+        const newArray = [...array];
+        for (let i = newArray.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; // Swap elements
+        }
+        return newArray;
+      };
+      const shuffledAllNews = shuffleArray(formattedArticles);
+      // --- END: Randomize "All News" articles ---
+
       // Extract years specifically for SCPNG News articles
       const scpngNewsArticles = formattedArticles.filter(a => a.category === 'SCPNG News');
       const years = [...new Set(scpngNewsArticles.map(article => new Date(article.date).getFullYear().toString()))]
@@ -266,7 +281,7 @@ const News = () => {
 
       setNewsData(prev => ({
         ...prev,
-        ['All News']: { articles: formattedArticles, isLoading: false, error: null, hasFetched: true },
+        ['All News']: { articles: shuffledAllNews, isLoading: false, error: null, hasFetched: true }, // Use shuffled articles here
         ['National News']: { 
           articles: formattedArticles.filter(a => a.category === 'National News'), 
           isLoading: false, error: null, hasFetched: true 
@@ -557,7 +572,7 @@ const News = () => {
           important: item.important,
           description_full: item.summary, 
           published_at_iso: new Date(item.date).toISOString(),
-          urlToImage: undefined, 
+          urlToImage: item.urlToImage, 
           categoriesApi: [item.category],
           relevanceNote: undefined, // Explicitly add all fields from PageNewsArticle
           sourceName: item.sourceName,
@@ -565,7 +580,7 @@ const News = () => {
         }));
          setNewsData(prev => ({
             ...prev,
-            ['My Feed']: { articles: myFeedMockArticles.slice(0,3), isLoading: false, error: null, hasFetched: true } 
+            ['My Feed']: { articles: myFeedMockArticles, isLoading: false, error: null, hasFetched: true } 
         }));
     }
   };

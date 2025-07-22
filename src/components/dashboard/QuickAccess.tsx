@@ -51,12 +51,6 @@ const QuickAccess: React.FC = () => {
       url: "/calendar"
     },
     {
-      icon: <Users size={18} />,
-      title: "Department Contacts",
-      description: "View key personnel",
-      url: "/contacts"
-    },
-    {
       icon: <Book size={18} />,
       title: "Policy Guidelines",
       description: "Updated regulations",
@@ -64,28 +58,10 @@ const QuickAccess: React.FC = () => {
       url: "/documents"
     },
     {
-      icon: <FileImage size={18} />,
-      title: "Media Gallery",
-      description: "Recent company events",
-      url: "/gallery"
-    },
-    {
-      icon: <Building size={18} />,
-      title: "MRDC House",
-      description: "Headquarters information",
-      url: "/contacts"
-    },
-    {
       icon: <Target size={18} />,
       title: "Strategic Objectives",
       description: "Company goals and KPIs",
       badge: "Important",
-      url: "/organization"
-    },
-    {
-      icon: <Briefcase size={18} />,
-      title: "Business Units",
-      description: "Department structure",
       url: "/organization"
     }
   ];

@@ -4,6 +4,7 @@ import PageLayout from '@/components/layout/PageLayout';
 import WelcomeCard from '@/components/dashboard/WelcomeCard';
 import QuickAccess from '@/components/dashboard/QuickAccess';
 import NoticeBoard from '@/components/dashboard/NoticeBoard';
+import RecentActivity from '@/components/dashboard/RecentActivity';
 import ScheduledEvents from '@/components/dashboard/ScheduledEvents';
 import OrganizationalOverview from '@/components/dashboard/OrganizationalOverview';
 import KPIStatistics from '@/components/dashboard/KPIStatistics';
@@ -88,23 +89,18 @@ const Index = () => {
       
       <PersonalKPICards />
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div className="lg:col-span-2 space-y-4">
           <PersonalKPIStats />
-          
+          <KPIStatistics />
           <OrganizationalOverview />
         </div>
         
-        <div>
+        <div className="flex flex-col space-y-4">
           <QuickAccess />
+          <RecentActivity />
+          <NoticeBoard />
         </div>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2">
-          <KPIStatistics />
-        </div>
-        <NoticeBoard />
       </div>
       
       <ScheduledEvents 

@@ -11,6 +11,8 @@ const kpiData = [
   { name: 'Q2', value: 75, target: 70 },
   { name: 'Q3', value: 82, target: 75 },
   { name: 'Q4', value: 88, target: 80 },
+  { name: 'Q5', value: 90, target: 85 },
+  { name: 'Q6', value: 95, target: 90 },
 ];
 
 const pieData = [
@@ -44,7 +46,7 @@ const KPIStatistics: React.FC = () => {
           </TabsList>
           
           <TabsContent value="chart" className="space-y-4">
-            <div className="h-64">
+            <div className="h-[420px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={kpiData}
