@@ -791,7 +791,7 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
           <CardContent>
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
               <TabsList className="mb-4">
-                <TabsTrigger value="kpis">KPIs</TabsTrigger>
+                <TabsTrigger value="kpis">KRA/KPIs</TabsTrigger>
                 <TabsTrigger value="objectives">Objectives</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="insights">Insights</TabsTrigger>
@@ -1113,4 +1113,4 @@ export const KRAsTab: React.FC<KRAsTabProps> = ({
   );
 };
 
-export default KRAsTab; 
+export default KRAsTab;

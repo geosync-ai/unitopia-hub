@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, MessageSquare, User, AlertCircle, Circle, CheckCircle } from 'lucide-react';
+import { CalendarDays, MessageSquare, User, AlertCircle, Circle, CheckCircle, Repeat, CheckSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, isBefore, parseISO, isValid, addDays } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,6 +23,9 @@ export interface TaskCardProps {
   endDate?: string | null;
   commentsCount?: number;
   status?: string;
+  recurrence?: string;
+  tags?: string[];
+  subtasks?: { id: string; text: string; completed: boolean }[];
   completed?: boolean;
   className?: string;
   isDragOverlay?: boolean;
@@ -66,6 +69,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
   endDate,
   commentsCount = 0,
   status,
+  recurrence,
+  tags,
+  subtasks,
   completed = false,
   className,
   isDragOverlay = false,
@@ -108,6 +114,16 @@ const TaskCard: React.FC<TaskCardProps> = ({
       return false;
     }
   }, [startDate, endDate, completed]);
+
+  const subtaskProgress = React.useMemo(() => {
+    if (!subtasks || subtasks.length === 0) return null;
+    const completedCount = subtasks.filter(s => s.completed).length;
+    return {
+      completed: completedCount,
+      total: subtasks.length,
+      percentage: (completedCount / subtasks.length) * 100,
+    };
+  }, [subtasks]);
 
   // Handle editing priority
   const handlePriorityClick = (e: React.MouseEvent) => {
@@ -281,6 +297,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
   // Create footer content - badges, dates, comments, assignee
   const footerContent = (
     <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+      {isDueDatePassed && (
+        <Badge variant="destructive" className="px-1.5 py-0.5 text-xs font-normal">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Overdue
+        </Badge>
+      )}
       {status && (
         <div className="relative inline-block" ref={statusDropdownRef}>
           <TooltipProvider>
@@ -392,6 +414,37 @@ const TaskCard: React.FC<TaskCardProps> = ({
           <MessageSquare className="h-3.5 w-3.5" />
           <span>{commentsCount}</span>
         </div>
+      )}
+
+      {subtaskProgress && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="inline-flex items-center text-xs text-muted-foreground gap-1">
+                <CheckSquare className="h-3.5 w-3.5" />
+                <span>{subtaskProgress.completed}/{subtaskProgress.total}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{subtaskProgress.percentage.toFixed(0)}% complete</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {recurrence && recurrence !== 'none' && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="inline-flex items-center text-xs text-muted-foreground gap-1">
+                <Repeat className="h-3.5 w-3.5" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Repeats {recurrence}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
       
       <div className="flex-grow"></div>

@@ -20,14 +20,14 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarIcon, User, Send, PaperclipIcon, LinkIcon } from 'lucide-react';
+import { CalendarIcon, User, Send, PaperclipIcon, LinkIcon, Repeat, Trash2, PlusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { DateRange } from "react-day-picker";
 import { cn } from '@/lib/utils';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DateRangePicker from '@/components/ui/DateRangePicker';
 import { StaffMember } from '@/types/staff';
-import { Task } from './NewTasksTab';
+import { Task } from './TasksTab';
 
 // Define the shape of a comment
 interface Comment {
@@ -37,6 +37,8 @@ interface Comment {
   timestamp: Date;
   text: string;
 }
+
+type Subtask = { id: string; text: string; completed: boolean };
 
 interface StatusOption {
   id: string;
@@ -80,6 +82,9 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
   const [comments, setComments] = useState<Comment[]>([]); // State for comments
   const [newCommentText, setNewCommentText] = useState(''); // State for new comment input
   const [assignee, setAssignee] = useState<string | undefined>(undefined);
+  const [recurrence, setRecurrence] = useState<string>('none');
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
   
   useEffect(() => {
     if (initialData) {
@@ -89,6 +94,8 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
       setStatus(initialData.status || defaultStatus || statuses[0]?.id || 'todo');
       setGroupId(initialData.projectId || defaultGroup);
       setAssignee(initialData.assignee);
+      setRecurrence(initialData.recurrence || 'none');
+      setSubtasks(initialData.subtasks || []);
       
       // Set date range if both start and end dates exist
       if (initialData.startDate) {
@@ -110,8 +117,11 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
       setDateRange(undefined);
       setComments([]);
       setAssignee(undefined);
+      setRecurrence('none');
+      setSubtasks([]);
     }
     setNewCommentText('');
+    setNewSubtaskText('');
   }, [initialData, isOpen, defaultStatus, defaultGroup, statuses]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,6 +136,8 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
       startDate: dateRange?.from || undefined,
       dueDate: dateRange?.to?.toISOString() || '',
       assignee: assignee,
+      recurrence: recurrence,
+      subtasks: subtasks,
     };
     onSubmit(taskData);
   };
@@ -143,6 +155,29 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
     };
     setComments(prevComments => [...prevComments, newComment]);
     setNewCommentText('');
+  };
+
+  const handleAddSubtask = () => {
+    if (!newSubtaskText.trim()) return;
+    const newSubtask: Subtask = {
+      id: `subtask-${Date.now()}`,
+      text: newSubtaskText,
+      completed: false,
+    };
+    setSubtasks(prev => [...prev, newSubtask]);
+    setNewSubtaskText('');
+  };
+
+  const handleToggleSubtask = (id: string) => {
+    setSubtasks(prev => 
+      prev.map(subtask => 
+        subtask.id === id ? { ...subtask, completed: !subtask.completed } : subtask
+      )
+    );
+  };
+
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks(prev => prev.filter(subtask => subtask.id !== id));
   };
 
   return (
@@ -235,6 +270,20 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
                   className="py-3 px-4 rounded-lg"
                 />
               </div>
+              <div className="space-y-1">
+                <Label htmlFor="recurrence">Repeat</Label>
+                <Select value={recurrence} onValueChange={setRecurrence}>
+                  <SelectTrigger id="recurrence" className="py-3 px-4 rounded-lg">
+                    <SelectValue placeholder="Select recurrence" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="sm:col-span-2 space-y-1"> 
                 <Label htmlFor="assignee">Assignee</Label>
                 <Select value={assignee} onValueChange={setAssignee}>
@@ -261,6 +310,39 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
               </div>
             </div>
           </form>
+
+          <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700/50">
+            <h3 className="text-lg font-medium mb-3">Checklist</h3>
+            <div className="space-y-2 mb-4">
+              {subtasks.map(subtask => (
+                <div key={subtask.id} className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    checked={subtask.completed} 
+                    onChange={() => handleToggleSubtask(subtask.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className={cn("flex-grow", subtask.completed && "line-through text-muted-foreground")}>
+                    {subtask.text}
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveSubtask(subtask.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Add a checklist item"
+                value={newSubtaskText}
+                onChange={(e) => setNewSubtaskText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
+              />
+              <Button type="button" onClick={handleAddSubtask}>
+                <PlusCircle className="h-4 w-4 mr-2" /> Add
+              </Button>
+            </div>
+          </div>
 
           <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700/50">
             <h3 className="text-lg font-medium mb-3">Comments</h3>

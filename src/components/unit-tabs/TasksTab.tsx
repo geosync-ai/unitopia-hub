@@ -56,6 +56,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { addDays, addWeeks, addMonths } from 'date-fns';
 
 export interface Task {
   id: string;
@@ -71,6 +72,9 @@ export interface Task {
   projectName?: string;
   completionPercentage?: number;
   completed?: boolean;
+  recurrence?: string; // e.g., 'daily', 'weekly', 'monthly'
+  tags?: string[];
+  subtasks?: { id: string; text: string; completed: boolean }[];
 }
 
 interface BoardData {
@@ -106,6 +110,7 @@ const BoardLane = ({
   onEditTask, 
   onDeleteTask,
   onDeleteGroup,
+  onEdit,
   isOver = false,
   onRenameGroup,
   onToggleComplete,
@@ -122,6 +127,7 @@ const BoardLane = ({
   onEditTask: (taskId: string) => void;
   onDeleteTask: (taskId: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onEdit: (id: string) => void;
   isOver?: boolean;
   onRenameGroup: (groupId: string, newTitle: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
@@ -139,6 +145,7 @@ const BoardLane = ({
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const completedTasks = tasks.filter(task => task.completed);
   const incompleteTasks = tasks.filter(task => !task.completed);
@@ -149,6 +156,9 @@ const BoardLane = ({
         <h3>{title}</h3>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="ml-2">{tasks.length}</Badge>
+          <Button variant="ghost" size="icon" className="h-6 w-6 p-0" onClick={() => onEdit(id)}>
+            <List className="h-3.5 w-3.5" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 p-0" onClick={onAddTask}>
             <Plus className="h-3.5 w-3.5" />
           </Button>
@@ -175,6 +185,33 @@ const BoardLane = ({
             />
           )})}
         </SortableContext>
+        {completedTasks.length > 0 && (
+          <div className="mt-4">
+            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setShowCompleted(!showCompleted)}>
+              Completed ({completedTasks.length})
+            </Button>
+            {showCompleted && (
+              <div className="mt-2 space-y-3">
+                {completedTasks.map((task) => {
+                  const assignee = staffMembers.find(s => s.email === task.assignee);
+                  return (
+                    <TaskCard
+                      key={task.id}
+                      {...task}
+                      assignee={assignee}
+                      onEdit={() => onEditTask(task.id)}
+                      onDelete={() => onDeleteTask(task.id)}
+                      onComplete={onToggleComplete}
+                      onPriorityChange={onPriorityChange}
+                      onAssigneeChange={onAssigneeChange}
+                      onStatusChange={onStatusChange}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -239,6 +276,7 @@ const TaskListView: React.FC<{
     const flattened: (Task & { columnId: string, columnTitle: string })[] = [];
     Object.entries(tasks).forEach(([columnId, columnTasks]) => {
       const bucketTitle = buckets.find(b => b.id === columnId)?.title || columnId;
+      
       columnTasks.forEach(task => {
         flattened.push({
           ...task,
@@ -260,8 +298,8 @@ const TaskListView: React.FC<{
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
             <th className="text-xs font-medium text-left p-3 text-muted-foreground w-10"></th>
-            <th className="text-xs font-medium text-left p-3 text-muted-foreground">Title</th>
-            <th className="text-xs font-medium text-left p-3 text-muted-foreground">Status</th>
+            <th className="text-xs font-medium text-left p-3 text-muted-foreground">Tasks/Operations</th>
+            <th className="text-xs font-medium text-left p-3 text-muted-foreground">Group</th>
             <th className="text-xs font-medium text-left p-3 text-muted-foreground">Priority</th>
             <th className="text-xs font-medium text-left p-3 text-muted-foreground">Due Date</th>
             <th className="text-xs font-medium text-left p-3 text-muted-foreground">Assignee</th>
@@ -303,7 +341,6 @@ const TaskListView: React.FC<{
 
 interface NewTasksTabProps {
   tasks: Task[];
-  kras: Kra[]; // Add kras to props
   addTask: (task: Omit<Task, 'id'>) => void;
   editTask: (id: string, task: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -318,11 +355,10 @@ interface NewTasksTabProps {
 
 export const TasksTab: React.FC<NewTasksTabProps> = ({ 
   tasks, 
-  kras, 
   addTask, 
   editTask, 
-  deleteTask, 
-  staffMembers, 
+  deleteTask,
+  staffMembers,
   objectives,
   setEditingTask,
   setIsDialogOpen,
@@ -330,16 +366,13 @@ export const TasksTab: React.FC<NewTasksTabProps> = ({
 }) => {
   const [boardData, setBoardData] = useState<BoardData>({});
   const [taskBuckets, setTaskBuckets] = useState(initialBuckets);
-  const [kraBuckets, setKraBuckets] = useState<Bucket[]>([]);
   const [activeDragItem, setActiveDragItem] = useState<Task | null>(null);
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
   const { toast } = useToast();
+  const [isAddingGroup, setIsAddingGroup] = useState<boolean>(false);
+  const [newGroupName, setNewGroupName] = useState<string>('');
 
   useEffect(() => {
-    // Process KRAs
-    const processedKraBuckets = kras.map(kra => ({ id: kra.id.toString(), title: kra.title.toUpperCase() }));
-    setKraBuckets(processedKraBuckets);
-
     // Initialize board data structure
     const newBoardData: BoardData = {};
 
@@ -347,23 +380,9 @@ export const TasksTab: React.FC<NewTasksTabProps> = ({
     initialBuckets.forEach(bucket => {
       newBoardData[bucket.id] = tasks.filter(task => task.status === bucket.id);
     });
-
-    // Populate KRAs and their KPIs
-    processedKraBuckets.forEach(bucket => {
-      const kra = kras.find(k => k.id.toString() === bucket.id);
-      newBoardData[bucket.id] = kra ? (kra.unitKpis || []).map(kpi => ({
-        id: kpi.id.toString(),
-        title: kpi.name,
-        description: kpi.description || '',
-        status: 'todo', // Default status for KPIs
-        priority: 'medium',
-        assignee: kpi.assignees ? (Array.isArray(kpi.assignees) ? kpi.assignees[0]?.email : kpi.assignees) : '',
-        dueDate: kpi.target_date || '',
-      })) : [];
-    });
     
     setBoardData(newBoardData);
-  }, [tasks, kras]);
+  }, [tasks]);
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -410,9 +429,95 @@ export const TasksTab: React.FC<NewTasksTabProps> = ({
 
   const confirmDeleteItem = () => {
     if (itemToDelete) {
-      deleteTask(itemToDelete.id);
+      if (itemToDelete.type === 'task') {
+        deleteTask(itemToDelete.id);
+      } else if (itemToDelete.type === 'group') {
+        const groupId = itemToDelete.id;
+        setTaskBuckets(prev => prev.filter(b => b.id !== groupId));
+        setBoardData(prev => {
+          const newBoardData = { ...prev };
+          delete newBoardData[groupId];
+          return newBoardData;
+        });
+      }
       setItemToDelete(null);
     }
+  };
+
+  const handleDeleteGroup = (groupId: string) => {
+    const group = taskBuckets.find(b => b.id === groupId);
+    if (group) {
+      setItemToDelete({ type: 'group', id: groupId, name: group.title });
+    }
+  };
+
+  const handleSaveNewGroup = () => {
+    const trimmedName = newGroupName.trim();
+    if (!trimmedName) return;
+
+    const newBucketId = `bucket-${Date.now()}`;
+    const newBucket: Bucket = { id: newBucketId, title: trimmedName };
+
+    setTaskBuckets(prev => [...prev, newBucket]);
+    setBoardData(prev => ({ ...prev, [newBucketId]: [] }));
+
+    setIsAddingGroup(false);
+    setNewGroupName('');
+  };
+
+  const handleCancelAddGroup = () => {
+    setIsAddingGroup(false);
+    setNewGroupName('');
+  };
+
+  const handleToggleComplete = (taskId: string, completed: boolean) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task && completed && task.recurrence && task.recurrence !== 'none') {
+      const now = new Date();
+      let newStartDate: Date | undefined;
+      let newDueDate: string | undefined;
+
+      if (task.startDate) {
+        const startDate = new Date(task.startDate);
+        switch (task.recurrence) {
+          case 'daily':
+            newStartDate = addDays(startDate, 1);
+            break;
+          case 'weekly':
+            newStartDate = addWeeks(startDate, 1);
+            break;
+          case 'monthly':
+            newStartDate = addMonths(startDate, 1);
+            break;
+        }
+      }
+
+      if (task.dueDate) {
+        const dueDate = new Date(task.dueDate);
+        switch (task.recurrence) {
+          case 'daily':
+            newDueDate = addDays(dueDate, 1).toISOString();
+            break;
+          case 'weekly':
+            newDueDate = addWeeks(dueDate, 1).toISOString();
+            break;
+          case 'monthly':
+            newDueDate = addMonths(dueDate, 1).toISOString();
+            break;
+        }
+      }
+
+      if (newStartDate) {
+        const newTask: Omit<Task, 'id'> = {
+          ...task,
+          startDate: newStartDate,
+          dueDate: newDueDate || '',
+          completed: false,
+        };
+        addTask(newTask);
+      }
+    }
+    editTask(taskId, { completed });
   };
 
   return (
@@ -425,61 +530,65 @@ export const TasksTab: React.FC<NewTasksTabProps> = ({
                 {/* Tasks/Operations Section */}
                 <div className="flex flex-col">
                   <h2 className="text-2xl font-bold tracking-tight mb-4 shrink-0">Tasks/Operations</h2>
-                  <div className="flex space-x-4">
-                    {taskBuckets.map(bucket => (
-                      <BoardLane
-                        key={bucket.id}
-                        id={bucket.id}
-                        title={bucket.title}
-                        tasks={boardData[bucket.id] || []}
-                        staffMembers={staffMembers}
-                        onAddTask={handleCreateTask}
-                        onEditTask={handleEditTask}
-                        onDeleteTask={handleDeleteTask}
-                        onDeleteGroup={() => {}}
-                        onRenameGroup={() => {}}
-                        onToggleComplete={() => {}}
-                        onPriorityChange={() => {}}
-                        onAssigneeChange={() => {}}
-                        onStatusChange={() => {}}
-                        dropTargetInfo={{ columnId: null, overItemId: null, isBottomHalf: false }}
-                      />
-                    ))}
+                  <div className="flex items-start space-x-4">
+                    <div className="flex space-x-4 overflow-x-auto pb-4">
+                      {taskBuckets.map(bucket => (
+                        <BoardLane
+                          key={bucket.id}
+                          id={bucket.id}
+                          title={bucket.title}
+                          tasks={boardData[bucket.id] || []}
+                          staffMembers={staffMembers}
+                          onAddTask={handleCreateTask}
+                          onEditTask={handleEditTask}
+                          onEdit={() => {}}
+                          onDeleteTask={handleDeleteTask}
+                          onDeleteGroup={handleDeleteGroup}
+                          onRenameGroup={() => {}}
+                          onToggleComplete={() => {}}
+                          onPriorityChange={() => {}}
+                          onAssigneeChange={() => {}}
+                          onStatusChange={() => {}}
+                          dropTargetInfo={{ columnId: null, overItemId: null, isBottomHalf: false }}
+                        />
+                      ))}
+                    </div>
+                    {isAddingGroup ? (
+                      <div className="w-80 flex-shrink-0">
+                        <div className="bg-muted/30 dark:bg-muted/20 rounded-lg p-3">
+                          <Input
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            placeholder="Group name"
+                            autoFocus
+                            className="mb-2"
+                          />
+                          <div className="flex space-x-2">
+                            <Button size="sm" onClick={handleSaveNewGroup}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={handleCancelAddGroup}>Cancel</Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="h-auto flex-shrink-0 w-80 border-dashed py-3 bg-muted/20 dark:bg-muted/10 hover:bg-muted/30 dark:hover:bg-muted/20"
+                        onClick={() => setIsAddingGroup(true)}
+                      >
+                        <Plus className="mr-2 h-5 w-5" />
+                        Add New Group
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                {/* KRA Section */}
-                <div className="flex flex-col">
-                  <h2 className="text-2xl font-bold tracking-tight mb-4 shrink-0">Key Result Areas (KRAs)</h2>
-                  <div className="flex space-x-4">
-                    {kraBuckets.map(bucket => (
-                      <BoardLane
-                        key={bucket.id}
-                        id={bucket.id}
-                        title={bucket.title}
-                        tasks={boardData[bucket.id] || []}
-                        staffMembers={staffMembers}
-                        onAddTask={handleCreateTask}
-                        onEditTask={handleEditTask}
-                        onDeleteTask={handleDeleteTask}
-                        onDeleteGroup={() => {}}
-                        onRenameGroup={() => {}}
-                        onToggleComplete={() => {}}
-                        onPriorityChange={() => {}}
-                        onAssigneeChange={() => {}}
-                        onStatusChange={() => {}}
-                        dropTargetInfo={{ columnId: null, overItemId: null, isBottomHalf: false }}
-                      />
-                    ))}
-                  </div>
-                </div>
               </div>
             ) : viewMode === 'grid' ? (
               <TaskGridView
                 tasks={boardData}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
-                onToggleComplete={() => {}}
+                onToggleComplete={handleToggleComplete}
                 onPriorityChange={() => {}}
                 onAssigneeChange={() => {}}
                 onStatusChange={() => {}}
@@ -491,7 +600,7 @@ export const TasksTab: React.FC<NewTasksTabProps> = ({
                 buckets={taskBuckets}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
-                onToggleComplete={() => {}}
+                onToggleComplete={handleToggleComplete}
                 onPriorityChange={() => {}}
                 onAssigneeChange={() => {}}
                 onStatusChange={() => {}}
@@ -509,7 +618,9 @@ export const TasksTab: React.FC<NewTasksTabProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the task "{itemToDelete?.name}".
+              {itemToDelete?.type === 'task'
+                ? `This will permanently delete the task "${itemToDelete?.name}".`
+                : `This will permanently delete the group "${itemToDelete?.name}" and all its tasks.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

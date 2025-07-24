@@ -1705,21 +1705,6 @@ const TicketManager: React.FC = () => {
             </Button>
           )}
           
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="border-dashed"
-            onClick={() => {
-              setIsAddingGroup(true);
-              if (viewMode !== 'board') {
-                setViewMode('board');
-              }
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Group
-          </Button>
-          
           <div className="flex items-center gap-2">
             <div className="px-3 py-1 border rounded-md flex items-center gap-2 bg-white dark:bg-gray-800">
               <Button
@@ -1893,4 +1878,4 @@ const TicketManager: React.FC = () => {
   );
 };
 
-export default TicketManager; 
+export default TicketManager;

@@ -144,12 +144,11 @@ const Unit = () => {
 
   // Active Tab State for the main page sections
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [kraSectionTab, setKraSectionTab] = useState<string>("kpis"); // Renamed from kraSectionTab
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('board');
-  // Active Tab State for the KRAs section specifically
-  const [kraSectionTab, setKraSectionTab] = useState<string>("kpis");
 
   // Objective State Management
   const [objectivesData, setObjectivesData] = useState<Objective[]>([]);
@@ -346,6 +345,7 @@ const Unit = () => {
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="tasks">Tasks/Daily Operations</TabsTrigger>
+              <TabsTrigger value="kras-objectives">KRAs & Objectives</TabsTrigger>
               <TabsTrigger value="projects">Projects</TabsTrigger>
               <TabsTrigger value="risks">Risks</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -412,7 +412,6 @@ const Unit = () => {
           <TabsContent value="tasks" className="space-y-6">
             <TasksTab
               tasks={taskState.data.filter(task => task.title.toLowerCase().includes(searchQuery.toLowerCase()))}
-              kras={combinedKrasForTabs}
               addTask={taskState.add}
               editTask={taskState.update}
               deleteTask={taskState.remove}
@@ -452,6 +451,21 @@ const Unit = () => {
               staffMembers={staffMembers}
               projects={projectState.data}
               objectives={objectivesData}
+            />
+          </TabsContent>
+
+          {/* KRAs & Objectives Tab */}
+          <TabsContent value="kras-objectives" className="space-y-6">
+            <KRAsTab
+              kras={combinedKrasForTabs}
+              objectivesData={objectivesData}
+              onSaveObjective={handleSaveObjective}
+              onDeleteObjective={handleDeleteObjective}
+              units={derivedUnits}
+              staffMembers={staffMembers}
+              onDataRefresh={handleRefreshAllData}
+              activeTab={kraSectionTab}
+              onTabChange={setKraSectionTab}
             />
           </TabsContent>
           

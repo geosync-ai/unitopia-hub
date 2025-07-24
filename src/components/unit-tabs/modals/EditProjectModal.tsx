@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import ChecklistSection from '@/components/ChecklistSection';
 import { Project } from '@/types';
 import { StaffMember } from '@/types/staff';
@@ -82,14 +83,15 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Edit Project</DialogTitle>
-          <DialogDescription>
-            Update project details using the form below
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
+<DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh]">
+  <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+    <DialogTitle>Edit Project</DialogTitle>
+    <DialogDescription>
+      Update project details using the form below
+    </DialogDescription>
+  </DialogHeader>
+  <ScrollArea className="flex-grow p-6">
+    <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="project-title">Project Name <span className="text-destructive">*</span></Label>
             <Input 
@@ -125,9 +127,9 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
                     <SelectItem value="_loading" disabled>Loading staff members...</SelectItem>
                   ) : staffMembers && staffMembers.length > 0 ? (
                     staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.name}> 
-                        {staff.name} ({staff.job_title})
-                      </SelectItem>
+<SelectItem key={staff.id} value={staff.name}> 
+  {staff.name} ({staff.jobTitle})
+</SelectItem>
                     ))
                   ) : (
                     <SelectItem value="_no_staff" disabled>No staff members found</SelectItem>
@@ -212,20 +214,21 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
           </div>
         </div>
         
-        <div className="border-t pt-4 mt-2">
-          <ChecklistSection 
-            items={editedProject.checklist || []}
-            onChange={(items) => handleChange('checklist', items)}
-          />
-        </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save Changes</Button>
-        </DialogFooter>
+  <div className="border-t pt-4 mt-2">
+    <ChecklistSection 
+      items={editedProject.checklist || []}
+      onChange={(items) => handleChange('checklist', items)}
+    />
+  </div>
+</ScrollArea>
+
+<DialogFooter className="p-6 pt-4 border-t flex-shrink-0">
+  <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+  <Button onClick={handleSave}>Save Changes</Button>
+</DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default EditProjectModal; 
+export default EditProjectModal;
