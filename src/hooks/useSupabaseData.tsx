@@ -16,9 +16,9 @@ import {
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 // --- End Add Realtime types ---
 
-// Define the type for the 'id' field, assuming it's always string or undefined
+// Define the type for the 'id' field, allowing string or number
 interface Identifiable {
-  id?: string;
+  id?: string | number;
   assigned_to_email?: string | null; // Ensure this is defined for all T
 }
 
@@ -426,50 +426,33 @@ export function useSupabaseData<T extends Identifiable>(
   return { data, loading, error, add, update, remove, refresh };
 }
 
-// Specific hooks (optional, could just use useSupabaseData directly)
-// Example: Using the generic hook for tasks
-// --- Define types for specific entities if not already defined elsewhere ---
-// Assuming types like Task, Project, Risk, UserAsset, KRA, KPI, Objective exist
-// Example (replace with actual imports or definitions):
-type Task = Identifiable & { name: string; /* ... other task fields */ };
-type Project = Identifiable & { title: string; /* ... other project fields */ };
-type Risk = Identifiable & { description: string; /* ... other risk fields */ };
-// Assuming UserAsset is already defined
-import { UserAsset } from '@/types'; // Corrected import path
-type KRA = Identifiable & { kra_title: string; /* ... */ };
-type KPI = Identifiable & { kpi_metric: string; /* ... */ };
-type Objective = Identifiable & { objective_name: string; /* ... */ };
+import { Task } from '@/components/unit-tabs/TasksTab';
+import { Project, Risk, UserAsset, Kra, Kpi, Objective } from '@/types';
 
 export function useTasksData(initialData: Task[] = []) {
-  return useSupabaseData<Task>('tasks', initialData); // Specify concrete type
+  return useSupabaseData<Task>('tasks', initialData);
 }
 
-// Example: Using the generic hook for projects
 export function useProjectsData(initialData: Project[] = []) {
-  return useSupabaseData<Project>('projects', initialData); // Specify concrete type
+  return useSupabaseData<Project>('projects', initialData);
 }
 
-// Example: Using the generic hook for risks
 export function useRisksData(initialData: Risk[] = []) {
-  return useSupabaseData<Risk>('risks', initialData); // Specify concrete type
+  return useSupabaseData<Risk>('risks', initialData);
 }
 
-// Example: Using the generic hook for assets
-export function useAssetsData(initialData: UserAsset[] = []) { // Use concrete UserAsset type
-  return useSupabaseData<UserAsset>('assets', initialData); // Specify concrete type
+export function useAssetsData(initialData: UserAsset[] = []) {
+  return useSupabaseData<UserAsset>('assets', initialData);
 }
 
-// Example: Using the generic hook for KRAs
-export function useKRAsData(initialData: KRA[] = []) {
-  return useSupabaseData<KRA>('kras', initialData); // Specify concrete type
+export function useKRAsData(initialData: Kra[] = []) {
+  return useSupabaseData<Kra>('kras', initialData);
 }
 
-// Example: Using the generic hook for KPIs
-export function useKPIsData(initialData: KPI[] = []) {
-    return useSupabaseData<KPI>('kpis', initialData); // Specify concrete type
+export function useKPIsData(initialData: Kpi[] = []) {
+    return useSupabaseData<Kpi>('kpis', initialData);
 }
 
-// Example: Using the generic hook for Objectives
 export function useObjectivesData(initialData: Objective[] = []) {
-    return useSupabaseData<Objective>('objectives', initialData); // Specify concrete type
-} 
+    return useSupabaseData<Objective>('objectives', initialData);
+}

@@ -18,7 +18,9 @@ import {
   Mail, MoreVertical, Settings, MoreHorizontal, 
   AlertTriangle, CheckCircle, Clock, Target, Calendar, BarChart2, 
   Flag, Briefcase, Download, ArrowUp, ArrowDown, Upload, Play, ArrowRight,
-  Edit, Eye, FileText, Filter, Plus, Trash2, User as UserIcon
+  Edit, Eye, FileText, Filter, Plus, Trash2, User as UserIcon,
+  Kanban,
+  List
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import KRATimeline from '@/components/KRATimeline';
@@ -60,7 +62,7 @@ import {
   useKRAsData,
   useSupabaseData
 } from '@/hooks/useSupabaseData';
-import { OrganizationUnit, Objective, Kra, Kpi } from '@/types';
+import { OrganizationUnit, Objective, Kra, Kpi, KRA } from '@/types';
 import { useStaffByDepartment } from '@/hooks/useStaffByDepartment';
 import { StaffMember } from '@/types/staff';
 import { objectivesService } from '@/integrations/supabase/unitService';
@@ -68,7 +70,8 @@ import DivisionStaffMap from '@/utils/divisionStaffMap';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 // Import tab components
-import { TasksTab } from '@/components/unit-tabs/TasksTab';
+import TaskDialog from '@/components/unit-tabs/TaskDialog';
+import { TasksTab, Task } from '@/components/unit-tabs/TasksTab';
 import { ProjectsTab } from '@/components/unit-tabs/ProjectsTab';
 import { RisksTab } from '@/components/unit-tabs/RisksTab';
 import { OverviewTab } from '@/components/unit-tabs/OverviewTab';
@@ -81,6 +84,8 @@ const statusOptions = [
   { value: 'review', label: 'Review' },
   { value: 'done', label: 'Done' }
 ];
+
+type ViewMode = 'board' | 'grid' | 'list';
 
 // Define structure for unit data (now representing departments)
 interface UnitData {
@@ -139,6 +144,10 @@ const Unit = () => {
 
   // Active Tab State for the main page sections
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('board');
   // Active Tab State for the KRAs section specifically
   const [kraSectionTab, setKraSectionTab] = useState<string>("kpis");
 
@@ -199,6 +208,20 @@ const Unit = () => {
     }
   }, [toast, handleRefreshAllData, fetchObjectives]); // Added fetchObjectives just in case, though handleRefresh calls it
 
+  const handleCreateTask = () => {
+    setEditingTask(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleTaskSubmit = (taskData: Partial<Task>) => {
+    if (editingTask) {
+      taskState.update(editingTask.id, taskData);
+    } else {
+      taskState.add(taskData as Omit<Task, 'id'>);
+    }
+    setIsDialogOpen(false);
+  };
+
   // --- Derive Departments from DivisionStaffMap ---
   const derivedUnits = useMemo((): UnitData[] => {
     try {
@@ -226,30 +249,59 @@ const Unit = () => {
   }, [fetchObjectives, taskState.refresh, projectState.refresh, riskState.refresh, kraState.refresh, kpiState.refresh]);
 
   // --- Combine KRAs and KPIs --- 
-  const combinedKras = useMemo(() => {
-    // Ensure IDs are strings for consistent comparison
-    const kras = (kraState.data || []).map(kra => ensureStringId(kra)); 
-    const kpis = (kpiState.data || []).map(kpi => ensureStringId(kpi)); 
+  const combinedKrasForTabs = useMemo(() => {
+    const kras = kraState.data || [];
+    const kpis = kpiState.data || [];
 
-    const kpisByKraId: Record<string, Kpi[]> = {};
-
-    kpis.forEach(kpi => {
-      // Use optional chaining and nullish coalescing for safety
-      const kraIdStr = kpi.kra_id?.toString(); 
-      if (kraIdStr) {
-        if (!kpisByKraId[kraIdStr]) {
-          kpisByKraId[kraIdStr] = [];
+    const kpisByKraId = kpis.reduce((acc, kpi) => {
+      const kraId = kpi.kra_id;
+      if (kraId) {
+        if (!acc[kraId]) {
+          acc[kraId] = [];
         }
-        kpisByKraId[kraIdStr].push(kpi);
+        acc[kraId].push(kpi);
       }
-    });
+      return acc;
+    }, {} as Record<string | number, Kpi[]>);
 
-    return kras.map(kra => ({
-      ...kra,
-      // Use kra.id (which is now guaranteed string or undefined) for lookup
-      unitKpis: kra.id ? (kpisByKraId[kra.id] || []) : [] 
-    }));
+    return kras.map((kra): Kra => {
+      const kpisForKra: Kpi[] = kpisByKraId[kra.id] || [];
+      return {
+        ...kra,
+        unitKpis: kpisForKra,
+      };
+    });
   }, [kraState.data, kpiState.data]);
+
+  const combinedKrasForOverview = useMemo(() => {
+    return (kraState.data || []).map((kra): KRA => {
+      const objective = objectivesData.find(o => o.id === kra.objective_id);
+      return {
+        id: kra.id.toString(),
+        name: kra.title,
+        objectiveId: kra.objective_id?.toString() ?? '',
+        objectiveName: objective?.title ?? 'N/A',
+        department: kra.department ?? 'N/A',
+        responsible: kra.owner?.name ?? 'N/A',
+        startDate: kra.startDate ? new Date(kra.startDate) : new Date(),
+        endDate: kra.targetDate ? new Date(kra.targetDate) : new Date(),
+        progress: 0, // Default value
+        status: 'open', // Default value
+        kpis: [], // Default value
+        createdAt: kra.createdAt ?? new Date().toISOString(),
+        updatedAt: kra.updatedAt ?? new Date().toISOString(),
+        title: kra.title,
+        objective_id: kra.objective_id,
+        unit: kra.unit,
+        unitId: kra.unitId,
+        targetDate: kra.targetDate,
+        unitKpis: [],
+        owner: kra.owner,
+        ownerId: kra.ownerId,
+        unitObjectives: kra.unitObjectives,
+      };
+    });
+  }, [kraState.data, objectivesData]);
 
   // Determine if data loading is complete
   const isDataLoading = objectivesLoading || taskState.loading || projectState.loading || riskState.loading || kraState.loading || kpiState.loading;
@@ -290,14 +342,59 @@ const Unit = () => {
 
       {!isDataLoading && !hasDataLoadingError && (
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks/Daily Operations</TabsTrigger>
-            <TabsTrigger value="kras">KRAs</TabsTrigger>
-            <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="risks">Risks</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between mb-6">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks/Daily Operations</TabsTrigger>
+              <TabsTrigger value="projects">Projects</TabsTrigger>
+              <TabsTrigger value="risks">Risks</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+            </TabsList>
+            {activeTab === 'tasks' && (
+              <div className="flex items-center gap-4">
+                <Input 
+                  placeholder="Search tasks..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="max-w-sm"
+                />
+                 <div className="flex items-center gap-2">
+                  <Button
+                    variant={viewMode === 'board' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('board')}
+                    className="h-8 px-2"
+                  >
+                    <Kanban className="h-4 w-4 mr-1" />
+                    Board
+                  </Button>
+                  <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                    className="h-8 px-2"
+                  >
+                    <LayoutGrid className="h-4 w-4 mr-1" />
+                    Grid
+                  </Button>
+                  <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="h-8 px-2"
+                  >
+                    <List className="h-4 w-4 mr-1" />
+                    List
+                  </Button>
+                </div>
+                <Button onClick={handleCreateTask}>
+                  <Plus className="mr-2 h-4 w-4" /> New Task
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
@@ -305,8 +402,8 @@ const Unit = () => {
               projects={projectState.data}
               tasks={taskState.data}
               risks={riskState.data}
-              // kras={combinedKras} // Pass raw KRAs for debugging
-              kras={combinedKras} // Pass the combined data structure
+              // kras={combinedKrasForOverview} // Pass raw KRAs for debugging
+              kras={combinedKrasForOverview} // Pass the combined data structure
               objectives={objectivesData}
             />
           </TabsContent>
@@ -314,7 +411,8 @@ const Unit = () => {
           {/* Tasks/Daily Operations Tab */}
           <TabsContent value="tasks" className="space-y-6">
             <TasksTab
-              tasks={taskState.data}
+              tasks={taskState.data.filter(task => task.title.toLowerCase().includes(searchQuery.toLowerCase()))}
+              kras={combinedKrasForTabs}
               addTask={taskState.add}
               editTask={taskState.update}
               deleteTask={taskState.remove}
@@ -322,22 +420,9 @@ const Unit = () => {
               onRetry={taskState.refresh}
               staffMembers={staffMembers}
               objectives={objectivesData}
-            />
-          </TabsContent>
-
-          {/* KRAs Tab */}
-          <TabsContent value="kras" className="space-y-6">
-            <KRAsTab
-              // kras={combinedKras} // Pass raw KRAs for debugging
-              kras={combinedKras} // Pass the combined data structure
-              objectivesData={objectivesData}
-              onSaveObjective={handleSaveObjective}
-              onDeleteObjective={handleDeleteObjective}
-              units={derivedUnits}
-              staffMembers={staffMembers}
-              onDataRefresh={handleRefreshAllData}
-              activeTab={kraSectionTab}
-              onTabChange={setKraSectionTab}
+              setEditingTask={setEditingTask}
+              setIsDialogOpen={setIsDialogOpen}
+              viewMode={viewMode}
             />
           </TabsContent>
 
@@ -374,7 +459,7 @@ const Unit = () => {
           <TabsContent value="reports" className="space-y-6">
             <ReportsTab
               tasks={taskState.data}
-              kras={combinedKras}
+              kras={combinedKrasForTabs}
               projects={projectState.data}
               risks={riskState.data}
               objectives={objectivesData}
@@ -382,6 +467,14 @@ const Unit = () => {
           </TabsContent>
         </Tabs>
       )}
+      <TaskDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSubmit={handleTaskSubmit}
+        initialData={editingTask}
+        staffMembers={staffMembers}
+        buckets={[]}
+      />
     </PageLayout>
   );
 };
