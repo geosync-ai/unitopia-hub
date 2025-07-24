@@ -783,7 +783,7 @@ const AIHub = () => {
           >
             {shouldShowPlaceholder ? (
               <div className="flex flex-col items-center justify-center h-full">
-                <Bot size={isFullScreenInstance ? 48 : 36} className="text-gray-400 mb-4" />
+                <img src="/images/SCPNG Original Logo.png" alt="SCPNG Logo" className="w-24 h-24 mb-4" />
                 <h2 className={cn("font-semibold text-gray-600", isFullScreenInstance ? "text-xl" : "text-lg")}>
                   What can I help with?
                 </h2>

@@ -232,18 +232,135 @@ class GalleryService {
   }
 
   /**
-   * Delete a photo (soft delete by setting is_active to false)
+   * Permanently delete a photo from storage and database
    */
   async deletePhoto(photoId: string): Promise<void> {
     try {
-      const { error } = await supabase
+      console.log(`🗑️ [GalleryService] Attempting to delete photo: ${photoId}`);
+
+      // 1. Get the photo details to find the file path
+      const { data: photo, error: fetchError } = await supabase
         .from('gallery_photos')
-        .update({ is_active: false })
+        .select('image_url')
+        .eq('id', photoId)
+        .single();
+
+      if (fetchError || !photo) {
+        console.error('❌ [GalleryService] Error fetching photo details:', fetchError);
+        throw new Error('Photo not found or could not be fetched.');
+      }
+
+      console.log(`📄 [GalleryService] Photo details fetched:`, photo);
+
+      // 2. Delete the file from Supabase storage
+      // Extract the file path from the full URL
+      const bucketName = 'gallery-photos'; // Make sure this matches your bucket name
+      const urlParts = photo.image_url.split(`${bucketName}/`);
+      const filePath = urlParts.length > 1 ? urlParts[1] : null;
+
+      if (filePath) {
+        console.log(`🔥 [GalleryService] Deleting file from storage: ${filePath}`);
+        const { error: storageError } = await supabase.storage
+          .from(bucketName)
+          .remove([filePath]);
+
+        if (storageError) {
+          // Log the error but proceed to delete the DB record anyway
+          console.error('⚠️ [GalleryService] Error deleting file from storage:', storageError);
+          // Depending on requirements, you might want to throw an error here
+          // For now, we'll allow the DB record to be deleted even if storage fails
+        } else {
+          console.log(`✅ [GalleryService] File deleted from storage successfully.`);
+        }
+      } else {
+        console.warn(`⚠️ [GalleryService] Could not determine file path from URL: ${photo.image_url}`);
+      }
+
+      // 3. Delete the photo record from the database
+      const { error: dbError } = await supabase
+        .from('gallery_photos')
+        .delete()
         .eq('id', photoId);
 
-      if (error) throw error;
+      if (dbError) {
+        console.error('❌ [GalleryService] Error deleting photo from database:', dbError);
+        throw dbError;
+      }
+
+      console.log(`✅ [GalleryService] Photo record deleted from database successfully.`);
     } catch (error) {
-      console.error('Error deleting gallery photo:', error);
+      console.error('💥 [GalleryService] Final error in deletePhoto:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Permanently delete multiple photos from storage and database
+   */
+  async deleteMultiplePhotos(photoIds: string[]): Promise<void> {
+    try {
+      console.log(`🗑️ [GalleryService] Attempting to delete multiple photos:`, photoIds);
+
+      if (!photoIds || photoIds.length === 0) {
+        console.log('⚠️ [GalleryService] No photo IDs provided for deletion.');
+        return;
+      }
+
+      // 1. Get photo details for all photos to be deleted
+      const { data: photos, error: fetchError } = await supabase
+        .from('gallery_photos')
+        .select('id, image_url')
+        .in('id', photoIds);
+
+      if (fetchError) {
+        console.error('❌ [GalleryService] Error fetching details for multiple photos:', fetchError);
+        throw fetchError;
+      }
+
+      if (!photos || photos.length === 0) {
+        console.warn('⚠️ [GalleryService] None of the provided photo IDs were found.');
+        return;
+      }
+
+      console.log(`📄 [GalleryService] Details fetched for ${photos.length} photos.`);
+
+      // 2. Delete files from Supabase storage
+      const bucketName = 'gallery-photos';
+      const filePaths = photos
+        .map(p => {
+          const urlParts = p.image_url.split(`${bucketName}/`);
+          return urlParts.length > 1 ? urlParts[1] : null;
+        })
+        .filter((path): path is string => path !== null);
+
+      if (filePaths.length > 0) {
+        console.log(`🔥 [GalleryService] Deleting ${filePaths.length} files from storage.`);
+        const { error: storageError } = await supabase.storage
+          .from(bucketName)
+          .remove(filePaths);
+
+        if (storageError) {
+          console.error('⚠️ [GalleryService] Error deleting files from storage:', storageError);
+          // Continue to delete DB records even if storage deletion fails
+        } else {
+          console.log(`✅ [GalleryService] ${filePaths.length} files deleted from storage.`);
+        }
+      }
+
+      // 3. Delete photo records from the database
+      const { error: dbError } = await supabase
+        .from('gallery_photos')
+        .delete()
+        .in('id', photoIds);
+
+      if (dbError) {
+        console.error('❌ [GalleryService] Error deleting photo records from database:', dbError);
+        throw dbError;
+      }
+
+      console.log(`✅ [GalleryService] ${photoIds.length} photo records deleted from database.`);
+    } catch (error) {
+      console.error('💥 [GalleryService] Final error in deleteMultiplePhotos:', error);
       throw error;
     }
   }
@@ -298,4 +415,4 @@ class GalleryService {
   }
 }
 
-export const galleryService = new GalleryService(); 
+export const galleryService = new GalleryService();

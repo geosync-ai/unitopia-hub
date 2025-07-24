@@ -32,6 +32,7 @@ import AdminAssetsPage from './pages/AdminAssetsPage';
 import { SupabaseAuthProvider } from '@/hooks/useSupabaseAuth';
 import LicensingRegistry from './pages/LicensingRegistry';
 import Forms from './pages/Forms';
+import FillFormPage from './pages/FillFormPage';
 
 // MSAL Imports
 import { MsalProvider, useMsal, useIsAuthenticated } from '@azure/msal-react';
@@ -114,6 +115,12 @@ const AppRoutes = () => {
       <Route path="/forms" element={
         <RoleProtectedRoute requiredPermissions={[{ resource: 'forms', action: 'read' }]}>
           <Forms />
+        </RoleProtectedRoute>
+      } />
+
+      <Route path="/forms/fill/:formId" element={
+        <RoleProtectedRoute requiredPermissions={[{ resource: 'forms', action: 'fill' }]}>
+          <FillFormPage />
         </RoleProtectedRoute>
       } />
       

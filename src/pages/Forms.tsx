@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,7 +21,6 @@ import {
 import { useRoleBasedAuth } from '@/hooks/useRoleBasedAuth';
 import { divisions } from '@/data/divisions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FormModal } from '@/components/forms/FormModal';
 import { FormTemplate as FormTemplateType } from '@/types/forms';
 import { 
   defaultFormTemplates, 
@@ -241,9 +241,8 @@ const Forms: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [selectedDivision, setSelectedDivision] = useState<string>('');
-  const [selectedForm, setSelectedForm] = useState<FormTemplateType | null>(null);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const { user, isAdmin } = useRoleBasedAuth();
+  const navigate = useNavigate();
 
   // Real form templates
   const formTemplates: FormTemplateType[] = [
@@ -290,37 +289,7 @@ const Forms: React.FC = () => {
   }, [filteredCategories]);
 
   const handleFormAccess = (template: FormTemplateType) => {
-    setSelectedForm(template);
-    setIsFormModalOpen(true);
-  };
-
-  const handleFormSubmit = async (data: Record<string, any>) => {
-    // In a real implementation, this would submit to the backend
-    console.log('Form submitted:', data);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // For demo purposes, just log the data
-    console.log('Submitted form data:', {
-      formId: selectedForm?.id,
-      submittedBy: user?.user_email,
-      submittedAt: new Date().toISOString(),
-      data
-    });
-  };
-
-  const handleFormSave = async (data: Record<string, any>) => {
-    // In a real implementation, this would save as draft to the backend
-    console.log('Form saved as draft:', data);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  };
-
-  const handleCloseModal = () => {
-    setIsFormModalOpen(false);
-    setSelectedForm(null);
+    navigate(`/forms/fill/${template.id}`);
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -505,19 +474,8 @@ const Forms: React.FC = () => {
         </Tabs>
       </div>
       
-      {/* Form Modal */}
-      {selectedForm && (
-        <FormModal
-          isOpen={isFormModalOpen}
-          onClose={handleCloseModal}
-          template={selectedForm}
-          mode="fill"
-          onSubmit={handleFormSubmit}
-          onSave={handleFormSave}
-        />
-      )}
     </PageLayout>
   );
 };
 
-export default Forms; 
+export default Forms;

@@ -7,8 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, X, Loader2, Plus, Calendar, Image } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabaseClient';
-import { useMicrosoftGraph } from '@/hooks/useMicrosoftGraph';
+import { galleryService } from '@/integrations/supabase/galleryService';
+import { useSharePointUpload } from '@/hooks/useSharePointUpload';
 import { v4 as uuidv4 } from 'uuid';
 
 // SharePoint Configuration for Gallery Photos
@@ -20,7 +20,7 @@ interface GalleryEvent {
   id: string;
   title: string;
   date: string;
-  description: string;
+  description?: string;
   year: number;
 }
 
@@ -49,7 +49,7 @@ const AddPhotoModal: React.FC<AddPhotoModalProps> = ({ isOpen, onClose, onPhotoA
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const graphContext = useMicrosoftGraph();
+  const { uploadFile: uploadFileToSharePoint, isLoading: isUploadingSharePoint, error: sharePointError } = useSharePointUpload();
 
   // Load available events
   useEffect(() => {
@@ -68,14 +68,8 @@ const AddPhotoModal: React.FC<AddPhotoModalProps> = ({ isOpen, onClose, onPhotoA
   const loadEvents = async () => {
     setIsLoadingEvents(true);
     try {
-      const { data, error } = await supabase
-        .from('gallery_events')
-        .select('id, title, date, description, year')
-        .eq('is_active', true)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      setAvailableEvents(data || []);
+      const events = await galleryService.getEvents();
+      setAvailableEvents(events);
     } catch (error: any) {
       console.error('Error loading events:', error);
       toast.error('Failed to load events');
@@ -162,21 +156,15 @@ const AddPhotoModal: React.FC<AddPhotoModalProps> = ({ isOpen, onClose, onPhotoA
     }
 
     try {
-      const { data, error } = await supabase
-        .from('gallery_events')
-        .insert({
-          title: newEventTitle.trim(),
-          date: newEventDate,
-          description: newEventDescription.trim() || null,
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
+      const newEvent = await galleryService.createEvent({
+        title: newEventTitle.trim(),
+        date: newEventDate,
+        description: newEventDescription.trim() || undefined,
+      });
       
       toast.success('New event created successfully');
       await loadEvents(); // Refresh events list
-      return data.id;
+      return newEvent.id;
     } catch (error: any) {
       console.error('Error creating event:', error);
       toast.error('Failed to create new event');
@@ -210,13 +198,8 @@ const AddPhotoModal: React.FC<AddPhotoModalProps> = ({ isOpen, onClose, onPhotoA
         // Upload to SharePoint
         const fileName = `${uuidv4()}-${file.name}`;
         
-        if (!graphContext.uploadBinaryFileToSharePoint) {
-          throw new Error('SharePoint upload function not available');
-        }
-
-        const sharePointUrl = await graphContext.uploadBinaryFileToSharePoint(
+        const sharePointUrl = await uploadFileToSharePoint(
           file,
-          fileName,
           SHAREPOINT_SITEPATH,
           SHAREPOINT_LIBRARY_NAME,
           SHAREPOINT_TARGET_FOLDER
@@ -227,22 +210,17 @@ const AddPhotoModal: React.FC<AddPhotoModalProps> = ({ isOpen, onClose, onPhotoA
         }
 
         // Save to database
-        const { data, error } = await supabase
-          .from('gallery_photos')
-          .insert({
-            event_id: eventId,
-            caption: captions[index]?.trim() || null,
-            image_url: sharePointUrl,
-            sharepoint_url: sharePointUrl,
-            file_name: file.name,
-            file_size: file.size,
-            display_order: index + 1,
-          })
-          .select()
-          .single();
+        const photoData = await galleryService.addPhoto({
+          event_id: eventId,
+          caption: captions[index]?.trim() || undefined,
+          image_url: sharePointUrl,
+          sharepoint_url: sharePointUrl,
+          file_name: file.name,
+          file_size: file.size,
+          display_order: index + 1,
+        });
 
-        if (error) throw error;
-        return data;
+        return photoData;
       });
 
       await Promise.all(photoUploads);
@@ -453,4 +431,4 @@ const AddPhotoModal: React.FC<AddPhotoModalProps> = ({ isOpen, onClose, onPhotoA
   );
 };
 
-export default AddPhotoModal; 
+export default AddPhotoModal;
